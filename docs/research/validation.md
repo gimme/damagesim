@@ -322,7 +322,8 @@ item stats that differ. Result: 235 items and runes, 0 open findings, 16 reviewe
 
 **Manual pass.** The script checks categories, not rules, so every damage-relevant rune and the
 medium-confidence items were also read against the wiki descriptions and notes, and each finding
-was reproduced in a simulation. ✓ = also reproduced while writing this up. Not fixed yet:
+was reproduced in a simulation. ✓ = also reproduced while writing this up. All 20 are fixed (see
+Resolution below):
 
 | # | Finding | Where | Effect | Confidence |
 |---|---|---|---|---|
@@ -372,3 +373,51 @@ Stormsurge, Zaz'Zak's, Blackfire burn, Kraken Slayer (1.75× max is right since 
 family, Lethal Tempo, Electrocute, Dark Harvest, Arcane Comet, First Strike, Coup de Grace, Cut
 Down, Last Stand, Scorch, Axiom Arcanist, Absolute Focus, Waterwalking, Legend: Alacrity, Ultimate
 Hunter, Transcendence, and level 19–20 extrapolation.
+
+### Resolution (item and rune audit)
+
+Fixed. "Was → now" numbers are level 18 against 5000 HP and 0 resists unless stated.
+
+| # | Fix |
+|---|---|
+| 1 | Damage over time belongs to the cast instance that started it: mark DoT ticks (Brand, Darius, Teemo, Fizz, Briar, Lillia, Skarner), Twitch's venom, Malzahar's refreshed E ticks, Naafiri's bleed and Mordekaiser's aura. Mark stack and max-stack damage (Akshan's Dirty Fighting, Vayne's Silver Bolts…) belongs to the triggering hit. One Brand Q or one Darius/Teemo/Twitch attack no longer procs Electrocute; a Darius attack plus bleed gives 2 Conqueror stacks, and 2 more 4s later. |
+| 2 | Burn ticks (Liandry's, Blackfire, Fated Ashes, Deathfire Touch) that only aura damage extended don't keep you in combat. Ornn `Q AA W AA E AA AA AA` with Liandry's + Unending Despair: last Anguish 32s → 8s, total 5955 → 3882. |
+| 3 | Press the Attack has its 6s cooldown and keeps stacking while amplified; the amp ends 5s (`OutOfCombatTimer`) after your last damage. Jinx `AA*20`: 2 procs. |
+| 4 | Grasp, Heartsteel and Electrospark ignore reduced on-hit effectiveness (new `fullOnHit` flag; wiki notes for all three). Urgot W Grasp 16.7 → 33.4. |
+| 5 | `repeatOnHit` is a count; sources add up. A Phantom Hit on a Dusk and Dawn attack applies on-hit 3 times; Renekton W keeps its repeats with Guinsoo's. |
+| 6 | Ultimate damage to a target inside Hatefog refreshes it. New option `malignance.stay` (seconds the target stays in the zone after your last ultimate hit, default 3). Malzahar R Hatefog 211 → 369. |
+| 7 | Shojin stacks only from non-innate abilities (Urgot's and Rengar's innates are special cased, per the wiki); empowered attacks that are also ability damage (Garen Q, Darius W) are amplified. |
+| 8 | Galvanize fires in `beforeDamage`, so Firmament lands first and the ability gets the lethality. |
+| 9 | The tick at exactly 3s isn't amplified (8 ticks, the last 2 amplified: the wiki's total); a hit after the burn ended starts a new burn; the damage is fixed when the burn starts (wiki). The refresh rule was already equivalent to the wiki's, so that limitation note is gone. |
+| 10 | `Sim.speedUpBasicCooldowns`: running and newly started Q/W/E cooldowns progress 30% faster during the 8s. Ahri Q to Q 6.36s → 4.90s. |
+| 11 | Only basic attacks (plus Yasuo's and Yone's Q) trigger and use Hail of Blades. |
+| 12 | A CC remembers the cast and time that began it; Cheap Shot is blocked only on the tick its own cast applied it. Malzahar R: 0 → 1 proc. This also fixes on-hit CC (Bard's Meeps, Fiora's Bladework) hiding a CC that was already on the target. |
+| 13 | Aery skips only rune damage and persistent proc damage (Ignite's first tick still counts). Malzahar E: 0 → 2 Aery hits. |
+| 14 | One 0.3s lockout per cast instance. Syndra `Q W E R Q W E` +3.2%. |
+| 15 | A basic attack records its cast instance, so the empowered part of the same attack doesn't stack again. Jax `W AA`: 4 → 2 stacks. |
+| 16 | Dashes during the cooldown don't arm it. The wiki ties the cooldown to the damage buff, so an unused 4s window starts no cooldown. |
+| 17 | `bonusSkillPoints` gives the Elixir of Skill point from level 9 to the default ranks (simulator and web panel); Elixir of Force's 25 comes from its item data. |
+| 18 | The empowered attack replaces Cleave, expires after 10s, and the cooldown (from the data) starts when it's used. |
+| 19 | Attacks carry `naturalCrit`, `critMultiplier` and `forcedCrit`; Sundered Sky and Fiendhunter Bolts set guaranteed crits that resolve after every `preAttack` hook, using the champion's crit multiplier. Fiendhunter skips attacks that can't crit (Fiora's first Bladework attack). Jhin `R AA` with both: 2758 or 3133 depending on item order → 2552 either way. |
+| 20 | New `basic` flag on Kraken Slayer's Bring It Down and on attack-like ability hits (Urgot W, Azir soldiers…); Hexoptics amplifies it. |
+
+Low-impact items fixed:
+* % AP increases add up (Rabadon's, Blackfire, Syndra's capstone; wiki: "stacks additively").
+* Horizon Focus re-marks on every long-range hit.
+* Liandry's, Riftmaker and Haunting Guise restart their combat timer after `BuffCounterDuration` seconds without damage.
+* Hail of Blades' cooldown counts from when it timed out.
+* Lethal Tempo loses one stack at expiry, then one every 0.3s (wiki).
+* Hullbreaker's stacks expire after `SkipperStackDuration`.
+* Terminus' new Dark stack never applies to its own hit.
+* Bloodsong, Imperial Mandate and Horizon Focus are no longer active at t=0.
+* Rocketbelt arms Sudden Impact only (no Spellblade, no kit hooks).
+* Data instead of constants: Actualizer cooldown, Stormsurge `RangedProcDamageMod`, Statikk's `BonusEnergizedStacks`, the Gathering Storm curve.
+
+Left as is:
+* Phantom Hit and Dusk and Dawn repeats still land with the attack instead of after a short delay.
+* Black Cleaver's own stack on non-basic hits (the wiki marks it as a bug).
+* Aftershock triggering Cheap Shot: the shockwave applies spell effects, and nothing says it is proc damage.
+* Zaz'Zak's cooldown and Malignance's 0.25s tick have no data value.
+* Pet damage triggering Luden's, Blackfire and Zaz'Zak's still needs an in-game check.
+
+Snapshots: 68 of 519 cases moved. Conqueror builds fell 0.1–2.3% (#1, #15). Electrocute builds with Cheap Shot gained 1.4–5.9% (#12). Twitch's Electrocute build fell 18% because venom ticks no longer complete Electrocute (#1). Akshan's fell 0.3% because Electrocute now waits for a real third hit. The 21 new tests in `test/mechanics.test.ts` cover the fixes. `npm run audit:items`, `npm run audit` and `npm run check-kits` are clean.

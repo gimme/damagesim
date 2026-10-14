@@ -7,12 +7,14 @@ import type { Sim } from '../../engine/sim.ts';
 // the poison ticks every second for P.calc.DamagePerSecond per stack (true damage).
 const CASK_DELAY = 0.3; // cask flight time (not in data)
 
-function addVenom(sim: Sim) {
+/** `castId`: the attack or cask adding the stack; the poison's ticks share the one that started it. */
+function addVenom(sim: Sim, castId: number) {
   const max = sim.evalExpr('P.dv.MaxStacks', { slot: 'P' });
   sim.setCounter('venom', Math.min(max, sim.counter('venom') + 1));
   sim.setCounter('venomUntil', sim.time + sim.evalExpr('P.dv.Duration', { slot: 'P' }));
   if (!sim.counter('venomTicking')) {
     sim.setCounter('venomTicking', 1);
+    sim.setCounter('venomCast', castId);
     sim.schedule(1, () => venomTick(sim));
   }
 }
@@ -24,7 +26,7 @@ function venomTick(sim: Sim) {
     return;
   }
   const amount = sim.evalExpr('P.calc.DamagePerSecond', { slot: 'P' }) * sim.counter('venom');
-  sim.deal({ source: 'P', sourceLabel: 'Deadly Venom', label: `Venom (${sim.counter('venom')})`, type: 'true', amount, flags: { kind: 'ability', slot: 'P', dot: true } });
+  sim.deal({ source: 'P', sourceLabel: 'Deadly Venom', label: `Venom (${sim.counter('venom')})`, type: 'true', amount, castId: sim.counter('venomCast'), flags: { kind: 'ability', slot: 'P', dot: true } });
   sim.schedule(1, () => venomTick(sim));
 }
 
@@ -39,13 +41,13 @@ const kit: ChampionKit = {
   ],
   hooks: {
     onAttack(sim, atk) {
-      if (!atk.phantom) addVenom(sim);
+      if (!atk.phantom) addVenom(sim, atk.castId);
     },
     onCast(sim, cast) {
       if (cast.slot !== 'W' || !cast.hitsTarget) return;
       const castTime = sim.spellFor('W').castTime ?? 0;
       const cloud = sim.evalExpr('W.dv.Duration', { slot: 'W' });
-      for (let i = 0; i <= cloud; i++) sim.schedule(castTime + CASK_DELAY + i, () => addVenom(sim));
+      for (let i = 0; i <= cloud; i++) sim.schedule(castTime + CASK_DELAY + i, () => addVenom(sim, cast.castId));
     },
   },
   abilities: {

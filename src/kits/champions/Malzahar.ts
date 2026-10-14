@@ -23,6 +23,8 @@ function refreshVisions(sim: Sim) {
         label: 'Malefic Visions (refreshed)',
         type: 'magic',
         amount: sim.evalExpr('E.calc.TotalDamage * E.dv.SecondsPerTick / E.dv.Duration', { slot: 'E' }),
+        // Part of the E cast instance (not separate hits).
+        castId: sim.counter('malzE:castId'),
         flags: { kind: 'ability', slot: 'E', ability: true, dot: true },
       }),
     );
@@ -56,6 +58,7 @@ const kit: ChampionKit = {
         sim.setCounter('malzW:stacks', Math.min(cap, sim.counter('malzW:stacks') + 1));
       }
       if (cast.slot === 'E' && cast.hitsTarget) {
+        sim.setCounter('malzE:castId', cast.castId);
         // Last tick of the default cast: cast time + Duration (ticks every SecondsPerTick after landing).
         sim.setCounter('malzE:lastTick', sim.time + (sim.spellFor('E').castTime ?? 0) + sim.evalExpr('E.dv.Duration', { slot: 'E' }));
       }

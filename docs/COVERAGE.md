@@ -188,7 +188,7 @@ not relevant to damage dealt to a single champion).
 | Item | Gold | Modeled | What the simulator does |
 |---|---|---|---|
 | Abyssal Mask | 2650 | yes | Nearby enemy champions take 12% more magic damage. |
-| Actualizer | 2800 | yes | Active: for 8s abilities deal increased damage (15% + 0.5% per 100 bonus mana). |
+| Actualizer | 2800 | yes | Active: for 8s abilities deal increased damage (15% + 0.5% per 100 bonus mana) and basic ability cooldowns progress 30% faster. |
 | Aether Wisp | 900 | — | 30 ap, 4% msPercent |
 | Archangel's Staff | 2900 | yes | AP equal to 1% bonus mana. |
 | Ardent Censer | 2200 | yes | Healing or shielding an ally buffs you: +25% attack speed and 20 magic damage on-hit for 6s (option). |
@@ -204,7 +204,7 @@ not relevant to damage dealt to a single champion).
 | Blackfire Torch | 2800 | yes | Ability damage burns for magic damage over 3s; +4% AP while the target burns. |
 | Blade of The Ruined King | 3200 | yes | Attacks deal 6% of the target's current health as physical damage on-hit. |
 | Blighting Jewel | 1100 | — | 25 ap, 13% magicPenPercent |
-| Bloodletter's Curse | 2900 | yes | Magic damage from abilities or passives shreds 7.5% magic resist per stack (4 stacks, 6s; 0.3s between stacks). |
+| Bloodletter's Curse | 2900 | yes | Magic damage from abilities or passives shreds 7.5% magic resist per stack (4 stacks, 6s; once per cast instance every 0.3s). |
 | Bloodsong | 400 | yes | After casting an ability, the next attack within 10s deals bonus damage on-hit (1.5s cooldown). Spellblade hits expose the target: +5% damage taken for 4s. |
 | Bloodthirster | 3400 | — | 80 ad, 15% lifeSteal |
 | Boots of Swiftness | 1000 | — | 55 msFlat, 25% slowResist |
@@ -248,14 +248,14 @@ not relevant to damage dealt to a single champion).
 | Hearthbound Axe | 1200 | — | 20 ad, 20% attackSpeed |
 | Heartsteel | 3000 | yes | After being near a champion for a few seconds, the next attack deals 70 + 6% max health physical damage (30s per target). |
 | Hexdrinker | 1300 | — | 25 ad, 25 mr |
-| Hexoptics C44 | 2800 | yes | Attacks deal up to 10% more damage based on distance (max at 500 range). |
+| Hexoptics C44 | 2800 | yes | Basic damage (attacks, Kraken Slayer…) deals up to 10% more based on distance (max at 500 range). |
 | Hextech Alternator | 1100 | yes | Damaging a champion deals bonus magic damage (40s cooldown). |
 | Hextech Gunblade | 3000 | yes | Active: magic damage and a 25% slow. |
 | Hextech Rocketbelt | 2650 | yes | Active: dash and fire missiles for magic damage. |
 | Hollow Radiance | 2800 | yes | While in combat, deals magic damage per second to nearby enemies. |
 | Horizon Focus | 2700 | yes | Champion-ability damage from 600+ range marks the target: you deal 10% more damage to it for 6s. |
 | Hubris | 2800 | yes | After a takedown: +12 AD plus 3 per statue for 90s. |
-| Hullbreaker | 3000 | yes | Every fifth attack against champions deals bonus physical damage. |
+| Hullbreaker | 3000 | yes | Every fifth attack against champions deals bonus physical damage (stacks last 10s). |
 | Iceborn Gauntlet | 2900 | yes | After casting an ability, the next attack within 10s deals bonus damage on-hit (1.5s cooldown). |
 | Immortal Path | 1000 | yes | Deal 4% increased damage while above half health. |
 | Immortal Shieldbow | 3000 | — | 55 ad, 25% critChance |
@@ -274,7 +274,7 @@ not relevant to damage dealt to a single champion).
 | Lord Dominik's Regards | 3300 | yes | Up to 15% bonus damage against champions with bonus health (max at 1500). |
 | Lost Chapter | 1200 | — | 300 mana, 40 ap, 10 abilityHaste |
 | Luden's Echo | 2750 | yes | Damaging abilities fire 6 Echoes (12s cooldown). Against a single target: one full Echo plus 5 at 20% (2× damage total). |
-| Malignance | 2700 | yes | +20 ultimate haste. Ultimate damage creates Hatefog: magic damage per second for 3s and -10 magic resist. |
+| Malignance | 2700 | yes | +20 ultimate haste. Ultimate damage creates Hatefog under the target: magic damage per second for 3s and -10 magic resist; ultimate damage to a target inside refreshes it. |
 | Manamune | 2900 | yes | Bonus AD equal to 2% max mana. |
 | Maw of Malmortius | 3100 | — | 60 ad, 40 mr, 15 abilityHaste |
 | Mejai's Soulstealer | 1500 | yes | AP per Glory stack. |
@@ -320,7 +320,7 @@ not relevant to damage dealt to a single champion).
 | Shurelya's Battlesong | 2200 | — | 50 ap, 15 abilityHaste, 4% msPercent, 125% baseMpRegen |
 | Solstice Sleigh | 400 | — | 200 hp, 75% baseHpRegen, 75% baseMpRegen |
 | Sorcerer's Shoes | 1100 | — | 12 magicPenFlat, 45 msFlat |
-| Spear of Shojin | 3100 | yes | Champion-ability damage grants a stack (max 4, 6s): +3% ability damage per stack. +25 basic ability haste. |
+| Spear of Shojin | 3100 | yes | Damage from a non-innate champion ability grants a stack (max 4, 6s): +3% ability damage per stack. +25 basic ability haste. |
 | Spectre's Cowl | 1250 | — | 200 hp, 35 mr, 100% baseHpRegen |
 | Spellslinger's Shoes | 1100 | — | 20 magicPenFlat, 8% magicPenPercent, 45 msFlat |
 | Spirit Visage | 2700 | — | 400 hp, 50 mr, 10 abilityHaste, 100% baseHpRegen |
@@ -339,7 +339,7 @@ not relevant to damage dealt to a single champion).
 | The Collector | 3000 | yes | Your damage executes champions below 5% health. |
 | Thornmail | 2450 | — | 150 hp, 75 armor |
 | Tiamat | 1200 | yes | Active: Crescent deals physical damage around you. |
-| Titanic Hydra | 3300 | yes | Attacks deal 1% max health physical damage on-hit (ranged 0.5%). Active empowers the next attack (+4% max health). |
+| Titanic Hydra | 3300 | yes | Attacks deal 1% max health physical damage on-hit (ranged 0.5%). Active: within 10s the next attack's Cleave deals 4% max health instead (10s cooldown, starting once it's used). |
 | Trinity Force | 3333 | yes | After casting an ability, the next attack within 10s deals bonus damage on-hit (1.5s cooldown). |
 | Tunneler | 1150 | — | 250 hp, 15 ad |
 | Umbral Glaive | 2800 | yes | After being unseen briefly, the next attack against a champion deals bonus true damage. |
@@ -347,7 +347,7 @@ not relevant to damage dealt to a single champion).
 | Vampiric Scepter | 900 | — | 15 ad, 7% lifeSteal |
 | Verdant Barrier | 1600 | — | 40 ap, 25 mr |
 | Void Staff | 3000 | — | 95 ap, 40% magicPenPercent |
-| Voltaic Cyclosword | 3000 | yes | Energized hits deal 9% (ranged 7%) current health physical damage and grant lethality for 4s. Champion-ability damage fires all ready Energized effects (Galvanize). |
+| Voltaic Cyclosword | 3000 | yes | Energized hits deal 9% (ranged 7%) current health physical damage and grant lethality for 4s. Champion-ability damage fires all ready Energized effects (Galvanize) before its own damage. |
 | Warden's Mail | 1000 | — | 40 armor |
 | Warmog's Armor | 3100 | yes | Bonus health equal to 12% of health from items. |
 | Whispering Circlet | 2250 | — | 200 hp, 300 mana, 75% baseMpRegen, 8% healShieldPower |

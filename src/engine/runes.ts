@@ -6,6 +6,7 @@ import { triggersOnAttack, type DamageInstance, type Effect, type SetupCtx } fro
 import type { Sim } from './sim.ts';
 import type { StatMods } from './stats.ts';
 import { ITEM_STAT_TYPES } from './items.ts';
+import { findItem } from './gamedata.ts';
 
 type Factory = (rune: RuneData, setup: SetupCtx, sim: Sim) => Effect | null;
 
@@ -42,33 +43,43 @@ const RUNES: Record<number, Factory> = {
   8005: (rune) => {
     let stacks = 0;
     let lastHit = -Infinity;
+    // The amp starts after the proc's frame and ends OutOfCombatTimer seconds after combat.
     let ampFrom = Infinity;
     const v = rune.values;
+    const key = `rune:${rune.id}`;
+    const ampActive = (sim: Sim) => sim.time >= ampFrom && sim.time - sim.lastCombatTime <= v.OutOfCombatTimer;
     return base(rune, {
-      description: '3 consecutive basic attacks deal adaptive damage, then +8% damage dealt until combat ends.',
+      description: '3 consecutive basic attacks deal adaptive damage (6s cooldown), then +8% damage dealt until 5s after combat ends.',
+      limitations: ['Combat with the target is assumed to end at your last damage to it.'],
       onAttack(sim, atk) {
         // Single-target on-hits stack it, including abilities that apply on-hit and repeated
         // applications (Guinsoo's Phantom Hit); area on-hits don't (wiki).
-        if (ampFrom <= sim.time || atk.areaOnHit) return;
+        if (atk.areaOnHit || !sim.isReady(key)) return;
         if (sim.time - lastHit > v.TimeBetweenHits) stacks = 0;
         stacks++;
         lastHit = sim.time;
-        if (stacks >= v.HitsRequired) {
-          stacks = 0;
-          atk.extra.push({
-            source: `rune:${rune.id}`,
-            sourceLabel: rune.name,
-            label: 'Proc',
-            type: adaptiveType(sim),
-            amount: lerpLevel(sim.level, v.MinDamage, v.MaxDamage),
-            flags: { kind: 'rune', proc: true },
-          });
-          // The triggering attack and proc are not amplified; everything afterwards is.
-          ampFrom = sim.time + 1e-6;
-        }
+        if (stacks < v.HitsRequired) return;
+        stacks = 0;
+        sim.startCooldown(key, v.Cooldown);
+        atk.extra.push({
+          source: key,
+          sourceLabel: rune.name,
+          label: 'Proc',
+          type: adaptiveType(sim),
+          amount: lerpLevel(sim.level, v.MinDamage, v.MaxDamage),
+          flags: { kind: 'rune', proc: true },
+        });
+        // The triggering attack and proc are not amplified; everything afterwards is.
+        if (!ampActive(sim)) ampFrom = sim.time + 1e-6;
       },
       beforeDamage(sim, inst) {
-        if (inst.time >= ampFrom && !inst.flags.unamplified) inst.amps.push({ source: rune.name, value: v.BonusPercentDamage, kind: 'dealt' });
+        if (inst.time < ampFrom) return;
+        // lastCombatTime is still the previous damage here.
+        if (!ampActive(sim)) {
+          ampFrom = Infinity;
+          return;
+        }
+        if (!inst.flags.unamplified) inst.amps.push({ source: rune.name, value: v.BonusPercentDamage, kind: 'dealt' });
       },
     });
   },
@@ -78,16 +89,19 @@ const RUNES: Record<number, Factory> = {
     let stacks = 0;
     let expires = -Infinity;
     const v = rune.values;
+    // When the duration ends one stack expires, then one more every 0.3s (wiki).
+    const DECAY = 0.3;
+    const current = (t: number) => (t <= expires ? stacks : Math.max(0, stacks - 1 - Math.floor((t - expires) / DECAY + 1e-9)));
     return base(rune, {
       description: 'Each attack grants a stack of attack speed (max 6). At max stacks attacks fire an adaptive bolt that scales with bonus attack speed.',
       dynamicStats(sim) {
-        const n = sim.time <= expires ? stacks : 0;
+        const n = current(sim.time);
         if (!n) return;
         return { attackSpeed: n * sim.evalDataCalc(rune.calcs, rune.values, 'ASPerStack', { noStats: true }) };
       },
       onAttack(sim, atk) {
         if (!triggersOnAttack(atk)) return;
-        if (sim.time > expires) stacks = 0;
+        stacks = current(sim.time);
         if (stacks >= v.MaxStacks) {
           atk.extra.push({
             source: `rune:${rune.id}`,
@@ -125,8 +139,12 @@ const RUNES: Record<number, Factory> = {
         if (inst.flags.proc && !inst.flags.pet) return;
         if (sim.time > expires) stacks = 0;
         let gain = 0;
-        if (inst.flags.attack) gain = setup.ranged ? 1 : 2;
-        else if (inst.flags.onHit && !inst.flags.ability) return; // passive on-hit extras are part of the attack
+        if (inst.flags.attack) {
+          // Basic attacks always stack; the rest of their cast instance (an empowered attack's
+          // ability damage, DoT ticks it started) counts as already stacked for 4s.
+          gain = setup.ranged ? 1 : 2;
+          perCast.set(inst.castId, sim.time);
+        } else if (inst.flags.onHit && !inst.flags.ability) return; // passive on-hit extras are part of the attack
         else {
           const last = perCast.get(inst.castId);
           if (last === undefined || sim.time - last >= v.TimeUntilNextStackFromSameSpell) {
@@ -214,9 +232,10 @@ const RUNES: Record<number, Factory> = {
     let expires = -Infinity;
     let asFrom = Infinity;
     const v = rune.values;
-    const end = (sim: Sim) => {
+    /** The effect ended at `at` (last stack used, or timed out); the cooldown starts then. */
+    const end = (sim: Sim, at = sim.time) => {
       active = false;
-      sim.startCooldown(`rune:${rune.id}`, v.Cooldown);
+      sim.startCooldown(`rune:${rune.id}`, v.Cooldown - (sim.time - at));
       sim.invalidateStats();
     };
     return base(rune, {
@@ -226,8 +245,11 @@ const RUNES: Record<number, Factory> = {
         return { attackSpeed: setup.ranged ? v.ASBoostRanged : v.ASBoost, attackSpeedCap: 90 };
       },
       onAttack(sim, atk) {
+        // Basic attacks only: abilities that trigger on-attack effects don't, except Yasuo's and
+        // Yone's Q, which are special cased (wiki).
         if (!triggersOnAttack(atk)) return;
-        if (active && sim.time > expires) end(sim);
+        if (atk.fromAbility && !(atk.fromAbility === 'Q' && (setup.champion === 'Yasuo' || setup.champion === 'Yone'))) return;
+        if (active && sim.time > expires) end(sim, expires);
         if (!active) {
           if (!sim.isReady(`rune:${rune.id}`)) return;
           active = true;
@@ -261,13 +283,14 @@ const RUNES: Record<number, Factory> = {
   8214: (rune) => {
     let readyAt = -Infinity;
     return base(rune, {
-      description: 'Damaging a champion sends Aery (0.45s flight) for adaptive damage; she returns before she can be sent again.',
+      description: 'Damaging a champion with an attack, ability or item effect sends Aery (0.45s flight) for adaptive damage; she returns before she can be sent again.',
       options: [{ key: 'aery.cycle', label: 'Aery round trip (s)', default: 3, min: 1, max: 8, step: 0.25 }],
       limitations: ['Aery availability is approximated with a fixed round-trip time (option aery.cycle).'],
       afterDamage(sim, inst) {
-        if (inst.flags.proc && !inst.flags.pet) return;
-        // Persistent damage doesn't send Aery, except Ignite's first tick.
-        if (inst.flags.dot && !(inst.flags.kind === 'summoner' && inst.label.endsWith(' 1'))) return;
+        // Attacks, abilities (their damage over time included) and item effects send her; rune
+        // damage and persistent proc damage don't, except Ignite's first tick (wiki).
+        if (inst.flags.kind === 'rune') return;
+        if (inst.flags.kind === 'summoner' ? inst.flags.dot && !inst.label.endsWith(' 1') : inst.flags.dot && inst.flags.proc) return;
         if (sim.time < readyAt) return;
         readyAt = sim.time + (sim.opt['aery.cycle'] ?? 3);
         sim.schedule(0.45, () =>
@@ -318,37 +341,43 @@ const RUNES: Record<number, Factory> = {
     const v = rune.values;
     let burnStart = -Infinity;
     let burnEnd = -Infinity;
+    // Ticks after this were only extended by aura damage and don't keep you in combat.
+    let combatEnd = -Infinity;
     let dps = 0;
-    let ticking = false;
-    const tick = (sim: Sim) => {
-      if (sim.time > burnEnd + 1e-9) {
-        ticking = false;
-        return;
-      }
-      const amped = sim.time - burnStart >= v.TimeToAmp - 1e-9;
+    let burnId = 0;
+    const tick = (sim: Sim, id: number) => {
+      if (id !== burnId || sim.time > burnEnd + 1e-9) return;
+      // Ticks after the burn has lingered for 3s are amplified; the tick at exactly 3s isn't.
+      const amped = sim.time - burnStart > v.TimeToAmp + 1e-9;
       sim.deal({
         source: `rune:${rune.id}`,
         sourceLabel: rune.name,
         label: amped ? 'Burn (amplified)' : 'Burn',
         type: 'magic',
         amount: (dps / v.TicksPerSecond) * (amped ? 1 + v.DamageMultiplier : 1),
-        flags: { kind: 'rune', proc: true, dot: true },
+        flags: { kind: 'rune', proc: true, dot: true, ...(sim.time > combatEnd + 1e-9 ? { aura: true } : {}) },
       });
-      sim.schedule(1 / v.TicksPerSecond, () => tick(sim));
+      sim.schedule(1 / v.TicksPerSecond, () => tick(sim, id));
     };
     return base(rune, {
-      description: 'Ability damage burns for magic damage per second (4s spell / 2s area / 1s over-time or pet); ticks after 3s deal +75%.',
-      limitations: ['Refresh priority between burn sources is simplified to "longer remaining duration wins".'],
+      description: 'Ability damage burns for magic damage per second (4s spell / 2s area / 1s over-time or pet); ticks after 3s deal +75%. Damage is fixed when the burn starts.',
       afterDamage(sim, inst) {
         if (!(inst.flags.ability || inst.flags.pet) || (inst.flags.proc && !inst.flags.pet)) return;
         const dur = inst.flags.dot || inst.flags.pet ? v.DotDuration : inst.flags.aoe ? v.AoEDuration : v.Duration;
-        dps = calc(sim, rune, 'DamageCalc');
-        if (!ticking) {
+        if (sim.time > burnEnd + 1e-9) {
+          // A new burn (the previous one has ended), with damage from the current stats.
+          burnId++;
           burnStart = sim.time;
           burnEnd = sim.time + dur;
-          ticking = true;
-          sim.schedule(1 / v.TicksPerSecond, () => tick(sim));
-        } else if (burnEnd - sim.time < dur) burnEnd = sim.time + dur;
+          dps = calc(sim, rune, 'DamageCalc');
+          const id = burnId;
+          sim.schedule(1 / v.TicksPerSecond, () => tick(sim, id));
+        } else if (burnEnd - sim.time < dur) {
+          // Refresh: a longer burn type overrides a shorter one; a shorter one only tops up the
+          // remaining duration (equivalent to the wiki's rule). The 3s amp timer keeps running.
+          burnEnd = sim.time + dur;
+        }
+        if (!inst.flags.aura) combatEnd = Math.max(combatEnd, sim.time + dur);
       },
     });
   },
@@ -372,7 +401,8 @@ const RUNES: Record<number, Factory> = {
           label: 'Grasp',
           type: 'magic',
           amount: calc(sim, rune, 'DamageCalc'),
-          flags: { kind: 'rune', proc: true, onHit: true },
+          // Not reduced by on-hit effectiveness (Urgot W, Akshan E…).
+          flags: { kind: 'rune', proc: true, onHit: true, fullOnHit: true },
         });
       },
     });
@@ -523,19 +553,24 @@ const RUNES: Record<number, Factory> = {
   8143: (rune) => {
     let armedUntil = -Infinity;
     const v = rune.values;
+    const key = `rune:${rune.id}`;
+    // Dashes don't arm it again until the cooldown after the bonus damage has run out (wiki).
+    const arm = (sim: Sim) => {
+      if (sim.isReady(key)) armedUntil = sim.time + v.ArmedDuration;
+    };
     return base(rune, {
-      description: 'After a dash/blink (or Flash), the next damage within 4s deals bonus true damage (10s cooldown).',
+      description: 'After a dash/blink (or Flash), the next damage within 4s deals bonus true damage (10s cooldown; dashes during it do nothing).',
       options: [{ key: 'suddenImpact.armed', label: 'Sudden Impact armed at start (Flash/dash in)', default: 0, min: 0, max: 1, step: 1 }],
       onStart(sim) {
-        if (sim.opt['suddenImpact.armed']) armedUntil = sim.time + v.ArmedDuration;
+        if (sim.opt['suddenImpact.armed']) arm(sim);
       },
       onCast(sim, cast) {
-        if (cast.dash) armedUntil = sim.time + v.ArmedDuration;
+        if (cast.dash) arm(sim);
       },
       afterDamage(sim, inst) {
-        if (inst.source === `rune:${rune.id}` || sim.time > armedUntil || !sim.isReady(`rune:${rune.id}`)) return;
+        if (inst.source === key || sim.time > armedUntil) return;
         armedUntil = -Infinity;
-        sim.startCooldown(`rune:${rune.id}`, v.Cooldown);
+        sim.startCooldown(key, v.Cooldown);
         sim.deal({ source: `rune:${rune.id}`, sourceLabel: rune.name, label: 'Sudden Impact', type: 'true', amount: calc(sim, rune, 'BaseDamage'), flags: { kind: 'rune', proc: true } });
       },
     });
@@ -578,8 +613,9 @@ const RUNES: Record<number, Factory> = {
       description: 'Adaptive force every 10 minutes (8, 24, 48, 80… AP).',
       options: [{ key: 'gameTime', label: 'Game time (minutes)', default: 20, min: 0, max: 60 }],
       stats(ctx) {
-        const m = 1 + Math.floor((ctx.opt['gameTime'] ?? 20) / rune.values.UpdateAfterMinutes);
-        return { adaptive: 4 * m * (m - 1) };
+        // Tier k (every 10 minutes) adds k × 8 adaptive force: 8, 24, 48, 80…
+        const k = Math.floor((ctx.opt['gameTime'] ?? 20) / rune.values.UpdateAfterMinutes);
+        return { adaptive: (rune.values.AdaptiveAP * k * (k + 1)) / 2 };
       },
     }),
   // Absolute Focus
@@ -648,15 +684,17 @@ const RUNES: Record<number, Factory> = {
         return {};
       },
     }),
-  // Triple Tonic
-  8313: (rune) =>
-    base(rune, {
-      description: 'Elixir of Force: +25 adaptive force for 60s (option).',
+  // Triple Tonic (Elixir of Skill's skill point: bonusSkillPoints, used for the default ranks)
+  8313: (rune, _setup, sim) => {
+    const force = findItem(sim.data, ELIXIR_OF_FORCE).dataValues.AdaptiveAmount ?? 0;
+    return base(rune, {
+      description: `Elixir of Force (level ${rune.values.SecondElixirLevel}): +${force} adaptive force for 60s (option). Elixir of Skill (level ${rune.values.ThirdElixirLevel}): one extra skill point.`,
       options: [{ key: 'tripleTonic.force', label: 'Elixir of Force active', default: 0, min: 0, max: 1, step: 1 }],
       stats(ctx) {
-        if (ctx.level >= rune.values.SecondElixirLevel && ctx.opt['tripleTonic.force']) return { adaptive: 25 };
+        if (ctx.level >= rune.values.SecondElixirLevel && ctx.opt['tripleTonic.force']) return { adaptive: force };
       },
-    }),
+    });
+  },
   // Biscuit Delivery
   8345: (rune) =>
     base(rune, {
@@ -677,6 +715,14 @@ const RUNES: Record<number, Factory> = {
   5011: (rune) => base(rune, { stats: () => ({ hp: rune.values.StatGain }) }),
   5013: (rune) => base(rune, { stats: () => ({ tenacity: rune.values.StatGain / 100 }) }),
 };
+
+const ELIXIR_OF_FORCE = 2152;
+
+/** Skill points beyond one per level: Triple Tonic's Elixir of Skill (consumed at level 9). */
+export function bonusSkillPoints(runes: RuneData[], level: number): number {
+  const tonic = runes.find((r) => r.id === 8313);
+  return tonic && level >= tonic.values.ThirdElixirLevel ? 1 : 0;
+}
 
 /** Runes that exist in the data but are not live on Summoner's Rift (16.20). */
 export const NOT_LIVE_RUNES = new Set([8124, 8134, 8136, 8120, 8138, 8359, 8339, 8472, 8430, 8435, 5002, 5003, 5004, 5006, 5009, 5012]);

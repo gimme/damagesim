@@ -105,7 +105,7 @@ export interface StatMods {
   tenacity: number;
   healShieldPower: number;
   adaptive: number;
-  /** Multiplier on total AP (Rabadon's). Combined multiplicatively. */
+  /** Multipliers on total AP (Rabadon's, Blackfire Torch). The % increases add up (wiki). */
   apMult: number[];
   /** Multipliers on bonus AD/HP/armor/MR (e.g. some champion ults). */
   bonusAdMult: number[];
@@ -326,7 +326,7 @@ export function computeStats(input: BaseStatsInput, mods: StatMods, currentHpPct
 
   bonusAd *= product(mods.bonusAdMult);
   bonusHp *= product(mods.bonusHpMult);
-  ap *= product(mods.apMult);
+  ap *= 1 + mods.apMult.reduce((s, m) => s + (m - 1), 0);
   const armorMult = product(mods.armorMult);
   const mrMult = product(mods.mrMult);
 

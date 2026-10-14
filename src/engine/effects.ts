@@ -27,6 +27,10 @@ export interface DamageFlags {
   unamplified?: boolean;
   /** Persistent aura damage (Sunfire, Unending Despair): doesn't by itself keep you in combat. */
   aura?: boolean;
+  /** Basic damage other than the attack itself (Kraken Slayer, attack-like ability hits). */
+  basic?: boolean;
+  /** On-hit damage that reduced on-hit effectiveness doesn't scale (Grasp, Heartsteel, Electrospark). */
+  fullOnHit?: boolean;
 }
 
 export interface DamageInstance {
@@ -81,6 +85,16 @@ export interface AttackInfo {
   crit: boolean;
   /** Expected-value crit factor used when crit mode is "expected". */
   critFactor: number;
+  canCrit: boolean;
+  /** Chance (0-1) that the attack crits on its own, before guaranteed crits (Sundered Sky…). */
+  naturalCrit: number;
+  /** Damage multiplier of a full crit for this attack (champion crit modifiers included). */
+  critMultiplier: number;
+  /**
+   * Guaranteed crit from an item: `modifier` × full crit damage, or `naturalModifier` × full crit
+   * damage when the attack would have crit anyway. Several sources keep the highest of each.
+   */
+  forcedCrit?: { modifier: number; naturalModifier: number };
   /** Extra damage requests added by on-hit effects. */
   extra: DamageRequest[];
   /** Multiplier applied to the attack's base damage (e.g. Kraken, Guinsoo?). */
@@ -96,8 +110,8 @@ export interface AttackInfo {
   areaOnHit?: boolean;
   /** Set to true to remove the attack's own damage (empowered attacks that replace it). */
   replaceBase?: boolean;
-  /** Apply on-hit effects extra times: true/1 = once more (Guinsoo's phantom hit, Dusk and Dawn). */
-  repeatOnHit?: boolean | number;
+  /** Extra times on-hit effects apply (Guinsoo's Phantom Hit, Dusk and Dawn, Renekton W); sources add up. */
+  repeatOnHit?: number;
   /** This pass is the repeated on-hit application (no base damage). */
   phantom?: boolean;
 }
@@ -105,6 +119,17 @@ export interface AttackInfo {
 /** The hit triggers on-attack effects (and isn't a repeated on-hit application). */
 export function triggersOnAttack(atk: AttackInfo): boolean {
   return atk.onAttack && !atk.phantom;
+}
+
+/** Apply the attack's on-hit effects `n` more times. */
+export function addOnHitRepeat(atk: AttackInfo, n = 1) {
+  atk.repeatOnHit = (atk.repeatOnHit ?? 0) + n;
+}
+
+/** Guarantee a crit (see AttackInfo.forcedCrit). */
+export function forceCrit(atk: AttackInfo, modifier: number, naturalModifier = modifier) {
+  const f = atk.forcedCrit;
+  atk.forcedCrit = { modifier: Math.max(f?.modifier ?? 0, modifier), naturalModifier: Math.max(f?.naturalModifier ?? 0, naturalModifier) };
 }
 
 export interface CastInfo {
@@ -116,6 +141,8 @@ export interface CastInfo {
   variant?: string;
   /** Ability actually hits the target. */
   hitsTarget: boolean;
+  /** Cast by an item active (Rocketbelt), not a champion ability. */
+  item?: boolean;
   isUltimate: boolean;
   label: string;
 }

@@ -43,6 +43,8 @@ function bleedTick(sim: Sim, gen: number) {
     label: 'Darkin Daggers bleed',
     type: 'physical',
     amount: sim.evalExpr('Q.calc.TotalBleedDamage * Q.dv.BleedInterval / Q.dv.BleedDuration', { slot: 'Q' }),
+    // Part of the dagger's cast instance.
+    castId: sim.counter('naafiri:bleedCast'),
     flags: { kind: 'ability', slot: 'Q', ability: true, dot: true },
   });
   sim.schedule(sim.evalExpr('Q.dv.BleedInterval', { slot: 'Q' }), () => bleedTick(sim, gen));
@@ -71,6 +73,7 @@ const kit: ChampionKit = {
       if (inst.label === 'Darkin Daggers') {
         const gen = sim.counter('naafiri:bleedGen') + 1;
         sim.setCounter('naafiri:bleedGen', gen);
+        sim.setCounter('naafiri:bleedCast', inst.castId);
         sim.setCounter('naafiriBleedLeft', sim.evalExpr('Q.dv.BleedDuration / Q.dv.BleedInterval', { slot: 'Q' }));
         sim.schedule(sim.evalExpr('Q.dv.BleedInterval', { slot: 'Q' }), () => bleedTick(sim, gen));
       } else if (inst.label === 'Darkin Daggers (recast)') {

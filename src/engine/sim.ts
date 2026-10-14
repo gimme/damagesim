@@ -8,11 +8,11 @@ import { compile, type Resolver } from './expr.ts';
 import { computeStats, emptyMods, hasteCooldown, itemStatsToMods, mergeMods, type Stats, type StatMods, GAME } from './stats.ts';
 import { effectiveResist, resistMultiplier, type DamageType } from './damage.ts';
 import type { AbilitySpec, BuffSpec, ChampionKit, ComponentSpec, DebuffSpec, Expr, MarkSpec, VariantSpec } from './kit-types.ts';
-import type { AttackInfo, CastInfo, DamageFlags, DamageInstance, DamageRequest, Effect, SetupCtx, Slot } from './effects.ts';
+import { addOnHitRepeat, type AttackInfo, type CastInfo, type DamageFlags, type DamageInstance, type DamageRequest, type Effect, type SetupCtx, type Slot } from './effects.ts';
 import { parseCombo, formatCombo, type ComboStep } from './combo.ts';
 import { getKit } from '../kits/index.ts';
 import { createItemEffect, ITEM_GROUPS } from './items.ts';
-import { createRuneEffects } from './runes.ts';
+import { bonusSkillPoints, createRuneEffects } from './runes.ts';
 import { createSummonerEffect } from './summoners.ts';
 import { resolvePreset, type TargetPreset } from './presets.ts';
 
@@ -156,6 +156,8 @@ interface ActiveDebuff {
   expires: number;
   stacks: number;
   castId?: number;
+  /** Crowd control: when the uninterrupted CC began (castId is the cast that began it). */
+  since?: number;
   stored?: number;
   spec?: DebuffSpec;
   slot?: Slot;
@@ -191,7 +193,8 @@ export class Sim {
   private statsCache: Stats | null = null;
   private attackIndex = 0;
   readonly counters = new Map<string, number>();
-  readonly marks = new Map<string, { stacks: number; expires: number; castIds: Set<number>; cooldownUntil: number; ticking: boolean }>();
+  /** dotCastId: the cast instance that started the mark's damage over time (its ticks share it). */
+  readonly marks = new Map<string, { stacks: number; expires: number; castIds: Set<number>; cooldownUntil: number; ticking: boolean; dotCastId?: number }>();
   readonly buffs = new Map<string, ActiveBuff>();
   readonly debuffs = new Map<string, ActiveDebuff>();
   private cooldownReady = new Map<string, number>();
@@ -231,7 +234,8 @@ export class Sim {
       priorCombatTime: scenario.settings?.priorCombatTime ?? 0,
       ampStacking: scenario.settings?.ampStacking ?? 'additive',
     };
-    this.ranks = resolveRanks(this.champ, this.level, scenario.ranks, scenario.skillOrder);
+    this.runes = (scenario.runes ?? []).map((q) => findRune(data, q));
+    this.ranks = resolveRanks(this.champ, this.level, scenario.ranks, scenario.skillOrder, bonusSkillPoints(this.runes, this.level));
 
     // Options: kit defaults, then effect defaults, then user values.
     // Your own current health as a fraction (Last Stand, Absolute Focus, Overlord's…): full by default.
@@ -245,7 +249,6 @@ export class Sim {
       if (owned.length > 1) this.warn(`only one ${group} item can be owned (${owned.map((i) => i.name).join(', ')}); the game won't allow this build`);
     }
     if (this.items.filter((i) => i.tags.includes('Boots')).length > 1) this.warn('more than one pair of boots');
-    this.runes = (scenario.runes ?? []).map((q) => findRune(data, q));
     const legendaryCount = this.items.filter((i) => isLegendary(i)).length;
     const setup: SetupCtx = { level: this.level, ranged: this.champ.attackType === 'ranged', opt: this.opt, champion: this.champ.id, legendaryCount };
 
@@ -810,6 +813,36 @@ export class Sim {
     this.cooldownReady.set(key, this.time + seconds);
   }
 
+  /** Periods in which basic ability cooldowns progress faster (Actualizer): rate 0.3 = 30% faster. */
+  private cooldownSpeedups: { from: number; until: number; rate: number }[] = [];
+
+  /** When a cooldown of `seconds` that starts at `from` ends, with basic-ability speed-ups for Q/W/E. */
+  private cooldownEnd(slot: Slot, from: number, seconds: number): number {
+    if (slot !== 'Q' && slot !== 'W' && slot !== 'E') return from + seconds;
+    let t = from;
+    let left = seconds;
+    for (const s of [...this.cooldownSpeedups].sort((a, b) => a.from - b.from)) {
+      if (s.until <= t) continue;
+      if (s.from > t) {
+        if (s.from - t >= left) break;
+        left -= s.from - t;
+        t = s.from;
+      }
+      const progress = (s.until - t) * (1 + s.rate);
+      if (progress >= left) return t + left / (1 + s.rate);
+      left -= progress;
+      t = s.until;
+    }
+    return t + left;
+  }
+
+  /** Basic ability cooldowns progress `rate` faster from now until `until`, running ones included. */
+  speedUpBasicCooldowns(until: number, rate: number) {
+    const running = (['Q', 'W', 'E'] as const).map((slot) => ({ slot, left: this.cooldownReadyAt(`ability:${slot}`) - this.time }));
+    this.cooldownSpeedups.push({ from: this.time, until, rate });
+    for (const { slot, left } of running) if (left > 0) this.cooldownReady.set(`ability:${slot}`, this.cooldownEnd(slot, this.time, left));
+  }
+
   warn(msg: string) {
     if (!this.warnings.includes(msg)) this.warnings.push(msg);
   }
@@ -971,11 +1004,11 @@ export class Sim {
     return false;
   }
 
-  private dealMarkComponents(spec: MarkSpec, comps: ComponentSpec[], label: string) {
+  /** Deal a mark's components as part of cast instance `castId` (a new one if omitted). */
+  private dealMarkComponents(spec: MarkSpec, comps: ComponentSpec[], label: string, castId = this.newCastId()) {
     const slot = spec.slot ?? 'P';
     const spell = this.spellFor(slot);
     const rank = this.abilityRank(slot);
-    const castId = this.newCastId();
     for (const comp of comps) {
       const hits = Math.max(0, Math.round(this.evalExpr(comp.hits ?? 1, { slot, spell, rank })));
       const delay0 = comp.delay !== undefined ? this.evalExpr(comp.delay, { slot, spell, rank }) : 0;
@@ -1023,16 +1056,19 @@ export class Sim {
       m.stacks = Math.min(max, m.stacks + add);
       m.expires = this.time + this.evalExpr(spec.duration, ctx);
       this.invalidateStats();
-      if (spec.onStack?.length) this.dealMarkComponents(spec, spec.onStack, spec.label);
+      // Stack damage belongs to the triggering hit's cast instance; damage over time ticks share
+      // the cast instance that started them (they aren't separate hits for Electrocute, Conqueror…).
+      if (spec.onStack?.length) this.dealMarkComponents(spec, spec.onStack, spec.label, inst.castId);
       if (spec.dot && !m.ticking) {
         m.ticking = true;
+        m.dotCastId = inst.castId;
         const mm = m;
         const tick = () => {
           if (mm.expires < this.time || mm.stacks <= 0) {
             mm.ticking = false;
             return;
           }
-          this.dealMarkComponents(spec, spec.dot!.components, spec.label);
+          this.dealMarkComponents(spec, spec.dot!.components, spec.label, mm.dotCastId);
           this.schedule(this.evalExpr(spec.dot!.interval, ctx), tick);
         };
         this.schedule(this.evalExpr(spec.dot.interval, ctx), tick);
@@ -1040,7 +1076,7 @@ export class Sim {
       if (m.stacks >= max && spec.atMax) {
         if (spec.atMax.buff) this.applyBuff(spec.atMax.buff, slot, ctx.spell, ctx.rank);
         // The proc's damage lands first; its debuff/CC apply after (like ability debuffs).
-        if (spec.atMax.components.length) this.dealMarkComponents(spec, spec.atMax.components, spec.label);
+        if (spec.atMax.components.length) this.dealMarkComponents(spec, spec.atMax.components, spec.label, inst.castId);
         if (spec.atMax.debuff) this.applyDebuff(spec.atMax.debuff, slot, ctx.spell, ctx.rank, inst.castId);
         for (const cc of spec.atMax.cc ?? []) this.applyCC(cc.kind, this.evalExpr(cc.duration, ctx), inst.castId, slot);
         if (spec.atMax.consume) {
@@ -1192,12 +1228,16 @@ export class Sim {
     let critMult = st.critDamage;
     if (canCrit && this.kit.attack?.critMultiplier !== undefined && !o.fromAbility) critMult = this.evalExpr(this.kit.attack.critMultiplier, { slot: 'P' });
     const factor = !canCrit ? 1 : c.crit ? critMult : this.settings.crit === 'expected' && o.forcedCrit === undefined ? 1 + st.critChance * (critMult - 1) : 1;
+    const naturalCrit = !canCrit ? 0 : c.crit ? 1 : this.settings.crit === 'expected' && o.forcedCrit === undefined ? Math.min(1, st.critChance) : 0;
 
     const atk: AttackInfo = {
       castId: o.castId,
       index: this.attackIndex++,
       crit: c.crit,
       critFactor: factor,
+      canCrit,
+      naturalCrit,
+      critMultiplier: critMult,
       extra: [],
       baseMult: 1,
       ...(o.fromAbility ? { fromAbility: o.fromAbility } : {}),
@@ -1262,7 +1302,7 @@ export class Sim {
           pushComps(b.spec.empowerAttacks.components, b.label, b.slot);
           if (b.spec.empowerAttacks.onHitRepeats !== undefined) {
             const n = Math.round(this.evalExpr(b.spec.empowerAttacks.onHitRepeats, { slot: b.slot ?? 'P' }));
-            if (n > 0) atk.repeatOnHit = Math.max(Number(atk.repeatOnHit === true ? 1 : atk.repeatOnHit || 0), n);
+            if (n > 0) addOnHitRepeat(atk, n);
           }
           if (b.spec.empowerAttacks.replaceBase) {
             atk.replaceBase = true;
@@ -1285,11 +1325,17 @@ export class Sim {
     }
 
     for (const e of this.effects) e.preAttack?.(this, atk);
+    if (atk.forcedCrit) {
+      // Guaranteed crits (Sundered Sky, Fiendhunter Bolts): the natural roll picks the modifier.
+      const f = atk.forcedCrit;
+      atk.critFactor = atk.critMultiplier * (atk.naturalCrit * f.naturalModifier + (1 - atk.naturalCrit) * f.modifier);
+      atk.crit = true;
+    }
     for (const e of this.effects) e.onAttack?.(this, atk);
-    const repeats = atk.repeatOnHit === true ? 1 : Math.max(0, Math.round(Number(atk.repeatOnHit) || 0));
+    const repeats = Math.max(0, Math.round(atk.repeatOnHit ?? 0));
     for (let i = 0; i < repeats; i++) {
       // Extra application of on-hit effects (no base damage, no passive every-Nth counting).
-      const again: AttackInfo = { ...atk, extra: [], phantom: true, repeatOnHit: false };
+      const again: AttackInfo = { ...atk, extra: [], phantom: true, repeatOnHit: 0 };
       if (kitAtk?.onHit && !o.fromAbility) pushCompsTo(again, kitAtk.onHit, this.champ.passive.name);
       for (const e of this.effects) e.onAttack?.(this, again);
       atk.extra.push(...again.extra);
@@ -1304,13 +1350,14 @@ export class Sim {
         type: o.comp && o.comp.type !== 'adaptive' ? o.comp.type : o.comp?.type === 'adaptive' ? 'adaptive' : (kitAtk?.type ?? 'physical'),
         amount: base,
         castId: o.castId,
-        flags: { kind: o.fromAbility ? 'ability' : 'attack', slot: o.fromAbility, attack: !o.fromAbility, ability: !!o.fromAbility, crit: atk.crit },
+        // Attack-like ability hits (Urgot W, Azir soldiers…) deal basic damage too.
+        flags: { kind: o.fromAbility ? 'ability' : 'attack', slot: o.fromAbility, attack: !o.fromAbility, ability: !!o.fromAbility, crit: atk.crit, ...(o.fromAbility ? { basic: true } : {}) },
       });
     }
     // Abilities that apply on-hit at reduced effectiveness (Azir soldiers, Akshan E…).
     const eff = o.comp?.onHitEffectiveness !== undefined ? this.evalExpr(o.comp.onHitEffectiveness, { slot: o.fromAbility ?? 'P' }) : (empoweredEff ?? 1);
     for (const x of atk.extra) {
-      const scaled = eff !== 1 && x.flags?.onHit && x.flags.kind !== 'ability' ? { ...x, amount: x.amount * eff } : x;
+      const scaled = eff !== 1 && x.flags?.onHit && x.flags.kind !== 'ability' && !x.flags.fullOnHit ? { ...x, amount: x.amount * eff } : x;
       this.deal({ ...scaled, castId: x.castId ?? o.castId });
     }
     for (const f of pendingCC) f();
@@ -1358,7 +1405,7 @@ export class Sim {
         const cdBase = spec.cooldown !== undefined ? this.evalExpr(spec.cooldown, { slot, spell, rank }) : (cdSpell.cooldown?.[Math.min(rank, (cdSpell.cooldown?.length ?? 1) - 1)] ?? 0);
         const isU = slot === ULT && !spec.notUltimate;
         const haste = this.stats.abilityHaste + (isU ? this.stats.ultimateHaste : this.stats.basicAbilityHaste);
-        this.cooldownReady.set(cdKey, first + (spell.cooldownFixed ? cdBase : hasteCooldown(cdBase, haste)));
+        this.cooldownReady.set(cdKey, this.cooldownEnd(slot, first, spell.cooldownFixed ? cdBase : hasteCooldown(cdBase, haste)));
         this.recastCount.set(slot, 0);
         this.counters.delete(`firstcast:${slot}`);
       }
@@ -1412,7 +1459,7 @@ export class Sim {
       this.counters.set(`lastcast:${slot}`, this.time);
       if (used >= recasts) {
         const firstCast = (this.counters.get(`firstcast:${slot}`) ?? this.time);
-        this.cooldownReady.set(cdKey, (recasts > 1 ? firstCast : this.time) + cdAfter);
+        this.cooldownReady.set(cdKey, this.cooldownEnd(slot, recasts > 1 ? firstCast : this.time, cdAfter));
         this.recastCount.set(slot, 0);
         this.counters.delete(`firstcast:${slot}`);
       } else {
@@ -1481,15 +1528,19 @@ export class Sim {
     const id = `cc:${kind}`;
     const prev = this.getDebuff(id);
     const expires = Math.max(prev?.expires ?? 0, this.time + duration);
-    this.addDebuff({ id, label: kind === 'immobilize' ? 'Immobilized' : kind === 'slow' ? 'Slowed' : 'Impaired', expires, castId });
+    // An uninterrupted CC keeps the cast and time that began it (Cheap Shot's same-tick rule).
+    this.addDebuff({ id, label: kind === 'immobilize' ? 'Immobilized' : kind === 'slow' ? 'Slowed' : 'Impaired', expires, castId: prev ? prev.castId : castId, since: prev ? prev.since : this.time });
     for (const e of this.effects) e.onCrowdControl?.(this, { kind, castId, slot, duration });
   }
 
-  /** Target currently has crowd control of these kinds (applied by a different cast than castId). */
+  /**
+   * Target currently has crowd control of these kinds. With `excludeCastId`, CC that this cast
+   * applied at this very moment doesn't count (Cheap Shot: not on the same tick as its own CC).
+   */
   targetHasCC(kinds: ('immobilize' | 'slow' | 'impair')[], excludeCastId?: number): boolean {
     return kinds.some((k) => {
       const d = this.getDebuff(`cc:${k}`);
-      return !!d && d.castId !== excludeCastId;
+      return !!d && !(excludeCastId !== undefined && d.castId === excludeCastId && Math.abs((d.since ?? -Infinity) - this.time) < 1e-9);
     });
   }
 
@@ -1805,14 +1856,15 @@ export function maxRanks(champ: ChampionData): Record<'Q' | 'W' | 'E' | 'R', num
 
 /**
  * Default ability ranks for a level: ult at 6/11/16, one point in each basic by level 3,
- * then max in skillOrder (default Q > W > E).
+ * then max in skillOrder (default Q > W > E). `extraPoints`: skill points beyond one per level
+ * (Triple Tonic's Elixir of Skill), still limited by the level requirements of each rank.
  */
-export function resolveRanks(champ: ChampionData, level: number, given: Scenario['ranks'], skillOrder = 'QWE'): Record<Slot, number> {
+export function resolveRanks(champ: ChampionData, level: number, given: Scenario['ranks'], skillOrder = 'QWE', extraPoints = 0): Record<Slot, number> {
   const max = maxRanks(champ);
   const ultLevels = max.R >= 4 ? [1, 6, 11, 16] : [6, 11, 16];
   const r = ultLevels.filter((l) => level >= l).length;
   const ranks: Record<Slot, number> = { P: 1, Q: 0, W: 0, E: 0, R: Math.min(r, max.R) };
-  let points = level - ranks.R;
+  let points = level - ranks.R + extraPoints;
   const order = (skillOrder.toUpperCase().replace(/[^QWE]/g, '') + 'QWE').split('').filter((c, i, a) => a.indexOf(c) === i) as ('Q' | 'W' | 'E')[];
   // One point in each basic ability first (in max order), then max in order.
   for (const s of order) {

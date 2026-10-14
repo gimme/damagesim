@@ -1,4 +1,5 @@
 import type { ChampionKit } from '../../engine/kit-types.ts';
+import { addOnHitRepeat } from '../../engine/effects.ts';
 import type { Sim } from '../../engine/sim.ts';
 
 // Locke — patch 16.20.
@@ -26,7 +27,7 @@ const kit: ChampionKit = {
   hooks: {
     preAttack(sim, atk) {
       // Ashen Pursuit's dash applies on-hit effects to the target on top of the attack that follows it.
-      if (atk.extra.some((x) => x.label === 'Ashen Pursuit (dash)')) atk.repeatOnHit = true;
+      if (atk.extra.some((x) => x.label === 'Ashen Pursuit (dash)')) addOnHitRepeat(atk);
     },
     afterDamage(sim, inst) {
       if (inst.fromMark) return;

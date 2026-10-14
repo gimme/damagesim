@@ -7,8 +7,11 @@ import type { Sim } from '../../engine/sim.ts';
 // the same, coarser ticks just keep the event list readable).
 const AURA_TICK = 0.5;
 
-/** Starts the Darkness Rise aura once 3 stacks are reached; it ticks while the stacks are kept up. */
-function maybeStartAura(sim: Sim) {
+/**
+ * Starts the Darkness Rise aura once 3 stacks are reached; it ticks while the stacks are kept up.
+ * Its ticks share the cast instance of the hit that activated it (wiki).
+ */
+function maybeStartAura(sim: Sim, castId: number) {
   if (sim.counter('morde:aura') || (sim.markStacks('darknessRise') ?? 0) < sim.evalExpr('P.dv.MaximumStacks', { slot: 'P' })) return;
   sim.setCounter('morde:aura', 1);
   const tick = () => {
@@ -22,6 +25,7 @@ function maybeStartAura(sim: Sim) {
       label: 'Darkness Rise aura',
       type: 'magic',
       amount: sim.evalExpr(`(P.calc.AuraDamagePerStack + P.calc.PercentHealthForAura / 100 * target.maxHp) * ${AURA_TICK}`, { slot: 'P' }),
+      castId,
       flags: { kind: 'ability', slot: 'P', ability: true, aoe: true, dot: true },
     });
     sim.schedule(AURA_TICK, tick);
@@ -47,9 +51,9 @@ const kit: ChampionKit = {
   ],
   // The aura ticking needs state the declarative mark can't express (damage only at max stacks).
   hooks: {
-    afterDamage(sim) {
+    afterDamage(sim, inst) {
       // Marks update after afterDamage hooks run: check on the next event-queue step.
-      if (!sim.counter('morde:aura')) sim.schedule(0, () => maybeStartAura(sim));
+      if (!sim.counter('morde:aura')) sim.schedule(0, () => maybeStartAura(sim, inst.castId));
     },
   },
   attack: {

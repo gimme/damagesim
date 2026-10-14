@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadGameData } from '../src/node/load.ts';
 import { loadAllKits } from '../src/node/kits.ts';
-import { simulate } from '../src/engine/sim.ts';
+import { Sim, simulate } from '../src/engine/sim.ts';
+import { parseCombo } from '../src/engine/combo.ts';
 
 const data = loadGameData('16.20');
 await loadAllKits();
@@ -139,4 +140,159 @@ test('Target presets follow the target level; levelDiff is relative to yours; nu
   assert.equal(over.mr, 30);
   const champ = simulate(data, { champion: 'Ahri', level: 11, combo: 'AA', target: { champion: 'Jinx', levelDiff: -2 } }).target;
   assert.equal(champ.level, 9);
+});
+
+// -----------------------------------------------------------------------------
+// Wiki audit fixes (docs/research/validation.md, "Item and rune audit").
+
+/** Highest adaptive force Conqueror reached from damage dealt before `before` seconds. */
+function maxAdaptive(champion: string, combo: string, before = Infinity) {
+  const sim = new Sim(data, { champion, level: 18, runes: ['Conqueror'], combo, target: dummy });
+  let max = 0;
+  const deal = sim.deal.bind(sim);
+  sim.deal = (req) => {
+    const inst = deal(req);
+    if (sim.time < before) max = Math.max(max, sim.stats.adaptiveForce);
+    return inst;
+  };
+  sim.run(parseCombo(combo));
+  return max;
+}
+
+test('Damage over time shares the cast instance that started it: no Electrocute from one hit, Conqueror once per 4s', () => {
+  for (const [champion, combo] of [['Brand', 'Q'], ['Darius', 'AA'], ['Teemo', 'AA'], ['Twitch', 'AA']])
+    assert.equal(bySource(simulate(data, { champion, level: 18, runes: ['Electrocute'], combo, target: dummy }), 'rune:8112').length, 0, champion);
+  // Darius attack (2 stacks) + bleed ticks within 4s of it (no more): 2 × 4 adaptive at level 18;
+  // a tick 4s or more after the attack stacks again.
+  assert.equal(maxAdaptive('Darius', 'AA', 4), 8);
+  assert.equal(maxAdaptive('Darius', 'AA'), 16);
+});
+
+test('Conqueror: an empowered attack stacks once (Jax W)', () => {
+  assert.equal(maxAdaptive('Jax', 'W AA'), 8);
+});
+
+test('Unending Despair + Liandry\'s burn stop pulsing after combat', () => {
+  const r = simulate(data, { champion: 'Ornn', level: 18, items: ["Liandry's Torment", 'Unending Despair'], combo: 'Q AA W AA E AA AA AA', target: dummy });
+  const lastHit = Math.max(...r.events.filter((e) => e.source === 'AA').map((e) => e.time));
+  const anguish = r.events.filter((e) => e.label === 'Anguish').map((e) => e.time);
+  assert.ok(Math.max(...anguish) < lastHit + 7, `last Anguish at ${Math.max(...anguish)}, last attack at ${lastHit}`);
+});
+
+test('Press the Attack: 6s cooldown between procs; the amp ends 5s after combat', () => {
+  const r = simulate(data, { champion: 'Jinx', level: 11, runes: ['Press the Attack'], combo: 'AA*20', target: dummy });
+  assert.equal(bySource(r, 'rune:8005').length, 2);
+  const gap = simulate(data, { champion: 'Jinx', level: 11, runes: ['Press the Attack'], combo: 'AA*3 wait:6 AA', target: dummy });
+  assert.equal(bySource(gap, 'AA').at(-1)!.amps.length, 0);
+});
+
+test('On-hit effectiveness does not reduce Grasp, Heartsteel or Electrospark (Urgot W)', () => {
+  const grasp = (combo: string) => simulate(data, { champion: 'Urgot', level: 18, runes: ['Grasp of the Undying'], combo, target: dummy }).events.find((e) => e.label === 'Grasp')!.raw;
+  assert.ok(Math.abs(grasp('W') - grasp('AA')) < 0.01);
+});
+
+test("Guinsoo's Phantom Hit and Dusk and Dawn's repeat add up (on-hit applies three times)", () => {
+  const r = simulate(data, { champion: 'Jinx', level: 18, items: ["Guinsoo's Rageblade", 'Dusk and Dawn'], combo: 'AA*6 W AA', target: dummy });
+  const last = bySource(r, 'AA').at(-1)!;
+  assert.equal(r.events.filter((e) => e.label === 'Wrath' && e.castId === last.castId).length, 3);
+});
+
+test('Malignance: ultimate hits on a target inside Hatefog refresh it (Malzahar R)', () => {
+  const r = simulate(data, { champion: 'Malzahar', level: 18, items: ['Malignance'], combo: 'R', target: dummy });
+  const fog = r.events.filter((e) => e.label === 'Hatefog').map((e) => e.time);
+  assert.ok(fog.at(-1)! - fog[0] > 3.5, `Hatefog ${fog[0]}–${fog.at(-1)}`);
+});
+
+test('Spear of Shojin: innate damage grants no stacks; empowered attacks (Garen Q) are amplified', () => {
+  const darius = simulate(data, { champion: 'Darius', level: 18, items: ['Spear of Shojin'], combo: 'AA wait:2 Q', target: dummy });
+  assert.ok(bySource(darius, 'Q').every((e) => !e.amps.some((a) => a.source === 'Spear of Shojin')));
+  const garen = simulate(data, { champion: 'Garen', level: 18, items: ['Spear of Shojin'], combo: 'E Q AA', target: dummy });
+  assert.ok(bySource(garen, 'Q').some((e) => e.amps.some((a) => a.source === 'Spear of Shojin')));
+});
+
+test('Voltaic Cyclosword: Galvanize lands Firmament before the triggering ability, which gets the lethality', () => {
+  const r = simulate(data, { champion: 'Talon', level: 18, items: ['Voltaic Cyclosword'], combo: 'Q', target: { maxHp: 5000, armor: 100, mr: 0 } });
+  assert.equal(r.events[0].label, 'Firmament');
+  const q = bySource(r, 'Q')[0];
+  assert.ok(q.effectiveResist! < 100 - r.stats.lethality - 1, `effective armor ${q.effectiveResist}`);
+});
+
+test('Deathfire Touch: a spell burn has 8 ticks, the last 2 amplified; a burn after expiry starts over', () => {
+  const r = simulate(data, { champion: 'Ahri', level: 18, runes: ['Deathfire Touch'], combo: 'E', target: dummy });
+  const ticks = bySource(r, 'rune:8992');
+  assert.equal(ticks.length, 8);
+  assert.equal(ticks.filter((e) => e.label === 'Burn (amplified)').length, 2);
+});
+
+test('Actualizer: basic ability cooldowns progress 30% faster during the active', () => {
+  const qs = (items: string[], combo: string) => simulate(data, { champion: 'Ahri', level: 18, items, combo, target: dummy }).timeline.filter((s) => s.step === 'Q');
+  const [a, b] = qs(['Actualizer'], 'item:actualizer Q Q');
+  const [c, d] = qs(['Actualizer'], 'Q Q');
+  assert.ok(Math.abs((b.start - a.start) * 1.3 - (d.start - c.start)) < 0.02, `${b.start - a.start} vs ${d.start - c.start}`);
+});
+
+test('Hail of Blades: only basic attacks trigger it (not Ezreal Q)', () => {
+  const r = simulate(data, { champion: 'Ezreal', level: 18, runes: ['Hail of Blades'], combo: 'Q AA AA AA', target: dummy });
+  const q = bySource(r, 'Q')[0];
+  const procs = bySource(r, 'rune:9923');
+  assert.equal(procs.length, 3);
+  assert.ok(procs.every((p) => p.castId !== q.castId));
+});
+
+test('Cheap Shot: later hits of the cast that applied the CC trigger it (Malzahar R), its first hit does not', () => {
+  const r = simulate(data, { champion: 'Malzahar', level: 18, runes: ['Cheap Shot'], combo: 'R', target: dummy });
+  const shot = bySource(r, 'rune:8126');
+  assert.equal(shot.length, 1);
+  assert.ok(shot[0].time > bySource(r, 'R')[0].time);
+});
+
+test('Summon Aery: ability damage over time sends her (Malzahar E); persistent proc damage does not', () => {
+  assert.ok(bySource(simulate(data, { champion: 'Malzahar', level: 18, runes: ['Summon Aery'], combo: 'E', target: dummy }), 'rune:8214').length >= 1);
+});
+
+test('Sudden Impact: a dash during its cooldown does not arm it', () => {
+  const r = simulate(data, { champion: 'Riven', level: 18, runes: ['Sudden Impact'], combo: 'Q wait:8 E wait:2.5 AA', target: dummy });
+  assert.equal(bySource(r, 'rune:8143').length, 1);
+});
+
+test("Triple Tonic: Elixir of Skill's extra skill point from level 9", () => {
+  const ranks = (runes: string[]) => Object.values(simulate(data, { champion: 'Ahri', level: 9, runes, combo: 'Q', target: dummy }).champion.ranks).reduce((s, x) => s + x, 0);
+  assert.equal(ranks(['Triple Tonic']), ranks([]) + 1);
+});
+
+test('Titanic Hydra: the empowered attack replaces Cleave; the cooldown starts when it is used', () => {
+  const r = simulate(data, { champion: 'Sion', level: 18, items: ['Titanic Hydra'], combo: 'item:titanic AA AA', target: dummy });
+  assert.deepEqual(r.events.filter((e) => e.source === 'item:3748').map((e) => e.label), ['Titanic Crescent', 'Cleave']);
+});
+
+test('Sundered Sky + Fiendhunter Bolts: same result in either item order, with the champion crit multiplier', () => {
+  const total = (items: string[]) => simulate(data, { champion: 'Jhin', level: 18, items, combo: 'R AA', target: dummy }).totalDamage;
+  assert.ok(Math.abs(total(['Fiendhunter Bolts', 'Sundered Sky']) - total(['Sundered Sky', 'Fiendhunter Bolts'])) < 0.01);
+});
+
+test("Hexoptics C44 amplifies Kraken Slayer's basic damage", () => {
+  const r = simulate(data, { champion: 'Jinx', level: 18, items: ['Kraken Slayer', 'Hexoptics C44'], combo: 'AA*3', target: dummy });
+  assert.ok(r.events.find((e) => e.label === 'Bring It Down')!.amps.some((a) => a.source === 'Hexoptics C44'));
+});
+
+test("% AP increases add up (Rabadon's + Blackfire Torch while burning)", () => {
+  const sim = new Sim(data, { champion: 'Brand', level: 18, items: ["Rabadon's Deathcap", 'Blackfire Torch'], combo: 'E', target: dummy });
+  const ap = sim.stats.ap / 1.3;
+  sim.setCounter('burn:2503', 1);
+  assert.ok(Math.abs(sim.stats.ap - ap * 1.34) < 0.01, `${sim.stats.ap} vs ${ap * 1.34}`);
+});
+
+test('Lethal Tempo: stacks decay one by one after the duration', () => {
+  const sim = new Sim(data, { champion: 'Jinx', level: 18, runes: ['Lethal Tempo'], combo: 'AA*6', target: dummy });
+  const attacks: number[] = [];
+  sim.run(parseCombo('AA*6'));
+  for (const e of sim.events) if (e.source === 'AA') attacks.push(e.time);
+  const expiry = attacks.at(-1)! + 6;
+  const asAt = (t: number) => {
+    sim.time = t;
+    sim.invalidateStats();
+    return sim.stats.attackSpeed;
+  };
+  const [full, one, three] = [asAt(expiry - 0.1), asAt(expiry + 0.1), asAt(expiry + 0.7)];
+  assert.ok(full > one && one > three && three > asAt(expiry + 2), `${full} ${one} ${three}`);
 });

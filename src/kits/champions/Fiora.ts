@@ -81,6 +81,7 @@ const kit: ChampionKit = {
       sim.setCounter('bladework.left', left - 1);
       if (left === 2) {
         atk.crit = false;
+        atk.canCrit = false;
         atk.critFactor = 1;
         sim.applyCC('slow', sim.evalExpr('E.dv.SlowDuration', { slot: 'E' }), atk.castId, 'E');
       } else {

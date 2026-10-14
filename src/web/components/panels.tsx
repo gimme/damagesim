@@ -4,7 +4,7 @@ import { Card, ChampionPicker, ItemIcon, ItemPicker, NumberField, RuneIcon, fmt 
 import { SHARD_ROWS, type UIState, type TargetState } from '../state.ts';
 import { TARGET_PRESETS, type TargetPreset } from '../../engine/presets.ts';
 import { maxRanks, resolveRanks, type Sim, type SimResult } from '../../engine/sim.ts';
-import { NOT_LIVE_RUNES, hasRuneModel } from '../../engine/runes.ts';
+import { NOT_LIVE_RUNES, bonusSkillPoints, hasRuneModel } from '../../engine/runes.ts';
 import { parseCombo, formatCombo, type ComboStep } from '../../engine/combo.ts';
 import { conflicts } from '../../engine/analysis.ts';
 import { getKit } from '../../kits/index.ts';
@@ -17,8 +17,10 @@ type Set = (fn: (s: UIState) => UIState) => void;
 export function AttackerPanel({ state, set, sim }: { state: UIState; set: Set; sim: Sim | null }) {
   const champ = DATA.champions[state.champion];
   const max = maxRanks(champ);
+  // Triple Tonic's extra skill point (the sim's runes match the current state).
+  const extraPoints = sim ? bonusSkillPoints(sim.runes, state.level) : 0;
   const ranks = state.ranks ?? (() => {
-    const r = resolveRanks(champ, state.level, undefined, state.skillOrder);
+    const r = resolveRanks(champ, state.level, undefined, state.skillOrder, extraPoints);
     return { Q: r.Q, W: r.W, E: r.E, R: r.R };
   })();
   const totalPoints = ranks.Q + ranks.W + ranks.E + ranks.R;
@@ -55,7 +57,7 @@ export function AttackerPanel({ state, set, sim }: { state: UIState; set: Set; s
             </label>
           </div>
         </div>
-        {totalPoints > state.level && <div className="notice warn small">{totalPoints} skill points used at level {state.level}.</div>}
+        {totalPoints > state.level + extraPoints && <div className="notice warn small">{totalPoints} skill points used at level {state.level}.</div>}
         {state.ranks && (
           <button className="btn small" style={{ alignSelf: 'flex-start' }} onClick={() => set((s) => ({ ...s, ranks: null }))}>
             Reset to default leveling
