@@ -4,7 +4,8 @@
 // Groups:
 //   abilities       Template:Data <Champion>/<Ability>   each ability's data and description
 //   runes           Template:Rune data <Rune>            each rune's data and description
-//   items           Module:ItemData/data/<Item>          each item's stats and effects
+//   items           Module:ItemData/data                 every item's stats and effects (the per-item
+//                                                        subpages stopped being updated in 2025)
 //   item articles   <Item> (for items in data/generated) notes on interactions (on-hit, abilities…)
 //   rune articles   <Rune>                               notes on interactions
 //   champion stats  Module:ChampionData/data             base stats of every champion
@@ -95,7 +96,7 @@ async function main() {
   // Sub-pages only; the one-letter ones (…/Q, …/I) just point at the ability pages.
   groups.push(['abilities', new Map([...abilities].filter(([t]) => t.includes('/') && !/\/[QWERI]$/.test(t)))]);
   groups.push(['runes', await listPrefix(10, 'Rune_data_')]);
-  groups.push(['items', await listPrefix(828, 'ItemData/data/')]);
+  groups.push(['items', await listTitles(['Module:ItemData/data'])]);
   // Article titles from our data; names with markup (Arena items) aren't titles, and stat shards
   // (ids 5000-5999) only redirect to generic stat pages.
   const itemNames = [...new Set(Object.values(data.items).map((i) => i.name))].filter((n) => !/[<>]/.test(n));

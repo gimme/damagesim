@@ -294,3 +294,81 @@ Smolder R: the report that the center deals less than the edge did not reproduce
 matching the wiki, at every rank in the CLI, the UI (typed and dropdown) and the published page,
 and in 1,500 random builds. Every ability variant was also compared with its default cast: the
 only variants that deal less are the intended ones (edge, tap, uncharged, short range, other form).
+
+## Item and rune audit (all items and runes)
+
+The kit audit compares each ability with the wiki; this does the same for items and runes. The
+game files hold their numbers, but `items.ts` and `runes.ts` encode the behaviour by hand: what
+triggers an effect, damage type and category, stacking and cooldowns.
+
+**Source fix.** `fetch-wiki.ts` downloaded the per-item pages `Module:ItemData/data/<Item>`, which
+the wiki stopped updating in June 2025 (Black Cleaver still at 40 AD, no page for Actualizer,
+Bastionbreaker, Hexoptics C44…). The live data is the single module `Module:ItemData/data`
+(updated 2026-10-10), which matches the game files: 0 stat differences.
+
+**Scripted pass.** `npm run audit:items` (`scripts/audit-items.ts`) reads every item's and rune's
+wiki description and notes, then plays each one through nine probe combos at level 18 (melee and
+ranged attacks, abilities, mixed, recasts on cooldown, a low-health target and attacker, an
+execute range), against the same combo with a stats-only copy of the item or without the rune. It
+compares the damage the effect deals (type, on-hit, ability or proc damage, cooldown between procs)
+and flags modeled effects that change nothing, stats-only items whose passive deals damage, and
+item stats that differ. Result: 235 items and runes, 0 open findings, 16 reviewed in `REVIEWED`
+(effects that don't deal damage, splash on other targets, and the like). Fixed:
+
+| Item | Was | Now |
+|---|---|---|
+| Statikk Shiv | Electrospark not on-hit | on-hit, like the other Energized procs (wiki: "your next basic attack on-hit is empowered…") |
+| Spellslinger's Shoes | an empty effect, listed as "modeled" with no description | stats only (its 8% magic penetration is an item stat) |
+
+**Manual pass.** The script checks categories, not rules, so every damage-relevant rune and the
+medium-confidence items were also read against the wiki descriptions and notes, and each finding
+was reproduced in a simulation. ✓ = also reproduced while writing this up. Not fixed yet:
+
+| # | Finding | Where | Effect | Confidence |
+|---|---|---|---|---|
+| 1 | DoT ticks get a new `castId` per tick, so each tick is a "separate hit" ✓ | `sim.ts:978` (marks), `sim.ts:876` (kit `deal` without `castId`) | One Brand Q, Darius attack or Teemo attack procs Electrocute; one Darius attack + bleed gives ~10 Conqueror stacks. Also Briar, Fizz, Lillia, Skarner, Malzahar E, Naafiri, Mordekaiser, Twitch | high |
+| 2 | Unending Despair + a burn item keeps itself in combat during `finishDots` ✓ | `items.ts:658-664`, `sim.ts:924`, `sim.ts:1677` | Ornn `Q AA W AA E AA AA AA` with Liandry's: Anguish pulses until 35s, total 1464 → 2391 | high |
+| 3 | Press the Attack procs once per combo and its amp never ends ✓ | `runes.ts:52` | Jinx `AA*20` (14s): 1 proc, should be 2 (6s cooldown); amp should end 5s after combat | high |
+| 4 | Grasp is scaled by on-hit effectiveness ✓ | `runes.ts:375`, `sim.ts:1313` | Urgot W Grasp 10.9 instead of 21.7 (also Akshan, Azir, Bel'Veth, Yi, Katarina, Aphelios); wiki: "not affected by on-hit damage modifiers" | high |
+| 5 | Guinsoo's and Dusk and Dawn both set `repeatOnHit = true` ✓ | `items.ts:87`, `items.ts:286` | A Phantom Hit on a Spellblade attack applies on-hit twice, not three times; also caps kit repeat counts (Renekton empowered W) | medium-high |
+| 6 | Malignance: ultimate hits on a target inside Hatefog don't refresh it | `items.ts:645-651` | Multi-hit ultimates: Malzahar R +17% combo damage, Swain, Fiddlesticks, Brand, Annie. Plan: refresh on ultimate hits, and an option for how long the target stays in the zone | medium |
+| 7 | Spear of Shojin: innate (P) damage grants stacks; empowered attacks that are also ability damage aren't amplified | `items.ts:626`, `items.ts:621` | Darius passive bleed builds stacks; Garen Q, Darius W, Nasus Q miss 3–12% | high / medium |
+| 8 | Voltaic Cyclosword: Firmament from Galvanize lands after the ability hit | `items.ts:502-505` | Uses post-hit health, and the hit misses the +15 lethality (wiki: "applied before the damage of the triggering attack or ability") | high |
+| 9 | Deathfire Touch: tick at exactly 3s is amplified; a re-burn within 0.5s of expiry continues the old burn | `runes.ts:328`, `runes.ts:324-326, 346-351` | +8% per spell burn; up to 7 of 8 ticks amplified after a short gap | high |
+| 10 | Actualizer: basic ability cooldowns don't progress 30% faster during the active | `items.ts:773-787` | Missed recasts in the 8s window | high |
+| 11 | Hail of Blades is triggered and consumed by abilities that trigger on-attack effects | `runes.ts:229` | Ezreal Q, Gangplank Q, Urgot W (3 procs); wiki: only Yasuo Q and Yone Q are special cased | medium |
+| 12 | Cheap Shot ignores every later hit of the cast that applied the CC | `runes.ts:516`, `sim.ts:1489-1493` | Malzahar R ticks never trigger it; wiki blocks only the same tick | high |
+| 13 | Summon Aery ignores ability DoTs and non-pet item procs | `runes.ts:268-270` | Malzahar E sends Aery 0 times; wiki excludes only persistent proc damage | medium-high |
+| 14 | Bloodletter's Curse: one shared 0.3s lockout instead of one per cast | `items.ts:713-714` | Syndra +3.2%, Lux/Brand +2% | medium-high |
+| 15 | Conqueror stacks twice on an empowered attack (attack + ability part) | `runes.ts:128-136` | Jax W gives 4 stacks; wiki: once per cast instance | medium |
+| 16 | Sudden Impact re-arms during its cooldown | `runes.ts:532-534` | Extra 20–87 true damage in multi-dash combos | medium-high |
+| 17 | Triple Tonic: Elixir of Skill's extra skill point at level 9 is missing; +25 adaptive hardcoded | `runes.ts:657`, `resolveRanks` | One ability a rank short at levels 9–17 | high |
+| 18 | Titanic Hydra active: 1% Cleave and 4% Crescent both apply; the empowered attack never expires; cooldown hardcoded and started on cast | `items.ts:336-347` | +1% max health per use | medium-high |
+| 19 | Forced crits: Fiendhunter sees Sundered Sky's crit as natural when listed after it; both ignore champion crit multipliers | `items.ts:405`, `items.ts:429-434` | Result depends on item order; Fiendhunter on Jhin over-crits ~16% | high / medium |
+| 20 | Hexoptics C44 doesn't amplify Kraken's proc (basic damage) | `items.ts:462` | ~10% of each Kraken proc | medium |
+
+Low impact (long gaps, edge timing, or no numeric change today):
+* Blackfire's +4% AP multiplies with Rabadon's instead of adding (`stats.ts:329`): +0.9% AP.
+* Horizon Focus re-marks only after the mark expires (`items.ts:847`).
+* Liandry's Suffering and Riftmaker count combat from combo start and never fall off (`items.ts:59`).
+* Hail of Blades' cooldown starts at the next attack after a timeout (`runes.ts:230`); Lethal Tempo
+  stacks expire all at once (`runes.ts:84, 90`); Hullbreaker stacks never expire (`items.ts:319-329`).
+* Phantom Hit / Dusk and Dawn repeats land instantly, before the attack's own damage (`sim.ts:1287-1296`).
+* Terminus' Dark penetration can apply to its own hit depending on item order (`items.ts:258-263`).
+* Black Cleaver: non-basic hits benefit from their own stack in game (wiki marks it as a bug) (`items.ts:690-699`).
+* Bloodsong, Imperial Mandate and Horizon Focus amps count as active at t=0 (`items.ts:201`).
+* Aftershock's shockwave isn't tagged proc, so it can trigger Cheap Shot (`runes.ts:396`).
+* Rocketbelt's active calls on-cast hooks, so it arms Spellblade (`items.ts:902`).
+* Hardcoded numbers that equal the data today: Zaz'Zak's cooldown (`items.ts:859`), Actualizer
+  cooldown (`items.ts:783`), Malignance tick split (`items.ts:649-651`), Stormsurge skips
+  `RangedProcDamageMod` (`items.ts:590`), Statikk's +9 Energize (`items.ts:144`), Gathering Storm's
+  curve (`runes.ts:582`).
+* Unverified: pet damage triggers Luden's, Blackfire and Zaz'Zak's; the wiki names "pet damage"
+  only for Liandry's, Malignance and Shojin. Needs an in-game check.
+
+Checked and matching the wiki: Shadowflame, Abyssal Mask, Liandry's burn, Riftmaker, Luden's Echo,
+Stormsurge, Zaz'Zak's, Blackfire burn, Kraken Slayer (1.75× max is right since V25.14; the wiki's
+1.5× wording is older), Lord Dominik's, BotRK, Guinsoo's, Bastionbreaker, Eclipse, the Spellblade
+family, Lethal Tempo, Electrocute, Dark Harvest, Arcane Comet, First Strike, Coup de Grace, Cut
+Down, Last Stand, Scorch, Axiom Arcanist, Absolute Focus, Waterwalking, Legend: Alacrity, Ultimate
+Hunter, Transcendence, and level 19–20 extrapolation.

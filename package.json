@@ -24,7 +24,8 @@
     "typecheck": "tsc --noEmit",
     "check-kits": "node scripts/check-kits.ts",
     "wiki": "node scripts/fetch-wiki.ts",
-    "audit": "node scripts/audit-wiki.ts"
+    "audit": "node scripts/audit-wiki.ts",
+    "audit:items": "node scripts/audit-items.ts"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

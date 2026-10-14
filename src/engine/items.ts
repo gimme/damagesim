@@ -481,7 +481,7 @@ const ITEMS: Record<number, Factory> = {
   3094: (item, _s, sim) => energized(item, sim, (_sim, push) => push(hit(item, 'Sharpshooter', 'magic', dv(item, 'BonusDamage'), { onHit: true })), 'Energized attacks deal bonus magic damage.'),
   3095: (item, _s, sim) => energized(item, sim, (s2, push) => push(hit(item, 'Bolt', 'magic', calc(s2, item, 'TotalProcDamage'), { onHit: true })), 'Energized attacks deal bonus magic damage.'),
   3087: (item, _s, sim) =>
-    energized(item, sim, (_sim, push) => push(hit(item, 'Electrospark', 'magic', dv(item, 'ChainDamage'), { aoe: true })), 'Energized attacks fire chain lightning (hits the target first) for magic damage; attacks grant +9 extra Energize charges.'),
+    energized(item, sim, (_sim, push) => push(hit(item, 'Electrospark', 'magic', dv(item, 'ChainDamage'), { onHit: true, aoe: true })), 'Energized attacks fire chain lightning (hits the target first) for magic damage; attacks grant +9 extra Energize charges.'),
   6699: (item, setup, sim) => {
     let lethUntil = -Infinity;
     return energized(
@@ -1024,7 +1024,6 @@ const ITEMS: Record<number, Factory> = {
       options: [{ key: 'flowingWater.active', label: 'Staff of Flowing Water buff active', default: 0, min: 0, max: 1, step: 1 }],
       stats: (ctx) => (ctx.opt['flowingWater.active'] ? { ap: dv(item, 'APMod'), abilityHaste: dv(item, 'AHMod') } : {}),
     }),
-  3175: () => null,
 };
 
 function immolate(item: ItemData, calcName: string): Effect {

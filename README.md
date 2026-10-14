@@ -13,7 +13,7 @@ the combo out on a timeline and reports every damage instance.
   including the exact tooltip formulas. Nothing is typed in by hand.
 
 Current data: **patch 16.20**: all 173 champions with hand-written ("curated") kits, all Summoner's
-Rift items (86 with modeled passives or actives, the rest are stats only), all live runes and Ignite. See
+Rift items (85 with modeled passives or actives, the rest are stats only), all live runes and Ignite. See
 [docs/COVERAGE.md](docs/COVERAGE.md).
 
 ## Quick start
@@ -121,7 +121,10 @@ Targets:
    ability's data, the items, runes and their articles, champion stats and "Attack effects".
    It fetches 50 pages per request (about 60 requests, a minute) and on later runs only pages that
    changed (about 15 requests). `npm run audit` then compares every kit with the ability
-   descriptions and the "Attack effects" lists.
+   descriptions and the "Attack effects" lists. `npm run audit:items` does the same for items and
+   runes: it plays every item and rune through a set of probe combos and compares what it does
+   (damage type, on-hit, ability or proc damage, cooldowns) and the item stats with the wiki's item
+   data, rune data and article notes.
 
 ## Model, assumptions and limits
 
@@ -150,6 +153,7 @@ Targets:
 npm run data -- 16.21        # fetch + build data/generated/16.21 and make it current
 node scripts/check-kits.ts   # kits still resolve their formulas?
 npm run wiki && npm run audit  # refresh changed wiki pages; kits still match on-hit/on-attack/crit?
+npm run audit:items          # items and runes still match the wiki?
 npm test
 ```
 
@@ -161,7 +165,7 @@ mechanics or formula names changed; `check-kits` flags any references that went 
 ```
 scripts/        fetch-data, build-data, update-data, inspect-champion, check-kits, gen-kit-index,
                 gen-coverage, update-snapshots, build-artifact (self-contained web bundle),
-                fetch-wiki + audit-wiki (kit behaviour vs the wiki)
+                fetch-wiki + audit-wiki, audit-items (kit, item and rune behaviour vs the wiki)
 data/generated/ processed game data per patch (committed); data/raw is the download cache (game files, wiki)
 src/engine/     calc (formula interpreter), expr, stats, damage, sim (timeline), items, runes,
                 summoners, autokit, analysis (compare/rank/optimize), describe, tooltip
