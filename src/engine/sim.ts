@@ -1,0 +1,1917 @@
+// The combat simulator: one attacker, one target, a sequence of combo steps on a timeline.
+
+import type { ChampionData, ItemData, RuneData, SpellData, CalcNode } from './data-types.ts';
+import type { GameData } from './gamedata.ts';
+import { findChampion, findItem, findRune } from './gamedata.ts';
+import { evalCalcNode, STAT, type CalcEnv } from './calc.ts';
+import { compile, type Resolver } from './expr.ts';
+import { computeStats, emptyMods, hasteCooldown, itemStatsToMods, mergeMods, type Stats, type StatMods, GAME } from './stats.ts';
+import { effectiveResist, resistMultiplier, type DamageType } from './damage.ts';
+import type { AbilitySpec, BuffSpec, ChampionKit, ComponentSpec, DebuffSpec, Expr, MarkSpec, VariantSpec } from './kit-types.ts';
+import type { AttackInfo, CastInfo, DamageFlags, DamageInstance, DamageRequest, Effect, SetupCtx, Slot } from './effects.ts';
+import { parseCombo, formatCombo, type ComboStep } from './combo.ts';
+import { getKit } from '../kits/index.ts';
+import { createItemEffect, ITEM_GROUPS } from './items.ts';
+import { createRuneEffects } from './runes.ts';
+import { createSummonerEffect } from './summoners.ts';
+import { resolvePreset, type TargetPreset } from './presets.ts';
+
+export interface TargetSpec {
+  /** Derive stats from a champion (level + items). Explicit numbers below override. */
+  champion?: string;
+  /**
+   * Archetype whose stats follow the target's level: class-average base stats + a typical build
+   * for that level + health shards (see presets.ts). Explicit numbers below override.
+   */
+  preset?: TargetPreset;
+  /** Absolute target level. Default: the attacker's level + levelDiff. */
+  level?: number;
+  /** Target level relative to the attacker's (used when `level` is not given). Default 0. */
+  levelDiff?: number;
+  items?: (number | string)[];
+  label?: string;
+  maxHp?: number;
+  /** Current HP (absolute). */
+  hp?: number;
+  /** Current HP as a fraction of max (0-1). */
+  hpPercent?: number;
+  /** Portion of max HP that counts as bonus HP. */
+  bonusHp?: number;
+  /** Total armor; base/bonus split given by bonusArmor. */
+  armor?: number;
+  bonusArmor?: number;
+  mr?: number;
+  bonusMr?: number;
+  /** Generic damage reduction (fraction) applied to all incoming damage. */
+  damageReduction?: number;
+}
+
+export interface SimSettings {
+  /** expected: average crit damage per crit-capable hit; never/always: deterministic. */
+  crit?: 'expected' | 'never' | 'always';
+  /** Keep simulating damage-over-time effects after the last step (default true). */
+  finishDots?: boolean;
+  /** Wait for an ability's cooldown when it's used again (default true); otherwise cast anyway. */
+  waitForCooldowns?: boolean;
+  /** Seconds of combat before the combo starts (stacks Liandry's Suffering etc.). */
+  priorCombatTime?: number;
+  /** How damage-dealt amplifiers combine: additive (live since 26.9) or multiplicative (pre-26.9). */
+  ampStacking?: 'additive' | 'multiplicative';
+}
+
+export interface Scenario {
+  champion: string;
+  level?: number;
+  ranks?: Partial<Record<'Q' | 'W' | 'E' | 'R', number>>;
+  /** Max order for default ranks, e.g. "QEW" (default "QWE"). */
+  skillOrder?: string;
+  items?: (number | string)[];
+  runes?: (number | string)[];
+  options?: Record<string, number | boolean>;
+  combo: ComboStep[] | string;
+  target?: TargetSpec;
+  settings?: SimSettings;
+}
+
+export interface SourceTotal {
+  source: string;
+  label: string;
+  damage: number;
+  raw: number;
+  hits: number;
+  type: Partial<Record<DamageType, number>>;
+}
+
+export interface SimResult {
+  patch: string;
+  champion: { id: string; name: string; level: number; ranks: Record<string, number>; kitStatus: ChampionKit['status'] };
+  items: { id: number; name: string; gold: number }[];
+  runes: { id: number; name: string }[];
+  gold: number;
+  combo: string;
+  stats: Stats;
+  target: {
+    label: string;
+    /** Target level (champion or preset targets). */
+    level?: number;
+    maxHp: number;
+    bonusHp: number;
+    startHp: number;
+    endHp: number;
+    armor: number;
+    bonusArmor: number;
+    mr: number;
+    bonusMr: number;
+    /** Effective resist and damage multiplier at combo start (after your penetration). */
+    effectiveArmor: number;
+    effectiveMr: number;
+    physicalMultiplier: number;
+    magicMultiplier: number;
+  };
+  totalDamage: number;
+  /** Damage excluding damage-over-time ticks (burns, bleeds, Ignite, auras): the burst part. */
+  comboDamage: number;
+  /** Damage from damage-over-time ticks. */
+  dotDamage: number;
+  rawDamage: number;
+  byType: Record<DamageType, number>;
+  bySource: SourceTotal[];
+  events: DamageInstance[];
+  timeline: { step: string; start: number; end: number; note?: string }[];
+  /** Seconds from first action to last damage. */
+  duration: number;
+  /** Seconds the combo's actions take (cast/attack windups). */
+  comboTime: number;
+  killed: boolean;
+  killTime?: number;
+  /** Fraction of the target's starting HP removed (can exceed 1). */
+  percentOfHp: number;
+  dps: number;
+  warnings: string[];
+  notes: string[];
+}
+
+interface ScheduledEvent {
+  time: number;
+  seq: number;
+  run: () => void;
+}
+
+interface ActiveBuff {
+  id: string;
+  label: string;
+  expires: number;
+  stacks: number;
+  spec?: BuffSpec;
+  slot?: Slot;
+  /** Remaining empowered attacks. */
+  charges?: number;
+  mods?: Partial<StatMods>;
+  amp?: number;
+}
+
+interface ActiveDebuff {
+  id: string;
+  label: string;
+  expires: number;
+  stacks: number;
+  castId?: number;
+  stored?: number;
+  spec?: DebuffSpec;
+  slot?: Slot;
+  armorPct?: number;
+  armorFlat?: number;
+  mrPct?: number;
+  mrFlat?: number;
+  amp?: number;
+}
+
+const ULT: Slot = 'R';
+
+export class Sim {
+  readonly data: GameData;
+  readonly champ: ChampionData;
+  readonly kit: ChampionKit;
+  readonly level: number;
+  readonly ranks: Record<Slot, number>;
+  readonly opt: Record<string, number>;
+  readonly settings: Required<SimSettings>;
+  readonly items: ItemData[];
+  readonly runes: RuneData[];
+  readonly effects: Effect[] = [];
+  readonly warnings: string[] = [];
+  readonly notes = new Set<string>();
+
+  time = 0;
+  private seq = 0;
+  private queue: ScheduledEvent[] = [];
+  private nextCastId = 1;
+  private nextInstId = 1;
+  private staticMods: StatMods;
+  private statsCache: Stats | null = null;
+  private attackIndex = 0;
+  readonly counters = new Map<string, number>();
+  readonly marks = new Map<string, { stacks: number; expires: number; castIds: Set<number>; cooldownUntil: number; ticking: boolean }>();
+  readonly buffs = new Map<string, ActiveBuff>();
+  readonly debuffs = new Map<string, ActiveDebuff>();
+  private cooldownReady = new Map<string, number>();
+  private recastCount = new Map<string, number>();
+  freeAt = 0;
+  attackReadyAt = 0;
+  combatStart = 0;
+  /** Time of the last damage that keeps you in combat (everything except aura damage). */
+  lastCombatTime = 0;
+  readonly events: DamageInstance[] = [];
+
+  readonly target: {
+    label: string;
+    level?: number;
+    maxHp: number;
+    hp: number;
+    startHp: number;
+    baseHp: number;
+    bonusHp: number;
+    baseArmor: number;
+    bonusArmor: number;
+    baseMr: number;
+    bonusMr: number;
+    damageReduction: number;
+    killTime?: number;
+  };
+
+  constructor(data: GameData, scenario: Scenario) {
+    this.data = data;
+    this.champ = findChampion(data, scenario.champion);
+    this.kit = getKit(this.champ);
+    this.level = clampInt(scenario.level ?? 11, 1, GAME.maxLevel);
+    this.settings = {
+      crit: scenario.settings?.crit ?? 'expected',
+      finishDots: scenario.settings?.finishDots ?? true,
+      waitForCooldowns: scenario.settings?.waitForCooldowns ?? true,
+      priorCombatTime: scenario.settings?.priorCombatTime ?? 0,
+      ampStacking: scenario.settings?.ampStacking ?? 'additive',
+    };
+    this.ranks = resolveRanks(this.champ, this.level, scenario.ranks, scenario.skillOrder);
+
+    // Options: kit defaults, then effect defaults, then user values.
+    // Your own current health as a fraction (Last Stand, Absolute Focus, Overlord's…): full by default.
+    this.opt = { 'self.hpPercent': 1 };
+    for (const o of this.kit.options ?? []) this.opt[o.key] = o.default;
+
+    this.items = (scenario.items ?? []).map((q) => findItem(data, q));
+    if (this.items.length > 6) this.warn(`${this.items.length} items: a champion can hold 6`);
+    for (const [group, ids] of Object.entries(ITEM_GROUPS)) {
+      const owned = this.items.filter((i) => ids.includes(i.id));
+      if (owned.length > 1) this.warn(`only one ${group} item can be owned (${owned.map((i) => i.name).join(', ')}); the game won't allow this build`);
+    }
+    if (this.items.filter((i) => i.tags.includes('Boots')).length > 1) this.warn('more than one pair of boots');
+    this.runes = (scenario.runes ?? []).map((q) => findRune(data, q));
+    const legendaryCount = this.items.filter((i) => isLegendary(i)).length;
+    const setup: SetupCtx = { level: this.level, ranged: this.champ.attackType === 'ranged', opt: this.opt, champion: this.champ.id, legendaryCount };
+
+    // Effects: kit hooks, items, runes, summoners.
+    if (this.kit.hooks) this.effects.push({ id: 'kit', label: this.champ.name, source: 'kit', ...this.kit.hooks });
+    const seenUnique = new Set<string>();
+    for (const item of this.items) {
+      const eff = createItemEffect(item, setup, this);
+      if (!eff) continue;
+      // Unique passives (same effect id) apply once.
+      if (seenUnique.has(eff.id)) continue;
+      seenUnique.add(eff.id);
+      this.effects.push(eff);
+    }
+    this.effects.push(...createRuneEffects(this.runes, setup, this));
+    this.effects.push(createSummonerEffect('ignite', setup));
+    for (const e of this.effects) for (const o of e.options ?? []) if (!(o.key in this.opt)) this.opt[o.key] = o.default;
+    for (const [k, v] of Object.entries(scenario.options ?? {})) this.opt[k] = typeof v === 'boolean' ? (v ? 1 : 0) : v;
+
+    // Static stats.
+    this.staticMods = emptyMods();
+    for (const item of this.items) mergeMods(this.staticMods, itemStatsToMods(item.stats));
+    for (const e of this.effects) {
+      const m = e.stats?.(setup);
+      if (m) mergeMods(this.staticMods, m);
+    }
+    if (this.kit.stats) {
+      const m = this.kit.stats({ level: this.level, opt: this.opt, ranks: this.ranks, evalExpr: (e, slot) => this.evalExpr(e, { slot: (slot as Slot) ?? 'P' }) });
+      if (m) mergeMods(this.staticMods, m);
+    }
+    // evalExpr above may have cached stats computed before these mods were merged.
+    this.invalidateStats();
+
+    this.target = resolveTarget(data, scenario.target ?? {}, this.level);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Stats
+
+  private computingStats = false;
+
+  get stats(): Stats {
+    if (!this.statsCache) {
+      if (this.computingStats) {
+        // Re-entered from a dynamicStats hook (e.g. it evaluates an expression): answer with the
+        // static stats so hooks can read stats without recursing.
+        return computeStats({ base: this.champ.stats, level: this.level, adaptiveDefault: this.champ.adaptive, ranged: this.champ.attackType === 'ranged' }, this.staticMods, this.opt['self.hpPercent'] ?? 1);
+      }
+      this.computingStats = true;
+      try {
+        this.statsCache = this.computeDynamicStats();
+      } finally {
+        this.computingStats = false;
+      }
+    }
+    return this.statsCache;
+  }
+
+  private computeDynamicStats(): Stats {
+    {
+      const mods = structuredCloneMods(this.staticMods);
+      for (const e of this.effects) {
+        const m = e.dynamicStats?.(this);
+        if (m) mergeMods(mods, m);
+      }
+      for (const b of this.buffs.values()) {
+        if (b.expires < this.time) continue;
+        if (b.mods) mergeMods(mods, b.mods);
+      }
+      const hpPct = 1; // attacker HP: full unless an option says otherwise
+      const st = computeStats(
+        { base: this.champ.stats, level: this.level, adaptiveDefault: this.champ.adaptive, ranged: this.champ.attackType === 'ranged' },
+        mods,
+        this.opt['self.hpPercent'] ?? hpPct,
+      );
+      // Kits with a fixed attack speed (Jhin) report it in the stats too.
+      if (this.kit.attack?.attackSpeed !== undefined) st.attackSpeed = this.evalExpr(this.kit.attack.attackSpeed, { slot: 'P' });
+      return st;
+    }
+  }
+
+  invalidateStats() {
+    this.statsCache = null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Spells & expressions
+
+  spellFor(slot: Slot, variant?: VariantSpec | AbilitySpec): SpellData {
+    const spec = this.kit.abilities[slot];
+    const want = (variant as AbilitySpec | undefined)?.spell ?? spec?.spell;
+    if (want) {
+      const s = this.findSpell(want);
+      if (s) return s;
+      this.warn(`kit references unknown spell "${want}"`);
+    }
+    const ab = this.champ.abilities.find((a) => a.slot === slot);
+    if (!ab) throw new Error(`${this.champ.name} has no ${slot} ability`);
+    return ab.spells[0];
+  }
+
+  findSpell(name: string): SpellData | undefined {
+    const n = name.toLowerCase();
+    for (const ab of this.champ.abilities)
+      for (const s of ab.spells) if (s.scriptName.toLowerCase() === n || s.path.toLowerCase() === n || s.path.toLowerCase().endsWith('/' + n)) return s;
+    return undefined;
+  }
+
+  slotOfSpell(spell: SpellData): Slot {
+    for (const ab of this.champ.abilities) if (ab.spells.includes(spell)) return ab.slot === 'X' ? 'P' : (ab.slot as Slot);
+    return 'P';
+  }
+
+  rankOf(slot: Slot): number {
+    return this.ranks[slot] ?? 1;
+  }
+
+  siblingsOf(spell: SpellData): SpellData[] {
+    const ab = this.champ.abilities.find((a) => a.spells.includes(spell));
+    return ab ? ab.spells : [spell];
+  }
+
+  dataValue(spell: SpellData, name: string, rank: number): number {
+    let arr = spell.dataValues[name];
+    if (!arr) {
+      for (const s of this.siblingsOf(spell)) if (s.dataValues[name]) arr = s.dataValues[name];
+    }
+    if (!arr) {
+      // Case-insensitive fallback (tooltips are case-insensitive).
+      const lower = name.toLowerCase();
+      for (const s of this.siblingsOf(spell))
+        for (const [k, v] of Object.entries(s.dataValues)) if (k.toLowerCase() === lower) arr = v;
+    }
+    if (!arr) {
+      // Legacy effect amounts: dv.Effect5Amount → effects[4][rank].
+      const eff = /^Effect(\d+)Amount$/i.exec(name);
+      const e = eff ? spell.effects?.[Number(eff[1]) - 1] : undefined;
+      if (e) return e[Math.min(rank, e.length - 1)] ?? 0;
+      this.warn(`missing data value ${spell.scriptName}.${name}`);
+      return 0;
+    }
+    return arr[Math.min(rank, arr.length - 1)] ?? 0;
+  }
+
+  /** Evaluate a game calculation of a spell. */
+  calc(spell: SpellData, name: string, rank: number): number {
+    const lookup = (n: string): CalcNode | undefined => {
+      let c = spell.calcs[n];
+      if (!c) for (const s of this.siblingsOf(spell)) if (s.calcs[n]) c = s.calcs[n];
+      if (!c) {
+        const lower = n.toLowerCase();
+        for (const s of this.siblingsOf(spell)) for (const [k, v] of Object.entries(s.calcs)) if (k.toLowerCase() === lower) c = v;
+      }
+      return c;
+    };
+    const node = lookup(name);
+    if (!node) {
+      this.warn(`missing calculation ${spell.scriptName}.${name}`);
+      return 0;
+    }
+    const env = this.calcEnv(spell, rank, lookup);
+    return evalCalcNode(node, env, lookup);
+  }
+
+  private calcEnv(spell: SpellData, rank: number, lookup: (n: string) => CalcNode | undefined): CalcEnv {
+    const st = this.stats;
+    const env: CalcEnv = {
+      rank,
+      level: this.level,
+      ranged: st.ranged,
+      abilityHaste: st.abilityHaste,
+      dataValue: (n) => this.dataValue(spell, n, rank),
+      stat: (stat, formula, target) => (target ? this.targetStat(stat, formula) : this.selfStat(stat, formula)),
+      buffStacks: (buff) => this.buffStacksFor(buff),
+      buffElapsed: (buff) => this.optionNumber(`buffElapsed:${buff}`, 1),
+      resource: (_r, formula) => (formula === 1 ? st.baseMana : formula === 2 ? st.bonusMana : st.maxMana),
+      itemCount: (ep) => (ep >= 5 ? this.items.filter(isLegendary).length : this.items.length),
+      effect: (idx) => {
+        const e = spell.effects?.[idx - 1];
+        return e ? (e[Math.min(rank, e.length - 1)] ?? 0) : 0;
+      },
+      externalDataValue: (path, n) => {
+        const s = this.findSpell(path);
+        return s ? this.dataValue(s, n, this.rankOf(this.slotOfSpell(s))) : 0;
+      },
+      calc: (n) => {
+        const node = lookup(n);
+        return node ? evalCalcNode(node, env, lookup) : 0;
+      },
+    };
+    return env;
+  }
+
+  /**
+   * Evaluate a calculation from item/rune data (scalar data values).
+   * `noStats` evaluates without reading current stats (for use inside dynamicStats hooks).
+   */
+  evalDataCalc(calcs: Record<string, CalcNode>, values: Record<string, number>, name: string, overrides: { level?: number; noStats?: boolean } = {}): number {
+    const node = calcs[name];
+    if (!node) {
+      this.warn(`missing calculation ${name}`);
+      return 0;
+    }
+    if (overrides.noStats) {
+      const ranged = this.champ.attackType === 'ranged';
+      const lookup = (n: string) => calcs[n];
+      const env: CalcEnv = {
+        rank: 1,
+        level: overrides.level ?? this.level,
+        ranged,
+        abilityHaste: 0,
+        dataValue: (n) => values[n] ?? 0,
+        stat: () => 0,
+        buffStacks: () => 0,
+        buffElapsed: () => 1,
+        resource: () => 0,
+        itemCount: () => 0,
+        effect: () => 0,
+        externalDataValue: () => 0,
+        calc: (n) => (lookup(n) ? evalCalcNode(lookup(n)!, env, lookup) : 0),
+      };
+      return evalCalcNode(node, env, lookup);
+    }
+    const st = this.stats;
+    const lookup = (n: string) => calcs[n];
+    const env: CalcEnv = {
+      rank: 1,
+      level: overrides.level ?? this.level,
+      ranged: st.ranged,
+      abilityHaste: st.abilityHaste,
+      dataValue: (n) => values[n] ?? 0,
+      stat: (stat, formula, target) => (target ? this.targetStat(stat, formula) : this.selfStat(stat, formula)),
+      buffStacks: () => 0,
+      buffElapsed: () => 1,
+      resource: (_r, formula) => (formula === 1 ? st.baseMana : formula === 2 ? st.bonusMana : st.maxMana),
+      itemCount: (ep) => (ep >= 5 ? this.items.filter(isLegendary).length : this.items.length),
+      effect: () => 0,
+      externalDataValue: () => 0,
+      calc: (n) => (lookup(n) ? evalCalcNode(lookup(n)!, env, lookup) : 0),
+    };
+    return evalCalcNode(node, env, lookup);
+  }
+
+  private buffStacksFor(buff: string): number {
+    const map = (this.kit as any).buffStacks as Record<string, Expr> | undefined;
+    if (map?.[buff] !== undefined) return this.evalExpr(map[buff], { slot: 'P' });
+    return this.optionNumber(`buff:${buff}`, 0);
+  }
+
+  private optionNumber(key: string, dflt: number): number {
+    return this.opt[key] ?? dflt;
+  }
+
+  selfStat(stat: number, formula: number): number {
+    const s = this.stats;
+    const pick = (total: number, base: number, bonus: number) => (formula === 1 ? base : formula === 2 ? bonus : total);
+    switch (stat) {
+      case STAT.AbilityPower:
+        return s.ap;
+      case STAT.Armor:
+        return pick(s.armor, s.baseArmor, s.bonusArmor);
+      case STAT.AttackDamage:
+        return pick(s.ad, s.baseAd, s.bonusAd);
+      case STAT.AttackSpeed:
+        return pick(s.attackSpeed, s.baseAttackSpeed, s.bonusAttackSpeed);
+      case STAT.MagicResist:
+        return pick(s.mr, s.baseMr, s.bonusMr);
+      case STAT.MoveSpeed:
+        return pick(s.moveSpeed, s.moveSpeed - s.bonusMoveSpeed, s.bonusMoveSpeed);
+      case STAT.CritChance:
+        return s.critChance;
+      case STAT.CritDamage:
+        // base = the champion record's multiplier (2.0), bonus = crit damage from items etc.
+        return pick(s.critDamage, this.champ.stats.critDamageMultiplier, s.critDamage - this.champ.stats.critDamageMultiplier);
+      case STAT.CooldownReduction:
+        return 1 - 100 / (100 + s.abilityHaste);
+      case STAT.AbilityHaste:
+        return s.abilityHaste;
+      case STAT.MaxHealth:
+        return pick(s.maxHp, s.baseHp, s.bonusHp);
+      case STAT.CurrentHealth:
+        return s.hp;
+      case STAT.PercentCurrentHealth:
+        return s.hp / s.maxHp;
+      case STAT.MissingHealth:
+        return s.maxHp - s.hp;
+      case STAT.PercentMissingHealth:
+        return 1 - s.hp / s.maxHp;
+      case STAT.LifeSteal:
+        return s.lifeSteal;
+      case STAT.Lethality:
+        return s.lethality;
+      case STAT.AttackRange:
+        return pick(s.range, s.range - s.bonusRange, s.bonusRange);
+      default:
+        this.warn(`unsupported stat id ${stat} in a game formula (treated as 0)`);
+        return 0;
+    }
+  }
+
+  targetStat(stat: number, formula: number): number {
+    const t = this.target;
+    const pick = (total: number, base: number, bonus: number) => (formula === 1 ? base : formula === 2 ? bonus : total);
+    switch (stat) {
+      case STAT.Armor:
+        return pick(t.baseArmor + t.bonusArmor, t.baseArmor, t.bonusArmor);
+      case STAT.MagicResist:
+        return pick(t.baseMr + t.bonusMr, t.baseMr, t.bonusMr);
+      case STAT.MaxHealth:
+        return pick(t.maxHp, t.baseHp, t.bonusHp);
+      case STAT.CurrentHealth:
+        return Math.max(0, t.hp);
+      case STAT.PercentCurrentHealth:
+        return Math.max(0, t.hp) / t.maxHp;
+      case STAT.MissingHealth:
+        return t.maxHp - Math.max(0, t.hp);
+      case STAT.PercentMissingHealth:
+        return 1 - Math.max(0, t.hp) / t.maxHp;
+      default:
+        this.warn(`unsupported target stat id ${stat} (treated as 0)`);
+        return 0;
+    }
+  }
+
+  /** Evaluate a kit expression in the context of an ability slot. */
+  evalExpr(e: Expr, ctx: { slot: Slot; spell?: SpellData; rank?: number; hit?: number; hits?: number; recast?: number }): number {
+    if (typeof e === 'number') return e;
+    const spell = ctx.spell ?? this.spellFor(ctx.slot);
+    const rank = ctx.rank ?? this.abilityRank(ctx.slot);
+    const resolve: Resolver = (path) => this.resolvePath(path, { ...ctx, spell, rank });
+    try {
+      return compile(e)(resolve);
+    } catch (err) {
+      this.warn(`expression error in "${e}": ${(err as Error).message}`);
+      return 0;
+    }
+  }
+
+  abilityRank(slot: Slot): number {
+    if (slot === 'P') {
+      const r = this.kit.abilities.P;
+      if (r?.rank !== undefined) return Math.max(1, Math.round(this.evalExpr(r.rank, { slot: 'Q', rank: 1 })));
+      return 1;
+    }
+    return this.rankOf(slot);
+  }
+
+  private resolvePath(path: string[], ctx: { slot: Slot; spell: SpellData; rank: number; hit?: number; hits?: number; recast?: number }): number {
+    const [h, ...rest] = path;
+    const st = this.stats;
+    const t = this.target;
+    const sub = (spell: SpellData, rank: number, p: string[]): number => {
+      switch (p[0]) {
+        case 'calc':
+          return this.calc(spell, p[1], rank);
+        case 'dv':
+          return this.dataValue(spell, p[1], rank);
+        case 'rank':
+          return rank;
+        case 'cooldown':
+          return spell.cooldown?.[Math.min(rank, (spell.cooldown?.length ?? 1) - 1)] ?? 0;
+        default:
+          throw new Error(`unknown name ${p.join('.')}`);
+      }
+    };
+    switch (h) {
+      case 'calc':
+      case 'dv':
+      case 'cooldown':
+        return sub(ctx.spell, ctx.rank, path);
+      case 'rank':
+        return ctx.rank;
+      case 'P':
+      case 'Q':
+      case 'W':
+      case 'E':
+      case 'R': {
+        const slot = h as Slot;
+        const rank = this.abilityRank(slot);
+        if (rest[0] === 'rank') return rank;
+        return sub(this.spellFor(slot), rank, rest);
+      }
+      case 'spell': {
+        const s = this.findSpell(rest[0]);
+        if (!s) throw new Error(`unknown spell ${rest[0]}`);
+        // Unslotted spells (other forms: Elise spider, Gnar mega…) use the rank of the slot
+        // whose expression references them.
+        const unslotted = this.champ.abilities.find((a) => a.spells.includes(s))?.slot === 'X';
+        return sub(s, unslotted ? ctx.rank : this.abilityRank(this.slotOfSpell(s)), rest.slice(1));
+      }
+      case 'target': {
+        const hp = Math.max(0, t.hp);
+        switch (rest[0]) {
+          case 'maxHp':
+            return t.maxHp;
+          case 'hp':
+            return hp;
+          case 'missingHp':
+            return t.maxHp - hp;
+          case 'hpPct':
+            return hp / t.maxHp;
+          case 'missingHpPct':
+            return 1 - hp / t.maxHp;
+          case 'bonusHp':
+            return t.bonusHp;
+          case 'baseHp':
+            return t.baseHp;
+          case 'armor':
+            return t.baseArmor + t.bonusArmor;
+          case 'bonusArmor':
+            return t.bonusArmor;
+          case 'mr':
+            return t.baseMr + t.bonusMr;
+          case 'bonusMr':
+            return t.bonusMr;
+          case 'immobilized':
+            return this.targetHasCC(['immobilize']) ? 1 : 0;
+          case 'slowed':
+            return this.targetHasCC(['slow']) ? 1 : 0;
+          case 'impaired':
+            return this.targetHasCC(['impair']) ? 1 : 0;
+          case 'cced':
+            return this.targetHasCC(['immobilize', 'slow', 'impair']) ? 1 : 0;
+        }
+        throw new Error(`unknown target.${rest[0]}`);
+      }
+      case 'opt':
+        return this.opt[rest[0]] ?? 0;
+      case 'stacks':
+        return this.markStacks(rest[0]) ?? this.counters.get(rest[0]) ?? 0;
+      case 'buff': {
+        const b = this.getBuff(rest[0]);
+        return b ? b.stacks || 1 : 0;
+      }
+      case 'debuff': {
+        const d = this.getDebuff(rest[0]);
+        return d ? d.stacks || 1 : 0;
+      }
+      case 'recast':
+        return ctx.recast ?? 1;
+      case 'hit':
+        return ctx.hit ?? 0;
+      case 'hits':
+        return ctx.hits ?? 1;
+      case 'time':
+        return this.time;
+      case 'combatTime':
+        return this.time - this.combatStart;
+      case 'level':
+        return this.level;
+      case 'ad':
+        return st.ad;
+      case 'bonusAd':
+        return st.bonusAd;
+      case 'baseAd':
+        return st.baseAd;
+      case 'ap':
+        return st.ap;
+      case 'maxHp':
+        return st.maxHp;
+      case 'bonusHp':
+        return st.bonusHp;
+      case 'baseHp':
+        return st.baseHp;
+      case 'hp':
+        return st.hp;
+      case 'armor':
+        return st.armor;
+      case 'bonusArmor':
+        return st.bonusArmor;
+      case 'mr':
+        return st.mr;
+      case 'bonusMr':
+        return st.bonusMr;
+      case 'as':
+        return st.attackSpeed;
+      case 'bonusAs':
+        return st.bonusAttackSpeed;
+      case 'critChance':
+        return st.critChance;
+      case 'critDamage':
+        return st.critDamage;
+      case 'lethality':
+        return st.lethality;
+      case 'ms':
+        return st.moveSpeed;
+      case 'bonusMs':
+        return st.bonusMoveSpeed;
+      case 'mana':
+        return st.maxMana;
+      case 'bonusMana':
+        return st.bonusMana;
+      case 'range':
+        return st.range;
+      case 'ah':
+        return st.abilityHaste;
+      case 'ranged':
+        return st.ranged ? 1 : 0;
+    }
+    throw new Error(`unknown name "${path.join('.')}"`);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Buffs, debuffs, counters
+
+  getBuff(id: string): ActiveBuff | undefined {
+    const b = this.buffs.get(id);
+    if (!b) return undefined;
+    if (b.expires < this.time) {
+      this.buffs.delete(id);
+      this.invalidateStats();
+      return undefined;
+    }
+    return b;
+  }
+
+  addBuff(b: Omit<ActiveBuff, 'stacks'> & { stacks?: number }) {
+    this.buffs.set(b.id, { stacks: 1, ...b });
+    this.invalidateStats();
+  }
+
+  removeBuff(id: string) {
+    if (this.buffs.delete(id)) this.invalidateStats();
+  }
+
+  getDebuff(id: string): ActiveDebuff | undefined {
+    const d = this.debuffs.get(id);
+    if (!d) return undefined;
+    if (d.expires < this.time) {
+      this.debuffs.delete(id);
+      return undefined;
+    }
+    return d;
+  }
+
+  addDebuff(d: Omit<ActiveDebuff, 'stacks'> & { stacks?: number }) {
+    this.debuffs.set(d.id, { stacks: 1, ...d });
+  }
+
+  removeDebuff(id: string) {
+    this.debuffs.delete(id);
+  }
+
+  counter(key: string): number {
+    return this.counters.get(key) ?? 0;
+  }
+
+  setCounter(key: string, v: number) {
+    this.counters.set(key, v);
+    this.invalidateStats();
+  }
+
+  cooldownReadyAt(key: string): number {
+    return this.cooldownReady.get(key) ?? -Infinity;
+  }
+
+  isReady(key: string): boolean {
+    return this.cooldownReadyAt(key) <= this.time + 1e-9;
+  }
+
+  startCooldown(key: string, seconds: number) {
+    this.cooldownReady.set(key, this.time + seconds);
+  }
+
+  warn(msg: string) {
+    if (!this.warnings.includes(msg)) this.warnings.push(msg);
+  }
+
+  note(msg: string) {
+    this.notes.add(msg);
+  }
+
+  newCastId(): number {
+    return this.nextCastId++;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Scheduling
+
+  schedule(delay: number, run: () => void) {
+    this.queue.push({ time: this.time + Math.max(0, delay), seq: this.seq++, run });
+    this.queue.sort((a, b) => a.time - b.time || a.seq - b.seq);
+  }
+
+  scheduleAt(time: number, run: () => void) {
+    this.queue.push({ time: Math.max(this.time, time), seq: this.seq++, run });
+    this.queue.sort((a, b) => a.time - b.time || a.seq - b.seq);
+  }
+
+  processUntil(t: number) {
+    while (this.queue.length && this.queue[0].time <= t + 1e-9) {
+      const ev = this.queue.shift()!;
+      this.advanceTo(ev.time);
+      ev.run();
+    }
+    this.advanceTo(t);
+  }
+
+  private advanceTo(t: number) {
+    if (t > this.time) {
+      this.time = t;
+      this.invalidateStats();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Damage
+
+  /** Deal one damage request: amps, mitigation, HP update, hooks. */
+  deal(req: DamageRequest): DamageInstance {
+    const st = this.stats;
+    let type: DamageType = req.type === 'adaptive' ? (st.adaptiveType === 'physical' ? 'physical' : 'magic') : req.type;
+    const flags: DamageFlags = {
+      kind: 'ability',
+      ability: false,
+      attack: false,
+      onHit: false,
+      aoe: false,
+      dot: false,
+      pet: false,
+      proc: false,
+      crit: false,
+      ...req.flags,
+    };
+    const inst: DamageInstance = {
+      id: this.nextInstId++,
+      time: this.time,
+      castId: req.castId ?? this.newCastId(),
+      source: req.source,
+      sourceLabel: req.sourceLabel,
+      label: req.label,
+      type,
+      raw: Math.max(0, req.amount),
+      flags,
+      amps: [],
+      ...(req.note ? { note: req.note } : {}),
+      ...(req.markSource ? { fromMark: req.markSource } : {}),
+    };
+
+    for (const e of this.effects) e.beforeDamage?.(this, inst);
+    for (const b of this.buffs.values()) if (b.expires >= this.time && b.amp) inst.amps.push({ source: b.label, value: b.amp, kind: 'dealt' });
+    for (const d of this.debuffs.values()) if (d.expires >= this.time && d.amp) inst.amps.push({ source: d.label, value: d.amp, kind: 'taken' });
+    if (inst.flags.unamplified) inst.amps = inst.amps.filter((a) => a.kind === 'taken');
+    type = inst.type;
+
+    // Mitigation.
+    let resistMult = 1;
+    let eff = 0;
+    if (type !== 'true') {
+      const red = this.targetReductions();
+      const s = this.stats;
+      if (type === 'physical') {
+        eff = effectiveResist(
+          { base: this.target.baseArmor, bonus: this.target.bonusArmor },
+          { flat: red.armorFlat, percent: red.armorPercent },
+          { percent: 1 - (1 - s.armorPenPercent) * (1 - (req.penPercent ?? 0)), bonusPercent: s.bonusArmorPenPercent, flat: s.lethality + s.armorPenFlat },
+        );
+      } else {
+        eff = effectiveResist(
+          { base: this.target.baseMr, bonus: this.target.bonusMr },
+          { flat: red.mrFlat, percent: red.mrPercent },
+          { percent: 1 - (1 - s.magicPenPercent) * (1 - (req.penPercent ?? 0)), bonusPercent: s.bonusMagicPenPercent, flat: s.magicPenFlat },
+        );
+      }
+      resistMult = resistMultiplier(eff);
+    }
+    const ampMult = combineAmps(inst.amps, this.settings.ampStacking);
+    const final = inst.raw * resistMult * ampMult * (1 - this.target.damageReduction);
+    inst.effectiveResist = eff;
+    inst.resistMult = resistMult;
+    inst.final = final;
+    inst.targetHpBefore = this.target.hp;
+    this.target.hp -= final;
+    inst.targetHpAfter = this.target.hp;
+    if (this.target.hp <= 0 && this.target.killTime === undefined) this.target.killTime = this.time;
+    if (!inst.flags.aura) this.lastCombatTime = this.time;
+    this.events.push(inst);
+    for (const d of this.debuffs.values()) if (d.spec?.detonate && d.expires >= this.time && !inst.fromMark) d.stored = (d.stored ?? 0) + final;
+
+    for (const e of this.effects) e.afterDamage?.(this, inst);
+    if (!inst.fromMark) {
+      this.processConsumes(inst);
+      this.processMarks(inst);
+    }
+    return inst;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Marks (stacking target debuffs driven by your hits)
+
+  /** Set a mark's stacks (hooks: seed, spend or reset a mark). duration refreshes its expiry. */
+  setMarkStacks(id: string, stacks: number, duration?: number) {
+    let m = this.marks.get(id);
+    if (!m) this.marks.set(id, (m = { stacks: 0, expires: 0, castIds: new Set(), cooldownUntil: -Infinity, ticking: false }));
+    m.stacks = Math.max(0, stacks);
+    if (duration !== undefined) m.expires = this.time + duration;
+    if (m.stacks === 0) m.castIds.clear();
+    this.invalidateStats();
+  }
+
+  /** Put a mark on cooldown (no stacks can be added until then). */
+  setMarkCooldown(id: string, seconds: number) {
+    let m = this.marks.get(id);
+    if (!m) this.marks.set(id, (m = { stacks: 0, expires: 0, castIds: new Set(), cooldownUntil: -Infinity, ticking: false }));
+    m.cooldownUntil = this.time + seconds;
+  }
+
+  markStacks(id: string): number | undefined {
+    const m = this.marks.get(id);
+    if (!m) return this.kit.marks?.some((k) => k.id === id) ? 0 : undefined;
+    return m.expires >= this.time ? m.stacks : 0;
+  }
+
+  private markQualifies(spec: MarkSpec, inst: DamageInstance): boolean {
+    if (inst.flags.proc && !inst.flags.pet) return false;
+    if (inst.flags.kind !== 'ability' && inst.flags.kind !== 'attack') return false;
+    for (const a of spec.appliedBy) {
+      if (a === 'attack' && inst.flags.attack) return true;
+      if (a === 'onhit' && (inst.flags.attack || (inst.flags.onHit && inst.flags.kind === 'ability'))) return true;
+      if (a === 'ability' && inst.flags.kind === 'ability' && !inst.flags.attack && inst.flags.slot && inst.flags.slot !== 'P') return true;
+      if (a === inst.flags.slot && inst.flags.kind === 'ability' && !inst.flags.attack) return true;
+    }
+    return false;
+  }
+
+  private dealMarkComponents(spec: MarkSpec, comps: ComponentSpec[], label: string) {
+    const slot = spec.slot ?? 'P';
+    const spell = this.spellFor(slot);
+    const rank = this.abilityRank(slot);
+    const castId = this.newCastId();
+    for (const comp of comps) {
+      const hits = Math.max(0, Math.round(this.evalExpr(comp.hits ?? 1, { slot, spell, rank })));
+      const delay0 = comp.delay !== undefined ? this.evalExpr(comp.delay, { slot, spell, rank }) : 0;
+      const interval = comp.interval !== undefined ? this.evalExpr(comp.interval, { slot, spell, rank }) : 0;
+      for (let h = 0; h < hits; h++) {
+        const run = () => {
+        let amount = this.evalExpr(comp.amount, { slot, spell, rank, hit: h, hits });
+        if (comp.min !== undefined) amount = Math.max(amount, this.evalExpr(comp.min, { slot, spell, rank }));
+        if (comp.max !== undefined) amount = Math.min(amount, this.evalExpr(comp.max, { slot, spell, rank }));
+        if (!(amount > 0)) return;
+        const inst = this.deal({
+          source: slot,
+          sourceLabel: label,
+          label: comp.label,
+          type: comp.type,
+          amount,
+          castId,
+          flags: { kind: 'ability', slot, ability: !comp.noProc, aoe: !!comp.aoe, dot: !!comp.dot, pet: !!comp.pet },
+          markSource: spec.id,
+        });
+        void inst;
+        };
+        const at = delay0 + interval * h;
+        if (at > 0) this.schedule(at, run);
+        else run();
+      }
+    }
+  }
+
+  private processMarks(inst: DamageInstance) {
+    for (const spec of this.kit.marks ?? []) {
+      if (!this.markQualifies(spec, inst)) continue;
+      const slot = spec.slot ?? 'P';
+      const ctx = { slot, spell: this.spellFor(slot), rank: this.abilityRank(slot) };
+      let m = this.marks.get(spec.id);
+      if (!m || m.expires < this.time) {
+        m = { stacks: 0, expires: 0, castIds: new Set(), cooldownUntil: m?.cooldownUntil ?? -Infinity, ticking: false };
+        this.marks.set(spec.id, m);
+      }
+      if (this.time < m.cooldownUntil) continue;
+      if (spec.oncePerCast !== false && m.castIds.has(inst.castId)) continue;
+      m.castIds.add(inst.castId);
+      const max = this.evalExpr(spec.maxStacks, ctx);
+      const add = spec.stacksPerHit !== undefined ? this.evalExpr(spec.stacksPerHit, ctx) : 1;
+      m.stacks = Math.min(max, m.stacks + add);
+      m.expires = this.time + this.evalExpr(spec.duration, ctx);
+      this.invalidateStats();
+      if (spec.onStack?.length) this.dealMarkComponents(spec, spec.onStack, spec.label);
+      if (spec.dot && !m.ticking) {
+        m.ticking = true;
+        const mm = m;
+        const tick = () => {
+          if (mm.expires < this.time || mm.stacks <= 0) {
+            mm.ticking = false;
+            return;
+          }
+          this.dealMarkComponents(spec, spec.dot!.components, spec.label);
+          this.schedule(this.evalExpr(spec.dot!.interval, ctx), tick);
+        };
+        this.schedule(this.evalExpr(spec.dot.interval, ctx), tick);
+      }
+      if (m.stacks >= max && spec.atMax) {
+        if (spec.atMax.buff) this.applyBuff(spec.atMax.buff, slot, ctx.spell, ctx.rank);
+        // The proc's damage lands first; its debuff/CC apply after (like ability debuffs).
+        if (spec.atMax.components.length) this.dealMarkComponents(spec, spec.atMax.components, spec.label);
+        if (spec.atMax.debuff) this.applyDebuff(spec.atMax.debuff, slot, ctx.spell, ctx.rank, inst.castId);
+        for (const cc of spec.atMax.cc ?? []) this.applyCC(cc.kind, this.evalExpr(cc.duration, ctx), inst.castId, slot);
+        if (spec.atMax.consume) {
+          m.stacks = 0;
+          m.castIds.clear();
+        }
+        if (spec.atMax.cooldown !== undefined) m.cooldownUntil = this.time + this.evalExpr(spec.atMax.cooldown, ctx);
+        this.invalidateStats();
+      }
+    }
+  }
+
+  /** Detonate consumable marks (debuff.consume) with a hit from a different cast. */
+  private processConsumes(inst: DamageInstance) {
+    if (inst.flags.proc && !inst.flags.pet) return;
+    for (const d of [...this.debuffs.values()]) {
+      const c = d.spec?.consume;
+      if (!c || d.expires < this.time || d.castId === inst.castId) continue;
+      const isAttack = inst.flags.attack;
+      const isAbility = inst.flags.kind === 'ability' && !inst.flags.attack && !!inst.flags.slot && inst.flags.slot !== 'P';
+      const by = Array.isArray(c.by) ? c.by : [c.by];
+      const ok = by.some((b) => (b === 'attack' && isAttack) || (b === 'ability' && isAbility) || (b === 'any' && (isAttack || isAbility)) || (b === inst.flags.slot && isAbility));
+      if (!ok) continue;
+      this.debuffs.delete(d.id);
+      const slot = c.slot ?? d.slot ?? 'P';
+      const spell = this.spellFor(slot);
+      const rank = this.abilityRank(slot);
+      const castId = this.newCastId();
+      for (const comp of c.components) {
+        const amount = this.evalExpr(comp.amount, { slot, spell, rank });
+        this.deal({ source: slot, sourceLabel: comp.source ?? d.label, label: comp.label, type: comp.type, amount, castId, flags: { kind: 'ability', slot, ability: !comp.noProc }, markSource: d.id });
+      }
+    }
+  }
+
+  targetReductions() {
+    const r = { armorFlat: 0, armorPercent: 0, mrFlat: 0, mrPercent: 0 };
+    const armorPcts: number[] = [];
+    const mrPcts: number[] = [];
+    for (const e of this.effects) {
+      const x = e.targetResist?.(this);
+      if (!x) continue;
+      r.armorFlat += x.armorFlat ?? 0;
+      r.mrFlat += x.mrFlat ?? 0;
+      if (x.armorPercent) armorPcts.push(x.armorPercent);
+      if (x.mrPercent) mrPcts.push(x.mrPercent);
+    }
+    for (const spec of this.kit.marks ?? []) {
+      if (spec.armorReductionPerStack === undefined && spec.mrReductionPerStack === undefined) continue;
+      const n = this.markStacks(spec.id) ?? 0;
+      if (!n) continue;
+      const slot = spec.slot ?? 'P';
+      if (spec.armorReductionPerStack !== undefined) armorPcts.push(Math.min(1, n * this.evalExpr(spec.armorReductionPerStack, { slot })));
+      if (spec.mrReductionPerStack !== undefined) mrPcts.push(Math.min(1, n * this.evalExpr(spec.mrReductionPerStack, { slot })));
+    }
+    for (const d of this.debuffs.values()) {
+      if (d.expires < this.time) continue;
+      r.armorFlat += d.armorFlat ?? 0;
+      r.mrFlat += d.mrFlat ?? 0;
+      if (d.armorPct) armorPcts.push(d.armorPct);
+      if (d.mrPct) mrPcts.push(d.mrPct);
+    }
+    r.armorPercent = 1 - armorPcts.reduce((p, x) => p * (1 - x), 1);
+    r.mrPercent = 1 - mrPcts.reduce((p, x) => p * (1 - x), 1);
+    return r;
+  }
+
+  critFactor(forced?: boolean): { crit: boolean; factor: number } {
+    const st = this.stats;
+    if (forced === true || this.settings.crit === 'always') return { crit: true, factor: st.critDamage };
+    if (forced === false || this.settings.crit === 'never') return { crit: false, factor: 1 };
+    // Expected value.
+    const factor = 1 + st.critChance * (st.critDamage - 1);
+    return { crit: st.critChance >= 1, factor };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Components (ability hits)
+
+  private dealComponent(comp: ComponentSpec, ctx: { slot: Slot; spell: SpellData; rank: number; castId: number; sourceLabel: string; hit: number; hits: number; crit?: boolean; recast?: number }) {
+    const ectx = { slot: ctx.slot, spell: ctx.spell, rank: ctx.rank, hit: ctx.hit, hits: ctx.hits, recast: ctx.recast };
+    let amount = this.evalExpr(comp.amount, ectx);
+    if (comp.min !== undefined) amount = Math.max(amount, this.evalExpr(comp.min, ectx));
+    if (comp.max !== undefined) amount = Math.min(amount, this.evalExpr(comp.max, ectx));
+    const source = ctx.slot === 'P' ? 'P' : ctx.slot;
+
+    if (!comp.attack && !comp.onHit && !(amount > 0)) return; // conditional components that evaluate to 0 deal nothing
+    if (comp.attack) {
+      // Each hit of a multi-hit attack component is its own attack (Urgot W, Akshan E…) unless sameCast: true.
+      const own = comp.sameCast === false || (comp.sameCast !== true && ctx.hits > 1);
+      this.performAttackHit({ castId: own ? this.newCastId() : ctx.castId, amount, comp, label: comp.label, sourceLabel: ctx.sourceLabel, fromAbility: ctx.slot, forcedCrit: ctx.crit });
+      return;
+    }
+    let crit = false;
+    if (comp.canCrit) {
+      const c = this.critFactor(ctx.crit);
+      const mult = comp.critMultiplier !== undefined ? this.evalExpr(comp.critMultiplier, ectx) : this.stats.critDamage;
+      const factor = c.crit ? mult : this.settings.crit === 'expected' && ctx.crit === undefined ? 1 + this.stats.critChance * (mult - 1) : 1;
+      amount *= factor;
+      crit = c.crit;
+    }
+    this.deal({
+      source,
+      sourceLabel: comp.source ?? ctx.sourceLabel,
+      label: comp.label,
+      type: comp.type,
+      amount,
+      castId: comp.sameCast === false ? this.newCastId() : ctx.castId,
+      ...(comp.penPercent !== undefined ? { penPercent: this.evalExpr(comp.penPercent, ectx) } : {}),
+      flags: {
+        kind: 'ability',
+        slot: ctx.slot,
+        ability: !comp.noProc,
+        // Abilities that apply on-hit (Ezreal Q, Fizz Q) count as on-hit for marks like Fizz W.
+        onHit: !!comp.onHit,
+        aoe: !!comp.aoe,
+        dot: !!comp.dot,
+        pet: !!comp.pet,
+        crit,
+        proc: false,
+      },
+      ...(comp.note ? { note: comp.note } : {}),
+    });
+    if (comp.onHit) {
+      // Ability that applies on-hit effects (no base attack damage).
+      this.performAttackHit({ castId: ctx.castId, amount: 0, comp: { ...comp, attack: true }, label: comp.label, sourceLabel: ctx.sourceLabel, fromAbility: ctx.slot, onHitOnly: true });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Basic attacks
+
+  /** Resolve a basic attack (or an attack-like ability hit) landing on the target. */
+  performAttackHit(o: {
+    castId: number;
+    amount?: number;
+    comp?: ComponentSpec;
+    label?: string;
+    sourceLabel?: string;
+    fromAbility?: Slot;
+    forcedCrit?: boolean;
+    onHitOnly?: boolean;
+    /** Optional components enabled for this attack (combo "AA+bounce"). */
+    enable?: string[];
+  }) {
+    const st = this.stats;
+    const canCrit = this.kit.attack?.canCrit !== false && (o.comp ? o.comp.canCrit !== false : true);
+    const c = canCrit ? this.critFactor(o.forcedCrit) : { crit: false, factor: 1 };
+    let critMult = st.critDamage;
+    if (canCrit && this.kit.attack?.critMultiplier !== undefined && !o.fromAbility) critMult = this.evalExpr(this.kit.attack.critMultiplier, { slot: 'P' });
+    const factor = !canCrit ? 1 : c.crit ? critMult : this.settings.crit === 'expected' && o.forcedCrit === undefined ? 1 + st.critChance * (critMult - 1) : 1;
+
+    const atk: AttackInfo = {
+      castId: o.castId,
+      index: this.attackIndex++,
+      crit: c.crit,
+      critFactor: factor,
+      extra: [],
+      baseMult: 1,
+      ...(o.fromAbility ? { fromAbility: o.fromAbility } : {}),
+      onAttack: !o.fromAbility || !!o.comp?.onAttack,
+      ...(o.comp?.areaOnHit ? { areaOnHit: true } : {}),
+    };
+
+    // Champion passive on-hits, every-Nth procs and empowered attacks from buffs.
+    const kitAtk = this.kit.attack;
+    const pushCompsTo = (target: AttackInfo, comps: ComponentSpec[], sourceLabel: string, slot: Slot = 'P') => {
+      for (const comp of comps) {
+        if (comp.optional && !o.enable?.includes(comp.id)) continue;
+        const spell = this.spellFor(slot);
+        const rank = this.abilityRank(slot);
+        const hits = Math.max(0, Math.round(this.evalExpr(comp.hits ?? 1, { slot, spell, rank })));
+        for (let h = 0; h < hits; h++) {
+          let amount = this.evalExpr(comp.amount, { slot, spell, rank, hit: h, hits });
+          if (comp.min !== undefined) amount = Math.max(amount, this.evalExpr(comp.min, { slot, spell, rank }));
+          if (comp.max !== undefined) amount = Math.min(amount, this.evalExpr(comp.max, { slot, spell, rank }));
+          if (comp.canCrit) {
+            if (comp.critMultiplier !== undefined) {
+              const m = this.evalExpr(comp.critMultiplier, { slot, spell, rank });
+              amount *= c.crit ? m : this.settings.crit === 'expected' && o.forcedCrit === undefined ? 1 + this.stats.critChance * (m - 1) : 1;
+            } else amount *= factor;
+          }
+          if (!(amount > 0)) continue;
+          const req: DamageRequest = {
+            source: slot,
+            sourceLabel: comp.source ?? sourceLabel,
+            label: comp.label,
+            type: comp.type,
+            amount,
+            castId: o.castId,
+            // Empowered-attack damage from an ability counts as ability damage; passive on-hits don't.
+            flags: { kind: 'ability', slot, onHit: true, ability: slot !== 'P' && !comp.noProc, crit: !!comp.canCrit && c.crit, dot: !!comp.dot, aoe: !!comp.aoe },
+          };
+          // Delayed / periodic parts of an empowered attack (bleeds, lightning) land later.
+          const delay = (comp.delay !== undefined ? this.evalExpr(comp.delay, { slot, spell, rank }) : 0) + (comp.interval !== undefined ? this.evalExpr(comp.interval, { slot, spell, rank }) * h : 0);
+          if (delay > 0) this.schedule(delay, () => this.deal(req));
+          else target.extra.push(req);
+        }
+      }
+    };
+    const pushComps = (comps: ComponentSpec[], sourceLabel: string, slot: Slot = 'P') => pushCompsTo(atk, comps, sourceLabel, slot);
+    const pendingCC: (() => void)[] = [];
+    let empoweredEff: number | undefined;
+    if (!o.onHitOnly || o.fromAbility) {
+      if (kitAtk?.onHit && !o.fromAbility) pushComps(kitAtk.onHit, this.champ.passive.name);
+      if (kitAtk?.everyNth && !o.fromAbility) {
+        const key = 'kit.nth';
+        const n = this.counter(key) + 1;
+        if (n >= kitAtk.everyNth.n) {
+          this.setCounter(key, 0);
+          pushComps(kitAtk.everyNth.components, kitAtk.everyNth.label);
+        } else this.setCounter(key, n);
+      }
+      for (const b of [...this.buffs.values()]) {
+        if (b.expires < this.time || !b.spec) continue;
+        if (b.spec.onHit) pushComps(b.spec.onHit, b.label, b.slot);
+        if (b.spec.empowerAttacks && (b.charges ?? 0) > 0 && !o.fromAbility) {
+          const before = atk.extra.length;
+          pushComps(b.spec.empowerAttacks.components, b.label, b.slot);
+          if (b.spec.empowerAttacks.onHitRepeats !== undefined) {
+            const n = Math.round(this.evalExpr(b.spec.empowerAttacks.onHitRepeats, { slot: b.slot ?? 'P' }));
+            if (n > 0) atk.repeatOnHit = Math.max(Number(atk.repeatOnHit === true ? 1 : atk.repeatOnHit || 0), n);
+          }
+          if (b.spec.empowerAttacks.replaceBase) {
+            atk.replaceBase = true;
+            // The first empowered component *is* the basic attack (counts for attack-based effects).
+            const first = atk.extra[before];
+            if (first) first.flags = { ...first.flags, attack: true, onHit: false };
+          }
+          const effComp = b.spec.empowerAttacks.components.find((x) => x.onHitEffectiveness !== undefined);
+          if (effComp) empoweredEff = this.evalExpr(effComp.onHitEffectiveness!, { slot: b.slot ?? 'P' });
+          for (const cc of b.spec.empowerAttacks.cc ?? []) {
+            const dur = this.evalExpr(cc.duration, { slot: b.slot ?? 'P' });
+            const delay = cc.delay !== undefined ? this.evalExpr(cc.delay, { slot: b.slot ?? 'P' }) : 0;
+            const slotB = b.slot;
+            pendingCC.push(() => (delay > 0 ? this.schedule(delay, () => this.applyCC(cc.kind, dur, o.castId, slotB)) : this.applyCC(cc.kind, dur, o.castId, slotB)));
+          }
+          b.charges = (b.charges ?? 1) - 1;
+          if (b.charges <= 0) this.removeBuff(b.id);
+        }
+      }
+    }
+
+    for (const e of this.effects) e.preAttack?.(this, atk);
+    for (const e of this.effects) e.onAttack?.(this, atk);
+    const repeats = atk.repeatOnHit === true ? 1 : Math.max(0, Math.round(Number(atk.repeatOnHit) || 0));
+    for (let i = 0; i < repeats; i++) {
+      // Extra application of on-hit effects (no base damage, no passive every-Nth counting).
+      const again: AttackInfo = { ...atk, extra: [], phantom: true, repeatOnHit: false };
+      if (kitAtk?.onHit && !o.fromAbility) pushCompsTo(again, kitAtk.onHit, this.champ.passive.name);
+      for (const e of this.effects) e.onAttack?.(this, again);
+      atk.extra.push(...again.extra);
+    }
+
+    if (!o.onHitOnly && !atk.replaceBase) {
+      const base = (o.amount ?? st.ad * (kitAtk?.damageMult !== undefined ? this.evalExpr(kitAtk.damageMult, { slot: 'P' }) : 1)) * atk.baseMult * atk.critFactor;
+      this.deal({
+        source: o.fromAbility ?? 'AA',
+        sourceLabel: o.sourceLabel ?? 'Basic attack',
+        label: o.label ?? (atk.crit ? 'Attack (crit)' : this.settings.crit === 'expected' && st.critChance > 0 && st.critChance < 1 && canCrit ? 'Attack (avg. crit)' : 'Attack'),
+        type: o.comp && o.comp.type !== 'adaptive' ? o.comp.type : o.comp?.type === 'adaptive' ? 'adaptive' : (kitAtk?.type ?? 'physical'),
+        amount: base,
+        castId: o.castId,
+        flags: { kind: o.fromAbility ? 'ability' : 'attack', slot: o.fromAbility, attack: !o.fromAbility, ability: !!o.fromAbility, crit: atk.crit },
+      });
+    }
+    // Abilities that apply on-hit at reduced effectiveness (Azir soldiers, Akshan E…).
+    const eff = o.comp?.onHitEffectiveness !== undefined ? this.evalExpr(o.comp.onHitEffectiveness, { slot: o.fromAbility ?? 'P' }) : (empoweredEff ?? 1);
+    for (const x of atk.extra) {
+      const scaled = eff !== 1 && x.flags?.onHit && x.flags.kind !== 'ability' ? { ...x, amount: x.amount * eff } : x;
+      this.deal({ ...scaled, castId: x.castId ?? o.castId });
+    }
+    for (const f of pendingCC) f();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Combo steps
+
+  private abilitySpec(slot: Slot): AbilitySpec {
+    return this.kit.abilities[slot] ?? {};
+  }
+
+  castAbility(step: Extract<ComboStep, { type: 'ability' }>, timeline: SimResult['timeline']) {
+    const slot = step.slot;
+    const spec = this.abilitySpec(slot);
+    const rank = this.abilityRank(slot);
+    if (slot !== 'P' && rank <= 0) {
+      this.warn(`${slot} is not learned at level ${this.level} (rank 0); step skipped`);
+      return;
+    }
+    let variantKey = step.variant ?? spec.defaultVariant;
+    let variant: VariantSpec | undefined;
+    if (variantKey) {
+      variant = spec.variants?.[variantKey] ?? Object.entries(spec.variants ?? {}).find(([k]) => k.toLowerCase() === variantKey!.toLowerCase())?.[1];
+      if (!variant) {
+        this.warn(`${slot} has no variant "${variantKey}" (available: ${Object.keys(spec.variants ?? {}).join(', ') || 'none'})`);
+        variantKey = undefined;
+      }
+    }
+    const spell = this.spellFor(slot, (variant as any) ?? spec);
+    const name = spec.name ?? this.spellFor(slot).name;
+    const label = variant ? `${name} (${variant.label})` : name;
+
+    // Cooldown / recast handling. Process pending hits first: they can reset cooldowns
+    // (Diana E, Ekko…) or refund charges.
+    const cdKey = `ability:${slot}`;
+    let start = Math.max(this.time, this.freeAt);
+    this.processUntil(start);
+    // A recast chain that outlived its window ends: the ability goes on its full cooldown from the first cast.
+    if (spec.recastWindow !== undefined && (this.recastCount.get(slot) ?? 0) > 0) {
+      const first = this.counters.get(`firstcast:${slot}`) ?? start;
+      const from = spec.recastWindowFrom === 'previous' ? (this.counters.get(`lastcast:${slot}`) ?? first) : first;
+      if (start - from > this.evalExpr(spec.recastWindow, { slot, spell, rank })) {
+        const cdSpell = spell.cooldown?.some((x) => x > 0) ? spell : (this.siblingsOf(spell).find((x) => x.cooldown?.some((y) => y > 0)) ?? spell);
+        const cdBase = spec.cooldown !== undefined ? this.evalExpr(spec.cooldown, { slot, spell, rank }) : (cdSpell.cooldown?.[Math.min(rank, (cdSpell.cooldown?.length ?? 1) - 1)] ?? 0);
+        const isU = slot === ULT && !spec.notUltimate;
+        const haste = this.stats.abilityHaste + (isU ? this.stats.ultimateHaste : this.stats.basicAbilityHaste);
+        this.cooldownReady.set(cdKey, first + (spell.cooldownFixed ? cdBase : hasteCooldown(cdBase, haste)));
+        this.recastCount.set(slot, 0);
+        this.counters.delete(`firstcast:${slot}`);
+      }
+    }
+    const ammo = slot === 'P' ? null : this.ammoFor(slot, spell, rank);
+    const waitFrom = start;
+    for (let guard = 0; guard < 200; guard++) {
+      let next = start;
+      if (ammo) {
+        this.refreshAmmo(ammo, start);
+        if (ammo.state.charges <= 0) next = Math.max(next, ammo.state.nextAt);
+      }
+      if (slot !== 'P') next = Math.max(next, this.cooldownReadyAt(cdKey));
+      if (next <= start + 1e-9) break;
+      if (!this.settings.waitForCooldowns) {
+        this.warn(`${slot} cast while on cooldown (${(next - start).toFixed(2)}s remaining)`);
+        break;
+      }
+      // Step to the next pending event if it comes first: it may reset the cooldown.
+      const pending = this.queue.length ? this.queue[0].time : Infinity;
+      start = Math.min(next, pending);
+      this.processUntil(start);
+    }
+    if (start > waitFrom + 1e-6) this.note(`Waited ${(start - waitFrom).toFixed(2)}s for ${slot} to be available.`);
+
+    if (ammo) {
+      ammo.state.charges = Math.max(0, ammo.state.charges - 1);
+      if (!Number.isFinite(ammo.state.nextAt)) ammo.state.nextAt = start + ammo.recharge;
+    }
+    const ctExpr = variant?.castTime ?? spec.castTime;
+    const castTime = Math.max(0, ctExpr !== undefined ? this.evalExpr(ctExpr, { slot, spell, rank }) : (spell.castTime ?? 0));
+    const castId = this.newCastId();
+    const hitsTarget = !step.miss && !spec.noTarget;
+    const resets = variant?.resetsAttack ?? spec.resetsAttack;
+    const recast = (this.recastCount.get(slot) ?? 0) + 1;
+    const ectx = { slot, spell, rank, recast };
+    const isUlt = slot === ULT && !spec.notUltimate;
+    const cast: CastInfo = { castId, slot, variant: variantKey, hitsTarget, isUltimate: isUlt, label, dash: !!(variant?.dash ?? spec.dash), resetsAttack: !!resets };
+    // A P step is a passive proc, not an ability cast: only the kit's own hooks see it.
+    for (const e of this.effects) if (slot !== 'P' || e.source === 'kit') e.onCast?.(this, cast);
+
+    // Cooldown starts on cast (recastable ultimates start it on the first cast).
+    if (slot !== 'P') {
+      const cdSpell = spell.cooldown?.some((x) => x > 0) ? spell : (this.siblingsOf(spell).find((x) => x.cooldown?.some((y) => y > 0)) ?? spell);
+      const cdExpr = variant?.cooldown ?? spec.cooldown;
+      const cd = cdExpr !== undefined ? this.evalExpr(cdExpr, ectx) : (cdSpell.cooldown?.[Math.min(rank, (cdSpell.cooldown?.length ?? 1) - 1)] ?? 0) || 0;
+      const haste = this.stats.abilityHaste + (isUlt ? this.stats.ultimateHaste : this.stats.basicAbilityHaste);
+      const cdAfter = spell.cooldownFixed ? cd : hasteCooldown(cd, haste);
+      const recasts = spec.recasts ?? 1;
+      const used = (this.recastCount.get(slot) ?? 0) + 1;
+      this.counters.set(`lastcast:${slot}`, this.time);
+      if (used >= recasts) {
+        const firstCast = (this.counters.get(`firstcast:${slot}`) ?? this.time);
+        this.cooldownReady.set(cdKey, (recasts > 1 ? firstCast : this.time) + cdAfter);
+        this.recastCount.set(slot, 0);
+        this.counters.delete(`firstcast:${slot}`);
+      } else {
+        if (used === 1) this.counters.set(`firstcast:${slot}`, this.time);
+        this.recastCount.set(slot, used);
+        const delay = spec.recastDelay !== undefined ? this.evalExpr(spec.recastDelay, { slot, spell, rank }) : castTime;
+        this.cooldownReady.set(cdKey, this.time + Math.max(castTime, delay));
+      }
+    }
+
+    // Self buff(s) apply on cast.
+    const buffs = variant?.buff ?? spec.buff;
+    for (const b of Array.isArray(buffs) ? buffs : buffs ? [buffs] : []) this.applyBuff(b, slot, spell, rank, recast);
+
+    const end = start + castTime;
+    const lockExpr = variant?.lockout ?? spec.lockout;
+    this.freeAt = lockExpr !== undefined ? Math.max(end, start + this.evalExpr(lockExpr, ectx)) : end;
+    if (resets) this.attackReadyAt = this.freeAt;
+    timeline.push({ step: formatCombo([step]), start, end: this.freeAt });
+
+    if (!hitsTarget) return;
+    const debuff = variant && 'debuff' in variant ? (variant.debuff ?? undefined) : spec.debuff;
+    const ccs = variant?.cc ?? spec.cc ?? [];
+    const comps = variant?.components ?? spec.components ?? [];
+    let landed = 0;
+    // Debuffs and crowd control apply with the cast's first landed hit (after its damage unless
+    // the debuff says otherwise), or after `afterHits` hits.
+    const debuffAt = debuff?.afterHits ?? 1;
+    const onHitN = (n: number, phase: 'before' | 'after') => {
+      if (debuff && n === debuffAt && !!debuff.applyBeforeHit === (phase === 'before')) this.applyDebuff(debuff, slot, spell, rank, castId);
+      if (phase === 'after' && n === 1)
+        for (const cc of ccs) {
+          const apply = () => this.applyCC(cc.kind, this.evalExpr(cc.duration, ectx), castId, slot);
+          const delay = cc.delay !== undefined ? this.evalExpr(cc.delay, ectx) : 0;
+          if (delay > 0) this.schedule(delay, apply);
+          else apply();
+        }
+    };
+    for (const comp of comps) {
+      const enabled = step.enable?.includes(comp.id) || !comp.optional;
+      let hits = step.hits?.[comp.id] ?? (enabled ? this.evalExpr(comp.hits ?? 1, ectx) : 0);
+      hits = Math.max(0, Math.round(hits));
+      const delay = comp.delay !== undefined ? this.evalExpr(comp.delay, ectx) : 0;
+      const interval = comp.interval !== undefined ? this.evalExpr(comp.interval, ectx) : 0;
+      for (let h = 0; h < hits; h++) {
+        const at = end + delay + interval * h;
+        const hitIdx = h;
+        this.scheduleAt(at, () => {
+          const n = ++landed;
+          onHitN(n, 'before');
+          this.dealComponent(comp, { slot, spell, rank, castId, sourceLabel: label, hit: hitIdx, hits, recast });
+          onHitN(n, 'after');
+        });
+      }
+    }
+    if (!comps.length && (debuff || ccs.length))
+      this.scheduleAt(end, () => {
+        onHitN(1, 'before');
+        onHitN(1, 'after');
+      });
+  }
+
+  /** Crowd control on the target: tracked as a debuff and announced to effects (Aftershock, Cheap Shot…). */
+  applyCC(kind: 'immobilize' | 'slow' | 'impair', duration: number, castId: number, slot?: Slot) {
+    if (!(duration > 0)) return; // conditional CC can evaluate to 0 (e.g. Ryze W root vs slow)
+    const id = `cc:${kind}`;
+    const prev = this.getDebuff(id);
+    const expires = Math.max(prev?.expires ?? 0, this.time + duration);
+    this.addDebuff({ id, label: kind === 'immobilize' ? 'Immobilized' : kind === 'slow' ? 'Slowed' : 'Impaired', expires, castId });
+    for (const e of this.effects) e.onCrowdControl?.(this, { kind, castId, slot, duration });
+  }
+
+  /** Target currently has crowd control of these kinds (applied by a different cast than castId). */
+  targetHasCC(kinds: ('immobilize' | 'slow' | 'impair')[], excludeCastId?: number): boolean {
+    return kinds.some((k) => {
+      const d = this.getDebuff(`cc:${k}`);
+      return !!d && d.castId !== excludeCastId;
+    });
+  }
+
+  private ammoState = new Map<Slot, { charges: number; nextAt: number }>();
+
+  /**
+   * Charge-based abilities (mMaxAmmo/mAmmoRechargeTime: Rengar, Caitlyn W, Teemo R, Vi E…):
+   * returns the charge state when the recharge is what actually limits the ability.
+   */
+  private ammoFor(slot: Slot, spell: SpellData, rank: number) {
+    const src = spell.maxAmmo ? spell : this.spellFor(slot).maxAmmo ? this.spellFor(slot) : null;
+    if (!src) return null;
+    const at = (v: number[] | number | undefined) => (Array.isArray(v) ? (v[Math.min(rank, v.length - 1)] ?? 0) : (v ?? 0));
+    const max = at(src.maxAmmo);
+    const base = at(src.ammoRecharge);
+    const cd = at(src.cooldown);
+    if (!(max >= 1) || !(base > cd + 1e-6) || base > 1000) return null;
+    const isUlt = slot === ULT && !this.kit.abilities[slot]?.notUltimate;
+    const haste = this.stats.abilityHaste + (isUlt ? this.stats.ultimateHaste : this.stats.basicAbilityHaste);
+    const recharge = hasteCooldown(base, haste);
+    let state = this.ammoState.get(slot);
+    if (!state) this.ammoState.set(slot, (state = { charges: max, nextAt: Infinity }));
+    return { max, recharge, state };
+  }
+
+  private refreshAmmo(a: { max: number; recharge: number; state: { charges: number; nextAt: number } }, t: number) {
+    while (a.state.charges < a.max && t >= a.state.nextAt - 1e-9) {
+      a.state.charges++;
+      a.state.nextAt = a.state.charges < a.max ? a.state.nextAt + a.recharge : Infinity;
+    }
+  }
+
+  applyBuff(buff: BuffSpec, slot: Slot, spell: SpellData, rank: number, recast?: number) {
+    const ctx = { slot, spell, rank, recast };
+    const mods: Partial<StatMods> = {};
+    for (const [k, v] of Object.entries(buff.stats ?? {})) (mods as any)[k] = this.evalExpr(v as Expr, ctx);
+    if (buff.armorPenPercent !== undefined) mods.armorPenPercent = [this.evalExpr(buff.armorPenPercent, ctx)];
+    if (buff.magicPenPercent !== undefined) mods.magicPenPercent = [this.evalExpr(buff.magicPenPercent, ctx)];
+    if (buff.bonusArmorPenPercent !== undefined) mods.bonusArmorPenPercent = [this.evalExpr(buff.bonusArmorPenPercent, ctx)];
+    if (buff.bonusMagicPenPercent !== undefined) mods.bonusMagicPenPercent = [this.evalExpr(buff.bonusMagicPenPercent, ctx)];
+    this.addBuff({
+      id: buff.id,
+      label: buff.label,
+      expires: this.time + this.evalExpr(buff.duration, ctx),
+      spec: buff,
+      slot,
+      mods,
+      ...(buff.empowerAttacks ? { charges: Math.round(this.evalExpr(buff.empowerAttacks.count, ctx)) } : {}),
+      ...(buff.damageAmp !== undefined ? { amp: this.evalExpr(buff.damageAmp, ctx) } : {}),
+    });
+    if (buff.empowerAttacks?.resetsAttack) this.attackReadyAt = Math.min(this.attackReadyAt, this.time);
+  }
+
+  applyDebuff(d: DebuffSpec, slot: Slot, spell: SpellData, rank: number, castId?: number) {
+    const ctx = { slot, spell, rank };
+    const prev = this.getDebuff(d.id);
+    const max = d.maxStacks !== undefined ? this.evalExpr(d.maxStacks, ctx) : 1;
+    const stacks = Math.min(max, (prev?.stacks ?? 0) + 1);
+    const per = (e?: Expr) => (e === undefined ? undefined : this.evalExpr(e, ctx) * (d.maxStacks !== undefined ? stacks : 1));
+    this.addDebuff({
+      id: d.id,
+      label: d.label,
+      expires: this.time + this.evalExpr(d.duration, ctx),
+      stacks,
+      spec: d,
+      slot,
+      armorPct: per(d.armorReduction),
+      armorFlat: per(d.armorReductionFlat),
+      mrPct: per(d.mrReduction),
+      mrFlat: per(d.mrReductionFlat),
+      amp: per(d.damageTakenAmp),
+      castId,
+    });
+    if (d.detonate) {
+      const det = d.detonate;
+      const appliedAt = this.time;
+      this.schedule(this.evalExpr(d.duration, ctx), () => {
+        const cur = this.debuffs.get(d.id);
+        if (!cur || Math.abs(cur.expires - this.time) > 1e-6) return; // refreshed or removed
+        this.debuffs.delete(d.id);
+        const id = this.newCastId();
+        for (const comp of det.components) {
+          const amount = this.evalExpr(comp.amount, ctx);
+          if (amount > 0) this.deal({ source: slot, sourceLabel: det.label ?? d.label, label: comp.label, type: comp.type, amount, castId: id, flags: { kind: 'ability', slot, ability: !comp.noProc }, markSource: d.id });
+        }
+        if (det.storeFraction !== undefined && (cur.stored ?? 0) > 0) {
+          const frac = this.evalExpr(det.storeFraction, ctx);
+          this.deal({ source: slot, sourceLabel: det.label ?? d.label, label: 'Stored damage', type: det.storeType ?? 'physical', amount: (cur.stored ?? 0) * frac, castId: id, flags: { kind: 'ability', slot, ability: true }, markSource: d.id });
+        }
+        void appliedAt;
+      });
+    }
+  }
+
+  attack(step: Extract<ComboStep, { type: 'attack' }>, timeline: SimResult['timeline']) {
+    const count = Math.max(1, step.count ?? 1);
+    for (let i = 0; i < count; i++) {
+      const start = Math.max(this.time, this.freeAt, this.attackReadyAt);
+      this.processUntil(start);
+      const st = this.stats;
+      const as = this.kit.attack?.attackSpeed !== undefined ? this.evalExpr(this.kit.attack.attackSpeed, { slot: 'P' }) : st.attackSpeed;
+      const period = 1 / Math.max(0.2, as);
+      const windup = period * windupFraction(this.champ);
+      const castId = this.newCastId();
+      this.freeAt = start + windup;
+      this.attackReadyAt = start + period;
+      timeline.push({ step: step.crit === true ? 'AA!' : step.crit === false ? 'AA?' : 'AA', start, end: start + windup });
+      this.scheduleAt(start + windup, () => this.performAttackHit({ castId, forcedCrit: step.crit, enable: step.enable }));
+    }
+  }
+
+  useActive(effect: Effect, timeline: SimResult['timeline'], stepLabel: string) {
+    const active = effect.active!;
+    const key = `active:${effect.id}`;
+    let start = Math.max(this.time, this.freeAt);
+    const ready = this.cooldownReadyAt(key);
+    if (ready > start) {
+      if (this.settings.waitForCooldowns) start = ready;
+      else this.warn(`${active.label} used while on cooldown`);
+    }
+    this.processUntil(start);
+    const castId = this.newCastId();
+    const castTime = active.castTime ?? 0;
+    this.cooldownReady.set(key, start + active.cooldown);
+    this.freeAt = start + castTime;
+    timeline.push({ step: stepLabel, start, end: start + castTime });
+    active.cast(this, castId);
+  }
+
+  // ---------------------------------------------------------------------------
+
+  run(steps: ComboStep[]): SimResult {
+    const timeline: SimResult['timeline'] = [];
+    const initialStats = this.stats;
+    this.combatStart = -this.settings.priorCombatTime;
+    for (const e of this.effects) e.onStart?.(this);
+    const startHp = this.target.hp;
+    const initialRed = this.targetReductions();
+
+    for (const step of steps) {
+      switch (step.type) {
+        case 'ability':
+          this.castAbility(step, timeline);
+          break;
+        case 'attack':
+          this.attack(step, timeline);
+          break;
+        case 'wait': {
+          const start = Math.max(this.time, this.freeAt);
+          this.processUntil(start + step.seconds);
+          this.freeAt = this.time;
+          timeline.push({ step: `wait:${step.seconds}`, start, end: this.time });
+          break;
+        }
+        case 'summoner': {
+          const eff = this.effects.find((e) => e.id === 'summoner:ignite');
+          if (eff?.active) this.useActive(eff, timeline, 'ignite');
+          break;
+        }
+        case 'item': {
+          let item: ItemData;
+          try {
+            item = findItem(this.data, step.item);
+          } catch (err) {
+            this.warn((err as Error).message);
+            break;
+          }
+          const eff = this.effects.find((e) => e.source === 'item' && e.active && (e.id === `item:${item.id}` || (e as any).itemIds?.includes(item.id)));
+          if (!this.items.some((i) => i.id === item.id)) {
+            this.warn(`item active "${item.name}" used but the item is not in the build`);
+            break;
+          }
+          if (!eff?.active) {
+            this.warn(`${item.name} has no modeled active`);
+            break;
+          }
+          this.useActive(eff, timeline, `item:${item.name}`);
+          break;
+        }
+      }
+    }
+    const comboEnd = Math.max(this.time, this.freeAt);
+    this.processUntil(comboEnd);
+    // Delayed hits (projectiles, detonations) always land; DoTs continue only with finishDots.
+    this.processUntil(comboEnd + (this.settings.finishDots ? 30 : 3));
+    const dotDamage = this.events.reduce((s, e) => s + (e.flags.dot ? (e.final ?? 0) : 0), 0);
+    const comboDamage = this.events.reduce((s, e) => s + (e.flags.dot ? 0 : (e.final ?? 0)), 0);
+
+    const total = this.events.reduce((s, e) => s + (e.final ?? 0), 0);
+    const raw = this.events.reduce((s, e) => s + e.raw, 0);
+    const byType: Record<DamageType, number> = { physical: 0, magic: 0, true: 0 };
+    const bySourceMap = new Map<string, SourceTotal>();
+    for (const e of this.events) {
+      byType[e.type] += e.final ?? 0;
+      const key = `${e.source}|${e.sourceLabel}`;
+      let s = bySourceMap.get(key);
+      if (!s) bySourceMap.set(key, (s = { source: e.source, label: e.sourceLabel, damage: 0, raw: 0, hits: 0, type: {} }));
+      s.damage += e.final ?? 0;
+      s.raw += e.raw;
+      s.hits++;
+      s.type[e.type] = (s.type[e.type] ?? 0) + (e.final ?? 0);
+    }
+    const lastDamage = this.events.length ? this.events[this.events.length - 1].time : 0;
+    const st = initialStats;
+    const effArmor = effectiveResist(
+      { base: this.target.baseArmor, bonus: this.target.bonusArmor },
+      { flat: initialRed.armorFlat, percent: initialRed.armorPercent },
+      { percent: st.armorPenPercent, bonusPercent: st.bonusArmorPenPercent, flat: st.lethality + st.armorPenFlat },
+    );
+    const effMr = effectiveResist(
+      { base: this.target.baseMr, bonus: this.target.bonusMr },
+      { flat: initialRed.mrFlat, percent: initialRed.mrPercent },
+      { percent: st.magicPenPercent, bonusPercent: st.bonusMagicPenPercent, flat: st.magicPenFlat },
+    );
+    for (const e of this.effects) for (const l of e.limitations ?? []) this.note(`${e.label}: ${l}`);
+    for (const n of this.kit.notes ?? []) this.note(`${this.champ.name}: ${n}`);
+    if (this.kit.status === 'auto')
+      this.note(
+        `${this.champ.name}'s kit is auto-generated from tooltips: per-hit numbers come from the game's formulas, but hit counts, conditions and passive interactions may be incomplete.`,
+      );
+
+    return {
+      patch: this.data.meta.patch,
+      champion: { id: this.champ.id, name: this.champ.name, level: this.level, ranks: { ...this.ranks }, kitStatus: this.kit.status },
+      items: this.items.map((i) => ({ id: i.id, name: i.name, gold: i.gold.total })),
+      runes: this.runes.map((r) => ({ id: r.id, name: r.name })),
+      gold: this.items.reduce((s, i) => s + i.gold.total, 0),
+      combo: formatCombo(steps),
+      stats: initialStats,
+      target: {
+        label: this.target.label,
+        ...(this.target.level !== undefined ? { level: this.target.level } : {}),
+        maxHp: this.target.maxHp,
+        bonusHp: this.target.bonusHp,
+        startHp,
+        endHp: Math.max(0, this.target.hp),
+        armor: this.target.baseArmor + this.target.bonusArmor,
+        bonusArmor: this.target.bonusArmor,
+        mr: this.target.baseMr + this.target.bonusMr,
+        bonusMr: this.target.bonusMr,
+        effectiveArmor: effArmor,
+        effectiveMr: effMr,
+        physicalMultiplier: resistMultiplier(effArmor),
+        magicMultiplier: resistMultiplier(effMr),
+      },
+      totalDamage: total,
+      comboDamage,
+      dotDamage,
+      rawDamage: raw,
+      byType,
+      bySource: [...bySourceMap.values()].sort((a, b) => b.damage - a.damage),
+      events: this.events,
+      timeline,
+      duration: lastDamage,
+      comboTime: comboEnd,
+      killed: this.target.killTime !== undefined,
+      ...(this.target.killTime !== undefined ? { killTime: this.target.killTime } : {}),
+      percentOfHp: total / startHp,
+      dps: lastDamage > 0 ? total / lastDamage : total,
+      warnings: this.warnings,
+      notes: [...this.notes],
+    };
+  }
+}
+
+// -----------------------------------------------------------------------------
+
+/** Combine damage modifiers: dealt amps add (or multiply, pre-26.9); taken/multiplier kinds multiply. */
+export function combineAmps(amps: DamageInstance['amps'], stacking: 'additive' | 'multiplicative'): number {
+  let dealt = stacking === 'additive' ? 1 : 1;
+  let mult = 1;
+  for (const a of amps) {
+    const kind = a.kind ?? 'dealt';
+    if (kind === 'dealt') {
+      if (stacking === 'additive') dealt += a.value;
+      else dealt *= 1 + a.value;
+    } else mult *= 1 + a.value;
+  }
+  return Math.max(0, dealt) * mult;
+}
+
+function clampInt(v: number, lo: number, hi: number) {
+  return Math.min(hi, Math.max(lo, Math.round(v)));
+}
+
+function structuredCloneMods(m: StatMods): StatMods {
+  const out = { ...m } as any;
+  for (const [k, v] of Object.entries(m)) if (Array.isArray(v)) out[k] = [...v];
+  return out;
+}
+
+export function isLegendary(item: ItemData): boolean {
+  return item.gold.total >= 2000 && !item.into.length && !item.tags.includes('Boots') && !item.tags.includes('Consumable');
+}
+
+export function windupFraction(champ: ChampionData): number {
+  const s = champ.stats;
+  if (s.attackCastTime && s.attackTotalTime) return s.attackCastTime / s.attackTotalTime;
+  return Math.min(0.9, Math.max(0.05, 0.3 + (s.attackWindupOffset ?? 0)));
+}
+
+/** Max rank per slot for this champion (from tooltip level-up lists; R defaults to 3). */
+export function maxRanks(champ: ChampionData): Record<'Q' | 'W' | 'E' | 'R', number> {
+  const out = { Q: 5, W: 5, E: 5, R: 3 } as Record<'Q' | 'W' | 'E' | 'R', number>;
+  for (const ab of champ.abilities) {
+    if (ab.slot === 'Q' || ab.slot === 'W' || ab.slot === 'E' || ab.slot === 'R') {
+      const lc = ab.spells[0]?.levelCount;
+      if (lc && lc >= 1 && lc <= 6) out[ab.slot] = lc;
+    }
+  }
+  return out;
+}
+
+/**
+ * Default ability ranks for a level: ult at 6/11/16, one point in each basic by level 3,
+ * then max in skillOrder (default Q > W > E).
+ */
+export function resolveRanks(champ: ChampionData, level: number, given: Scenario['ranks'], skillOrder = 'QWE'): Record<Slot, number> {
+  const max = maxRanks(champ);
+  const ultLevels = max.R >= 4 ? [1, 6, 11, 16] : [6, 11, 16];
+  const r = ultLevels.filter((l) => level >= l).length;
+  const ranks: Record<Slot, number> = { P: 1, Q: 0, W: 0, E: 0, R: Math.min(r, max.R) };
+  let points = level - ranks.R;
+  const order = (skillOrder.toUpperCase().replace(/[^QWE]/g, '') + 'QWE').split('').filter((c, i, a) => a.indexOf(c) === i) as ('Q' | 'W' | 'E')[];
+  // One point in each basic ability first (in max order), then max in order.
+  for (const s of order) {
+    if (points <= 0) break;
+    ranks[s] = 1;
+    points--;
+  }
+  for (const s of order) {
+    // A basic ability can be ranked to at most ceil(level/2).
+    while (points > 0 && ranks[s] < max[s] && ranks[s] < Math.ceil(level / 2)) {
+      ranks[s]++;
+      points--;
+    }
+  }
+  for (const s of order) {
+    while (points > 0 && ranks[s] < max[s]) {
+      ranks[s]++;
+      points--;
+    }
+  }
+  for (const [k, v] of Object.entries(given ?? {})) if (v !== undefined) ranks[k as Slot] = Math.max(0, Math.min(v, max[k as 'Q'] ?? 5));
+  return ranks;
+}
+
+function resolveTarget(data: GameData, spec: TargetSpec, attackerLevel: number): Sim['target'] {
+  let maxHp = 2000,
+    baseHp = 2000,
+    baseArmor = 80,
+    bonusArmor = 0,
+    baseMr = 50,
+    bonusMr = 0;
+  let label = spec.label ?? 'Target';
+  const lvl = clampInt(spec.level ?? attackerLevel + (spec.levelDiff ?? 0), 1, GAME.maxLevel);
+  let level: number | undefined;
+  if (spec.champion || spec.preset) {
+    let st: Stats;
+    if (spec.champion) {
+      const c = findChampion(data, spec.champion);
+      const items = (spec.items ?? []).map((q) => findItem(data, q));
+      const mods = emptyMods();
+      for (const it of items) mergeMods(mods, itemStatsToMods(it.stats));
+      st = computeStats({ base: c.stats, level: lvl, adaptiveDefault: c.adaptive, ranged: c.attackType === 'ranged' }, mods);
+      label = spec.label ?? `${c.name} lvl ${lvl}${items.length ? ` (${items.map((i) => i.name).join(', ')})` : ''}`;
+    } else {
+      const p = resolvePreset(data, spec.preset!, lvl);
+      const mods = emptyMods();
+      for (const it of p.items) mergeMods(mods, itemStatsToMods(it.stats));
+      mods.hp += p.shardHp;
+      st = computeStats({ base: p.base, level: lvl, adaptiveDefault: 'physical', ranged: false }, mods);
+      label = spec.label ?? p.label;
+    }
+    level = lvl;
+    maxHp = st.maxHp;
+    baseHp = st.baseHp;
+    baseArmor = st.baseArmor;
+    bonusArmor = st.bonusArmor;
+    baseMr = st.baseMr;
+    bonusMr = st.bonusMr;
+  }
+  if (spec.maxHp !== undefined) {
+    maxHp = spec.maxHp;
+    baseHp = spec.maxHp - (spec.bonusHp ?? 0);
+  } else if (spec.bonusHp !== undefined) baseHp = maxHp - spec.bonusHp;
+  if (spec.armor !== undefined) {
+    bonusArmor = spec.bonusArmor ?? 0;
+    baseArmor = spec.armor - bonusArmor;
+  } else if (spec.bonusArmor !== undefined) {
+    baseArmor = baseArmor + bonusArmor - spec.bonusArmor;
+    bonusArmor = spec.bonusArmor;
+  }
+  if (spec.mr !== undefined) {
+    bonusMr = spec.bonusMr ?? 0;
+    baseMr = spec.mr - bonusMr;
+  } else if (spec.bonusMr !== undefined) {
+    baseMr = baseMr + bonusMr - spec.bonusMr;
+    bonusMr = spec.bonusMr;
+  }
+  const hp = spec.hp ?? maxHp * (spec.hpPercent ?? 1);
+  if (!spec.champion && !spec.preset && !spec.label) label = `${Math.round(maxHp)} HP / ${Math.round(baseArmor + bonusArmor)} armor / ${Math.round(baseMr + bonusMr)} MR`;
+  return {
+    label,
+    ...(level !== undefined ? { level } : {}),
+    maxHp,
+    hp,
+    startHp: hp,
+    baseHp,
+    bonusHp: maxHp - baseHp,
+    baseArmor,
+    bonusArmor,
+    baseMr,
+    bonusMr,
+    damageReduction: spec.damageReduction ?? 0,
+  };
+}
+
+export function simulate(data: GameData, scenario: Scenario): SimResult {
+  const sim = new Sim(data, scenario);
+  const steps = typeof scenario.combo === 'string' ? parseCombo(scenario.combo) : scenario.combo;
+  return sim.run(steps);
+}
+
+export { GAME };

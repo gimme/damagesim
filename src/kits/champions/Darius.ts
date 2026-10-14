@@ -1,0 +1,69 @@
+import type { ChampionKit } from '../../engine/kit-types.ts';
+
+// Darius — patch 16.20.
+const kit: ChampionKit = {
+  id: 'Darius',
+  status: 'curated',
+  notes: ['Noxian Guillotine is assumed not to apply Hemorrhage.'],
+  marks: [
+    {
+      id: 'hemorrhage',
+      label: 'Hemorrhage',
+      maxStacks: 'P.dv.MaxStacks',
+      duration: 'P.dv.BleedDuration',
+      // While Noxian Might is active every hit applies max stacks.
+      stacksPerHit: 'buff.noxianMight ? P.dv.MaxStacks : 1',
+      appliedBy: ['attack', 'Q', 'W'],
+      dot: { interval: 1.25, components: [{ id: 'bleed', label: 'Bleed', type: 'physical', amount: 'P.calc.BleedDamagePerStack / 4 * stacks.hemorrhage', dot: true }] },
+      atMax: {
+        components: [],
+        buff: { id: 'noxianMight', label: 'Noxian Might', duration: 'P.dv.BleedDuration', stats: { ad: 'P.calc.NoxianMightBonusAD' } },
+      },
+    },
+  ],
+  stats: ({ ranks, evalExpr }) => (ranks.E > 0 ? { armorPenPercent: [evalExpr('E.dv.PassivePercentArmorPen') / 100] } : {}),
+  abilities: {
+    Q: {
+      variants: {
+        handle: {
+          label: 'handle',
+          note: 'Hit only by the handle: 35% damage, no Hemorrhage stack.',
+          components: [{ id: 'handle', label: 'Decimate (handle)', type: 'physical', amount: 'calc.HandleDamage', aoe: true, delay: 0.5, noProc: false }],
+        },
+      },
+      components: [{ id: 'blade', label: 'Decimate (blade)', type: 'physical', amount: 'calc.BladeDamage', aoe: true, delay: 0.5 }],
+    },
+    W: {
+      resetsAttack: true,
+      buff: {
+        id: 'dariusW',
+        label: 'Crippling Strike',
+        duration: 4,
+        empowerAttacks: {
+          count: 1,
+          replaceBase: true,
+          resetsAttack: true,
+          components: [{ id: 'strike', label: 'Crippling Strike', type: 'physical', amount: 'W.calc.EmpoweredAttackDamage' }],
+        },
+      },
+      notes: ['Empowers the next attack (replaces its damage); triggers spell effects.'],
+    },
+    E: {
+      noTarget: false,
+      cc: [{ kind: 'immobilize', duration: 0.5 }, { kind: 'slow', duration: 'dv.SlowDuration' }],
+      components: [],
+    },
+    R: {
+      dash: true,
+      components: [
+        {
+          id: 'guillotine',
+          label: 'Noxian Guillotine',
+          type: 'true',
+          amount: 'min(calc.Damage * (1 + dv.RDamagePercentPerHemoStack * stacks.hemorrhage), calc.MaximumDamage)',
+        },
+      ],
+    },
+  },
+};
+export default kit;

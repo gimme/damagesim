@@ -1,0 +1,123 @@
+import type { ChampionKit, DebuffSpec } from '../../engine/kit-types.ts';
+
+// K'Sante — patch 16.20.
+// Dauntless Instinct: damaging abilities mark the target for 4s; K'Sante's next attack consumes
+// the mark for bonus physical damage (a separate instance after the attack).
+const mark: DebuffSpec = {
+  id: 'ksanteMark',
+  label: 'Dauntless Instinct',
+  duration: 'P.dv.MarkDuration',
+  consume: {
+    by: 'attack',
+    slot: 'P',
+    components: [{ id: 'mark', label: 'Dauntless Instinct', type: 'physical', amount: 'P.dv.FlatDamage + P.calc.PercentHealthDamage * target.maxHp', noProc: true }],
+  },
+};
+const wDamage = 'dv.BaseDamage + calc.TotalMaxHealthDamage * target.maxHp';
+
+const kit: ChampionKit = {
+  id: 'KSante',
+  status: 'curated',
+  notes: [
+    'All Out (R, 15s): +attack speed, bonus armor penetration, and every physical attack/ability/passive hit is increased by P.calc.MaxHealthDamagePercent of the target\'s max health (same instance, hook).',
+    'All Out\'s health/resistance loss is not modelled: it comes out of base resistances and does not change K\'Sante\'s damage scalings. Omnivamp and shields are ignored.',
+    'W charge: default minimum (0.4s); W:charged = full charge. While All Out use W:allout / W:alloutcharged (bonus true damage, no stun). Casting R refreshes W\'s cooldown (hook); All Out\'s Q/E cooldown reductions are not modelled.',
+  ],
+  abilities: {
+    Q: {
+      resetsAttack: true,
+      debuff: mark,
+      cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
+      notes: ['Third cast (2 stacks) is Q:q3: same damage, pull + stun.'],
+      components: [{ id: 'strike', label: 'Ntofo Strikes', type: 'physical', amount: 'calc.BaseDamage', aoe: true }],
+      variants: {
+        q3: {
+          label: 'shockwave',
+          resetsAttack: true,
+          debuff: mark,
+          cc: [
+            { kind: 'immobilize', duration: 'dv.StunDuration' },
+            { kind: 'slow', duration: 'dv.SlowDuration' },
+          ],
+          components: [{ id: 'strike', label: 'Ntofo Strikes (shockwave)', type: 'physical', amount: 'calc.BaseDamage', aoe: true }],
+        },
+      },
+    },
+    W: {
+      dash: true,
+      castTime: 'dv.MinChargeTime',
+      debuff: mark,
+      cc: [{ kind: 'immobilize', duration: 'dv.MinKnockbackDuration' }],
+      components: [{ id: 'ram', label: 'Path Maker', type: 'physical', amount: wDamage, aoe: true }],
+      variants: {
+        charged: {
+          label: 'full charge',
+          dash: true,
+          castTime: 0.9, // dv.TimeToFullCharge
+          debuff: mark,
+          cc: [{ kind: 'immobilize', duration: 'dv.MaxKnockbackDuration' }],
+          components: [{ id: 'ram', label: 'Path Maker (charged)', type: 'physical', amount: wDamage, aoe: true }],
+        },
+        allout: {
+          label: 'All Out',
+          dash: true,
+          castTime: 0.4,
+          debuff: mark,
+          cc: [],
+          components: [
+            { id: 'ram', label: 'Path Maker', type: 'physical', amount: wDamage, aoe: true },
+            { id: 'true', label: 'Path Maker (All Out)', type: 'true', amount: `(${wDamage}) * dv.RDamageIncreaseMin`, aoe: true },
+          ],
+        },
+        alloutcharged: {
+          label: 'All Out, full charge',
+          dash: true,
+          castTime: 0.9,
+          debuff: mark,
+          cc: [],
+          components: [
+            { id: 'ram', label: 'Path Maker', type: 'physical', amount: wDamage, aoe: true },
+            { id: 'true', label: 'Path Maker (All Out)', type: 'true', amount: `(${wDamage}) * dv.RDamageIncreaseMax`, aoe: true },
+          ],
+        },
+      },
+    },
+    E: { dash: true, noTarget: true, notes: ['Dash + shield, no damage.'], components: [] },
+    R: {
+      dash: true,
+      debuff: mark,
+      cc: [{ kind: 'immobilize', duration: 'dv.NoWallStunDuration' }],
+      buff: { id: 'ksanteR', label: 'All Out', duration: 'dv.AllOutDuration', stats: { attackSpeed: 'dv.AttackSpeed' }, bonusArmorPenPercent: 'dv.ArmorPenPercent' },
+      notes: ['R:wall when the target is knocked through a wall (second strike, longer stun).'],
+      components: [{ id: 'tackle', label: 'All Out', type: 'physical', amount: 'dv.BaseDamage', delay: 0.3 }],
+      variants: {
+        wall: {
+          label: 'through a wall',
+          dash: true,
+          debuff: mark,
+          cc: [{ kind: 'immobilize', duration: 'dv.WallStunDuration' }],
+          buff: { id: 'ksanteR', label: 'All Out', duration: 'dv.AllOutDuration', stats: { attackSpeed: 'dv.AttackSpeed' }, bonusArmorPenPercent: 'dv.ArmorPenPercent' },
+          components: [
+            { id: 'tackle', label: 'All Out', type: 'physical', amount: 'dv.BaseDamage', delay: 0.3 },
+            { id: 'slam', label: 'All Out (wall strike)', type: 'physical', amount: 'calc.TotalDamageSlamDown', delay: 0.8 },
+          ],
+        },
+      },
+    },
+  },
+  hooks: {
+    // Going All Out refreshes Path Maker's cooldown.
+    onCast(sim, cast) {
+      if (cast.slot === 'R') sim.startCooldown('ability:W', 0);
+    },
+    // All Out: K'Sante's attacks, abilities and passive deal extra % max health inside the same instance.
+    beforeDamage(sim, inst) {
+      if (inst.type !== 'physical' || !sim.getBuff('ksanteR') || inst.flags.proc) return;
+      const own = inst.flags.kind === 'attack' || inst.fromMark === 'ksanteMark' || (inst.flags.kind === 'ability' && !!inst.flags.slot && inst.flags.slot !== 'P' && !inst.fromMark);
+      if (!own) return;
+      inst.raw += sim.evalExpr('P.calc.MaxHealthDamagePercent', { slot: 'P' }) * sim.target.maxHp;
+      inst.note = (inst.note ? inst.note + '; ' : '') + 'All Out';
+    },
+  },
+};
+export default kit;

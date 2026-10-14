@@ -1,0 +1,11 @@
+{
+  "patch": "16.20",
+  "ddragonVersion": "16.20.1",
+  "cdragonVersion": "16.20.8248524+branch.releases-16-20.content.release",
+  "cdragonBase": "https://raw.communitydragon.org/16.20",
+  "fetchedAt": "2026-10-14T10:00:36.810Z",
+  "builtAt": "2026-10-14T11:05:25.284Z",
+  "champions": 173,
+  "items": 273,
+  "runes": 75
+}

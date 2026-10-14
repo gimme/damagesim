@@ -1,0 +1,410 @@
+// Small SVG charts. Color encodes damage type (magic / physical / true) with fixed slots, always
+// accompanied by a legend or labels; every chart has a hover tooltip and a table elsewhere.
+
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import type { DamageInstance } from '../../engine/effects.ts';
+import type { SourceTotal } from '../../engine/sim.ts';
+import { fmt } from './common.tsx';
+
+export type DmgType = 'physical' | 'magic' | 'true';
+export const TYPE_COLOR: Record<DmgType, string> = { magic: 'var(--magic)', physical: 'var(--physical)', true: 'var(--true)' };
+export const TYPE_ORDER: DmgType[] = ['magic', 'physical', 'true'];
+export const TYPE_LABEL: Record<DmgType, string> = { magic: 'Magic', physical: 'Physical', true: 'True' };
+
+export function TypeLegend({ types = TYPE_ORDER }: { types?: DmgType[] }) {
+  return (
+    <div className="legend" aria-label="Damage types">
+      {types.map((t) => (
+        <span key={t} className="key">
+          <span className="swatch" style={{ background: TYPE_COLOR[t] }} />
+          {TYPE_LABEL[t]}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+interface TipState {
+  x: number;
+  y: number;
+  content: ReactNode;
+}
+
+/** Tooltip + container width (charts draw in real pixels so text stays legible at any size). */
+function useTooltip() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [tip, setTip] = useState<TipState | null>(null);
+  const [width, setWidth] = useState(900);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => {
+      const w = Math.round(entries[0].contentRect.width);
+      if (w > 0) setWidth(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const show = (e: { clientX: number; clientY: number }, content: ReactNode) => {
+    const box = ref.current?.getBoundingClientRect();
+    if (!box) return;
+    let x = e.clientX - box.left + 14;
+    const y = e.clientY - box.top + 14;
+    if (x > box.width - 220) x = Math.max(0, e.clientX - box.left - 230);
+    setTip({ x, y, content });
+  };
+  const node = tip ? (
+    <div className="tooltip" style={{ left: tip.x, top: tip.y }} role="status">
+      {tip.content}
+    </div>
+  ) : null;
+  return { ref, show, hide: () => setTip(null), node, width: Math.max(280, width) };
+}
+
+const niceMax = (v: number) => {
+  if (v <= 0) return 1;
+  const p = 10 ** Math.floor(Math.log10(v));
+  for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= v) return m * p;
+  return 10 * p;
+};
+const ticks = (max: number, n = 4) => Array.from({ length: n + 1 }, (_, i) => (max / n) * i);
+const compact = (v: number) => (v >= 1000 ? `${Math.round(v / 100) / 10}K` : `${Math.round(v)}`);
+
+// -----------------------------------------------------------------------------
+// HP bar: target health as a track, damage segments by source (part-to-whole)
+
+export function HpBar({ sources, maxHp, startHp }: { sources: SourceTotal[]; maxHp: number; startHp: number }) {
+  const tt = useTooltip();
+  const W = tt.width;
+  const H = 34;
+  const total = sources.reduce((s, x) => s + x.damage, 0);
+  const startOffset = ((maxHp - startHp) / maxHp) * W;
+  let x = startOffset;
+  // One segment per (source, damage type), in source order; clipped at the target's health.
+  const segs: { s: SourceTotal; t: DmgType; x: number; w: number }[] = [];
+  for (const s of sources) {
+    for (const t of TYPE_ORDER) {
+      const v = s.type[t] ?? 0;
+      if (v <= 0) continue;
+      const w = (Math.min(v, Math.max(0, maxHp - (x / W) * maxHp)) / maxHp) * W;
+      if (w > 0) segs.push({ s, t, x, w });
+      x += w;
+    }
+  }
+  const overkill = Math.max(0, total - startHp);
+  return (
+    <div className="chart-wrap" ref={tt.ref}>
+      <svg viewBox={`0 0 ${W} ${H + 22}`} role="img" aria-label={`Target health bar: ${fmt(total)} damage of ${fmt(startHp)} health`}>
+        <rect x={0} y={0} width={W} height={H} rx={6} fill="var(--surface-3)" />
+        {startOffset > 0 && <rect x={0} y={0} width={startOffset} height={H} rx={6} fill="var(--grid)" />}
+        {segs.map(({ s, t, x, w }, i) =>
+          w <= 0 ? null : (
+            <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} maxHp={maxHp} />)} onPointerLeave={tt.hide}>
+              <rect x={x + 1} y={0} width={Math.max(0.5, w - 2)} height={H} fill={TYPE_COLOR[t]} rx={i === segs.length - 1 || i === 0 ? 4 : 0} />
+              {w > 70 && (
+                <text x={x + w / 2} y={H / 2 + 4} textAnchor="middle" fontSize={12} fill="#fff" style={{ pointerEvents: 'none' }}>
+                  {s.label.length * 6.5 < w - 10 ? s.label : fmt(s.type[t] ?? 0)}
+                </text>
+              )}
+            </g>
+          ),
+        )}
+        <text x={0} y={H + 16} fontSize={12} fill="var(--text-muted)">
+          0
+        </text>
+        <text x={W} y={H + 16} fontSize={12} fill="var(--text-muted)" textAnchor="end">
+          {fmt(maxHp)} HP{overkill > 0 ? ` · overkill ${fmt(overkill)}` : ''}
+        </text>
+      </svg>
+      {tt.node}
+    </div>
+  );
+}
+
+function SourceTip({ s, maxHp }: { s: SourceTotal; maxHp: number }) {
+  return (
+    <>
+      <div className="tt-title">{s.label}</div>
+      {(Object.entries(s.type) as [DmgType, number][]).map(([t, v]) => (
+        <div className="tt-row" key={t}>
+          <span>
+            <span className="line-key" style={{ background: TYPE_COLOR[t], marginRight: 6 }} />
+            {TYPE_LABEL[t]}
+          </span>
+          <strong>{fmt(v)}</strong>
+        </div>
+      ))}
+      <div className="tt-row muted">
+        <span>
+          {s.hits} hit{s.hits === 1 ? '' : 's'} · {((s.damage / maxHp) * 100).toFixed(1)}% max HP
+        </span>
+      </div>
+    </>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Timeline: target HP over time (step line) with each damage instance as a dot.
+
+export function Timeline({ events, startHp, maxHp, timeline }: { events: DamageInstance[]; startHp: number; maxHp: number; timeline: { step: string; start: number; end: number }[] }) {
+  const tt = useTooltip();
+  const W = tt.width;
+  const H = 260;
+  const m = { l: 44, r: 12, t: 12, b: 50 };
+  const tMax = Math.max(1, ...events.map((e) => e.time), ...timeline.map((s) => s.end)) * 1.04;
+  const yMax = niceMax(maxHp);
+  const sx = (t: number) => m.l + (t / tMax) * (W - m.l - m.r);
+  const sy = (hp: number) => m.t + (1 - Math.max(0, hp) / yMax) * (H - m.t - m.b);
+  // Step path of HP.
+  let d = `M ${sx(0)} ${sy(startHp)}`;
+  for (const e of events) d += ` H ${sx(e.time)} V ${sy(e.targetHpAfter ?? 0)}`;
+  d += ` H ${sx(tMax)}`;
+  const xTicks = ticks(niceMax(tMax), 5).filter((t) => t <= tMax);
+  const onMove = (e: React.PointerEvent<SVGRectElement>) => {
+    const box = (e.currentTarget.ownerSVGElement as SVGSVGElement).getBoundingClientRect();
+    const t = ((e.clientX - box.left) / box.width) * W;
+    const time = ((t - m.l) / (W - m.l - m.r)) * tMax;
+    const near = events.filter((ev) => Math.abs(ev.time - time) <= tMax / 60);
+    const hpAt = [...events].reverse().find((ev) => ev.time <= time)?.targetHpAfter ?? startHp;
+    tt.show(
+      e,
+      <>
+        <div className="tt-title">
+          t = {time.toFixed(2)}s · target HP <strong>{fmt(Math.max(0, hpAt))}</strong>
+        </div>
+        {near.slice(0, 8).map((ev) => (
+          <div className="tt-row" key={ev.id}>
+            <span>
+              <span className="line-key" style={{ background: TYPE_COLOR[ev.type], marginRight: 6 }} />
+              {ev.sourceLabel === ev.label ? ev.label : `${ev.sourceLabel}: ${ev.label}`}
+            </span>
+            <strong>{fmt(ev.final ?? 0)}</strong>
+          </div>
+        ))}
+        {near.length > 8 && <div className="muted">+{near.length - 8} more</div>}
+      </>,
+    );
+  };
+  return (
+    <div className="chart-wrap" ref={tt.ref}>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Target health over time">
+        {ticks(yMax).map((v) => (
+          <g key={v}>
+            <line x1={m.l} x2={W - m.r} y1={sy(v)} y2={sy(v)} stroke="var(--grid)" />
+            <text x={m.l - 8} y={sy(v) + 4} fontSize={11} textAnchor="end" fill="var(--text-muted)" className="num">
+              {compact(v)}
+            </text>
+          </g>
+        ))}
+        <line x1={m.l} x2={W - m.r} y1={sy(0)} y2={sy(0)} stroke="var(--axis)" />
+        {xTicks.map((t) => (
+          <text key={t} x={sx(t)} y={H - m.b + 16} fontSize={11} textAnchor="middle" fill="var(--text-muted)" className="num">
+            {t.toFixed(t % 1 ? 1 : 0)}s
+          </text>
+        ))}
+        {/* Combo steps along the bottom */}
+        {(() => {
+          let lastLabelEnd = -Infinity;
+          return timeline.map((s, i) => {
+            const text = s.step.length > 10 ? s.step.slice(0, 9) + '…' : s.step;
+            const x0 = sx(s.start);
+            const showLabel = x0 >= lastLabelEnd + 4;
+            if (showLabel) lastLabelEnd = x0 + text.length * 7;
+            return (
+              <g key={i}>
+                <rect x={x0} y={H - m.b + 24} width={Math.max(3, sx(s.end) - x0)} height={6} rx={2} fill="var(--axis)" />
+                {showLabel && (
+                  <text x={x0} y={H - m.b + 44} fontSize={10.5} fill="var(--text-secondary)">
+                    {text}
+                  </text>
+                )}
+              </g>
+            );
+          });
+        })()}
+        <path d={d} fill="none" stroke="var(--hp)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+        {events.map((ev) => (
+          <circle key={ev.id} cx={sx(ev.time)} cy={sy(ev.targetHpAfter ?? 0)} r={4.5} fill={TYPE_COLOR[ev.type]} stroke="var(--surface)" strokeWidth={2} />
+        ))}
+        <rect x={m.l} y={m.t} width={W - m.l - m.r} height={H - m.t - m.b} fill="transparent" onPointerMove={onMove} onPointerLeave={tt.hide} />
+      </svg>
+      {tt.node}
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Horizontal stacked bars: damage by source, segments by damage type.
+
+export function SourceBars({ sources }: { sources: SourceTotal[] }) {
+  const tt = useTooltip();
+  const rows = sources.filter((s) => s.damage > 0.5);
+  const W = tt.width;
+  const rowH = 30;
+  const labelW = Math.min(230, W * 0.36);
+  const H = rows.length * rowH + 8;
+  const max = niceMax(Math.max(1, ...rows.map((r) => r.damage)));
+  const sx = (v: number) => (v / max) * (W - labelW - 64);
+  const maxChars = Math.floor((labelW - 12) / 7);
+  return (
+    <div className="chart-wrap" ref={tt.ref}>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Damage by source">
+        {rows.map((s, i) => {
+          let x = labelW;
+          const y = i * rowH + 6;
+          const parts = TYPE_ORDER.filter((t) => (s.type[t] ?? 0) > 0);
+          return (
+            <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} maxHp={Infinity} />)} onPointerLeave={tt.hide}>
+              <rect x={0} y={y - 4} width={W} height={rowH} fill="transparent" />
+              <text x={labelW - 10} y={y + 15} textAnchor="end" fontSize={13} fill="var(--text-primary)">
+                {s.label.length > maxChars ? s.label.slice(0, maxChars - 1) + '…' : s.label}
+              </text>
+              {parts.map((t, j) => {
+                const w = sx(s.type[t] ?? 0);
+                const last = j === parts.length - 1;
+                const el = (
+                  <path key={t} d={barPath(x, y, Math.max(1, w - (last ? 0 : 2)), 20, last)} fill={TYPE_COLOR[t]} />
+                );
+                x += w;
+                return el;
+              })}
+              <text x={x + 8} y={y + 15} fontSize={12.5} fill="var(--text-secondary)" className="num">
+                {fmt(s.damage)}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      {tt.node}
+    </div>
+  );
+}
+
+/** Horizontal bar with a 4px rounded data end and a square baseline end. */
+function barPath(x: number, y: number, w: number, h: number, roundEnd = true) {
+  const r = roundEnd ? Math.min(4, w / 2, h / 2) : 0;
+  return `M ${x} ${y} H ${x + w - r} Q ${x + w} ${y} ${x + w} ${y + r} V ${y + h - r} Q ${x + w} ${y + h} ${x + w - r} ${y + h} H ${x} Z`;
+}
+
+// -----------------------------------------------------------------------------
+// Simple horizontal bars (single hue) with labels — item ranking, build comparison.
+
+export function SimpleBars({ rows, unit = '', format = (v: number) => fmt(v) }: { rows: { label: string; value: number; sub?: string; icon?: ReactNode; highlight?: boolean }[]; unit?: string; format?: (v: number) => string }) {
+  const tt = useTooltip();
+  const W = tt.width;
+  const rowH = 32;
+  const labelW = Math.min(300, W * 0.4);
+  const H = rows.length * rowH + 8;
+  const max = niceMax(Math.max(1e-9, ...rows.map((r) => r.value)));
+  const sx = (v: number) => (Math.max(0, v) / max) * (W - labelW - (W < 600 ? 70 : 150));
+  const maxChars = Math.floor((labelW - 12) / 7);
+  return (
+    <div className="chart-wrap" ref={tt.ref}>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Bar chart">
+        {rows.map((r, i) => {
+          const y = i * rowH + 6;
+          return (
+            <g
+              key={i}
+              onPointerMove={(e) =>
+                tt.show(
+                  e,
+                  <>
+                    <div className="tt-title">{r.label}</div>
+                    <div className="tt-row">
+                      <span>{unit || 'Value'}</span>
+                      <strong>{format(r.value)}</strong>
+                    </div>
+                    {r.sub && <div className="muted">{r.sub}</div>}
+                  </>,
+                )
+              }
+              onPointerLeave={tt.hide}
+            >
+              <rect x={0} y={y - 4} width={W} height={rowH} fill="transparent" />
+              <text x={labelW - 10} y={y + 15} textAnchor="end" fontSize={13} fill="var(--text-primary)" fontWeight={r.highlight ? 650 : 400}>
+                {r.label.length > maxChars ? r.label.slice(0, maxChars - 1) + '…' : r.label}
+              </text>
+              <path d={barPath(labelW, y, Math.max(1, sx(r.value)), 20)} fill={r.highlight ? 'var(--accent)' : 'var(--magic)'} opacity={r.highlight ? 1 : 0.85} />
+              <text x={labelW + sx(r.value) + 8} y={y + 15} fontSize={12.5} fill="var(--text-secondary)" className="num">
+                {format(r.value)}
+                {r.sub && W >= 600 ? `  ·  ${r.sub}` : ''}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      {tt.node}
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Line chart (resist sweep): x = resist, y = damage, one line per series.
+
+export function LineChart({ xLabel, series, markerX }: { xLabel: string; series: { label: string; color: string; points: { x: number; y: number }[] }[]; markerX?: number }) {
+  const tt = useTooltip();
+  const W = tt.width;
+  const H = 280;
+  const m = { l: 56, r: 20, t: 14, b: 36 };
+  const all = series.flatMap((s) => s.points);
+  const xMax = Math.max(1, ...all.map((p) => p.x));
+  const yMax = niceMax(Math.max(1, ...all.map((p) => p.y)));
+  const sx = (x: number) => m.l + (x / xMax) * (W - m.l - m.r);
+  const sy = (y: number) => m.t + (1 - y / yMax) * (H - m.t - m.b);
+  const onMove = (e: React.PointerEvent<SVGRectElement>) => {
+    const box = (e.currentTarget.ownerSVGElement as SVGSVGElement).getBoundingClientRect();
+    const x = (((e.clientX - box.left) / box.width) * W - m.l) / (W - m.l - m.r) * xMax;
+    const pts = series.map((s) => ({ s, p: s.points.reduce((best, p) => (Math.abs(p.x - x) < Math.abs(best.x - x) ? p : best), s.points[0]) }));
+    tt.show(
+      e,
+      <>
+        <div className="tt-title">
+          {xLabel} {pts[0]?.p.x}
+        </div>
+        {pts.map(({ s, p }) => (
+          <div className="tt-row" key={s.label}>
+            <span>
+              <span className="line-key" style={{ background: s.color, marginRight: 6 }} />
+              {s.label}
+            </span>
+            <strong>{fmt(p.y)}</strong>
+          </div>
+        ))}
+      </>,
+    );
+  };
+  return (
+    <div className="chart-wrap" ref={tt.ref}>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Damage versus target ${xLabel}`}>
+        {ticks(yMax).map((v) => (
+          <g key={v}>
+            <line x1={m.l} x2={W - m.r} y1={sy(v)} y2={sy(v)} stroke="var(--grid)" />
+            <text x={m.l - 8} y={sy(v) + 4} fontSize={11} textAnchor="end" fill="var(--text-muted)">
+              {compact(v)}
+            </text>
+          </g>
+        ))}
+        {ticks(xMax, 6).map((v) => (
+          <text key={v} x={sx(v)} y={H - m.b + 18} fontSize={11} textAnchor="middle" fill="var(--text-muted)">
+            {Math.round(v)}
+          </text>
+        ))}
+        <text x={W - m.r} y={H - 4} fontSize={11} textAnchor="end" fill="var(--text-muted)">
+          target {xLabel}
+        </text>
+        {markerX !== undefined && <line x1={sx(markerX)} x2={sx(markerX)} y1={m.t} y2={H - m.b} stroke="var(--axis)" />}
+        {series.map((s) => (
+          <g key={s.label}>
+            <path d={s.points.map((p, i) => `${i ? 'L' : 'M'} ${sx(p.x)} ${sy(p.y)}`).join(' ')} fill="none" stroke={s.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+            {s.points.length > 0 && (
+              <circle cx={sx(s.points[s.points.length - 1].x)} cy={sy(s.points[s.points.length - 1].y)} r={4} fill={s.color} stroke="var(--surface)" strokeWidth={2} />
+            )}
+          </g>
+        ))}
+        <rect x={m.l} y={m.t} width={W - m.l - m.r} height={H - m.t - m.b} fill="transparent" onPointerMove={onMove} onPointerLeave={tt.hide} />
+      </svg>
+      {tt.node}
+    </div>
+  );
+}

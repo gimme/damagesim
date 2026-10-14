@@ -1,0 +1,88 @@
+import type { ChampionKit } from '../../engine/kit-types.ts';
+
+// Yunara — patch 16.20.
+// Vow of the First Lands: critical strikes deal bonus magic damage equal to Calc_Damage_Amp of the
+// crit's total pre-mitigation damage (wiki). In expected-crit mode the bonus is weighted by crit
+// chance; the hook needs the attack's crit state, which component expressions can't see.
+const kit: ChampionKit = {
+  id: 'Yunara',
+  status: 'curated',
+  notes: [
+    'Cultivation of Spirit: the passive on-hit always applies; the active (5s) adds attack speed and a second on-hit. Unleash stacks (4 champion attacks) are not tracked — cast Q when you would have them.',
+    'Transcendent State (R) keeps the Q active for its duration (no need to cast Q); use W:ruin and E:dash while it lasts.',
+    'Arc of Judgment: impact plus the lingering bead for 1s (15% of impact every 0.25s per the wiki). Its 10s cooldown (wiki) is set in the kit — the data has none.',
+    'Attacks spreading to other enemies (Q active) are ignored (single target).',
+  ],
+  attack: {
+    onHit: [{ id: 'cultivation', label: 'Cultivation of Spirit', type: 'magic', amount: 'Q.calc.Calc_Passive_Damage' }],
+  },
+  hooks: {
+    onAttack(sim, atk) {
+      if (atk.fromAbility || atk.phantom) return;
+      const share = atk.crit ? 1 : atk.critFactor > 1 ? sim.stats.critChance : 0;
+      if (share <= 0) return;
+      const st = sim.stats;
+      const critDamage = st.ad * atk.baseMult * st.critDamage;
+      atk.extra.push({
+        source: 'P',
+        sourceLabel: 'Vow of the First Lands',
+        label: atk.crit ? 'Crit bonus' : 'Crit bonus (avg.)',
+        type: 'magic',
+        amount: share * sim.evalExpr('P.calc.Calc_Damage_Amp', { slot: 'P' }) * critDamage,
+        castId: atk.castId,
+        flags: { kind: 'ability', slot: 'P', ability: false, onHit: true },
+      });
+    },
+  },
+  abilities: {
+    Q: {
+      noTarget: true,
+      resetsAttack: true,
+      buff: {
+        id: 'yunaraQ',
+        label: 'Cultivation of Spirit',
+        duration: 'dv.Buff_Duration',
+        stats: { attackSpeed: 'calc.Calc_Attack_Speed' },
+        onHit: [{ id: 'active', label: 'Cultivation of Spirit (active)', type: 'magic', amount: 'Q.calc.Calc_Damage' }],
+      },
+    },
+    W: {
+      name: 'Arc of Judgment',
+      cooldown: 10, // missing from the data; wiki: 10s (Arc of Ruin too)
+      // Cast time shrinks linearly from Cast_Time_Base to Cast_Time_Min at Cast_Time_Attack_Speed_Cap % bonus AS.
+      castTime: 'dv.Cast_Time_Base - (dv.Cast_Time_Base - dv.Cast_Time_Min) * min(1, bonusAs * 100 / dv.Cast_Time_Attack_Speed_Cap)',
+      cc: [{ kind: 'slow', duration: 'dv.Slow_Duration' }],
+      variants: {
+        ruin: {
+          label: 'Arc of Ruin',
+          note: 'Transcendent State only.',
+          cc: [{ kind: 'slow', duration: 'R.dv.RW_Slow_Duration' }],
+          components: [{ id: 'laser', label: 'Arc of Ruin', type: 'magic', amount: 'R.calc.Calc_RW_Damage', aoe: true, delay: 'dv.Cast_Time_Base_Empowered - dv.Cast_Time_Base + 0.1' }],
+        },
+      },
+      components: [
+        { id: 'impact', label: 'Arc of Judgment', type: 'magic', amount: 'calc.Calc_Damage_Initial', delay: 0.2 },
+        // Linger: Calc_Damage_Per_Second spread over 0.25s ticks (wiki) for Linger_Duration seconds.
+        { id: 'linger', label: 'Arc of Judgment (linger)', type: 'magic', amount: 'calc.Calc_Damage_Per_Second / 4', hits: 'dv.Linger_Duration * 4', maxHits: 'dv.Linger_Duration * 4', interval: 0.25, delay: 0.45, aoe: true, dot: true },
+      ],
+    },
+    E: {
+      name: "Kanmei's Steps",
+      noTarget: true,
+      variants: { dash: { label: 'Untouchable Shadow', note: 'Transcendent State only.', dash: true, resetsAttack: true, components: [] } },
+      components: [],
+    },
+    R: {
+      noTarget: true,
+      // Same buff id as Q's active: entering Transcendent State replaces (doesn't stack with) a running Q.
+      buff: {
+        id: 'yunaraQ',
+        label: 'Transcendent State',
+        duration: 'dv.Buff_Duration',
+        stats: { attackSpeed: 'Q.calc.Calc_Attack_Speed' },
+        onHit: [{ id: 'active', label: 'Cultivation of Spirit (active)', type: 'magic', amount: 'Q.calc.Calc_Damage' }],
+      },
+    },
+  },
+};
+export default kit;
