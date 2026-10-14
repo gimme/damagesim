@@ -17,6 +17,7 @@
   --magic: #2a78d6;
   --physical: #eb6834;
   --true: #1baf7a;
+  --item-effect: #b87a00;
   --hp: #2a78d6;
   --good: #006300;
   --warning: #fab219;
@@ -46,6 +47,7 @@
     --magic: #3987e5;
     --physical: #d95926;
     --true: #199e70;
+    --item-effect: #c98500;
     --hp: #3987e5;
     --good: #0ca30c;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
@@ -70,6 +72,7 @@
   --magic: #3987e5;
   --physical: #d95926;
   --true: #199e70;
+  --item-effect: #c98500;
   --hp: #3987e5;
   --good: #0ca30c;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
@@ -638,13 +641,27 @@ label.field {
 .iv-track {
   grid-area: track;
   height: 14px;
+  display: flex;
+  gap: 2px;
 }
 .iv-bar {
-  display: block;
   height: 100%;
   min-width: 2px;
   background: var(--accent);
+}
+.iv-bar.fx {
+  background: var(--item-effect);
+}
+.iv-bar:last-child {
   border-radius: 0 4px 4px 0;
+}
+.iv-head .iv-track {
+  height: auto;
+  gap: 12px;
+  align-items: center;
+}
+.iv-head .swatch {
+  margin-right: 5px;
 }
 .iv-pg,
 .iv-dmg {
@@ -674,7 +691,7 @@ label.field {
     padding-block: 5px;
   }
   .iv-head {
-    grid-template-areas: 'track pg dmg act';
+    grid-template-areas: 'track track track track' '. pg dmg act';
   }
   .iv-head .iv-item {
     display: none;

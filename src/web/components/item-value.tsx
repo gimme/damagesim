@@ -168,7 +168,16 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick }: { rows: 
           <span role="columnheader" className="iv-item">
             Item
           </span>
-          <span role="columnheader" aria-hidden className="iv-track" />
+          <span role="columnheader" className="iv-track">
+            <span>
+              <span className="swatch" style={{ background: 'var(--accent)' }} />
+              stats
+            </span>
+            <span>
+              <span className="swatch" style={{ background: 'var(--item-effect)' }} />
+              item's own damage
+            </span>
+          </span>
           <span role="columnheader" className={`iv-pg ${by === 'perGold' ? 'on' : ''}`}>
             per 1000g
           </span>
@@ -180,6 +189,11 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick }: { rows: 
         {rows.map((r) => {
           const v = by === 'perGold' ? r.gainPerGold : r.gain;
           const isCurrent = r.id === current;
+          // Bar split: what the item adds to your other damage (its stats, Rabadon's-style multipliers)
+          // and the damage it deals itself (procs, burns); a negative part is left out of the bar.
+          const stats = Math.max(0, r.gain - r.itemDamage);
+          const fx = Math.max(0, r.itemDamage);
+          const width = (Math.max(0, v) / max) * 100;
           return (
             <div
               key={r.id}
@@ -194,7 +208,8 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick }: { rows: 
                 <span className="muted num">{fmt(r.gold)}g</span>
               </span>
               <span role="cell" className="iv-track" aria-hidden>
-                <span className="iv-bar" style={{ width: `${(Math.max(0, v) / max) * 100}%` }} />
+                {stats > 0.5 && <span className="iv-bar" style={{ width: `${(width * stats) / (stats + fx)}%` }} />}
+                {fx > 0.5 && <span className="iv-bar fx" style={{ width: `${(width * fx) / (stats + fx)}%` }} />}
               </span>
               <span role="cell" className={`iv-pg num ${by === 'perGold' ? 'on' : ''}`}>
                 {fmt(r.gainPerGold)}
@@ -221,7 +236,6 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick }: { rows: 
 }
 
 function RowTip({ row: r, current, action }: { row: Row; current: number | null; action?: string }) {
-  const boost = r.gain - r.itemDamage;
   return (
     <>
       <div className="tt-title">
@@ -235,18 +249,20 @@ function RowTip({ row: r, current, action }: { row: Row; current: number | null;
         <span>Per 1000 gold</span>
         <strong>{fmt(r.gainPerGold, 1)}</strong>
       </div>
-      {r.itemDamage > 0.5 && (
-        <>
-          <div className="tt-row muted">
-            <span>dealt by the item itself</span>
-            <span className="num">{fmt(r.itemDamage)}</span>
-          </div>
-          <div className="tt-row muted">
-            <span>{boost >= 0 ? 'added to your other damage' : 'lost from your other damage'}</span>
-            <span className="num">{fmt(Math.abs(boost))}</span>
-          </div>
-        </>
-      )}
+      <div className="tt-row">
+        <span>
+          <span className="swatch" style={{ background: 'var(--accent)', marginRight: 6 }} />
+          added to your other damage
+        </span>
+        <span className="num">{signed(r.gain - r.itemDamage)}</span>
+      </div>
+      <div className="tt-row">
+        <span>
+          <span className="swatch" style={{ background: 'var(--item-effect)', marginRight: 6 }} />
+          dealt by the item itself
+        </span>
+        <span className="num">{signed(r.itemDamage)}</span>
+      </div>
       <div className="tt-row muted">
         <span>Total with it</span>
         <span className="num">{fmt(r.totalDamage)}</span>
