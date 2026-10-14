@@ -31,7 +31,7 @@ interface TipState {
 }
 
 /** Tooltip + container width (charts draw in real pixels so text stays legible at any size). */
-function useTooltip() {
+export function useTooltip() {
   const ref = useRef<HTMLDivElement>(null);
   const [tip, setTip] = useState<TipState | null>(null);
   const [width, setWidth] = useState(900);
@@ -61,14 +61,14 @@ function useTooltip() {
   return { ref, show, hide: () => setTip(null), node, width: Math.max(280, width) };
 }
 
-const niceMax = (v: number) => {
+export const niceMax = (v: number) => {
   if (v <= 0) return 1;
   const p = 10 ** Math.floor(Math.log10(v));
   for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= v) return m * p;
   return 10 * p;
 };
-const ticks = (max: number, n = 4) => Array.from({ length: n + 1 }, (_, i) => (max / n) * i);
-const compact = (v: number) => (v >= 1000 ? `${Math.round(v / 100) / 10}K` : `${Math.round(v)}`);
+export const ticks = (max: number, n = 4) => Array.from({ length: n + 1 }, (_, i) => (max / n) * i);
+export const compact = (v: number) => (v >= 1000 ? `${Math.round(v / 100) / 10}K` : `${Math.round(v)}`);
 
 // -----------------------------------------------------------------------------
 // HP bar: target health as a track, damage segments by source (part-to-whole)
@@ -403,6 +403,164 @@ export function LineChart({ xLabel, series, markerX }: { xLabel: string; series:
           </g>
         ))}
         <rect x={m.l} y={m.t} width={W - m.l - m.r} height={H - m.t - m.b} fill="transparent" onPointerMove={onMove} onPointerLeave={tt.hide} />
+      </svg>
+      {tt.node}
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Gold vs damage scatter (item value): x = item cost, y = damage gained. The diagonal lines are
+// equal damage per gold, so the higher-left a dot sits above them, the more gold-efficient it is.
+
+export interface GoldPoint {
+  id: number;
+  label: string;
+  gold: number;
+  gain: number;
+  /** Damage gained per 1000 gold. */
+  perGold: number;
+  /** Drawn as a ring (the item currently in the slot being ranked). */
+  highlight?: boolean;
+}
+
+export function GoldScatter({ points, labelTop = 6, tip, onPick }: { points: GoldPoint[]; labelTop?: number; tip: (p: GoldPoint) => ReactNode; onPick?: (p: GoldPoint) => void }) {
+  const tt = useTooltip();
+  const [hover, setHover] = useState<number | null>(null);
+  const W = tt.width;
+  const H = W < 600 ? 260 : 320;
+  const m = { l: 48, r: 14, t: 24, b: 30 };
+  const golds = points.map((p) => p.gold);
+  const xLo = Math.max(0, Math.floor((Math.min(...golds) - 150) / 500) * 500);
+  const xHi = Math.ceil((Math.max(...golds) + 150) / 500) * 500;
+  const top = Math.max(1, ...points.map((p) => p.gain)) * 1.05;
+  const yStep = niceMax(top / 4);
+  const yMax = Math.ceil(top / yStep) * yStep;
+  const yTicks = Array.from({ length: Math.round(yMax / yStep) + 1 }, (_, i) => i * yStep);
+  const sx = (g: number) => m.l + ((g - xLo) / (xHi - xLo)) * (W - m.l - m.r);
+  const sy = (v: number) => m.t + (1 - Math.max(0, v) / yMax) * (H - m.t - m.b);
+  const xStep = (W - m.l - m.r) / ((xHi - xLo) / 500) < 120 ? 1000 : 500;
+  const xTicks: number[] = [];
+  for (let g = Math.ceil(xLo / xStep) * xStep; g <= xHi; g += xStep) xTicks.push(g);
+
+  // Equal-efficiency lines (damage per 1000 gold), up to just past the best item.
+  const best = Math.max(0, ...points.map((p) => p.perGold));
+  const kStep = niceMax(best / 5 || 1);
+  const rays: { k: number; x: number; y: number; w: number }[] = [];
+  for (let k = kStep; k <= best * 1.2 + 1e-9 && rays.length < 6; k += kStep) {
+    // Label where the line leaves the plot: the right edge, or the top if it gets there first.
+    const yAtHi = (k * xHi) / 1000;
+    const exit = yAtHi <= yMax ? { x: sx(xHi), y: sy(yAtHi) } : { x: sx((yMax * 1000) / k), y: sy(yMax) };
+    rays.push({ k, x: exit.x - 4, y: exit.y + (yAtHi <= yMax ? -5 : 12), w: `${fmt(k)} per 1000g`.length * 5.9 });
+  }
+
+  // Direct labels for the current item, the most efficient items and the biggest gains: right of
+  // the dot, else left, else skipped when both sides would cover another label or dot.
+  const labels = new Map<number, { x: number; y: number; w: number }>();
+  const byEff = [...points].sort((a, b) => b.perGold - a.perGold);
+  const byGain = [...points].sort((a, b) => b.gain - a.gain);
+  for (const p of [...points.filter((q) => q.highlight), ...byEff.slice(0, labelTop), ...byGain.slice(0, 2)]) {
+    if (labels.has(p.id)) continue;
+    const w = p.label.length * 6.4 + 4;
+    const y = sy(p.gain) - 7;
+    const free = (x: number) =>
+      x >= m.l &&
+      x + w <= W - m.r &&
+      !points.some((q) => q.id !== p.id && sx(q.gold) > x - 6 && sx(q.gold) < x + w + 6 && Math.abs(sy(q.gain) - sy(p.gain)) < 10) &&
+      ![...labels.values()].some((b) => x < b.x + b.w && b.x < x + w && Math.abs(y - b.y) < 14) &&
+      !rays.some((r) => x < r.x && r.x - r.w < x + w && Math.abs(y + 7 - (r.y - 4)) < 13);
+    const x = [sx(p.gold) + 9, sx(p.gold) - 9 - w].find(free);
+    if (x !== undefined) labels.set(p.id, { x, y, w });
+  }
+
+  const nearest = (e: React.MouseEvent<SVGRectElement>) => {
+    const box = (e.currentTarget.ownerSVGElement as SVGSVGElement).getBoundingClientRect();
+    const px = ((e.clientX - box.left) / box.width) * W;
+    const py = ((e.clientY - box.top) / box.height) * H;
+    let hit: GoldPoint | null = null;
+    let bestD = 28 * 28;
+    for (const p of points) {
+      const d = (sx(p.gold) - px) ** 2 + (sy(p.gain) - py) ** 2;
+      if (d < bestD) [hit, bestD] = [p, d];
+    }
+    return hit;
+  };
+  const hovered = points.find((p) => p.id === hover);
+
+  return (
+    <div className="chart-wrap" ref={tt.ref}>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Damage gained versus item cost">
+        <defs>
+          <clipPath id="gold-plot">
+            <rect x={m.l} y={m.t} width={W - m.l - m.r} height={H - m.t - m.b} />
+          </clipPath>
+        </defs>
+        {yTicks.map((v) => (
+          <g key={v}>
+            <line x1={m.l} x2={W - m.r} y1={sy(v)} y2={sy(v)} stroke="var(--grid)" />
+            <text x={m.l - 8} y={sy(v) + 4} fontSize={11} textAnchor="end" fill="var(--text-muted)" className="num">
+              {v > 0 ? `+${compact(v)}` : '0'}
+            </text>
+          </g>
+        ))}
+        {xTicks.map((g) => (
+          <text key={g} x={sx(g)} y={H - m.b + 16} fontSize={11} textAnchor={g === xHi ? 'end' : 'middle'} fill="var(--text-muted)" className="num">
+            {fmt(g)}g{g === xHi ? ' item cost' : ''}
+          </text>
+        ))}
+        <text x={m.l - 8} y={m.t - 12} fontSize={11} fill="var(--text-muted)">
+          damage gained
+        </text>
+        <g clipPath="url(#gold-plot)">
+          {rays.map((r) => (
+            <line key={r.k} x1={sx(xLo)} y1={sy((r.k * xLo) / 1000)} x2={sx(xHi)} y2={sy((r.k * xHi) / 1000)} stroke="var(--axis)" />
+          ))}
+        </g>
+        {rays.map((r) => (
+          <text key={r.k} x={r.x} y={r.y} fontSize={10.5} textAnchor="end" fill="var(--text-muted)" className="num">
+            {fmt(r.k)} per 1000g
+          </text>
+        ))}
+        {points.map((p) =>
+          p.highlight ? (
+            <circle key={p.id} cx={sx(p.gold)} cy={sy(p.gain)} r={5} fill="var(--surface)" stroke="var(--text-primary)" strokeWidth={2} />
+          ) : (
+            <circle key={p.id} cx={sx(p.gold)} cy={sy(p.gain)} r={5} fill="var(--accent)" stroke="var(--surface)" strokeWidth={2} />
+          ),
+        )}
+        {points.map((p) => {
+          const b = labels.get(p.id);
+          return (
+            b && (
+              <text key={p.id} x={b.x} y={b.y + 11} fontSize={11.5} fill="var(--text-secondary)" fontWeight={p.highlight ? 650 : 400} style={{ pointerEvents: 'none' }}>
+                {p.label}
+              </text>
+            )
+          );
+        })}
+        {hovered && <circle cx={sx(hovered.gold)} cy={sy(hovered.gain)} r={9} fill="none" stroke="var(--accent)" strokeWidth={2} style={{ pointerEvents: 'none' }} />}
+        <rect
+          x={m.l}
+          y={m.t}
+          width={W - m.l - m.r}
+          height={H - m.t - m.b}
+          fill="transparent"
+          style={{ cursor: hovered && onPick && !hovered.highlight ? 'pointer' : 'default' }}
+          onPointerMove={(e) => {
+            const p = nearest(e);
+            setHover(p?.id ?? null);
+            if (p) tt.show(e, tip(p));
+            else tt.hide();
+          }}
+          onPointerLeave={() => {
+            setHover(null);
+            tt.hide();
+          }}
+          onClick={(e) => {
+            const p = nearest(e);
+            if (p && onPick && !p.highlight) onPick(p);
+          }}
+        />
       </svg>
       {tt.node}
     </div>

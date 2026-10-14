@@ -4,6 +4,7 @@ import { DEFAULT_STATE, decodeState, encodeState, toScenario, type UIState } fro
 import { simulate, Sim, type SimResult } from '../engine/sim.ts';
 import { AttackerPanel, ComboBuilder, ItemsPanel, RunesPanel, SettingsPanel, TargetPanel } from './components/panels.tsx';
 import { Details, Summary } from './components/results.tsx';
+import { ItemValueCard } from './components/item-value.tsx';
 
 function useTheme() {
   const [theme, setTheme] = useState<'light' | 'dark' | null>(() => {
@@ -114,6 +115,7 @@ export function App() {
           {result && (
             <>
               <Summary r={result} />
+              <ItemValueCard state={state} set={setState} scenario={scenario} />
               <Details r={result} scenario={scenario} sim={sim} state={state} pinned={pinned} onPin={pin} onUnpin={(i) => setPinned((p) => p.filter((_, j) => j !== i))} />
             </>
           )}

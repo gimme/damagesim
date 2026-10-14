@@ -108,21 +108,30 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
   for (const it of candidates) {
     if (baseItems.some((b) => b.id === it.id) || conflicts(baseItems, it)) continue;
     const r = simulate(data, { ...base, items: [...(base.items ?? []), it.id] });
-    const score = metricValue(r, metric);
+    const gain = r.totalDamage - baseRes.totalDamage;
+    const perGold = it.gold.total > 0 ? (gain / it.gold.total) * 1000 : 0;
     rows.push({
       item: it.name,
       id: it.id,
       gold: it.gold.total,
       totalDamage: round(r.totalDamage),
-      gain: round(r.totalDamage - baseRes.totalDamage),
-      gainPerGold: round(((r.totalDamage - baseRes.totalDamage) / it.gold.total) * 1000, 2),
+      gain: round(gain),
+      gainPerGold: round(perGold, 2),
+      /** Part of the gain dealt by the item itself (procs, burns, actives); the rest is its stats and amplifiers raising your other damage. */
+      itemDamage: round(r.bySource.find((s) => s.source === `item:${it.id}`)?.damage ?? 0),
       killed: r.killed,
       ...(r.killTime !== undefined ? { killTime: round(r.killTime, 2) } : {}),
-      score: score - baseScore,
+      // Per gold ranks the item's own efficiency (gain ÷ its cost), not the whole build's damage per gold.
+      score: metric === 'damagePerGold' ? perGold : metricValue(r, metric) - baseScore,
     });
   }
   rows.sort((a, b) => b.score - a.score);
-  return { metric, base: summarize(baseRes, 'current build'), items: rows.slice(0, opts.limit ?? 25), note: 'gainPerGold is damage gained per 1000 gold.' };
+  return {
+    metric,
+    base: summarize(baseRes, 'current build'),
+    items: rows.slice(0, opts.limit ?? 25),
+    note: 'gainPerGold is damage gained per 1000 gold of the item. itemDamage is the part of the gain the item deals itself.',
+  };
 }
 
 /** Legendary items + boots on Summoner's Rift (excluding champion-specific ones). */

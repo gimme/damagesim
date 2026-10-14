@@ -226,7 +226,7 @@ server.registerTool(
 server.registerTool(
   'rank_items',
   {
-    description: "Marginal value of adding each candidate item to the scenario's build (default candidates: all legendaries and boots). Returns damage gain and gain per 1000 gold.",
+    description: "Marginal value of adding each candidate item to the scenario's build (default candidates: all legendaries and boots). Returns damage gain, gain per 1000 gold of the item (metric damagePerGold ranks by it) and itemDamage, the part of the gain the item deals itself.",
     inputSchema: { scenario: scenarioSchema, candidates: z.array(idOrName).optional(), metric, limit: z.number().optional() },
   },
   safe((a: { scenario: z.infer<typeof scenarioSchema>; candidates?: (string | number)[]; metric?: Metric; limit?: number }) => rankItems(data, toScenario(a.scenario), { candidates: a.candidates, metric: a.metric, limit: a.limit })),

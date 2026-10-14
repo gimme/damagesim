@@ -3,7 +3,7 @@ import { DATA } from '../data.ts';
 import { Card, ItemIcon, fmt } from './common.tsx';
 import { HpBar, LineChart, SimpleBars, SourceBars, Timeline, TypeLegend, TYPE_COLOR, TYPE_LABEL, TYPE_ORDER, type DmgType } from './charts.tsx';
 import type { Scenario, SimResult, Sim } from '../../engine/sim.ts';
-import { rankItems, resistSweep, optimizeCombo, compare } from '../../engine/analysis.ts';
+import { resistSweep, optimizeCombo, compare } from '../../engine/analysis.ts';
 import { describeChampion } from '../../engine/describe.ts';
 import type { UIState } from '../state.ts';
 
@@ -82,7 +82,7 @@ function Warnings({ r }: { r: SimResult }) {
   );
 }
 
-const TABS = ['Timeline', 'Breakdown', 'Events', 'Abilities', 'Item value', 'Compare', 'Resist sweep', 'Stats'] as const;
+const TABS = ['Timeline', 'Breakdown', 'Events', 'Abilities', 'Compare', 'Resist sweep', 'Stats'] as const;
 type Tab = (typeof TABS)[number];
 
 export function Details({ r, scenario, sim, state, pinned, onPin, onUnpin }: { r: SimResult; scenario: Scenario; sim: Sim | null; state: UIState; pinned: { label: string; state: UIState }[]; onPin: () => void; onUnpin: (i: number) => void }) {
@@ -138,7 +138,6 @@ export function Details({ r, scenario, sim, state, pinned, onPin, onUnpin }: { r
       )}
       {tab === 'Events' && <Events r={r} />}
       {tab === 'Abilities' && sim && <Abilities sim={sim} />}
-      {tab === 'Item value' && <ItemValue scenario={scenario} />}
       {tab === 'Compare' && <Compare r={r} pinned={pinned} onPin={onPin} onUnpin={onUnpin} scenario={scenario} />}
       {tab === 'Resist sweep' && <Sweep scenario={scenario} r={r} />}
       {tab === 'Stats' && <Stats r={r} />}
@@ -243,58 +242,6 @@ function Abilities({ sim }: { sim: Sim }) {
           ))}
         </div>
       ))}
-    </div>
-  );
-}
-
-function ItemValue({ scenario }: { scenario: Scenario }) {
-  const [res, setRes] = useState<ReturnType<typeof rankItems> | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [metric, setMetric] = useState<'damage' | 'damagePerGold'>('damage');
-  const run = (m = metric) => {
-    setBusy(true);
-    setTimeout(() => {
-      setRes(rankItems(DATA, scenario, { metric: m, limit: 15 }));
-      setBusy(false);
-    }, 10);
-  };
-  return (
-    <div className="stack">
-      <div className="row">
-        <span className="small secondary" style={{ flex: 1 }}>
-          Simulates your combo with each legendary item or pair of boots added to the current build (one at a time).
-        </span>
-        <div className="segmented">
-          <button
-            aria-pressed={metric === 'damage'}
-            onClick={() => {
-              setMetric('damage');
-              if (res) run('damage');
-            }}
-          >
-            Damage
-          </button>
-          <button
-            aria-pressed={metric === 'damagePerGold'}
-            onClick={() => {
-              setMetric('damagePerGold');
-              if (res) run('damagePerGold');
-            }}
-          >
-            Per gold
-          </button>
-        </div>
-        <button className="btn primary" onClick={() => run()} disabled={busy}>
-          {busy ? 'Simulating…' : res ? 'Re-run' : 'Rank items'}
-        </button>
-      </div>
-      {res && (
-        <SimpleBars
-          unit={metric === 'damage' ? 'Damage gained' : 'Damage per 1000 gold'}
-          rows={res.items.map((x) => ({ label: x.item, value: metric === 'damage' ? x.gain : x.gainPerGold, sub: metric === 'damage' ? `${x.gold}g${x.killed ? ' · kills' : ''}` : `+${fmt(x.gain)} dmg` }))}
-          format={(v) => (metric === 'damage' ? `+${fmt(v)}` : fmt(v, 1))}
-        />
-      )}
     </div>
   );
 }

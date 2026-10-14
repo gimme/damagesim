@@ -5,8 +5,10 @@ A League of Legends damage simulator: pick a **champion**, **level/ranks**, **it
 tank preset at a level relative to yours, an enemy champion with items, or raw HP/armor/MR. It plays
 the combo out on a timeline and reports every damage instance.
 
-* **Humans:** a web UI with HP bar, timeline, breakdown, item ranking, build comparison and a
-  resist sweep. State lives in the URL, so links are shareable.
+* **Humans:** a web UI with HP bar, timeline, breakdown, build comparison and a resist sweep, plus a
+  live **item value** ranking: which item adds the most damage (per gold or in total) to your next
+  slot or in place of an item you own, as a list or a gold-vs-damage map; one click buys it. State
+  lives in the URL, so links are shareable.
 * **AI agents:** an MCP server (simulate, compare, rank items, optimize builds and combo order) and a
   CLI with `--json` output.
 * **Accuracy:** every number comes from Riot's own game files for the patch (via CommunityDragon),
@@ -47,7 +49,7 @@ Tools:
 | `get_champion` | Abilities at a level: rendered tooltips, cooldowns, each damage component with its value and formula, variants, kit notes, options |
 | `simulate` | Run a scenario; totals, by source/type, kill time, effective resists, warnings, model notes (`includeEvents` for every hit) |
 | `compare_builds` | Same scenario, several variants (items/runes/combo/level/options), ranked |
-| `rank_items` | Marginal damage of adding each legendary/boots to the current build (also per 1000 gold) |
+| `rank_items` | Marginal damage of adding each legendary/boots to the current build, per 1000 gold of the item (`metric: damagePerGold` ranks by it) and the part the item deals itself |
 | `optimize_build` | Best *n* items from a pool; respects item groups (one Spellblade, Hydra, Fatality…) |
 | `optimize_combo` | Best ordering of the combo steps |
 | `resist_sweep` | Damage as target armor or MR varies |

@@ -11,6 +11,7 @@ import { statProgression, evalPart } from '../src/engine/calc.ts';
 import { compile } from '../src/engine/expr.ts';
 import { parseCombo, formatCombo } from '../src/engine/combo.ts';
 import { combineAmps } from '../src/engine/sim.ts';
+import { rankItems } from '../src/engine/analysis.ts';
 
 const data = loadGameData('16.20');
 await loadAllKits();
@@ -192,4 +193,15 @@ test('Collector executes below 5% health', () => {
   const r = simulate(data, { champion: 'Jinx', level: 18, items: ['The Collector'], combo: 'AA', target: { maxHp: 1000, hpPercent: 0.2, armor: 0, mr: 0 }, settings: { crit: 'never' } });
   assert.ok(r.killed);
   assert.ok(r.events.some((e) => e.label === 'Execute'));
+});
+
+test('rank items per gold: sorted by damage gained per 1000 gold of the item', () => {
+  const base = { champion: 'Ahri', level: 11, items: ["Luden's Echo", "Sorcerer's Shoes"], combo: 'E Q W R AA R', target: { preset: 'squishy' as const } };
+  const res = rankItems(data, base, { metric: 'damagePerGold', limit: 200 });
+  for (let i = 1; i < res.items.length; i++) assert.ok(res.items[i - 1].gainPerGold >= res.items[i].gainPerGold, `${res.items[i - 1].item} before ${res.items[i].item}`);
+  const lich = res.items.find((x) => x.item === 'Lich Bane')!;
+  near(lich.gainPerGold, (lich.gain / lich.gold) * 1000, 0.2);
+  // Lich Bane's own Spellblade hit is part of its gain; Rabadon's only raises your other damage.
+  assert.ok(lich.itemDamage > 0 && lich.itemDamage < lich.gain);
+  assert.equal(res.items.find((x) => x.item === "Rabadon's Deathcap")!.itemDamage, 0);
 });

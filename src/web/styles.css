@@ -170,6 +170,7 @@ a {
   color: var(--text-secondary);
   margin: 0 0 10px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
@@ -281,6 +282,10 @@ label.field {
   background: var(--accent-wash);
   color: var(--accent-text);
   font-weight: 600;
+}
+.segmented.small button {
+  padding: 3px 9px;
+  font-size: 12px;
 }
 
 /* Champion picker */
@@ -591,6 +596,89 @@ label.field {
 }
 .tooltip .tt-row strong {
   font-variant-numeric: tabular-nums;
+}
+
+/* Item value ranking */
+.iv-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 310px) minmax(40px, 1fr) 72px 64px 52px;
+  grid-template-areas: 'item track pg dmg act';
+  align-items: center;
+  column-gap: 10px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  min-height: 32px;
+}
+.iv-row:not(.iv-head):hover {
+  background: var(--surface-2);
+}
+.iv-row.current,
+.iv-row.current:hover {
+  background: var(--accent-wash);
+}
+.iv-head {
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-muted);
+  min-height: 0;
+  padding-bottom: 2px;
+}
+.iv-item {
+  grid-area: item;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.iv-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.iv-track {
+  grid-area: track;
+  height: 14px;
+}
+.iv-bar {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  background: var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+.iv-pg,
+.iv-dmg {
+  text-align: right;
+  color: var(--text-secondary);
+}
+.iv-pg {
+  grid-area: pg;
+}
+.iv-dmg {
+  grid-area: dmg;
+}
+.iv-pg.on,
+.iv-dmg.on {
+  color: var(--text-primary);
+  font-weight: 650;
+}
+.iv-act {
+  grid-area: act;
+  text-align: right;
+}
+@media (max-width: 600px) {
+  .iv-row {
+    grid-template-columns: minmax(0, 1fr) 70px 56px 46px;
+    grid-template-areas: 'item item item act' 'track pg dmg act';
+    row-gap: 2px;
+    padding-block: 5px;
+  }
+  .iv-head {
+    grid-template-areas: 'track pg dmg act';
+  }
+  .iv-head .iv-item {
+    display: none;
+  }
 }
 
 table.data {
