@@ -1,4 +1,5 @@
-// UI state ⇄ engine Scenario, plus URL-hash persistence (shareable links).
+// UI state ⇄ engine Scenario, plus URL-hash persistence (shareable links) and the last state in
+// localStorage (reloads where the page can't write its URL, e.g. the artifact frame).
 
 import type { Scenario, SimSettings } from '../engine/sim.ts';
 import { isTargetPreset, type TargetPreset } from '../engine/presets.ts';
@@ -122,5 +123,23 @@ export function decodeState(hash: string): UIState | null {
     return { ...DEFAULT_STATE, ...parsed, target, settings: { ...DEFAULT_STATE.settings, ...parsed.settings } };
   } catch {
     return null;
+  }
+}
+
+const STORAGE_KEY = 'lolsim:state';
+
+export function loadSavedState(): UIState | null {
+  try {
+    return decodeState(localStorage.getItem(STORAGE_KEY) ?? '');
+  } catch {
+    return null;
+  }
+}
+
+export function saveState(s: UIState): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, encodeState(s));
+  } catch {
+    // storage unavailable
   }
 }

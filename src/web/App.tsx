@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DATA, loadBundledIcons } from './data.ts';
-import { DEFAULT_STATE, decodeState, encodeState, toScenario, type UIState } from './state.ts';
+import { DEFAULT_STATE, decodeState, encodeState, loadSavedState, saveState, toScenario, type UIState } from './state.ts';
 import { simulate, Sim, type SimResult } from '../engine/sim.ts';
 import { AttackerPanel, ComboBuilder, ItemsPanel, RunesPanel, SettingsPanel, TargetPanel } from './components/panels.tsx';
 import { Details, Summary } from './components/results.tsx';
@@ -31,7 +31,7 @@ function useTheme() {
 export function App() {
   const [state, setState] = useState<UIState>(() => {
     try {
-      return decodeState(location.hash) ?? DEFAULT_STATE;
+      return decodeState(location.hash) ?? loadSavedState() ?? DEFAULT_STATE;
     } catch {
       return DEFAULT_STATE;
     }
@@ -55,6 +55,7 @@ export function App() {
   };
 
   useEffect(() => {
+    saveState(state);
     const h = '#' + encodeState(state);
     try {
       if (location.hash !== h) history.replaceState(null, '', h);
