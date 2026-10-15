@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { DATA, championIcon, itemIcon, runeIcon } from '../data.ts';
+import { DATA, abilityIcon, championIcon, itemIcon, runeIcon, summonerIcon } from '../data.ts';
 import { getKit } from '../../kits/index.ts';
 import type { ItemData } from '../../engine/data-types.ts';
 import { hasItemModel } from '../../engine/items.ts';
@@ -33,6 +33,22 @@ export const RuneIcon = ({ id }: { id: number }) => {
   const r = DATA.runes.find((x) => x.id === id);
   return <Icon src={r ? runeIcon(r.icon) : ''} label={r?.name ?? String(id)} size="sm" />;
 };
+
+/**
+ * A damage source in a few letters, with its icon when it has one: the key of an ability (Q, P, AA),
+ * else the first letters of its name's words (ER for Essence Reaver, BoTRK), or of a one-word name its
+ * first two, so it isn't taken for an ability (EL for Electrocute, not E).
+ */
+export function sourceMark(source: string, label: string, champion: string): { text: string; icon: string } {
+  if (source === 'P' || source === 'Q' || source === 'W' || source === 'E' || source === 'R') return { text: source, icon: abilityIcon(champion, source) };
+  if (source === 'AA') return { text: 'AA', icon: '' };
+  const words = label.split(/[\s-]+/).map((w) => w.replace(/[^\p{L}\d]/gu, ''));
+  const text = words.length === 1 ? words[0].slice(0, 2).toUpperCase() : words.map((w) => w[0] ?? '').join('');
+  const [kind, id] = source.split(':');
+  const rune = kind === 'rune' ? DATA.runes.find((r) => r.id === Number(id)) : undefined;
+  const icon = kind === 'item' ? itemIcon(Number(id)) : rune ? runeIcon(rune.icon) : source === 'summoner:ignite' ? summonerIcon('SummonerDot') : '';
+  return { text, icon };
+}
 
 export function KitBadge({ id }: { id: string }) {
   const status = getKit(DATA.champions[id]).status;

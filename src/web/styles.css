@@ -520,9 +520,14 @@ label.field {
   color: var(--text-secondary);
   margin-bottom: 4px;
 }
-.stat-tile .value {
+.hero .stat-tile .value {
   font-size: 22px;
   font-weight: 600;
+}
+/* Kill at, which only some results have: at the end, so the tiles before it don't move */
+.hero .end {
+  margin-left: auto;
+  text-align: right;
 }
 .kill {
   color: var(--good);
@@ -539,6 +544,10 @@ label.field {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+.legend strong {
+  color: var(--text-primary);
+  font-weight: 600;
 }
 .swatch {
   width: 10px;

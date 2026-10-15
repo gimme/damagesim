@@ -41,3 +41,8 @@ const bundledOr = (key: string, url: string) => (BUNDLED ? (BUNDLED[key] ?? '') 
 export const championIcon = (id: string) => bundledOr(`champion/${id}`, `${DD}champion/${DATA.champions[id]?.icon.replace(/^champion\//, '') ?? id + '.png'}`);
 export const itemIcon = (id: number) => bundledOr(`item/${id}`, `${DD}item/${id}.png`);
 export const runeIcon = (icon: string) => (icon.startsWith('perk-images') ? bundledOr(`rune/${icon}`, `https://ddragon.leagueoflegends.com/cdn/img/${icon}`) : '');
+export const abilityIcon = (champion: string, slot: 'P' | 'Q' | 'W' | 'E' | 'R') => {
+  const path = DATA.champions[champion]?.abilityIcons[slot];
+  return path ? bundledOr(`ability/${champion}/${slot}`, `https://raw.communitydragon.org/${DATA.meta.patch}/game/${path}`) : '';
+};
+export const summonerIcon = (key: string) => bundledOr(`summoner/${key}`, `${DD}spell/${key}.png`);

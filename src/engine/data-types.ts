@@ -112,6 +112,8 @@ export interface ChampionData {
   adaptive: 'physical' | 'magic';
   stats: ChampionBaseStats;
   passive: { name: string; description: string };
+  /** HUD icon of the passive and each ability slot, as a path under CommunityDragon's game folder. */
+  abilityIcons: Partial<Record<'P' | 'Q' | 'W' | 'E' | 'R', string>>;
   abilities: AbilityData[];
 }
 

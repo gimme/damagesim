@@ -1,16 +1,15 @@
 import { useMemo, useState } from 'react';
 import { DATA } from '../data.ts';
 import { Card, ItemIcon, ItemTip, fmt, useHoverCard } from './common.tsx';
-import { HpBar, LineChart, SimpleBars, SourceBars, Timeline, TypeLegend, TYPE_COLOR, TYPE_LABEL, TYPE_ORDER, type DmgType } from './charts.tsx';
+import { HpBar, LineChart, SimpleBars, SourceBars, Timeline, TypeLegend, TYPE_COLOR, TYPE_LABEL, type DmgType } from './charts.tsx';
 import type { Scenario, SimResult, Sim } from '../../engine/sim.ts';
 import { resistSweep, optimizeCombo, compare } from '../../engine/analysis.ts';
 import { describeChampion } from '../../engine/describe.ts';
 import type { UIState } from '../state.ts';
 
 export function Summary({ r }: { r: SimResult }) {
-  const types = TYPE_ORDER.filter((t) => r.byType[t] > 0.5);
   return (
-    <Card title="Result" right={<TypeLegend types={types.length ? types : undefined} />}>
+    <Card title="Result" right={<TypeLegend amounts={r.byType} />}>
       <div className="hero">
         <div>
           <div className="label">Total damage</div>
@@ -20,32 +19,21 @@ export function Summary({ r }: { r: SimResult }) {
           <div className="label">of target health</div>
           <div className="value">{(r.percentOfHp * 100).toFixed(1)}%</div>
         </div>
-        {r.killed && (
-          <div className="stat-tile">
-            <div className="label">Kill at</div>
-            <div className="value kill">✓ {r.killTime!.toFixed(2)}s</div>
-          </div>
-        )}
         <div className="stat-tile">
           <div className="label">Duration · DPS</div>
           <div className="value">
             {r.duration.toFixed(2)}s · {fmt(r.dps)}
           </div>
         </div>
-        <div className="stat-tile">
-          <div className="label">Split</div>
-          <div className="small" style={{ lineHeight: 1.5 }}>
-            {TYPE_ORDER.filter((t) => r.byType[t] > 0.5).map((t) => (
-                <div key={t}>
-                  <span className="type-dot" style={{ background: TYPE_COLOR[t] }} />
-                  {TYPE_LABEL[t]} <strong className="num">{fmt(r.byType[t])}</strong>
-                </div>
-              ))}
+        {r.killed && (
+          <div className="stat-tile end">
+            <div className="label">Kill at</div>
+            <div className="value kill">✓ {r.killTime!.toFixed(2)}s</div>
           </div>
-        </div>
+        )}
       </div>
       <div style={{ marginTop: 14 }}>
-        <HpBar sources={r.bySource} maxHp={r.target.maxHp} startHp={r.target.startHp} />
+        <HpBar sources={r.bySource} maxHp={r.target.maxHp} startHp={r.target.startHp} champion={r.champion.id} />
       </div>
       {r.dotDamage > 1 && (
         <div className="muted small">

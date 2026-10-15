@@ -1,23 +1,30 @@
 // Small SVG charts. Color encodes damage type (magic / physical / true) with fixed slots, always
 // accompanied by a legend or labels; every chart has a hover tooltip and a table elsewhere.
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { DamageInstance } from '../../engine/effects.ts';
 import type { SourceTotal } from '../../engine/sim.ts';
-import { fmt } from './common.tsx';
+import { fmt, sourceMark } from './common.tsx';
 
 export type DmgType = 'physical' | 'magic' | 'true';
 export const TYPE_COLOR: Record<DmgType, string> = { magic: 'var(--magic)', physical: 'var(--physical)', true: 'var(--true)' };
 export const TYPE_ORDER: DmgType[] = ['magic', 'physical', 'true'];
 export const TYPE_LABEL: Record<DmgType, string> = { magic: 'Magic', physical: 'Physical', true: 'True' };
+/** The damage types, the one with the most damage first. */
+const typesByAmount = (amounts: Partial<Record<DmgType, number>>) => [...TYPE_ORDER].sort((a, b) => (amounts[b] ?? 0) - (amounts[a] ?? 0));
 
-export function TypeLegend({ types = TYPE_ORDER }: { types?: DmgType[] }) {
+/** With `amounts`, only the types dealt, largest first, each with its share of the damage. */
+export function TypeLegend({ amounts }: { amounts?: Record<DmgType, number> }) {
+  const total = amounts ? TYPE_ORDER.reduce((s, t) => s + amounts[t], 0) : 0;
+  const types = amounts ? typesByAmount(amounts).filter((t) => amounts[t] > 0.5) : TYPE_ORDER;
+  const share = (v: number) => (v / total < 0.005 ? '<1%' : `${Math.round((v / total) * 100)}%`);
   return (
-    <div className="legend" aria-label="Damage types">
+    <div className="legend" aria-label={amounts ? 'Damage by type' : 'Damage types'}>
       {types.map((t) => (
         <span key={t} className="key">
           <span className="swatch" style={{ background: TYPE_COLOR[t] }} />
           {TYPE_LABEL[t]}
+          {amounts && <strong className="num">{share(amounts[t])}</strong>}
         </span>
       ))}
     </div>
@@ -114,27 +121,47 @@ export const niceMax = (v: number) => {
 export const ticks = (max: number, n = 4) => Array.from({ length: n + 1 }, (_, i) => (max / n) * i);
 export const compact = (v: number) => (v >= 1000 ? `${Math.round(v / 100) / 10}K` : `${Math.round(v)}`);
 
+let measurer: CanvasRenderingContext2D | null | undefined;
+/** The width of `text` in the page's font, with `font` its weight and size ('650 12.5px'). */
+function textWidth(text: string, font: string) {
+  measurer ??= typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
+  if (!measurer) return text.length * 8;
+  measurer.font = `${font} ${getComputedStyle(document.body).fontFamily}`;
+  return measurer.measureText(text).width;
+}
+
 // -----------------------------------------------------------------------------
 // HP bar: target health as a track, damage segments by source (part-to-whole)
 
-export function HpBar({ sources, maxHp, startHp }: { sources: SourceTotal[]; maxHp: number; startHp: number }) {
+export function HpBar({ sources, maxHp, startHp, champion }: { sources: SourceTotal[]; maxHp: number; startHp: number; champion: string }) {
   const tt = useTooltip();
+  const clipId = useId().replace(/[^\w-]/g, '');
+  const [broken, setBroken] = useState<ReadonlySet<string>>(new Set());
   const W = tt.width;
   const H = 34;
   const total = sources.reduce((s, x) => s + x.damage, 0);
   const startOffset = ((maxHp - startHp) / maxHp) * W;
   let x = startOffset;
-  // One segment per (source, damage type), in source order; clipped at the target's health.
-  const segs: { s: SourceTotal; t: DmgType; x: number; w: number }[] = [];
+  // One block per source, in source order, clipped at the target's health. A source dealing several
+  // damage types has them as layers, each as tall as its share, so it stays one block. The layers go
+  // in the legend's order: the type with the most damage overall on top, in every block.
+  const amounts: Partial<Record<DmgType, number>> = {};
+  for (const s of sources) for (const t of TYPE_ORDER) amounts[t] = (amounts[t] ?? 0) + (s.type[t] ?? 0);
+  const order = typesByAmount(amounts);
+  const blocks: { s: SourceTotal; x: number; w: number; layers: { t: DmgType; top: number }[] }[] = [];
   for (const s of sources) {
-    for (const t of TYPE_ORDER) {
-      const v = s.type[t] ?? 0;
-      if (v <= 0) continue;
-      const w = (Math.min(v, Math.max(0, maxHp - (x / W) * maxHp)) / maxHp) * W;
-      if (w > 0) segs.push({ s, t, x, w });
-      x += w;
-    }
+    const sum = TYPE_ORDER.reduce((a, t) => a + Math.max(0, s.type[t] ?? 0), 0);
+    const w = (Math.min(sum, Math.max(0, maxHp - (x / W) * maxHp)) / maxHp) * W;
+    let top = 0;
+    const layers = order.filter((t) => (s.type[t] ?? 0) > 0).map((t) => {
+      const layer = { t, top };
+      top += (s.type[t]! / sum) * H;
+      return layer;
+    });
+    if (w > 0) blocks.push({ s, x, w, layers });
+    x += w;
   }
+  const last = blocks.at(-1);
   const overkill = Math.max(0, total - startHp);
   // The health left, at the right end, is ticked like a health bar in game: a short notch every 100
   // and a longer one every 1000, counted from its empty end. Only the 1000s when the 100s are crowded.
@@ -143,9 +170,24 @@ export function HpBar({ sources, maxHp, startHp }: { sources: SourceTotal[]; max
   const notches: number[] = [];
   for (let k = 1; W - k * tick > x + 3; k++) if (k % 10 === 0 || tick >= 4) notches.push(k);
   const leftText = [`${fmt(left)} HP left`, fmt(left)].find((s) => s.length * 6.5 < W - x - 16);
+  const ICON = 18;
   return (
     <div className="chart-wrap" ref={tt.ref}>
       <svg viewBox={`0 0 ${W} ${H + 22}`} role="img" aria-label={`Target health bar: ${fmt(total)} damage of ${fmt(startHp)} health`}>
+        <defs>
+          <clipPath id={`${clipId}bar`}>
+            <rect x={0} y={0} width={W} height={H} rx={6} />
+          </clipPath>
+          <clipPath id={`${clipId}icon`} clipPathUnits="objectBoundingBox">
+            <rect width={1} height={1} rx={0.2} />
+          </clipPath>
+          {/* The bar's last block has the rounded end of a data bar */}
+          {last && (
+            <clipPath id={`${clipId}end`}>
+              <path d={barPath(last.x + 1, 0, Math.max(0.5, last.w - 2), H)} />
+            </clipPath>
+          )}
+        </defs>
         <rect x={0} y={0} width={W} height={H} rx={6} fill="var(--surface-3)" />
         {startOffset > 0 && <rect x={0} y={0} width={startOffset} height={H} rx={6} fill="var(--grid)" />}
         {left > 0.5 && (
@@ -175,20 +217,46 @@ export function HpBar({ sources, maxHp, startHp }: { sources: SourceTotal[]; max
             )}
           </g>
         )}
-        {segs.map(({ s, t, x, w }, i) =>
-          w <= 0 ? null : (
-            <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} maxHp={maxHp} />)} onPointerLeave={tt.hide}>
-              {/* The whole segment, gap included, so moving across the bar never leaves all of them */}
-              <rect x={x} y={0} width={w} height={H} fill="transparent" />
-              <rect x={x + 1} y={0} width={Math.max(0.5, w - 2)} height={H} fill={TYPE_COLOR[t]} rx={i === segs.length - 1 || i === 0 ? 4 : 0} />
-              {w > 70 && (
-                <text x={x + w / 2} y={H / 2 + 4} textAnchor="middle" fontSize={12} fill="#fff" style={{ pointerEvents: 'none' }}>
-                  {s.label.length * 6.5 < w - 10 ? s.label : fmt(s.type[t] ?? 0)}
-                </text>
-              )}
-            </g>
-          ),
-        )}
+        <g clipPath={`url(#${clipId}bar)`}>
+          {blocks.map(({ s, x, w, layers }, i) => {
+            const mark = sourceMark(s.source, s.label, champion);
+            const icon = mark.icon && !broken.has(mark.icon) ? mark.icon : '';
+            const textW = textWidth(mark.text, '650 12.5px');
+            const show = icon && ICON + 3 + textW + 8 <= w ? 'both' : textW + 6 <= w ? 'text' : null;
+            const cx = x + w / 2;
+            const textX = show === 'both' ? cx + (ICON + 3) / 2 : cx;
+            return (
+              <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} maxHp={maxHp} />)} onPointerLeave={tt.hide}>
+                {/* The whole block, gap included, so moving across the bar never leaves all of them */}
+                <rect x={x} y={0} width={w} height={H} fill="transparent" />
+                {/* 2px between blocks. Each layer runs to the bottom, under the next, so no seam shows between them. */}
+                <g clipPath={i === blocks.length - 1 ? `url(#${clipId}end)` : undefined}>
+                  {layers.map(({ t, top }) => (
+                    <rect key={t} x={x + 1} y={top} width={Math.max(0.5, w - 2)} height={H - top} fill={TYPE_COLOR[t]} />
+                  ))}
+                </g>
+                {show === 'both' && (
+                  <image
+                    href={icon}
+                    x={textX - textW / 2 - 3 - ICON}
+                    y={(H - ICON) / 2}
+                    width={ICON}
+                    height={ICON}
+                    preserveAspectRatio="xMidYMid slice"
+                    clipPath={`url(#${clipId}icon)`}
+                    onError={() => setBroken((b) => new Set(b).add(icon))}
+                    style={{ pointerEvents: 'none' }}
+                  />
+                )}
+                {show && (
+                  <text x={textX} y={H / 2 + 4.5} textAnchor="middle" fontSize={12.5} fontWeight={650} fill="#fff" style={{ pointerEvents: 'none' }}>
+                    {mark.text}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </g>
         <text x={0} y={H + 16} fontSize={12} fill="var(--text-muted)">
           0
         </text>
@@ -342,9 +410,7 @@ export function SourceBars({ sources }: { sources: SourceTotal[] }) {
               {parts.map((t, j) => {
                 const w = sx(s.type[t] ?? 0);
                 const last = j === parts.length - 1;
-                const el = (
-                  <path key={t} d={barPath(x, y, Math.max(1, w - (last ? 0 : 2)), 20, last)} fill={TYPE_COLOR[t]} />
-                );
+                const el = <path key={t} d={barPath(x, y, Math.max(1, w), 20, last)} fill={TYPE_COLOR[t]} />;
                 x += w;
                 return el;
               })}

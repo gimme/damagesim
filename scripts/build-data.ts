@@ -401,6 +401,13 @@ function buildChampion(dd: any, bin: any): ChampionData {
 
   const passiveName = str(rec.passiveName) || abilities.find((a) => a.slot === 'P')?.spells[0]?.name || 'Passive';
   const passiveText = resolveIncludes(str(rec.passiveToolTip));
+  // The HUD's icons: the slot spells' first icon, served by CommunityDragon as lowercase .png.
+  const abilityIcons: ChampionData['abilityIcons'] = {};
+  const slotSpells = { P: rec.mCharacterPassiveSpell, Q: rec.spells?.[0], W: rec.spells?.[1], E: rec.spells?.[2], R: rec.spells?.[3] };
+  for (const [slot, sp] of Object.entries(slotSpells) as [keyof typeof slotSpells, string | undefined][]) {
+    const icon: string | undefined = sp && bin[sp]?.mSpell?.mImgIconName?.[0];
+    if (icon?.startsWith('ASSETS/')) abilityIcons[slot] = icon.toLowerCase().replace(/\.dds$/, '.png');
+  }
 
   return {
     id: dd.id,
@@ -414,6 +421,7 @@ function buildChampion(dd: any, bin: any): ChampionData {
     adaptive: (rec.mAdaptiveForceToAbilityPowerWeight ?? 0) >= 0.5 ? 'magic' : 'physical',
     stats,
     passive: { name: passiveName, description: passiveText },
+    abilityIcons,
     abilities,
   };
 }
