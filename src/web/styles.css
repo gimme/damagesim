@@ -617,6 +617,19 @@ label.field {
   width: max-content;
   max-width: min(320px, calc(100vw - 16px));
 }
+/* Holding a finger on something shows its card: don't select its text, open the image menu or drag. */
+@media (any-pointer: coarse) {
+  [data-hovercard],
+  .chart-wrap {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  [data-hovercard] img,
+  .chart-wrap img {
+    -webkit-user-drag: none;
+  }
+}
 .item-tip {
   display: flex;
   flex-direction: column;

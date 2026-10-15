@@ -1,9 +1,10 @@
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type PointerEvent, type ReactNode } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { DATA, championIcon, itemIcon, runeIcon } from '../data.ts';
 import { getKit } from '../../kits/index.ts';
 import type { ItemData } from '../../engine/data-types.ts';
 import { ITEM_GROUPS, hasItemModel } from '../../engine/items.ts';
+import { hasRuneModel } from '../../engine/runes.ts';
 import { itemText } from '../../engine/tooltip.ts';
 import type { Sim } from '../../engine/sim.ts';
 
@@ -52,7 +53,7 @@ export function ChampionPicker({ value, onChange, label = 'Champion' }: { value:
   const ref = useRef<HTMLDivElement>(null);
   const list = useMemo(() => DATA.championIndex.filter((c) => !q || norm(c.name).includes(norm(q)) || norm(c.id).includes(norm(q))), [q]);
   useEffect(() => {
-    const close = (e: MouseEvent) => {
+    const close = (e: globalThis.MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener('mousedown', close);
@@ -203,28 +204,31 @@ export const fmt = (v: number, d = 0) => (Number.isFinite(v) ? v.toLocaleString(
 
 /**
  * A card shown while the pointer is over (or keyboard focus is on) an element: beside the panel the
- * element sits in when there's room, otherwise below or above it. Spread `bind(content)` on each
- * element and render `node` once.
+ * element sits in when there's room, otherwise below or above it. A finger held on an element counts
+ * as hovering it: the card shows after the same delay and closes when the finger lifts. Spread
+ * `bind(content)` on each element and render `node` once.
  */
 export function useHoverCard() {
-  const [card, setCard] = useState<{ anchor: HTMLElement; content: ReactNode } | null>(null);
+  const [card, setCard] = useState<{ anchor: HTMLElement; content: ReactNode; touch: boolean } | null>(null);
   const el = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   // Once a card is open, moving to the next element swaps it without the opening delay.
   const isOpen = useRef(false);
-  const show = (anchor: HTMLElement, content: ReactNode) => {
+  // When the current touch went down, so a hold long enough to read the card isn't also a tap.
+  const pressed = useRef(0);
+  const show = (anchor: HTMLElement, content: ReactNode, touch = false) => {
     isOpen.current = true;
-    setCard({ anchor, content });
+    setCard({ anchor, content, touch });
   };
   const hide = () => {
     clearTimeout(timer.current);
     isOpen.current = false;
     setCard(null);
   };
-  const enter = (anchor: HTMLElement, content: ReactNode) => {
+  const enter = (anchor: HTMLElement, content: ReactNode, touch: boolean) => {
     clearTimeout(timer.current);
-    if (isOpen.current) show(anchor, content);
-    else timer.current = setTimeout(() => show(anchor, content), 200);
+    if (isOpen.current) show(anchor, content, touch);
+    else timer.current = setTimeout(() => show(anchor, content, touch), 200);
   };
   const leave = () => {
     clearTimeout(timer.current);
@@ -245,9 +249,12 @@ export function useHoverCard() {
     const besideTop = Math.max(m, Math.min(vh - h - m, a.top));
     let left: number;
     let top: number;
+    const above = a.top - 6 - h;
     if (panel.right + m + w <= vw - m) [left, top] = [panel.right + m, besideTop];
     else if (panel.left - m - w >= m) [left, top] = [panel.left - m - w, besideTop];
-    else [left, top] = [Math.max(m, Math.min(vw - w - m, a.left)), a.bottom + 6 + h <= vh - m ? a.bottom + 6 : Math.max(m, a.top - 6 - h)];
+    // A finger covers the element and the hand what's below it, so touch prefers above.
+    else if (card.touch && above >= m) [left, top] = [Math.max(m, Math.min(vw - w - m, a.left)), above];
+    else [left, top] = [Math.max(m, Math.min(vw - w - m, a.left)), a.bottom + 6 + h <= vh - m ? a.bottom + 6 : Math.max(m, above)];
     node.style.left = `${left}px`;
     node.style.top = `${top}px`;
   }, [card]);
@@ -263,10 +270,27 @@ export function useHoverCard() {
   }, [card]);
   useEffect(() => () => clearTimeout(timer.current), []);
 
+  // A touch enters when the finger goes down and leaves when it lifts or a scroll takes it over. A
+  // tap still acts; a hold of over half a second doesn't, and doesn't select text or open a menu.
   const bind = (content: ReactNode) => ({
-    onPointerEnter: (e: PointerEvent<HTMLElement>) => e.pointerType !== 'touch' && enter(e.currentTarget, content),
+    'data-hovercard': '',
+    onPointerEnter: (e: PointerEvent<HTMLElement>) => enter(e.currentTarget, content, e.pointerType === 'touch'),
     onPointerLeave: leave,
-    onPointerDown: hide,
+    onPointerDown: (e: PointerEvent<HTMLElement>) => {
+      pressed.current = e.pointerType === 'touch' ? e.timeStamp : 0;
+      if (!pressed.current) hide();
+    },
+    onPointerCancel: () => {
+      pressed.current = 0;
+    },
+    onClickCapture: (e: MouseEvent<HTMLElement>) => {
+      if (pressed.current && e.timeStamp - pressed.current > 500) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      pressed.current = 0;
+    },
+    onContextMenu: (e: MouseEvent<HTMLElement>) => pressed.current && e.preventDefault(),
     onFocus: (e: FocusEvent<HTMLElement>) => e.currentTarget.matches(':focus-visible') && show(e.currentTarget, content),
     onBlur: hide,
   });
@@ -329,6 +353,25 @@ export function Markup({ text }: { text: string }) {
   if (last < text.length) top().kids.push(text.slice(last));
   while (stack.length > 1) close();
   return <>{stack[0].kids}</>;
+}
+
+/** A rune's hover card: its description, without the numbers (shown as …). */
+export function RuneTip({ id }: { id: number }) {
+  const rune = DATA.runes.find((r) => r.id === id);
+  if (!rune) return null;
+  return (
+    <div className="item-tip">
+      <div className="it-head">
+        <RuneIcon id={id} />
+        <strong>{rune.name}</strong>
+        <span className="secondary">{rune.tree}</span>
+      </div>
+      <div className="it-body">
+        <Markup text={rune.description.replace(/@[^@]+@/g, '…')} />
+      </div>
+      <div className="it-foot muted">{hasRuneModel(id) ? 'Effects simulated' : 'Not simulated'}</div>
+    </div>
+  );
 }
 
 /** An item's hover card: cost, stats and passive/active text; numbers for the attacker when `sim` is given. */

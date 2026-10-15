@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { DATA } from '../data.ts';
-import { Card, ChampionPicker, ItemIcon, ItemPicker, ItemTip, NumberField, RuneIcon, fmt, useHoverCard } from './common.tsx';
+import { Card, ChampionPicker, ItemIcon, ItemPicker, ItemTip, NumberField, RuneIcon, RuneTip, fmt, useHoverCard } from './common.tsx';
 import { SHARD_ROWS, type UIState, type TargetState } from '../state.ts';
 import { TARGET_PRESETS, type TargetPreset } from '../../engine/presets.ts';
 import { maxRanks, resolveRanks, type Sim, type SimResult } from '../../engine/sim.ts';
@@ -152,7 +152,7 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
             title={id ? undefined : 'Add item'}
             onClick={() => setPicking(i)}
             onKeyDown={(e) => e.key === 'Enter' && setPicking(i)}
-            {...(id ? hover.bind(<ItemTip id={id} sim={sim} action="Click to change" />) : {})}
+            {...(id ? hover.bind(<ItemTip id={id} sim={sim} />) : {})}
           >
             {id ? <ItemIcon id={id} /> : '+'}
             {id && (
@@ -198,6 +198,7 @@ const TREES = ['Precision', 'Domination', 'Sorcery', 'Resolve', 'Inspiration'];
 
 export function RunesPanel({ state, set }: { state: UIState; set: Set }) {
   const [tree, setTree] = useState(() => DATA.runes.find((r) => r.id === state.keystone)?.tree ?? 'Precision');
+  const hover = useHoverCard();
   const keystones = LIVE_RUNES.filter((r) => r.row === 0 && r.tree === tree);
   const minors = LIVE_RUNES.filter((r) => r.row > 0);
   const toggleMinor = (id: number) =>
@@ -215,7 +216,7 @@ export function RunesPanel({ state, set }: { state: UIState; set: Set }) {
         </div>
         <div className="rune-grid" aria-label="Keystone">
           {keystones.map((r) => (
-            <button key={r.id} className="rune-btn" aria-pressed={state.keystone === r.id} title={r.description.replace(/<[^>]+>/g, '').replace(/@[^@]+@/g, '…')} onClick={() => set((s) => ({ ...s, keystone: s.keystone === r.id ? null : r.id }))}>
+            <button key={r.id} className="rune-btn" aria-pressed={state.keystone === r.id} onClick={() => set((s) => ({ ...s, keystone: s.keystone === r.id ? null : r.id }))} {...hover.bind(<RuneTip id={r.id} />)}>
               <RuneIcon id={r.id} />
               {r.name}
               {!hasRuneModel(r.id) && <span className="muted">·</span>}
@@ -235,7 +236,7 @@ export function RunesPanel({ state, set }: { state: UIState; set: Set }) {
                 {minors
                   .filter((r) => r.tree === t)
                   .map((r) => (
-                    <button key={r.id} className="rune-btn" aria-pressed={state.minors.includes(r.id)} title={r.description.replace(/<[^>]+>/g, '').replace(/@[^@]+@/g, '…')} onClick={() => toggleMinor(r.id)}>
+                    <button key={r.id} className="rune-btn" aria-pressed={state.minors.includes(r.id)} onClick={() => toggleMinor(r.id)} {...hover.bind(<RuneTip id={r.id} />)}>
                       <RuneIcon id={r.id} />
                       {r.name}
                     </button>
@@ -259,6 +260,7 @@ export function RunesPanel({ state, set }: { state: UIState; set: Set }) {
           ))}
         </div>
       </div>
+      {hover.node}
     </Card>
   );
 }
