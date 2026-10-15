@@ -133,7 +133,7 @@ function textWidth(text: string, font: string) {
 // -----------------------------------------------------------------------------
 // HP bar: target health as a track, damage segments by source (part-to-whole)
 
-export function HpBar({ sources, maxHp, startHp, champion }: { sources: SourceTotal[]; maxHp: number; startHp: number; champion: string }) {
+export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sources: SourceTotal[]; events: DamageInstance[]; by: 'time' | 'size'; maxHp: number; startHp: number; champion: string }) {
   const tt = useTooltip();
   const clipId = useId().replace(/[^\w-]/g, '');
   const [broken, setBroken] = useState<ReadonlySet<string>>(new Set());
@@ -142,14 +142,17 @@ export function HpBar({ sources, maxHp, startHp, champion }: { sources: SourceTo
   const total = sources.reduce((s, x) => s + x.damage, 0);
   const startOffset = ((maxHp - startHp) / maxHp) * W;
   let x = startOffset;
-  // One block per source, in source order, clipped at the target's health. A source dealing several
+  // One block per source, clipped at the target's health: by time in the order of their first hits,
+  // so the clip falls about where the target dies, or by size largest first. A source dealing several
   // damage types has them as layers, each as tall as its share, so it stays one block. Its largest
   // layer is on top; layers dealing exactly as much go in the legend's order instead.
+  const firstHit = new Map(sources.map((s) => [s, events.findIndex((e) => e.source === s.source && e.sourceLabel === s.label)]));
+  const ordered = by === 'time' ? [...sources].sort((a, b) => firstHit.get(a)! - firstHit.get(b)!) : sources;
   const amounts: Partial<Record<DmgType, number>> = {};
   for (const s of sources) for (const t of TYPE_ORDER) amounts[t] = (amounts[t] ?? 0) + (s.type[t] ?? 0);
   const order = typesByAmount(amounts);
   const blocks: { s: SourceTotal; x: number; w: number; layers: { t: DmgType; top: number }[] }[] = [];
-  for (const s of sources) {
+  for (const s of ordered) {
     const sum = TYPE_ORDER.reduce((a, t) => a + Math.max(0, s.type[t] ?? 0), 0);
     const w = (Math.min(sum, Math.max(0, maxHp - (x / W) * maxHp)) / maxHp) * W;
     let top = 0;

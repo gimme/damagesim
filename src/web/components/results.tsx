@@ -8,6 +8,7 @@ import { describeChampion } from '../../engine/describe.ts';
 import type { UIState } from '../state.ts';
 
 export function Summary({ r }: { r: SimResult }) {
+  const [by, setBy] = useState<'time' | 'size'>('time');
   return (
     <Card title="Result" right={<TypeLegend amounts={r.byType} />}>
       <div className="hero">
@@ -33,13 +34,21 @@ export function Summary({ r }: { r: SimResult }) {
         )}
       </div>
       <div style={{ marginTop: 14 }}>
-        <HpBar sources={r.bySource} maxHp={r.target.maxHp} startHp={r.target.startHp} champion={r.champion.id} />
+        <HpBar sources={r.bySource} events={r.events} by={by} maxHp={r.target.maxHp} startHp={r.target.startHp} champion={r.champion.id} />
       </div>
-      {r.dotDamage > 1 && (
-        <div className="muted small">
-          {fmt(r.comboDamage)} burst + {fmt(r.dotDamage)} damage over time.
+      <div className="row">
+        <span className="muted small" style={{ flex: 1 }}>
+          {r.dotDamage > 1 && `${fmt(r.comboDamage)} burst + ${fmt(r.dotDamage)} damage over time.`}
+        </span>
+        <div className="segmented small" role="group" aria-label="Order the bar's sources">
+          <button aria-pressed={by === 'time'} onClick={() => setBy('time')}>
+            By time
+          </button>
+          <button aria-pressed={by === 'size'} onClick={() => setBy('size')}>
+            By size
+          </button>
         </div>
-      )}
+      </div>
       <Warnings r={r} />
     </Card>
   );
