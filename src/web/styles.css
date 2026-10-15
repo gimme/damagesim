@@ -722,10 +722,15 @@ label.field {
   border-top: 1px solid var(--grid);
 }
 
-/* Item value ranking */
+/* Item value ranking. The bar is what the list is read by, so it takes 3 parts of the room the
+   numbers leave to the item's 2, and the item's cost (in its card) and then the number not ranked
+   by give way as the list narrows, so names stay readable. */
+.iv-list {
+  container-type: inline-size;
+}
 .iv-row {
   display: grid;
-  grid-template-columns: minmax(150px, 310px) minmax(40px, 1fr) 72px 64px 52px;
+  grid-template-columns: minmax(170px, 2fr) minmax(40px, 3fr) 72px 64px 52px;
   grid-template-areas: 'item track pg dmg act';
   align-items: center;
   column-gap: 10px;
@@ -778,7 +783,8 @@ label.field {
 }
 .iv-head .iv-track {
   height: auto;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 2px 12px;
   align-items: center;
 }
 .iv-head .swatch {
@@ -808,18 +814,15 @@ label.field {
   pointer-events: auto;
   cursor: pointer;
 }
-/* Phones: one line per item, with only the icon (a tap shows its name, cost and details) and the
-   number being ranked by; the legend gets its own line above the column names. */
-@media (max-width: 600px) {
-  .iv-row {
-    grid-template-columns: 22px minmax(0, 1fr) 48px 44px;
-    grid-template-areas: 'item track num act';
-    column-gap: 8px;
-    padding-inline: 4px;
-  }
-  .iv-name,
+@container (max-width: 860px) {
   .iv-gold {
     display: none;
+  }
+}
+@container (max-width: 640px) {
+  .iv-row {
+    grid-template-columns: minmax(170px, 2fr) minmax(40px, 3fr) 72px 52px;
+    grid-template-areas: 'item track num act';
   }
   .iv-pg,
   .iv-dmg {
@@ -827,6 +830,18 @@ label.field {
   }
   .iv-pg:not(.on),
   .iv-dmg:not(.on) {
+    display: none;
+  }
+}
+/* Phones: one line per item, with only the icon (a tap shows its name, cost and details) and the
+   number being ranked by; the legend gets its own line above the column names. */
+@media (max-width: 600px) {
+  .iv-row {
+    grid-template-columns: 22px minmax(0, 1fr) 48px 44px;
+    column-gap: 8px;
+    padding-inline: 4px;
+  }
+  .iv-name {
     display: none;
   }
   .iv-head {
