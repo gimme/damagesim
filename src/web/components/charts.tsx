@@ -136,11 +136,45 @@ export function HpBar({ sources, maxHp, startHp }: { sources: SourceTotal[]; max
     }
   }
   const overkill = Math.max(0, total - startHp);
+  // The health left, at the right end, is ticked like a health bar in game: a short notch every 100
+  // and a longer one every 1000, counted from its empty end. Only the 1000s when the 100s are crowded.
+  const left = Math.max(0, startHp - total);
+  const tick = (100 / maxHp) * W;
+  const notches: number[] = [];
+  for (let k = 1; W - k * tick > x + 3; k++) if (k % 10 === 0 || tick >= 4) notches.push(k);
+  const leftText = [`${fmt(left)} HP left`, fmt(left)].find((s) => s.length * 6.5 < W - x - 16);
   return (
     <div className="chart-wrap" ref={tt.ref}>
       <svg viewBox={`0 0 ${W} ${H + 22}`} role="img" aria-label={`Target health bar: ${fmt(total)} damage of ${fmt(startHp)} health`}>
         <rect x={0} y={0} width={W} height={H} rx={6} fill="var(--surface-3)" />
         {startOffset > 0 && <rect x={0} y={0} width={startOffset} height={H} rx={6} fill="var(--grid)" />}
+        {left > 0.5 && (
+          <g
+            onPointerMove={(e) =>
+              tt.show(
+                e,
+                <>
+                  <div className="tt-title">Health left</div>
+                  <div className="tt-row">
+                    <span>{((left / maxHp) * 100).toFixed(1)}% max HP</span>
+                    <strong>{fmt(left)}</strong>
+                  </div>
+                </>,
+              )
+            }
+            onPointerLeave={tt.hide}
+          >
+            <rect x={x} y={0} width={W - x} height={H} fill="transparent" />
+            {notches.map((k) => (
+              <line key={k} x1={W - k * tick} x2={W - k * tick} y1={0} y2={k % 10 ? H * 0.3 : H * 0.55} stroke="var(--surface)" strokeWidth={k % 10 ? 1 : 2} />
+            ))}
+            {leftText && (
+              <text x={(x + W) / 2} y={H / 2 + 4} textAnchor="middle" fontSize={12} fill="var(--text-secondary)" stroke="var(--surface-3)" strokeWidth={4} paintOrder="stroke" className="num" style={{ pointerEvents: 'none' }}>
+                {leftText}
+              </text>
+            )}
+          </g>
+        )}
         {segs.map(({ s, t, x, w }, i) =>
           w <= 0 ? null : (
             <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} maxHp={maxHp} />)} onPointerLeave={tt.hide}>

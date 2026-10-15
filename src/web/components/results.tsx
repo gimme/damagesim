@@ -20,10 +20,12 @@ export function Summary({ r }: { r: SimResult }) {
           <div className="label">of target health</div>
           <div className="value">{(r.percentOfHp * 100).toFixed(1)}%</div>
         </div>
-        <div className="stat-tile">
-          <div className="label">{r.killed ? 'Kill at' : 'Health left'}</div>
-          <div className={`value ${r.killed ? 'kill' : ''}`}>{r.killed ? `✓ ${r.killTime!.toFixed(2)}s` : fmt(r.target.endHp)}</div>
-        </div>
+        {r.killed && (
+          <div className="stat-tile">
+            <div className="label">Kill at</div>
+            <div className="value kill">✓ {r.killTime!.toFixed(2)}s</div>
+          </div>
+        )}
         <div className="stat-tile">
           <div className="label">Duration · DPS</div>
           <div className="value">
