@@ -143,8 +143,8 @@ export function HpBar({ sources, maxHp, startHp, champion }: { sources: SourceTo
   const startOffset = ((maxHp - startHp) / maxHp) * W;
   let x = startOffset;
   // One block per source, in source order, clipped at the target's health. A source dealing several
-  // damage types has them as layers, each as tall as its share, so it stays one block. The layers go
-  // in the legend's order: the type with the most damage overall on top, in every block.
+  // damage types has them as layers, each as tall as its share, so it stays one block. Its largest
+  // layer is on top; layers dealing exactly as much go in the legend's order instead.
   const amounts: Partial<Record<DmgType, number>> = {};
   for (const s of sources) for (const t of TYPE_ORDER) amounts[t] = (amounts[t] ?? 0) + (s.type[t] ?? 0);
   const order = typesByAmount(amounts);
@@ -153,11 +153,14 @@ export function HpBar({ sources, maxHp, startHp, champion }: { sources: SourceTo
     const sum = TYPE_ORDER.reduce((a, t) => a + Math.max(0, s.type[t] ?? 0), 0);
     const w = (Math.min(sum, Math.max(0, maxHp - (x / W) * maxHp)) / maxHp) * W;
     let top = 0;
-    const layers = order.filter((t) => (s.type[t] ?? 0) > 0).map((t) => {
-      const layer = { t, top };
-      top += (s.type[t]! / sum) * H;
-      return layer;
-    });
+    const layers = order
+      .filter((t) => (s.type[t] ?? 0) > 0)
+      .sort((a, b) => s.type[b]! - s.type[a]!)
+      .map((t) => {
+        const layer = { t, top };
+        top += (s.type[t]! / sum) * H;
+        return layer;
+      });
     if (w > 0) blocks.push({ s, x, w, layers });
     x += w;
   }
