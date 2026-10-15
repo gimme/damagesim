@@ -135,6 +135,8 @@ interface ScheduledEvent {
   run: () => void;
   /** The crit mark of the step that scheduled it. */
   crit?: boolean;
+  /** The combo action that scheduled it. */
+  action?: number;
 }
 
 interface ActiveBuff {
@@ -190,6 +192,8 @@ export class Sim {
   /** The crit mark of the combo step being resolved: set by the step, and by the events it scheduled
    *  when they run, so it holds for everything the step causes (see critMode). */
   private stepCrit: boolean | undefined;
+  /** The combo action being resolved (its castId): set like stepCrit, and dealt damage records it. */
+  private action: number | undefined;
   private nextCastId = 1;
   private nextInstId = 1;
   private staticMods: StatMods;
@@ -863,19 +867,22 @@ export class Sim {
   }
 
   scheduleAt(time: number, run: () => void) {
-    this.queue.push({ time: Math.max(this.time, time), seq: this.seq++, run, crit: this.stepCrit });
+    this.queue.push({ time: Math.max(this.time, time), seq: this.seq++, run, crit: this.stepCrit, action: this.action });
     this.queue.sort((a, b) => a.time - b.time || a.seq - b.seq);
   }
 
   processUntil(t: number) {
     const own = this.stepCrit;
+    const ownAction = this.action;
     while (this.queue.length && this.queue[0].time <= t + 1e-9) {
       const ev = this.queue.shift()!;
       this.advanceTo(ev.time);
       this.setStepCrit(ev.crit);
+      this.action = ev.action;
       ev.run();
     }
     this.setStepCrit(own);
+    this.action = ownAction;
     this.advanceTo(t);
   }
 
@@ -931,6 +938,7 @@ export class Sim {
       amps: [],
       ...(req.note ? { note: req.note } : {}),
       ...(req.markSource ? { fromMark: req.markSource } : {}),
+      ...(this.action !== undefined ? { action: this.action } : {}),
     };
 
     for (const e of this.effects) e.beforeDamage?.(this, inst);
@@ -1454,6 +1462,7 @@ export class Sim {
     const ctExpr = variant?.castTime ?? spec.castTime;
     const castTime = Math.max(0, ctExpr !== undefined ? this.evalExpr(ctExpr, { slot, spell, rank }) : (spell.castTime ?? 0));
     const castId = this.newCastId();
+    this.action = castId;
     const hitsTarget = !step.miss && !spec.noTarget;
     const resets = variant?.resetsAttack ?? spec.resetsAttack;
     const recast = (this.recastCount.get(slot) ?? 0) + 1;
@@ -1661,6 +1670,7 @@ export class Sim {
       const period = 1 / Math.max(0.2, as);
       const windup = period * windupFraction(this.champ);
       const castId = this.newCastId();
+      this.action = castId;
       this.freeAt = start + windup;
       this.attackReadyAt = start + period;
       timeline.push({ step: step.crit === true ? 'AA!' : step.crit === false ? 'AA?' : 'AA', start, end: start + windup });
@@ -1679,6 +1689,7 @@ export class Sim {
     }
     this.processUntil(start);
     const castId = this.newCastId();
+    this.action = castId;
     const castTime = active.castTime ?? 0;
     this.cooldownReady.set(key, start + active.cooldown);
     this.freeAt = start + castTime;
@@ -1740,6 +1751,7 @@ export class Sim {
       }
     }
     this.setStepCrit(undefined);
+    this.action = undefined;
     const comboEnd = Math.max(this.time, this.freeAt);
     this.processUntil(comboEnd);
     // Delayed hits (projectiles, detonations) always land; DoTs continue only with finishDots.

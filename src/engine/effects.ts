@@ -38,6 +38,12 @@ export interface DamageInstance {
   time: number;
   /** Groups the instances of one cast / one attack ("separate hits" for runes). */
   castId: number;
+  /**
+   * The castId of the combo action (an ability cast, an attack, an active) that set this off, also
+   * for hits counted as casts of their own (Zed's shadow Q, Katarina's R daggers) and for what the
+   * action triggered (procs, DoTs). Unset for damage no action set off (an aura from the start).
+   */
+  action?: number;
   source: string;
   sourceLabel: string;
   label: string;

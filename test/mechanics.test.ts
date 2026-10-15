@@ -307,3 +307,17 @@ test('Lethal Tempo: stacks decay one by one after the duration', () => {
   const [full, one, three] = [asAt(expiry - 0.1), asAt(expiry + 0.1), asAt(expiry + 0.7)];
   assert.ok(full > one && one > three && three > asAt(expiry + 2), `${full} ${one} ${three}`);
 });
+
+test('Damage records the combo action that set it off, across separate-cast hits, procs and DoTs', () => {
+  const zed = simulate(data, { champion: 'Zed', level: 11, combo: 'W Q AA*2', target: dummy });
+  const [q, shadow] = bySource(zed, 'Q');
+  assert.notEqual(shadow.castId, q.castId);
+  assert.equal(shadow.action, q.castId);
+  const attacks = bySource(zed, 'AA');
+  assert.equal(attacks.length, 2);
+  assert.ok(attacks.every((a) => a.action === a.castId));
+  const brand = simulate(data, { champion: 'Brand', level: 13, items: ["Liandry's Torment"], combo: 'E Q', target: dummy });
+  const e = bySource(brand, 'E')[0];
+  const ticks = bySource(brand, 'item:6653');
+  assert.ok(ticks.length > 1 && ticks.every((t) => t.action === e.castId));
+});
