@@ -69,7 +69,6 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   };
 
   const slotLabel = current != null ? `in place of ${DATA.items[current]?.name}` : `in slot ${slot + 1}`;
-  const base = ranking?.base;
 
   return (
     <Card
@@ -114,11 +113,6 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
             ),
           )}
         </select>
-        {base && (
-          <span className="muted">
-            Without it: {fmt(base.totalDamage)} damage, {(base.percentOfHp * 100).toFixed(0)}% of target health
-          </span>
-        )}
       </div>
       {res?.error && <div className="notice warn small">{res.error}</div>}
       {!res && <div className="muted small">Simulating…</div>}
@@ -131,7 +125,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
           ) : (
             <GoldScatter
               points={rows.useful.map((r): GoldPoint => ({ id: r.id, label: r.item, gold: r.gold, gain: r.gain, perGold: r.gainPerGold, highlight: r.id === current }))}
-              tip={(p, touch) => <RowTip row={rows.useful.find((r) => r.id === p.id)!} current={current} action={p.id === current || touch ? undefined : 'Click to buy'} />}
+              tip={(p, touch) => <RowTip row={rows.useful.find((r) => r.id === p.id)!} current={current} view="map" action={p.id === current || touch ? undefined : 'Click to buy'} />}
               onPick={(p) => pick(p.id)}
             />
           )}
@@ -165,7 +159,7 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick, sim }: { r
   const show = (e: { clientX: number; clientY: number; pointerType?: string }, r: Row, col: string) => {
     if (col === 'iv-item') tt.show(e, <ItemTip id={r.id} sim={sim} />);
     else if (col === 'iv-act') tt.hide();
-    else tt.show(e, <RowTip row={r} current={current} />);
+    else tt.show(e, <RowTip row={r} current={current} view="list" />);
   };
   // Touch has no hover: a tap opens the card of the column tapped, and it stays until the next tap
   // (on the same spot, on the card, elsewhere in the list or outside it). Phones show only icons, so
@@ -212,7 +206,7 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick, sim }: { r
             </span>
             <span>
               <span className="swatch" style={{ background: 'var(--item-effect)' }} />
-              item's own damage
+              effect damage
             </span>
           </span>
           <span role="columnheader" className={`iv-pg ${by === 'perGold' ? 'on' : ''}`}>
@@ -307,38 +301,43 @@ function nearestColumn(e: PointerEvent<HTMLElement>): string {
   return best;
 }
 
-function RowTip({ row: r, current, action }: { row: Row; current: number | null; action?: string }) {
+/** A row's card shows what its view doesn't: in the list, which already has the numbers, how the bar
+ *  splits between stats and effect damage; on the map, whose dots only have positions, the numbers. */
+function RowTip({ row: r, current, view, action }: { row: Row; current: number | null; view: 'list' | 'map'; action?: string }) {
   return (
     <>
       <div className="tt-title">
         {r.item} · {fmt(r.gold)}g{r.id === current ? ' (current)' : ''}
       </div>
-      <div className="tt-row">
-        <span>Damage gained</span>
-        <strong>{signed(r.gain)}</strong>
-      </div>
-      <div className="tt-row">
-        <span>Per 1000 gold</span>
-        <strong>{fmt(r.gainPerGold, 1)}</strong>
-      </div>
-      <div className="tt-row">
-        <span>
-          <span className="swatch" style={{ background: 'var(--accent)', marginRight: 6 }} />
-          added to your other damage
-        </span>
-        <span className="num">{signed(r.gain - r.itemDamage)}</span>
-      </div>
-      <div className="tt-row">
-        <span>
-          <span className="swatch" style={{ background: 'var(--item-effect)', marginRight: 6 }} />
-          dealt by the item itself
-        </span>
-        <span className="num">{signed(r.itemDamage)}</span>
-      </div>
-      <div className="tt-row muted">
-        <span>Total with it</span>
-        <span className="num">{fmt(r.totalDamage)}</span>
-      </div>
+      {view === 'list' ? (
+        <>
+          <div className="tt-row">
+            <span>
+              <span className="swatch" style={{ background: 'var(--accent)', marginRight: 6 }} />
+              Stats
+            </span>
+            <strong>{signed(r.gain - r.itemDamage)}</strong>
+          </div>
+          <div className="tt-row">
+            <span>
+              <span className="swatch" style={{ background: 'var(--item-effect)', marginRight: 6 }} />
+              Effect damage
+            </span>
+            <strong>{signed(r.itemDamage)}</strong>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="tt-row">
+            <span>Damage gained</span>
+            <strong>{signed(r.gain)}</strong>
+          </div>
+          <div className="tt-row">
+            <span>Per 1000 gold</span>
+            <strong>{fmt(r.gainPerGold, 1)}</strong>
+          </div>
+        </>
+      )}
       {action && <div className="muted">{action}</div>}
     </>
   );
