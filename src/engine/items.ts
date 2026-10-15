@@ -125,6 +125,8 @@ function spellblade(
 
 const ENERGY_KEY = 'energized';
 const ENERGY_READY = 'energized.ready';
+/** Declared by each Energized item, so the option is credited to the items rather than the shared pool. */
+const ENERGY_START = { key: 'energized.start', label: 'Energize charges at start (100 = ready)', default: 100, min: 0, max: 100, step: 5 };
 
 /** Energized item procs, registered by item id. */
 const energizedProcs = new WeakMap<Sim, ((sim: Sim, push: (r: DamageRequest) => void) => void)[]>();
@@ -147,9 +149,8 @@ function energyEffect(): Effect {
     source: 'item',
     description: 'Energize charges: +6 per attack (+9 with Statikk Shiv); the attack after reaching 100 is Energized. Movement is not simulated.',
     limitations: ['Energize charges from movement are not simulated (only attacks).'],
-    options: [{ key: 'energized.start', label: 'Energize charges at start (100 = ready)', default: 100, min: 0, max: 100, step: 5 }],
     onStart(sim) {
-      sim.setCounter(ENERGY_KEY, sim.opt['energized.start'] ?? 100);
+      sim.setCounter(ENERGY_KEY, sim.opt[ENERGY_START.key] ?? ENERGY_START.default);
     },
     onAttack(sim, atk) {
       if (atk.phantom) return;
@@ -168,7 +169,7 @@ function energyEffect(): Effect {
 
 function energized(item: ItemData, sim: Sim, proc: (sim: Sim, push: (r: DamageRequest) => void) => void, description: string, extra: Partial<Effect> = {}): Effect {
   registerEnergized(sim, proc);
-  return effect(item, { description, ...extra });
+  return effect(item, { description, options: [ENERGY_START], ...extra });
 }
 
 // -----------------------------------------------------------------------------
