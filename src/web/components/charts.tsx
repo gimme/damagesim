@@ -220,16 +220,17 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
     x += w;
   }
   const last = blocks.at(-1);
-  // Each block gives 1px each side to the 2px between blocks, except one too thin to keep much color
-  // after it (a DoT's few ticks between two hits): it would read as a pale line, so it's drawn whole.
+  // Each block gives 1px each side to the 2px between blocks, where the bar's dark track shows as a
+  // line, except one too thin to keep much color after it (a DoT's few ticks between two hits): it
+  // would read as a dark line itself, so it's drawn whole.
   const gap = (w: number) => (w < 5 ? 0 : 1);
   const overkill = Math.max(0, total - startHp);
-  // The health left, at the right end, is ticked like a health bar in game: a short notch every 100
-  // and a longer one every 1000, counted from its empty end. Only the 1000s when the 100s are crowded.
   const left = Math.max(0, startHp - total);
+  // The damage is ticked along its top like a health bar in game: a short notch every 100 and a
+  // longer one every 1000, counted from where it starts. Only the 1000s when the 100s are crowded.
   const tick = (100 / maxHp) * W;
   const notches: number[] = [];
-  for (let k = 1; W - k * tick > x + 3; k++) if (k % 10 === 0 || tick >= 4) notches.push(k);
+  for (let k = 1; startOffset + k * tick < x - 1; k++) if (k % 10 === 0 || tick >= 4) notches.push(k);
   const leftText = [`${fmt(left)} HP left`, fmt(left)].find((s) => s.length * 6.5 < W - x - 16);
   const ICON = 18;
   return (
@@ -248,9 +249,14 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
               <path d={barPath(last.x + gap(last.w), 0, last.w - 2 * gap(last.w), H)} />
             </clipPath>
           )}
+          <pattern id={`${clipId}missing`} width={6} height={6} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width={2.5} height={6} fill="var(--hp-stripe)" />
+          </pattern>
         </defs>
-        <rect x={0} y={0} width={W} height={H} rx={6} fill="var(--surface-3)" />
-        {startOffset > 0 && <rect x={0} y={0} width={startOffset} height={H} rx={6} fill="var(--grid)" />}
+        {/* The track: dark, as a health bar's empty part is in game */}
+        <rect x={0} y={0} width={W} height={H} rx={6} fill="var(--hp-track)" />
+        {/* Health the target was missing before the combo, striped as in game (K'Sante's All Out, for one) */}
+        {startOffset > 0 && <rect x={0} y={0} width={startOffset} height={H} fill={`url(#${clipId}missing)`} clipPath={`url(#${clipId}bar)`} />}
         {left > 0.5 && (
           <g
             onPointerMove={(e) =>
@@ -268,18 +274,31 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
             onPointerLeave={tt.hide}
           >
             <rect x={x} y={0} width={W - x} height={H} fill="transparent" />
-            {notches.map((k) => (
-              <line key={k} x1={W - k * tick} x2={W - k * tick} y1={0} y2={k % 10 ? H * 0.3 : H * 0.55} stroke="var(--surface)" strokeWidth={k % 10 ? 1 : 2} />
-            ))}
             {leftText && (
-              <text x={(x + W) / 2} y={H / 2 + 4} textAnchor="middle" fontSize={12} fill="var(--text-secondary)" stroke="var(--surface-3)" strokeWidth={4} paintOrder="stroke" className="num" style={{ pointerEvents: 'none' }}>
+              <text x={(x + W) / 2} y={H / 2 + 4} textAnchor="middle" fontSize={12} fill="var(--hp-left-text)" className="num" style={{ pointerEvents: 'none' }}>
                 {leftText}
               </text>
             )}
           </g>
         )}
         <g clipPath={`url(#${clipId}bar)`}>
-          {blocks.map(({ s, x, w, layers }, i) => {
+          {blocks.map(({ s, x, w, layers }, i) => (
+            <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} maxHp={maxHp} champion={champion} />)} onPointerLeave={tt.hide}>
+              {/* The whole block, gap included, so moving across the bar never leaves all of them */}
+              <rect x={x} y={0} width={w} height={H} fill="transparent" />
+              {/* 2px between blocks (see gap). Each layer runs to the bottom, under the next, so no seam shows between them. */}
+              <g clipPath={i === blocks.length - 1 ? `url(#${clipId}end)` : undefined}>
+                {layers.map(({ t, top }) => (
+                  <rect key={t} x={x + gap(w)} y={top} width={w - 2 * gap(w)} height={H - top} fill={TYPE_COLOR[t]} />
+                ))}
+              </g>
+            </g>
+          ))}
+          {notches.map((k) => (
+            <line key={k} x1={startOffset + k * tick} x2={startOffset + k * tick} y1={0} y2={k % 10 ? H * 0.3 : H * 0.55} stroke="var(--hp-track)" strokeWidth={k % 10 ? 1 : 2} style={{ pointerEvents: 'none' }} />
+          ))}
+          {/* Over the notches */}
+          {blocks.map(({ s, x, w }, i) => {
             const mark = blockMark(s.source, s.label, champion);
             const icon = mark.icon && !broken.has(mark.icon) ? mark.icon : '';
             // A source's icon names it, and an ability's key with it where there's room: a champion's
@@ -292,15 +311,7 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
             const textX = show === 'both' ? cx + (ICON + 3) / 2 : cx;
             const iconX = show === 'both' ? textX - textW / 2 - 3 - ICON : cx - ICON / 2;
             return (
-              <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} maxHp={maxHp} champion={champion} />)} onPointerLeave={tt.hide}>
-                {/* The whole block, gap included, so moving across the bar never leaves all of them */}
-                <rect x={x} y={0} width={w} height={H} fill="transparent" />
-                {/* 2px between blocks (see gap). Each layer runs to the bottom, under the next, so no seam shows between them. */}
-                <g clipPath={i === blocks.length - 1 ? `url(#${clipId}end)` : undefined}>
-                  {layers.map(({ t, top }) => (
-                    <rect key={t} x={x + gap(w)} y={top} width={w - 2 * gap(w)} height={H - top} fill={TYPE_COLOR[t]} />
-                  ))}
-                </g>
+              <g key={i} style={{ pointerEvents: 'none' }}>
                 {(show === 'both' || show === 'icon') && (
                   <image
                     href={icon}
@@ -311,11 +322,10 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
                     preserveAspectRatio="xMidYMid slice"
                     clipPath={`url(#${clipId}icon)`}
                     onError={() => setBroken((b) => new Set(b).add(icon))}
-                    style={{ pointerEvents: 'none' }}
                   />
                 )}
                 {(show === 'both' || show === 'text') && (
-                  <text x={textX} y={H / 2 + 4.5} textAnchor="middle" fontSize={12.5} fontWeight={650} fill="#0b0b0b" style={{ pointerEvents: 'none' }}>
+                  <text x={textX} y={H / 2 + 4.5} textAnchor="middle" fontSize={12.5} fontWeight={650} fill="#0b0b0b">
                     {mark.text}
                   </text>
                 )}

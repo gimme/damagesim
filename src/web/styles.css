@@ -18,14 +18,20 @@
   --accent-text: #5641c6;
   --accent-2: #d55181;
   /* Damage types in the game's colors (its floating combat text, ux/fonts.bin: magic #00b0f0,
-     physical #ff8c34, true #ffffff). White can't show on a light page, so true damage is a gray here. */
+     physical #ff8c34, true #ffffff). White can't show on a light page, so true damage is a light
+     silver here. */
   --magic: #00b0f0;
   --physical: #ff8c34;
-  --true: #898781;
+  --true: #c6cad1;
   /* Damage type colors for small text (>= 4.5:1 on --surface and --surface-2): the game's hues, darker. */
   --magic-text: #02739e;
   --physical-text: #aa5401;
   --true-text: #0b0b0b;
+  /* The HP bar's track, near black in both themes as a health bar's empty part is in game: the
+     health left, the lines between blocks and the notches on them; stripes for health missing before. */
+  --hp-track: #2c2c2a;
+  --hp-stripe: #4d4c48;
+  --hp-left-text: #c3c2b7;
   --good: #006300;
   --warning: #fab219;
   --critical: #d03b3b;
