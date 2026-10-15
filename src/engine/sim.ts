@@ -47,9 +47,6 @@ export interface TargetSpec {
 }
 
 export interface SimSettings {
-  /** expected: average crit damage per crit-capable hit; never/always: deterministic. Combo steps'
-   *  crit marks (AA!, Q?) override it. */
-  crit?: CritMode;
   /** Keep simulating damage-over-time effects after the last step (default true). */
   finishDots?: boolean;
   /** Wait for an ability's cooldown when it's used again (default true); otherwise cast anyway. */
@@ -234,7 +231,6 @@ export class Sim {
     this.kit = getKit(this.champ);
     this.level = clampInt(scenario.level ?? 11, 1, GAME.maxLevel);
     this.settings = {
-      crit: scenario.settings?.crit ?? 'expected',
       finishDots: scenario.settings?.finishDots ?? true,
       waitForCooldowns: scenario.settings?.waitForCooldowns ?? true,
       priorCombatTime: scenario.settings?.priorCombatTime ?? 0,
@@ -892,9 +888,10 @@ export class Sim {
     this.invalidateStats();
   }
 
-  /** How crits resolve now: the crit mark of the step being resolved (AA!, Q?), else the setting. */
+  /** How crits resolve now: by the crit mark of the step being resolved (AA!, Q?), else their
+   *  expected value. */
   critMode(): CritMode {
-    return this.stepCrit === true ? 'always' : this.stepCrit === false ? 'never' : this.settings.crit;
+    return this.stepCrit === true ? 'always' : this.stepCrit === false ? 'never' : 'expected';
   }
 
   private advanceTo(t: number) {

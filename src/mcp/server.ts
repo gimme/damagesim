@@ -63,7 +63,6 @@ const scenarioShape = {
   target: target.optional(),
   settings: z
     .object({
-      crit: z.enum(['expected', 'never', 'always']).optional(),
       finishDots: z.boolean().optional(),
       waitForCooldowns: z.boolean().optional(),
       priorCombatTime: z.number().optional(),

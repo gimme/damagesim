@@ -69,8 +69,7 @@ The CLI exposes the same features (`lolsim --help`); add `--json` for machine-re
   "runes": ["Electrocute", "Sudden Impact", "Absolute Focus", 5008, 5008, 5001],
   "options": { "suddenImpact.armed": 1 },
   "combo": "W E Q AA R AA ignite",
-  "target": { "preset": "squishy", "levelDiff": 0 },
-  "settings": { "crit": "expected" }
+  "target": { "preset": "squishy", "levelDiff": 0 }
 }
 ```
 
@@ -143,9 +142,9 @@ Targets:
   on-hit effects. Only basic attacks and abilities that also trigger on-attack effects stack
   Guinsoo's, Lethal Tempo, Energize charges and similar. A champion's own passive on-hit applies
   to its abilities only where the kit lists it (Warwick Q/R, Fizz Q).
-* **Crits** default to their expected value. Use `--crit always|never`, or mark steps: `AA!`/`Q!`
-  crit, `AA?`/`Q?` don't. A mark overrides `--crit` and holds for everything the step causes,
-  follow-up attacks included (Akshan's second shot, Lucian's Lightslinger).
+* **Crits** deal their expected value. Mark steps to fix them: `AA!`/`Q!` crit, `AA?`/`Q?` don't.
+  A mark holds for everything the step causes, follow-up attacks included (Akshan's second shot,
+  Lucian's Lightslinger).
 * **Situational stacks** are options with defaults: Dark Harvest souls, Legend stacks, Gathering
   Storm game time, Heartsteel stacks, champion stacks (Nasus, Veigar…). See `get_champion` and
   `scenario_help`.

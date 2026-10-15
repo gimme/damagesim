@@ -4,8 +4,8 @@ import type { ChampionKit } from '../../engine/kit-types.ts';
 // Way of the Wanderer (Intent): crit chance from all other sources is doubled, crit damage ×0.95,
 // and crit chance above 100% converts to bonus AD.
 // Last Breath: afterwards, crits ignore RPercentArmorPen% bonus armor. Penetration can't be limited
-// to crits, so a dynamicStats hook applies it weighted by the crit chance recorded when R lands
-// (dynamicStats can't read stats or evaluate expressions without recursing).
+// to crits, so a dynamicStats hook applies it weighted by how much the hit being resolved crits: its
+// step's crit mark, else the crit chance.
 
 const kit: ChampionKit = {
   id: 'Yasuo',

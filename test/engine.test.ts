@@ -136,27 +136,29 @@ test('Ignite: true damage in 5 ticks, not amplified', () => {
   assert.equal(r.events.length, 5);
 });
 
-test('crit: 200% base, +30% with Infinity Edge, expected value in default mode', () => {
-  const always = simulate(data, { champion: 'Jinx', level: 1, items: ['Infinity Edge'], combo: 'AA', target: dummy, settings: { crit: 'always' } });
-  const ad = always.stats.ad;
-  near(always.events[0].raw, ad * 2.3);
-  const exp = simulate(data, { champion: 'Jinx', level: 1, items: ['Infinity Edge'], combo: 'AA', target: dummy });
-  near(exp.events[0].raw, ad * (1 + 0.25 * 1.3));
-  // A step's crit mark overrides the setting either way.
-  near(simulate(data, { champion: 'Jinx', level: 1, items: ['Infinity Edge'], combo: 'AA?', target: dummy, settings: { crit: 'always' } }).events[0].raw, ad);
-  near(simulate(data, { champion: 'Jinx', level: 1, items: ['Infinity Edge'], combo: 'AA!', target: dummy, settings: { crit: 'never' } }).events[0].raw, ad * 2.3);
+test('crit: 200% base, +30% with Infinity Edge, expected value unless marked', () => {
+  const jinx = (combo: string) => simulate(data, { champion: 'Jinx', level: 1, items: ['Infinity Edge'], combo, target: dummy });
+  const crit = jinx('AA!');
+  const ad = crit.stats.ad;
+  near(crit.events[0].raw, ad * 2.3);
+  near(jinx('AA').events[0].raw, ad * (1 + 0.25 * 1.3));
+  near(jinx('AA?').events[0].raw, ad);
 });
 
 test('crit marks hold for everything the step causes: casts, and follow-up attacks', () => {
-  const total = (champion: string, combo: string, crit?: 'always' | 'never') =>
-    simulate(data, { champion, level: 18, items: ['Infinity Edge', 'Bloodthirster'], combo, target: { preset: 'tank' }, ...(crit ? { settings: { crit } } : {}) }).totalDamage;
-  // Yasuo's Q crits with its mark as with the setting; Akshan's second shot follows its attack's.
-  near(total('Yasuo', 'Q!'), total('Yasuo', 'Q', 'always'));
-  near(total('Yasuo', 'Q?'), total('Yasuo', 'Q', 'never'));
-  assert.ok(total('Yasuo', 'Q!') > total('Yasuo', 'Q'));
-  near(total('Akshan', 'AA!'), total('Akshan', 'AA', 'always'));
-  near(total('Lucian', 'Q AA!'), total('Lucian', 'Q AA', 'always'));
-  near(total('MasterYi', 'AA*4?'), total('MasterYi', 'AA*4', 'never'));
+  const sim = (champion: string, combo: string) => simulate(data, { champion, level: 18, items: ['Infinity Edge', 'Bloodthirster'], combo, target: { preset: 'tank' } });
+  const yasuo = (combo: string) => sim('Yasuo', combo).totalDamage;
+  assert.ok(yasuo('Q!') > yasuo('Q') && yasuo('Q') > yasuo('Q?'));
+  // Follow-up attacks crit with the attack that caused them.
+  const followUpCrits = (champion: string, combo: string, source: string) => sim(champion, combo).events.find((e) => e.sourceLabel === source)!.flags.crit;
+  for (const [champion, combo, source] of [
+    ['Akshan', 'AA', 'Dirty Fighting'],
+    ['Lucian', 'Q AA', 'Lightslinger'],
+    ['MasterYi', 'AA*4', 'Double Strike'],
+  ]) {
+    assert.equal(followUpCrits(champion, `${combo}!`, source), true, champion);
+    assert.equal(followUpCrits(champion, `${combo}?`, source), false, champion);
+  }
 });
 
 test('lethality is flat armor penetration at all levels', () => {
@@ -222,7 +224,7 @@ test('Darius R scales with Hemorrhage stacks and caps at 200%', () => {
 });
 
 test('Collector executes below 5% health', () => {
-  const r = simulate(data, { champion: 'Jinx', level: 18, items: ['The Collector'], combo: 'AA', target: { maxHp: 1000, hpPercent: 0.2, armor: 0, mr: 0 }, settings: { crit: 'never' } });
+  const r = simulate(data, { champion: 'Jinx', level: 18, items: ['The Collector'], combo: 'AA?', target: { maxHp: 1000, hpPercent: 0.2, armor: 0, mr: 0 } });
   assert.ok(r.killed);
   assert.ok(r.events.some((e) => e.label === 'Execute'));
 });

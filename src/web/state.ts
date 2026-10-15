@@ -3,9 +3,6 @@
 
 import type { Scenario, SimSettings } from '../engine/sim.ts';
 import { isTargetPreset, type TargetPreset } from '../engine/presets.ts';
-import { formatCombo, markCrit, parseCombo } from '../engine/combo.ts';
-import { getKit } from '../kits/index.ts';
-import { DATA } from './data.ts';
 
 export const SHARD_ROWS: { label: string; options: number[] }[] = [
   { label: 'Offense', options: [5008, 5005, 5007] },
@@ -44,7 +41,6 @@ export interface UIState {
   options: Record<string, number>;
   combo: string;
   target: TargetState;
-  /** Crits aren't a setting here: the combo's crit marks (AA!, Q?) say how its steps crit. */
   settings: Required<Pick<SimSettings, 'ampStacking' | 'priorCombatTime' | 'finishDots'>>;
 }
 
@@ -124,18 +120,7 @@ export function decodeState(hash: string): UIState | null {
     if (!isTargetPreset(target.preset)) target.preset = null;
     if (pt.levelDiff === undefined && typeof pt.level === 'number') target.levelDiff = pt.level - (parsed.level ?? DEFAULT_STATE.level);
     delete (target as Partial<TargetState> & { level?: number }).level;
-    const { crit, ...settings } = parsed.settings ?? {};
-    const state: UIState = { ...DEFAULT_STATE, ...parsed, target, settings: { ...DEFAULT_STATE.settings, ...settings } };
-    // Links from before crit marks: their crit setting becomes the combo's marks.
-    const champ = DATA.champions[state.champion];
-    if ((crit === 'always' || crit === 'never') && champ) {
-      try {
-        state.combo = formatCombo(parseCombo(state.combo).map((st) => markCrit(st, getKit(champ), crit)));
-      } catch {
-        // an unreadable combo stays as it was
-      }
-    }
-    return state;
+    return { ...DEFAULT_STATE, ...parsed, target, settings: { ...DEFAULT_STATE.settings, ...parsed.settings } };
   } catch {
     return null;
   }

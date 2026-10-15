@@ -22,7 +22,7 @@ export type ComboStep =
       type: 'attack';
       count?: number;
       /**
-       * Crit mark ("AA!", "AA?"): true crits, false doesn't, unset follows the crit setting. It holds
+       * Crit mark ("AA!", "AA?"): true crits, false doesn't, unset deals the expected value. It holds
        * for every crit the step causes, follow-up attacks included (Akshan's second shot).
        */
       crit?: boolean;
