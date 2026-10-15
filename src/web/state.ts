@@ -113,13 +113,8 @@ export function decodeState(hash: string): UIState | null {
     const b64 = hash.replace(/^#/, '').replace(/-/g, '+').replace(/_/g, '/');
     if (!b64) return null;
     const parsed = JSON.parse(decodeURIComponent(escape(atob(b64))));
-    const pt = parsed.target ?? {};
-    const target: TargetState = { ...DEFAULT_STATE.target, ...pt };
-    // Links from before presets/level offsets: explicit stats, absolute target level.
-    if (parsed.target && !('preset' in pt)) target.preset = null;
+    const target: TargetState = { ...DEFAULT_STATE.target, ...parsed.target };
     if (!isTargetPreset(target.preset)) target.preset = null;
-    if (pt.levelDiff === undefined && typeof pt.level === 'number') target.levelDiff = pt.level - (parsed.level ?? DEFAULT_STATE.level);
-    delete (target as Partial<TargetState> & { level?: number }).level;
     return { ...DEFAULT_STATE, ...parsed, target, settings: { ...DEFAULT_STATE.settings, ...parsed.settings } };
   } catch {
     return null;
