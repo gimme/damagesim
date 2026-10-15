@@ -206,7 +206,7 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick, sim }: { r
             </span>
             <span>
               <span className="swatch" style={{ background: 'var(--accent-2)' }} />
-              effect damage
+              effect
             </span>
           </span>
           <span role="columnheader" className={`iv-pg ${by === 'perGold' ? 'on' : ''}`}>
@@ -321,7 +321,7 @@ function RowTip({ row: r, current, view, action }: { row: Row; current: number |
           <div className="tt-row">
             <span>
               <span className="swatch" style={{ background: 'var(--accent-2)', marginRight: 6 }} />
-              Effect damage
+              Effect
             </span>
             <strong>{signed(r.itemDamage)}</strong>
           </div>
