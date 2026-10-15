@@ -224,7 +224,12 @@ export function useHoverCard() {
   // The element whose keyboard focus opened the card; only its blur closes it, as touching an
   // element (a long press too) moves focus, which would close the card a finger opened.
   const focused = useRef<HTMLElement | null>(null);
+  // The element the open card is for. An element that's removed (a search filtering the list under
+  // the pointer) gets no pointerleave, so its unmounting closes its card.
+  const shownFor = useRef<HTMLElement | null>(null);
   const show = (anchor: HTMLElement, content: ReactNode, touch = false) => {
+    if (!anchor.isConnected) return;
+    shownFor.current = anchor;
     isOpen.current = true;
     focused.current = null;
     if (touch) scrubbing.current = true;
@@ -232,6 +237,7 @@ export function useHoverCard() {
   };
   const hide = () => {
     clearTimeout(timer.current);
+    shownFor.current = null;
     isOpen.current = false;
     focused.current = null;
     setCard(null);
@@ -295,6 +301,7 @@ export function useHoverCard() {
       node.removeEventListener('touchmove', move);
       node.removeEventListener('touchend', end);
       node.removeEventListener('touchcancel', end);
+      if (shownFor.current === node) hide();
     };
   }, []);
 
