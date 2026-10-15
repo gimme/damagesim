@@ -42,10 +42,10 @@ export function Summary({ r }: { r: SimResult }) {
         </span>
         <div className="segmented small" role="group" aria-label="Order the bar's sources">
           <button aria-pressed={by === 'time'} onClick={() => setBy('time')}>
-            By time
+            Chronological
           </button>
           <button aria-pressed={by === 'size'} onClick={() => setBy('size')}>
-            By size
+            Grouped
           </button>
         </div>
       </div>
