@@ -626,7 +626,8 @@ label.field {
     user-select: none;
     -webkit-touch-callout: none;
   }
-  [data-hovercard] img {
+  [data-hovercard] img,
+  .chart-wrap img {
     pointer-events: none;
   }
 }

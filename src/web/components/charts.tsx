@@ -48,18 +48,37 @@ export function useTooltip() {
     return () => ro.disconnect();
   }, []);
   // A finger is held by the part of the chart it went down on; letting go of it lets a finger slid
-  // sideways move on to the next part (styles.css leaves sideways slides to the chart).
+  // sideways move on to the next part (styles.css leaves sideways slides to the chart). Once it has
+  // been down a moment with a tooltip showing, its moves in any direction stay with the chart rather
+  // than scrolling the page; a swipe that starts moving at once still scrolls. React's touchmove is
+  // passive, so that one is added here.
+  const shown = useRef(false);
+  const downAt = useRef(0);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const release = (e: PointerEvent) => e.pointerType === 'touch' && (e.target as Element).releasePointerCapture(e.pointerId);
-    el.addEventListener('pointerdown', release);
-    return () => el.removeEventListener('pointerdown', release);
+    const down = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return;
+      downAt.current = e.timeStamp;
+      (e.target as Element).releasePointerCapture(e.pointerId);
+    };
+    const move = (e: TouchEvent) => shown.current && e.timeStamp - downAt.current >= 200 && e.cancelable && e.preventDefault();
+    el.addEventListener('pointerdown', down);
+    el.addEventListener('touchmove', move, { passive: false });
+    return () => {
+      el.removeEventListener('pointerdown', down);
+      el.removeEventListener('touchmove', move);
+    };
   }, []);
   const show = (e: { clientX: number; clientY: number; pointerType?: string }, content: ReactNode) => {
     const box = ref.current?.getBoundingClientRect();
     if (!box) return;
+    shown.current = true;
     setTip({ x: e.clientX - box.left, y: e.clientY - box.top, touch: e.pointerType === 'touch', content });
+  };
+  const hide = () => {
+    shown.current = false;
+    setTip(null);
   };
   // Below and right of the cursor; left of it when it would pass the chart's right edge, above it
   // when it would pass the bottom of the window. Above a finger, which covers what's below it.
@@ -83,7 +102,7 @@ export function useTooltip() {
       {tip.content}
     </div>
   ) : null;
-  return { ref, show, hide: () => setTip(null), node, width: Math.max(280, width) };
+  return { ref, show, hide, node, width: Math.max(280, width) };
 }
 
 export const niceMax = (v: number) => {
@@ -451,9 +470,23 @@ export interface GoldPoint {
   highlight?: boolean;
 }
 
-export function GoldScatter({ points, labelTop = 6, tip, onPick }: { points: GoldPoint[]; labelTop?: number; tip: (p: GoldPoint) => ReactNode; onPick?: (p: GoldPoint) => void }) {
+export function GoldScatter({ points, labelTop = 6, tip, onPick }: { points: GoldPoint[]; labelTop?: number; tip: (p: GoldPoint, touch: boolean) => ReactNode; onPick?: (p: GoldPoint) => void }) {
   const tt = useTooltip();
   const [hover, setHover] = useState<number | null>(null);
+  // A click buys the dot clicked, but a tap shows its card instead, as a finger hides which dot it's
+  // on; the card stays until the next touch. Whether the click was a tap, from its pointerdown.
+  const touched = useRef(false);
+  const [tapped, setTapped] = useState(false);
+  useEffect(() => {
+    if (!tapped) return;
+    const close = () => {
+      setTapped(false);
+      setHover(null);
+      tt.hide();
+    };
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [tapped]);
   const W = tt.width;
   const H = W < 600 ? 260 : 320;
   const m = { l: 48, r: 14, t: 24, b: 30 };
@@ -573,10 +606,13 @@ export function GoldScatter({ points, labelTop = 6, tip, onPick }: { points: Gol
           height={H - m.t - m.b}
           fill="transparent"
           style={{ cursor: hovered && onPick && !hovered.highlight ? 'pointer' : 'default' }}
+          onPointerDown={(e) => {
+            touched.current = e.pointerType === 'touch';
+          }}
           onPointerMove={(e) => {
             const p = nearest(e);
             setHover(p?.id ?? null);
-            if (p) tt.show(e, tip(p));
+            if (p) tt.show(e, tip(p, e.pointerType === 'touch'));
             else tt.hide();
           }}
           onPointerLeave={() => {
@@ -585,7 +621,14 @@ export function GoldScatter({ points, labelTop = 6, tip, onPick }: { points: Gol
           }}
           onClick={(e) => {
             const p = nearest(e);
-            if (p && onPick && !p.highlight) onPick(p);
+            if (!touched.current) {
+              if (p && onPick && !p.highlight) onPick(p);
+              return;
+            }
+            setHover(p?.id ?? null);
+            if (!p) return;
+            tt.show({ clientX: e.clientX, clientY: e.clientY, pointerType: 'touch' }, tip(p, true));
+            setTapped(true);
           }}
         />
       </svg>
