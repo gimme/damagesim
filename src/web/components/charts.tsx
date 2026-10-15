@@ -156,12 +156,15 @@ const addHit = (s: SourceTotal, e: DamageInstance) => {
  * ticks between two of those blocks, whatever their sources. An action's hit landing after another
  * action's block began starts a new one, so the bar fills as the target's health went down. DoT
  * ticks, and the procs they set off (sharing their cast), don't split blocks, or every tick would.
- * A block is named by its first hit's source; several sources' DoTs are named DoTs.
+ * A block is named by its first hit that isn't an item's or rune's proc (one can land before the
+ * ability that set it off: Voltaic Cyclosword's before Smolder's W), else by its first hit; several
+ * sources' DoTs are named DoTs.
  */
 function moments(events: DamageInstance[]) {
   const out: Moment[] = [];
   const open = new Map<string, number>();
   const ticks = new Set<number>();
+  const named = new Set<Moment>();
   for (const e of events) {
     if (e.flags.dot) ticks.add(e.castId);
     const dot = !!e.flags.dot || (!!e.flags.proc && ticks.has(e.castId));
@@ -172,6 +175,10 @@ function moments(events: DamageInstance[]) {
       out.push({ source: e.source, label: e.sourceLabel, action: e.action, dot, parts: [], damage: 0, raw: 0, hits: 0, type: {}, from: e.time, to: e.time });
     }
     const m = out[i];
+    if (!e.flags.proc && !named.has(m)) {
+      named.add(m);
+      Object.assign(m, { source: e.source, label: e.sourceLabel });
+    }
     let part = m.parts.find((p) => p.source === e.source && p.label === e.sourceLabel);
     if (!part) m.parts.push((part = { source: e.source, label: e.sourceLabel, damage: 0, raw: 0, hits: 0, type: {} }));
     addHit(part, e);
