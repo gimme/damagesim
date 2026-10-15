@@ -644,6 +644,14 @@ label.field {
 .tooltip .tt-row strong {
   font-variant-numeric: tabular-nums;
 }
+.tt-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tt-source .icon {
+  margin-block: 1px;
+}
 
 /* Item hover card */
 .tooltip.hovercard {

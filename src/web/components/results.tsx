@@ -101,7 +101,7 @@ export function Details({ r, scenario, sim, state, pinned, onPin, onUnpin }: { r
             <span>Target health over time; dots are damage instances, bars along the bottom are your actions.</span>
             <TypeLegend />
           </div>
-          <Timeline events={r.events} startHp={r.target.startHp} maxHp={r.target.maxHp} timeline={r.timeline} />
+          <Timeline events={r.events} startHp={r.target.startHp} maxHp={r.target.maxHp} timeline={r.timeline} champion={r.champion.id} />
         </>
       )}
       {tab === 'Breakdown' && (
@@ -110,7 +110,7 @@ export function Details({ r, scenario, sim, state, pinned, onPin, onUnpin }: { r
             <span>Damage dealt by source.</span>
             <TypeLegend />
           </div>
-          <SourceBars sources={r.bySource} />
+          <SourceBars sources={r.bySource} champion={r.champion.id} />
           <table className="data" style={{ marginTop: 10 }}>
             <thead>
               <tr>

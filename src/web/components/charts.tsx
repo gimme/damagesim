@@ -5,12 +5,14 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } f
 import type { DamageInstance } from '../../engine/effects.ts';
 import type { SourceTotal } from '../../engine/sim.ts';
 import { abilityIcon } from '../data.ts';
-import { fmt, sourceMark } from './common.tsx';
+import { Icon, fmt, sourceMark } from './common.tsx';
 
 export type DmgType = 'physical' | 'magic' | 'true';
 export const TYPE_COLOR: Record<DmgType, string> = { magic: 'var(--magic)', physical: 'var(--physical)', true: 'var(--true)' };
 export const TYPE_ORDER: DmgType[] = ['magic', 'physical', 'true'];
 export const TYPE_LABEL: Record<DmgType, string> = { magic: 'Magic', physical: 'Physical', true: 'True' };
+/** The damage types' colors for small text: a tooltip's numbers. */
+const TYPE_TEXT: Record<DmgType, string> = { magic: 'var(--magic-text)', physical: 'var(--physical-text)', true: 'var(--true-text)' };
 /** The damage types, the one with the most damage first. */
 const typesByAmount = (amounts: Partial<Record<DmgType, number>>) => [...TYPE_ORDER].sort((a, b) => (amounts[b] ?? 0) - (amounts[a] ?? 0));
 
@@ -290,7 +292,7 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
             const textX = show === 'both' ? cx + (ICON + 3) / 2 : cx;
             const iconX = show === 'both' ? textX - textW / 2 - 3 - ICON : cx - ICON / 2;
             return (
-              <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} maxHp={maxHp} />)} onPointerLeave={tt.hide}>
+              <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} maxHp={maxHp} champion={champion} />)} onPointerLeave={tt.hide}>
                 {/* The whole block, gap included, so moving across the bar never leaves all of them */}
                 <rect x={x} y={0} width={w} height={H} fill="transparent" />
                 {/* 2px between blocks (see gap). Each layer runs to the bottom, under the next, so no seam shows between them. */}
@@ -333,29 +335,39 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
   );
 }
 
-function SourceTip({ s, maxHp }: { s: SourceTotal | Moment; maxHp: number }) {
-  // A block of several sources lists them, each keyed by the type it deals most; one source, its types.
+/** A source's name, or `children` in its place, with its icon on the left (the initials of its name when it has none). */
+function SourceName({ source, label, champion, children = label }: { source: string; label: string; champion: string; children?: ReactNode }) {
+  return (
+    <span className="tt-source">
+      <Icon src={blockMark(source, label, champion).icon} label={label} size="xs" />
+      {children}
+    </span>
+  );
+}
+
+function SourceTip({ s, maxHp, champion }: { s: SourceTotal | Moment; maxHp?: number; champion: string }) {
+  // A block of several sources lists them, each number in the color of the type it deals most; one source, its types.
   const rows =
     'parts' in s && s.parts.length > 1
-      ? s.parts.map((p) => ({ key: `${p.source}|${p.label}`, t: typesByAmount(p.type)[0], name: p.label, damage: p.damage }))
+      ? s.parts.map((p) => ({ key: `${p.source}|${p.label}`, t: typesByAmount(p.type)[0], name: <SourceName source={p.source} label={p.label} champion={champion} />, damage: p.damage }))
       : typesByAmount(s.type)
           .filter((t) => t in s.type)
           .map((t) => ({ key: t, t, name: TYPE_LABEL[t], damage: s.type[t]! }));
   return (
     <>
-      <div className="tt-title">{s.label}</div>
+      <div className="tt-title">
+        <SourceName source={s.source} label={s.label} champion={champion} />
+      </div>
       {rows.map(({ key, t, name, damage }) => (
         <div className="tt-row" key={key}>
-          <span>
-            <span className="line-key" style={{ background: TYPE_COLOR[t], marginRight: 6 }} />
-            {name}
-          </span>
-          <strong>{fmt(damage)}</strong>
+          <span>{name}</span>
+          <strong style={{ color: TYPE_TEXT[t] }}>{fmt(damage)}</strong>
         </div>
       ))}
       <div className="tt-row muted">
         <span>
-          {s.hits} hit{s.hits === 1 ? '' : 's'} · {((s.damage / maxHp) * 100).toFixed(1)}% max HP
+          {s.hits} hit{s.hits === 1 ? '' : 's'}
+          {maxHp && ` · ${((s.damage / maxHp) * 100).toFixed(1)}% max HP`}
           {'from' in s && (s.to - s.from < 0.005 ? ` · at ${s.from.toFixed(2)}s` : ` · ${s.from.toFixed(2)}–${s.to.toFixed(2)}s`)}
         </span>
       </div>
@@ -366,7 +378,7 @@ function SourceTip({ s, maxHp }: { s: SourceTotal | Moment; maxHp: number }) {
 // -----------------------------------------------------------------------------
 // Timeline: target HP over time (step line) with each damage instance as a dot.
 
-export function Timeline({ events, startHp, maxHp, timeline }: { events: DamageInstance[]; startHp: number; maxHp: number; timeline: { step: string; start: number; end: number }[] }) {
+export function Timeline({ events, startHp, maxHp, timeline, champion }: { events: DamageInstance[]; startHp: number; maxHp: number; timeline: { step: string; start: number; end: number }[]; champion: string }) {
   const tt = useTooltip();
   const W = tt.width;
   const H = 260;
@@ -394,11 +406,10 @@ export function Timeline({ events, startHp, maxHp, timeline }: { events: DamageI
         </div>
         {near.slice(0, 8).map((ev) => (
           <div className="tt-row" key={ev.id}>
-            <span>
-              <span className="line-key" style={{ background: TYPE_COLOR[ev.type], marginRight: 6 }} />
+            <SourceName source={ev.source} label={ev.sourceLabel} champion={champion}>
               {ev.sourceLabel === ev.label ? ev.label : `${ev.sourceLabel}: ${ev.label}`}
-            </span>
-            <strong>{fmt(ev.final ?? 0)}</strong>
+            </SourceName>
+            <strong style={{ color: TYPE_TEXT[ev.type] }}>{fmt(ev.final ?? 0)}</strong>
           </div>
         ))}
         {near.length > 8 && <div className="muted">+{near.length - 8} more</div>}
@@ -456,7 +467,7 @@ export function Timeline({ events, startHp, maxHp, timeline }: { events: DamageI
 // -----------------------------------------------------------------------------
 // Horizontal stacked bars: damage by source, segments by damage type.
 
-export function SourceBars({ sources }: { sources: SourceTotal[] }) {
+export function SourceBars({ sources, champion }: { sources: SourceTotal[]; champion: string }) {
   const tt = useTooltip();
   const rows = sources.filter((s) => s.damage > 0.5);
   const W = tt.width;
@@ -474,7 +485,7 @@ export function SourceBars({ sources }: { sources: SourceTotal[] }) {
           const y = i * rowH + 6;
           const parts = TYPE_ORDER.filter((t) => (s.type[t] ?? 0) > 0);
           return (
-            <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} maxHp={Infinity} />)} onPointerLeave={tt.hide}>
+            <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} champion={champion} />)} onPointerLeave={tt.hide}>
               <rect x={0} y={y - 4} width={W} height={rowH} fill="transparent" />
               <text x={labelW - 10} y={y + 15} textAnchor="end" fontSize={13} fill="var(--text-primary)">
                 {s.label.length > maxChars ? s.label.slice(0, maxChars - 1) + '…' : s.label}
