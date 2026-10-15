@@ -131,7 +131,7 @@ test('a combo against a true-dummy deals the sum of its hits', () => {
 });
 
 test('Ignite: true damage in 5 ticks, not amplified', () => {
-  const r = simulate(data, { champion: 'Ahri', level: 11, runes: ['Coup de Grace'], combo: 'ignite', target: { ...dummy, hpPercent: 0.3 } });
+  const r = simulate(data, { champion: 'Ahri', level: 11, runes: ['Coup de Grace'], combo: 'ignite', target: { ...dummy, hpPercent: 30 } });
   near(r.totalDamage, 300);
   assert.equal(r.events.length, 5);
 });
@@ -224,7 +224,7 @@ test('Darius R scales with Hemorrhage stacks and caps at 200%', () => {
 });
 
 test('Collector executes below 5% health', () => {
-  const r = simulate(data, { champion: 'Jinx', level: 18, items: ['The Collector'], combo: 'AA?', target: { maxHp: 1000, hpPercent: 0.2, armor: 0, mr: 0 } });
+  const r = simulate(data, { champion: 'Jinx', level: 18, items: ['The Collector'], combo: 'AA?', target: { maxHp: 1000, hpPercent: 20, armor: 0, mr: 0 } });
   assert.ok(r.killed);
   assert.ok(r.events.some((e) => e.label === 'Execute'));
 });
@@ -298,7 +298,7 @@ test('rune hover text: the in-game tooltip with numbers for the attacker, else t
   assert.ok(ptaText.body.includes('3-Hit Cooldown: 6s') && !/Bonus Damage Dealt/.test(ptaText.body), ptaText.body);
   assert.ok(runeText(rune(8005)).body.includes('40 - 160 bonus <attention>adaptive damage</attention>'));
   const souls = { champion: 'Ahri', level: 11, items: ["Luden's Echo"], runes: ['Dark Harvest'], options: { 'darkHarvest.souls': 10 } };
-  const harvest = simulate(data, { ...souls, combo: 'Q', target: { ...dummy, hpPercent: 0.3 } }).events.find((e) => e.source === 'rune:8128')!;
+  const harvest = simulate(data, { ...souls, combo: 'Q', target: { ...dummy, hpPercent: 30 } }).events.find((e) => e.source === 'rune:8128')!;
   const dh = runeText(rune(8128), new Sim(data, { ...souls, combo: [] }));
   assert.ok(dh.body.includes(`deals <magicDamage>${formatNumber(harvest.raw)} magic damage</magicDamage>`), dh.body);
   assert.ok(dh.body.includes('Souls harvested: <font color=\'#fc314e\'>10</font>') && !/Total damage dealt/i.test(dh.body), dh.body);

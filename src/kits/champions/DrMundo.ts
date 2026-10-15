@@ -1,4 +1,5 @@
 import type { ChampionKit } from '../../engine/kit-types.ts';
+import { SELF_HP } from '../../engine/effects.ts';
 
 // Dr. Mundo — patch 16.20.
 const kit: ChampionKit = {
@@ -9,6 +10,7 @@ const kit: ChampionKit = {
     "Blunt Force Trauma's bonus damage grows linearly with Mundo's missing health, up to +40% at 70% missing (wiki); Mundo's health comes from the self.hpPercent option (default full).",
     'Heart Zapper: ticks every 0.25s (wiki) for the full 3s, then detonates automatically (TotalDamage). Gray-health healing and Maximum Dosage are not modeled.',
   ],
+  options: [SELF_HP],
   stats: ({ ranks, evalExpr }) => (ranks.E > 0 ? { ad: evalExpr('E.calc.PassiveBonusAD', 'E') } : {}),
   abilities: {
     Q: {

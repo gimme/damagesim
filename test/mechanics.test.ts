@@ -44,7 +44,7 @@ test('Energized: the attack after reaching 100 charges is Energized', () => {
 });
 
 test("Shadowflame crits magic damage below 40% health; Abyssal Mask multiplies", () => {
-  const low = simulate(data, { champion: 'Ahri', level: 11, items: ['Shadowflame', 'Abyssal Mask'], combo: 'E', target: { maxHp: 5000, hpPercent: 0.3, armor: 0, mr: 0 } });
+  const low = simulate(data, { champion: 'Ahri', level: 11, items: ['Shadowflame', 'Abyssal Mask'], combo: 'E', target: { maxHp: 5000, hpPercent: 30, armor: 0, mr: 0 } });
   const e = low.events.find((x) => x.source === 'E')!;
   // raw × (1 + 0.2) × (1 + 0.12); MR 0, Shadowflame pen irrelevant.
   assert.ok(Math.abs(e.final! - e.raw * 1.2 * 1.12) < 0.01, `${e.final} vs ${e.raw * 1.2 * 1.12}`);

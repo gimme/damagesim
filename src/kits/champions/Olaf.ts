@@ -1,4 +1,5 @@
 import type { ChampionKit } from '../../engine/kit-types.ts';
+import { SELF_HP, selfHp } from '../../engine/effects.ts';
 
 // Olaf — patch 16.20.
 const kit: ChampionKit = {
@@ -9,9 +10,9 @@ const kit: ChampionKit = {
     'Option "axePickup": Olaf picks up Undertow, reducing its cooldown to 2.5 s.',
     "Ragnarok's duration is kept up by attacks / Reckless Swing on the champion (each hit refreshes it to at least 2.5 s).",
   ],
-  options: [{ key: 'axePickup', label: 'Pick up Undertow axe', default: 1, min: 0, max: 1, toggle: true }],
+  options: [{ key: 'axePickup', label: 'Pick up Undertow axe', default: 1, min: 0, max: 1, toggle: true }, SELF_HP],
   stats: ({ opt, ranks, evalExpr }) => {
-    const missing = 1 - (opt['self.hpPercent'] ?? 1);
+    const missing = 1 - selfHp(opt);
     const frac = Math.min(1, Math.max(0, missing / (1 - evalExpr('P.dv.MaxStatsThreshold'))));
     return {
       attackSpeed: evalExpr('P.calc.MaxAttackSpeed') * frac,

@@ -40,7 +40,7 @@ const target = z
     items: z.array(idOrName).optional(),
     maxHp: z.number().optional(),
     hp: z.number().optional().describe('Current HP (absolute)'),
-    hpPercent: z.number().optional().describe('Current HP as fraction of max (0-1)'),
+    hpPercent: z.number().optional().describe('Current HP as a percentage of max (0-100)'),
     bonusHp: z.number().optional(),
     armor: z.number().optional().describe('Total armor'),
     bonusArmor: z.number().optional(),

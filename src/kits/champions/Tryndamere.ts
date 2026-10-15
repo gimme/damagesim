@@ -1,4 +1,5 @@
 import type { ChampionKit } from '../../engine/kit-types.ts';
+import { SELF_HP, selfHp } from '../../engine/effects.ts';
 
 // Tryndamere — patch 16.20.
 // Battle Fury: Fury (0-100) grants crit chance; attacks give 5 (10 on crit), Spinning Slash 5 per
@@ -14,10 +15,10 @@ const kit: ChampionKit = {
     'Crits reduce Spinning Slash cooldown by 1.5s (expected value in expected-crit mode).',
     'Mocking Shout: the slow applies only to targets facing away (assumed); the AD reduction is not modeled.',
   ],
-  options: [{ key: 'fury', label: 'Starting Fury', default: 0, min: 0, max: MAX_FURY, step: 5 }],
+  options: [{ key: 'fury', label: 'Starting Fury', default: 0, min: 0, max: MAX_FURY, step: 5 }, SELF_HP],
   stats: ({ opt, ranks, evalExpr }) => {
     if (!(ranks.Q > 0)) return {};
-    const missing = 1 - (opt['self.hpPercent'] ?? 1);
+    const missing = 1 - selfHp(opt);
     const full = 1 - evalExpr('Q.dv.RemainingHealthThreshold', 'Q');
     return { ad: evalExpr('Q.dv.MaximumBonusAD', 'Q') * Math.min(1, Math.max(0, missing) / full) };
   },

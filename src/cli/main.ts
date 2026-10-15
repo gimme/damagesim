@@ -33,7 +33,7 @@ Scenario options (simulate / compare / rank-items / optimize / combo-order / swe
   -c, --champion <name>         -l, --level <1-20>          --ranks Q=5,W=1,E=3,R=2   --skill-order QEW
   -i, --items <a,b,c>           -r, --runes <a,b,c>         -o, --options key=value,...
   --combo "<steps>"             combo shorthand: Q W E R P, AA, AA*3, AA!/Q! (crit), AA?/Q? (no crit), Q:variant, ignite, item:<name>, wait:1.5
-  --target hp=2000,armor=80,mr=50[,bonusHp=..,bonusArmor=..,bonusMr=..,hpPercent=0.5,dr=0.1]
+  --target hp=2000,armor=80,mr=50[,bonusHp=..,bonusArmor=..,bonusMr=..,hpPercent=50,dr=0.1]
   --target squishy|bruiser|tank[,hpPercent=..]   archetype whose stats follow its level (typical build)
   --target-champion <name> --target-items <a,b>
   --target-level-diff <n>       target level relative to yours (default 0)   --target-level <n> absolute

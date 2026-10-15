@@ -8,7 +8,7 @@ import { hasRuneModel } from '../../engine/runes.ts';
 import { itemText, runeText } from '../../engine/tooltip.ts';
 import type { Sim } from '../../engine/sim.ts';
 
-export function Icon({ src, label, size = '' }: { src: string; label: string; size?: '' | 'sm' | 'lg' }) {
+export function Icon({ src, label, size = '' }: { src: string; label: string; size?: '' | 'xs' | 'sm' | 'lg' }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [src]);
   const initials = label

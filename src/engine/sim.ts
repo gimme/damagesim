@@ -8,7 +8,7 @@ import { compile, type Resolver } from './expr.ts';
 import { computeStats, emptyMods, hasteCooldown, itemStatsToMods, mergeMods, type Stats, type StatMods, GAME } from './stats.ts';
 import { effectiveResist, resistMultiplier, type DamageType } from './damage.ts';
 import type { AbilitySpec, BuffSpec, ChampionKit, ComponentSpec, DebuffSpec, Expr, MarkSpec, VariantSpec } from './kit-types.ts';
-import { addOnHitRepeat, type AttackInfo, type CastInfo, type DamageFlags, type DamageInstance, type DamageRequest, type Effect, type SetupCtx, type Slot } from './effects.ts';
+import { addOnHitRepeat, selfHp, type AttackInfo, type CastInfo, type DamageFlags, type DamageInstance, type DamageRequest, type Effect, type SetupCtx, type Slot } from './effects.ts';
 import { parseCombo, formatCombo, type ComboStep, type CritMode } from './combo.ts';
 import { getKit } from '../kits/index.ts';
 import { createItemEffect, ITEM_GROUPS } from './items.ts';
@@ -33,7 +33,7 @@ export interface TargetSpec {
   maxHp?: number;
   /** Current HP (absolute). */
   hp?: number;
-  /** Current HP as a fraction of max (0-1). */
+  /** Current HP as a percentage of max (0-100). */
   hpPercent?: number;
   /** Portion of max HP that counts as bonus HP. */
   bonusHp?: number;
@@ -240,8 +240,7 @@ export class Sim {
     this.ranks = resolveRanks(this.champ, this.level, scenario.ranks, scenario.skillOrder, bonusSkillPoints(this.runes, this.level));
 
     // Options: kit defaults, then effect defaults, then user values.
-    // Your own current health as a fraction (Last Stand, Absolute Focus, Overlord's…): full by default.
-    this.opt = { 'self.hpPercent': 1 };
+    this.opt = {};
     for (const o of this.kit.options ?? []) this.opt[o.key] = o.default;
 
     this.items = (scenario.items ?? []).map((q) => findItem(data, q));
@@ -297,7 +296,7 @@ export class Sim {
       if (this.computingStats) {
         // Re-entered from a dynamicStats hook (e.g. it evaluates an expression): answer with the
         // static stats so hooks can read stats without recursing.
-        return computeStats({ base: this.champ.stats, level: this.level, adaptiveDefault: this.champ.adaptive, ranged: this.champ.attackType === 'ranged' }, this.staticMods, this.opt['self.hpPercent'] ?? 1);
+        return computeStats({ base: this.champ.stats, level: this.level, adaptiveDefault: this.champ.adaptive, ranged: this.champ.attackType === 'ranged' }, this.staticMods, selfHp(this.opt));
       }
       this.computingStats = true;
       try {
@@ -320,11 +319,10 @@ export class Sim {
         if (b.expires < this.time) continue;
         if (b.mods) mergeMods(mods, b.mods);
       }
-      const hpPct = 1; // attacker HP: full unless an option says otherwise
       const st = computeStats(
         { base: this.champ.stats, level: this.level, adaptiveDefault: this.champ.adaptive, ranged: this.champ.attackType === 'ranged' },
         mods,
-        this.opt['self.hpPercent'] ?? hpPct,
+        selfHp(this.opt),
       );
       // Kits with a fixed attack speed (Jhin) report it in the stats too.
       if (this.kit.attack?.attackSpeed !== undefined) st.attackSpeed = this.evalExpr(this.kit.attack.attackSpeed, { slot: 'P' });
@@ -1962,7 +1960,7 @@ function resolveTarget(data: GameData, spec: TargetSpec, attackerLevel: number):
     baseMr = baseMr + bonusMr - spec.bonusMr;
     bonusMr = spec.bonusMr;
   }
-  const hp = spec.hp ?? maxHp * (spec.hpPercent ?? 1);
+  const hp = spec.hp ?? (maxHp * (spec.hpPercent ?? 100)) / 100;
   if (!spec.champion && !spec.preset && !spec.label) label = `${Math.round(maxHp)} HP / ${Math.round(baseArmor + bonusArmor)} armor / ${Math.round(baseMr + bonusMr)} MR`;
   return {
     label,

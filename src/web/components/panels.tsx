@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { DATA } from '../data.ts';
-import { Card, ChampionPicker, ItemIcon, ItemPicker, ItemTip, NumberField, RuneIcon, RuneTip, fmt, useHoverCard } from './common.tsx';
+import { DATA, championIcon } from '../data.ts';
+import { Card, ChampIcon, ChampionPicker, Icon, ItemIcon, ItemPicker, ItemTip, NumberField, RuneIcon, RuneTip, fmt, sourceMark, useHoverCard } from './common.tsx';
 import { SHARD_ROWS, type UIState, type TargetState } from '../state.ts';
 import { TARGET_PRESETS, type TargetPreset } from '../../engine/presets.ts';
 import { maxRanks, resolveRanks, type Sim, type SimResult } from '../../engine/sim.ts';
@@ -10,6 +10,7 @@ import { critMarking, formatCombo, markCrit, parseCombo, type ComboStep, type Cr
 import { conflicts } from '../../engine/analysis.ts';
 import { getKit } from '../../kits/index.ts';
 import type { Effect, Slot } from '../../engine/effects.ts';
+import type { KitOption } from '../../engine/kit-types.ts';
 
 type Set = (fn: (s: UIState) => UIState) => void;
 
@@ -70,52 +71,75 @@ export function AttackerPanel({ state, set, sim }: { state: UIState; set: Set; s
 }
 
 function OptionsEditor({ state, set, sim }: { state: UIState; set: Set; sim: Sim | null }) {
-  const kit = getKit(DATA.champions[state.champion]);
-  const effectOpts = (sim?.effects ?? []).flatMap((e: Effect) => (e.options ?? []).map((o) => ({ ...o, from: e.label })));
-  const opts = [...(kit.options ?? []).map((o) => ({ ...o, from: DATA.champions[state.champion].name })), ...effectOpts].filter((o, i, a) => a.findIndex((x) => x.key === o.key) === i);
-  if (!opts.length) return null;
+  const hover = useHoverCard();
+  const champ = DATA.champions[state.champion];
+  const kit = getKit(champ);
+  // Each parameter once, with everything in the scenario that reads it: your HP can matter to Olaf,
+  // Last Stand and Overlord's Bloodmail at once.
+  const declared = [
+    ...(kit.options ?? []).map((o) => ({ o, id: 'kit', name: champ.name })),
+    ...(sim?.effects ?? []).flatMap((e: Effect) => (e.options ?? []).map((o) => ({ o, id: e.id, name: e.label }))),
+  ];
+  const opts = new Map<string, { o: KitOption; sources: { id: string; name: string }[] }>();
+  for (const { o, id, name } of declared) {
+    const entry = opts.get(o.key) ?? { o, sources: [] };
+    if (!entry.sources.some((s) => s.id === id)) entry.sources.push({ id, name });
+    opts.set(o.key, entry);
+  }
+  if (!opts.size) return null;
+  const card = (id: string, name: string) => {
+    const [kind, n] = id.split(':');
+    if (kind === 'item') return <ItemTip id={Number(n)} sim={sim} />;
+    if (kind === 'rune') return <RuneTip id={Number(n)} sim={sim} />;
+    return (
+      <div className="item-tip">
+        <div className="it-head">
+          <ChampIcon id={state.champion} size="sm" />
+          <strong>{name}</strong>
+        </div>
+      </div>
+    );
+  };
+  const setOpt = (key: string, v: number) => set((s) => ({ ...s, options: { ...s.options, [key]: v } }));
   return (
     <details>
-      <summary>Champion, item & rune parameters ({opts.length})</summary>
+      <summary>Champion, item & rune parameters ({opts.size})</summary>
       <div className="stack" style={{ marginTop: 8 }}>
-        {opts.map((o) => {
+        {[...opts.values()].map(({ o, sources }) => {
           const v = state.options[o.key] ?? o.default;
-          const isToggle = (o as any).toggle || (o.max === 1 && (o.min ?? 0) === 0 && o.step === 1);
+          const isToggle = o.toggle || (o.max === 1 && (o.min ?? 0) === 0 && o.step === 1);
           return (
-            <div key={o.key} className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-              <span className="small" title={(o as any).description ?? o.key}>
-                {o.label} <span className="muted">· {o.from}</span>
+            <div key={o.key} className="row" style={{ flexWrap: 'nowrap' }}>
+              <span className="small" style={{ flex: 1 }} title={o.description ?? o.key}>
+                {o.label}
               </span>
-              {isToggle ? (
-                <input type="checkbox" checked={!!v} onChange={(e) => set((s) => ({ ...s, options: { ...s.options, [o.key]: e.target.checked ? 1 : 0 } }))} />
-              ) : (
-                <input
-                  type="number"
-                  value={v}
-                  min={o.min}
-                  max={o.max}
-                  step={o.step ?? 1}
-                  style={{ width: 80 }}
-                  onChange={(e) => set((s) => ({ ...s, options: { ...s.options, [o.key]: Number(e.target.value) } }))}
-                />
-              )}
+              <span className="opt-sources">
+                {sources.map((s) => (
+                  <span key={s.id} tabIndex={0} role="img" aria-label={s.name} {...hover.bind(card(s.id, s.name))}>
+                    <Icon src={s.id === 'kit' ? championIcon(state.champion) : sourceMark(s.id, s.name, state.champion).icon} label={s.name} size="xs" />
+                  </span>
+                ))}
+              </span>
+              <span className="opt-control">
+                {isToggle ? (
+                  <input type="checkbox" aria-label={o.label} checked={!!v} onChange={(e) => setOpt(o.key, e.target.checked ? 1 : 0)} />
+                ) : (
+                  <input
+                    type="number"
+                    aria-label={o.label}
+                    value={v}
+                    min={o.min}
+                    max={o.max}
+                    step={o.step ?? 1}
+                    onChange={(e) => setOpt(o.key, Number(e.target.value))}
+                  />
+                )}
+              </span>
             </div>
           );
         })}
-        <div className="row" style={{ justifyContent: 'space-between' }}>
-          <span className="small">
-            Your current HP <span className="muted">· Last Stand, Absolute Focus…</span>
-          </span>
-          <input
-            type="number"
-            min={1}
-            max={100}
-            value={Math.round((state.options['self.hpPercent'] ?? 1) * 100)}
-            style={{ width: 80 }}
-            onChange={(e) => set((s) => ({ ...s, options: { ...s.options, 'self.hpPercent': Number(e.target.value) / 100 } }))}
-          />
-        </div>
       </div>
+      {hover.node}
     </details>
   );
 }
@@ -337,8 +361,8 @@ export function TargetPanel({ state, set, resolved, label }: { state: UIState; s
       )}
       <div className="grid2" style={{ marginTop: 8 }}>
         <label className="field">
-          Current HP ({Math.round(t.hpPercent * 100)}%)
-          <input type="range" min={1} max={100} value={Math.round(t.hpPercent * 100)} onChange={(e) => upd({ hpPercent: Number(e.target.value) / 100 })} />
+          Current HP ({t.hpPercent}%)
+          <input type="range" min={1} max={100} value={t.hpPercent} onChange={(e) => upd({ hpPercent: Number(e.target.value) })} />
         </label>
         <NumberField label="Damage reduction %" value={Math.round(t.damageReduction * 100)} min={0} max={90} onChange={(v) => upd({ damageReduction: v / 100 })} />
       </div>

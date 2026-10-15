@@ -8,10 +8,10 @@ export const SCENARIO_HELP = `Scenario JSON (all fields except champion and comb
   "skillOrder": "QWE",
   "items": ["Luden's Echo", "Sorcerer's Shoes", 3089],   // names, aliases (dcap, botrk, ie…) or ids
   "runes": ["Electrocute", "Cheap Shot", 5008, 5008, 5001],  // keystone, minors and shards (ids or names)
-  "options": { "darkHarvest.souls": 10, "self.hpPercent": 0.5 },  // champion/item/rune parameters
+  "options": { "darkHarvest.souls": 10, "self.hpPercent": 50 },  // champion/item/rune parameters
   "combo": "E Q W R AA ignite",       // or an array of steps (below)
   "target": {                         // either a preset…
-    "preset": "tank", "levelDiff": 0, "hpPercent": 1
+    "preset": "tank", "levelDiff": 0, "hpPercent": 100
     // squishy | bruiser | tank: class-average base stats + a typical build for the target's level
     // (boots ~lvl 7, first item ~9, 6 items at 18) + health shards. levelDiff: target level minus yours.
     // …or a champion: "champion": "Jinx", "levelDiff": -1, "items": ["Infinity Edge"]  ("level" = absolute)
@@ -36,7 +36,7 @@ Combo steps (array form):
 Combo shorthand: "Q W E R P AA AA*3 3AA AA! AA? Q! Q? Q:variant Q{out:1,back:0} Q+bonus ignite item:rocketbelt wait:1.5"
   (crits deal their expected value; ! crits every hit of the step that can crit, ? none, follow-up attacks included)
 
-Common options: self.hpPercent (your HP, for Last Stand etc.), gameTime (minutes; Gathering Storm,
+Common options: self.hpPercent (your HP in %, for Last Stand etc.), gameTime (minutes; Gathering Storm,
 Conditioning), distance (to the target; Arcane Comet, Hexoptics C44, Horizon Focus), legend.stacks,
 darkHarvest.souls, aery.cycle, grasp.charged, firstStrike.active, suddenImpact.armed, energized.start
 (0-100), heartsteel.ready, heartsteel.stacks, glory.stacks, rodofages.stacks, yuntal.crit,

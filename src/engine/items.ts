@@ -5,7 +5,7 @@
 // Behaviour sources: the in-game tooltips and docs/research/items.md.
 
 import type { ItemData } from './data-types.ts';
-import { addOnHitRepeat, DISTANCE, forceCrit, triggersOnAttack, type DamageInstance, type DamageRequest, type Effect, type SetupCtx } from './effects.ts';
+import { addOnHitRepeat, DISTANCE, forceCrit, SELF_HP, selfHp, triggersOnAttack, type DamageInstance, type DamageRequest, type Effect, type SetupCtx } from './effects.ts';
 import type { Sim } from './sim.ts';
 import type { StatMods } from './stats.ts';
 
@@ -837,8 +837,9 @@ const ITEMS: Record<number, Factory> = {
   3168: (item) =>
     effect(item, {
       description: 'Deal 4% increased damage while above half health.',
+      options: [SELF_HP],
       beforeDamage(sim, inst) {
-        if ((sim.opt['self.hpPercent'] ?? 1) > 0.5 && !inst.flags.unamplified) inst.amps.push({ source: item.name, value: dv(item, 'DamageMod'), kind: 'dealt' });
+        if (selfHp(sim.opt) > 0.5 && !inst.flags.unamplified) inst.amps.push({ source: item.name, value: dv(item, 'DamageMod'), kind: 'dealt' });
       },
     }),
   2522: (item) => {
@@ -1042,8 +1043,9 @@ const ITEMS: Record<number, Factory> = {
   2501: (item) =>
     effect(item, {
       description: 'AD equal to 2.5% bonus health; up to +12% AD based on your missing health.',
+      options: [SELF_HP],
       stats(ctx) {
-        const missing = 1 - (ctx.opt['self.hpPercent'] ?? 1);
+        const missing = 1 - selfHp(ctx.opt);
         const scale = Math.min(1, missing / dv(item, 'MissingHealthThreshold'));
         const conversions: StatMods['conversions'] = [{ from: 'bonusHp', to: 'ad', ratio: dv(item, 'HPToADPercentage'), source: item.name }];
         if (scale > 0) conversions.push({ from: 'totalAd', to: 'ad', ratio: dv(item, 'MissingHealthAD') * scale, source: `${item.name} (Retribution)` });

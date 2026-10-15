@@ -358,6 +358,30 @@ label.field {
   border-radius: 4px;
   font-size: 9px;
 }
+.icon.xs {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 8px;
+}
+
+/* A parameter's row: what it is, the champion, items and runes that read it, and its field. */
+.opt-sources {
+  display: inline-flex;
+  gap: 3px;
+}
+.opt-sources > span {
+  display: inline-flex;
+  border-radius: 4px;
+}
+.opt-control {
+  width: 80px;
+  display: flex;
+  justify-content: flex-end;
+}
+.opt-control input[type='number'] {
+  width: 100%;
+}
 
 /* Item slots */
 .slots {

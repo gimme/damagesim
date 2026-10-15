@@ -2,7 +2,7 @@
 // research notes in docs/research/runes.md (trigger rules, damage types, stacking).
 
 import type { RuneData } from './data-types.ts';
-import { DISTANCE, triggersOnAttack, type DamageInstance, type Effect, type SetupCtx } from './effects.ts';
+import { DISTANCE, SELF_HP, selfHp, triggersOnAttack, type DamageInstance, type Effect, type SetupCtx } from './effects.ts';
 import type { Sim } from './sim.ts';
 import { GAME, type StatMods } from './stats.ts';
 import { ITEM_STAT_TYPES } from './items.ts';
@@ -556,10 +556,11 @@ const RUNES: Record<number, Factory> = {
   8299: (rune) =>
     base(rune, {
       description: '+5% to +11% damage while you are below 60% health (your health is option self.hpPercent).',
+      options: [SELF_HP],
       beforeDamage(sim, inst) {
         if (inst.flags.unamplified) return;
         const v = rune.values;
-        const hp = sim.opt['self.hpPercent'] ?? 1;
+        const hp = selfHp(sim.opt);
         if (hp >= v.HealthThresholdStart) return;
         const t = Math.min(1, Math.max(0, (v.HealthThresholdStart - hp) / (v.HealthThresholdStart - v.HealthThresholdEnd)));
         inst.amps.push({ source: rune.name, value: v.MinBonusDamagePercent + (v.MaxBonusDamagePercent - v.MinBonusDamagePercent) * t, kind: 'dealt' });
@@ -686,8 +687,9 @@ const RUNES: Record<number, Factory> = {
   8233: (rune) =>
     base(rune, {
       description: 'Adaptive force while above 70% health.',
+      options: [SELF_HP],
       stats(ctx) {
-        if ((ctx.opt['self.hpPercent'] ?? 1) <= rune.values.HealthPercent) return;
+        if (selfHp(ctx.opt) <= rune.values.HealthPercent) return;
         return { adaptive: lerpLevel(ctx.level, rune.values.MinAdaptive, rune.values.MaxAdaptive) };
       },
     }),

@@ -65,7 +65,7 @@ export const DEFAULT_STATE: UIState = {
     bonusHp: 150,
     bonusArmor: 0,
     bonusMr: 0,
-    hpPercent: 1,
+    hpPercent: 100,
     damageReduction: 0,
     champion: 'Jinx',
     items: [3031],

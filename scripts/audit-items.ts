@@ -230,8 +230,8 @@ const PROBES: Probe[] = [
   // Recasts wait for cooldowns (haste, cooldown refunds).
   { key: 'cooldowns', champion: 'Ezreal', combo: 'Q AA Q AA Q AA Q', target: tank },
   // Below-half-health target (Dark Harvest, Coup de Grace, Shadowflame…) and attacker (Last Stand).
-  { key: 'low-hp', champion: 'Ahri', combo: 'E Q W R AA AA', target: { preset: 'squishy', hpPercent: 0.45 }, options: { 'self.hpPercent': 0.3 } },
-  { key: 'execute', champion: 'Garen', combo: 'AA*12', target: { preset: 'squishy', hpPercent: 0.2 } },
+  { key: 'low-hp', champion: 'Ahri', combo: 'E Q W R AA AA', target: { preset: 'squishy', hpPercent: 45 }, options: { 'self.hpPercent': 30 } },
+  { key: 'execute', champion: 'Garen', combo: 'AA*12', target: { preset: 'squishy', hpPercent: 20 } },
 ];
 
 interface Obs {

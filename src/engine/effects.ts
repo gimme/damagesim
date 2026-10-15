@@ -3,7 +3,7 @@
 import type { DamageType } from './damage.ts';
 import type { StatMods } from './stats.ts';
 import type { Sim } from './sim.ts';
-import type { ComponentSpec } from './kit-types.ts';
+import type { ComponentSpec, KitOption } from './kit-types.ts';
 
 export type Slot = 'P' | 'Q' | 'W' | 'E' | 'R';
 
@@ -150,6 +150,17 @@ export interface CastInfo {
 /** Distance to the target, shared by Arcane Comet, Hexoptics C44 and Horizon Focus (positions are not simulated). */
 export const DISTANCE = { key: 'distance', label: 'Distance to target (units)', default: 600, min: 0, max: 2000, step: 100, description: 'Where your attacks and abilities hit the target from.' };
 
+/**
+ * Your own health, shared by Last Stand, Absolute Focus, Immortal Path, Overlord's Bloodmail, Olaf,
+ * Tryndamere and Dr. Mundo. It stays where it's set, as the target never fights back. Each switches
+ * or stops ramping at a multiple of 10% (Absolute Focus 70, Immortal Path 50, Last Stand 60 to 30,
+ * the rest 30, Tryndamere 10), so it steps by 10.
+ */
+export const SELF_HP: KitOption = { key: 'self.hpPercent', label: 'Your current HP (%)', default: 100, min: 10, max: 100, step: 10, description: 'Your health as a percentage of your maximum health.' };
+
+/** Your current health as a fraction of your maximum (the option is a percentage). */
+export const selfHp = (opt: Record<string, number>) => (opt[SELF_HP.key] ?? SELF_HP.default) / 100;
+
 export interface SetupCtx {
   level: number;
   ranged: boolean;
@@ -198,7 +209,7 @@ export interface Effect extends EffectHooks {
     cast(sim: Sim, castId: number): void;
   };
   /** User-tunable parameters (e.g. stacks). */
-  options?: { key: string; label: string; default: number; min?: number; max?: number; step?: number }[];
+  options?: KitOption[];
 }
 
 export type { ComponentSpec };
