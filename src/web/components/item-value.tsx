@@ -1,7 +1,7 @@
 // Item value: what each legendary or pair of boots would add to the current build, ranked by damage
 // per gold or total damage, as a list or a gold-vs-damage map. Recomputed live as the build changes.
 
-import { useEffect, useMemo, useState, type PointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { DATA } from '../data.ts';
 import { Card, ItemIcon, ItemTip, fmt } from './common.tsx';
 import { GoldScatter, useTooltip, type GoldPoint } from './charts.tsx';
@@ -161,6 +161,36 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick, sim }: { r
   const rank = all.findIndex((r) => r.id === current) + 1;
   const rows = rank > limit ? [...all.slice(0, limit), all[rank - 1]] : all.slice(0, limit);
   const max = Math.max(1e-9, ...all.map((r) => (by === 'perGold' ? r.gainPerGold : r.gain)));
+  // The item shows its details, the bar and numbers where its damage comes from, the Buy column nothing.
+  const show = (e: PointerEvent<HTMLElement>, r: Row, col: string) => {
+    if (col === 'iv-item') tt.show(e, <ItemTip id={r.id} sim={sim} />);
+    else if (col === 'iv-act') tt.hide();
+    else tt.show(e, <RowTip row={r} current={current} />);
+  };
+  // Touch has no hover: a tap opens the card of the column tapped, and it stays until the next tap
+  // (on the same spot, elsewhere in the list or outside it). Phones show only icons, so this is how
+  // to see an item's name.
+  const tapped = useRef<string | null>(null);
+  const tap = (e: PointerEvent<HTMLElement>, r: Row) => {
+    const col = nearestColumn(e);
+    const key = `${r.id} ${col}`;
+    if (col === 'iv-act' || tapped.current === key) {
+      tapped.current = null;
+      tt.hide();
+    } else {
+      tapped.current = key;
+      show(e, r, col);
+    }
+  };
+  useEffect(() => {
+    const outside = (e: globalThis.PointerEvent) => {
+      if (tapped.current == null || tt.ref.current?.contains(e.target as Node)) return;
+      tapped.current = null;
+      tt.hide();
+    };
+    document.addEventListener('pointerdown', outside);
+    return () => document.removeEventListener('pointerdown', outside);
+  }, []);
   return (
     <div className="chart-wrap" ref={tt.ref}>
       <div className="iv-list" role="table" aria-label="Items ranked by the damage they add">
@@ -199,13 +229,9 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick, sim }: { r
               key={r.id}
               role="row"
               className={`iv-row ${isCurrent ? 'current' : ''}`}
-              onPointerMove={(e) => {
-                const col = nearestColumn(e);
-                if (col === 'iv-item') tt.show(e, <ItemTip id={r.id} sim={sim} />);
-                else if (col === 'iv-act') tt.hide();
-                else tt.show(e, <RowTip row={r} current={current} />);
-              }}
-              onPointerLeave={tt.hide}
+              onPointerMove={(e) => e.pointerType !== 'touch' && show(e, r, nearestColumn(e))}
+              onPointerLeave={(e) => e.pointerType !== 'touch' && tt.hide()}
+              onPointerUp={(e) => e.pointerType === 'touch' && tap(e, r)}
             >
               <span role="cell" className="iv-item">
                 <ItemIcon id={r.id} size="sm" />
@@ -240,9 +266,8 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick, sim }: { r
   );
 }
 
-/** The column of a row the pointer is over or nearest to: the item shows its details, the bar and
- *  numbers where its damage comes from, and the Buy column nothing. Nearest, so the row's padding
- *  and the gaps between columns don't switch between them. */
+/** The column of a row the pointer is over or nearest to. Nearest, so the row's padding and the gaps
+ *  between columns don't switch between the cards. */
 function nearestColumn(e: PointerEvent<HTMLElement>): string {
   let best = '';
   let bestDist = Infinity;

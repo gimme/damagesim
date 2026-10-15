@@ -749,17 +749,18 @@ label.field {
   grid-area: act;
   text-align: right;
 }
-/* Phones: one line per item, with only the number being ranked by; the legend gets its own line
-   above the column names, and the narrowest screens leave out the gold cost. */
+/* Phones: one line per item, with only the icon (a tap shows its name, cost and details) and the
+   number being ranked by; the legend gets its own line above the column names. */
 @media (max-width: 600px) {
   .iv-row {
-    grid-template-columns: minmax(0, 1fr) minmax(40px, 18%) 48px 44px;
+    grid-template-columns: 22px minmax(0, 1fr) 48px 44px;
     grid-template-areas: 'item track num act';
-    column-gap: 6px;
+    column-gap: 8px;
     padding-inline: 4px;
   }
-  .iv-name {
-    font-size: 13px;
+  .iv-name,
+  .iv-gold {
+    display: none;
   }
   .iv-pg,
   .iv-dmg {
@@ -770,17 +771,12 @@ label.field {
     display: none;
   }
   .iv-head {
-    grid-template-areas: 'track track track track' 'item . num act';
+    grid-template-areas: 'track track track track' 'item item num act';
     row-gap: 4px;
   }
   .iv-head .iv-pg,
   .iv-head .iv-dmg {
     justify-self: end;
-  }
-}
-@media (max-width: 480px) {
-  .iv-gold {
-    display: none;
   }
 }
 
