@@ -27,6 +27,7 @@ export function TypeLegend({ types = TYPE_ORDER }: { types?: DmgType[] }) {
 interface TipState {
   x: number;
   y: number;
+  touch: boolean;
   content: ReactNode;
 }
 
@@ -46,13 +47,22 @@ export function useTooltip() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const show = (e: { clientX: number; clientY: number }, content: ReactNode) => {
+  // A finger is held by the part of the chart it went down on; letting go of it lets a finger slid
+  // sideways move on to the next part (styles.css leaves sideways slides to the chart).
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const release = (e: PointerEvent) => e.pointerType === 'touch' && (e.target as Element).releasePointerCapture(e.pointerId);
+    el.addEventListener('pointerdown', release);
+    return () => el.removeEventListener('pointerdown', release);
+  }, []);
+  const show = (e: { clientX: number; clientY: number; pointerType?: string }, content: ReactNode) => {
     const box = ref.current?.getBoundingClientRect();
     if (!box) return;
-    setTip({ x: e.clientX - box.left, y: e.clientY - box.top, content });
+    setTip({ x: e.clientX - box.left, y: e.clientY - box.top, touch: e.pointerType === 'touch', content });
   };
   // Below and right of the cursor; left of it when it would pass the chart's right edge, above it
-  // when it would pass the bottom of the window.
+  // when it would pass the bottom of the window. Above a finger, which covers what's below it.
   useLayoutEffect(() => {
     const el = tipRef.current;
     const box = ref.current?.getBoundingClientRect();
@@ -62,8 +72,9 @@ export function useTooltip() {
     const { width: w, height: h } = el.getBoundingClientRect();
     let x = tip.x + 14;
     if (x + w > box.width) x = Math.max(0, tip.x - 14 - w);
-    let y = tip.y + 14;
-    if (box.top + y + h > window.innerHeight - 8) y = Math.max(8 - box.top, tip.y - 14 - h);
+    const above = tip.y - (tip.touch ? 40 : 14) - h;
+    let y = tip.touch && box.top + above >= 8 ? above : tip.y + 14;
+    if (box.top + y + h > window.innerHeight - 8) y = Math.max(8 - box.top, above);
     el.style.left = `${x}px`;
     el.style.top = `${y}px`;
   }, [tip]);

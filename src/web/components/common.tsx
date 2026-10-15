@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { DATA, championIcon, itemIcon, runeIcon } from '../data.ts';
 import { getKit } from '../../kits/index.ts';
@@ -205,8 +205,8 @@ export const fmt = (v: number, d = 0) => (Number.isFinite(v) ? v.toLocaleString(
 /**
  * A card shown while the pointer is over (or keyboard focus is on) an element: beside the panel the
  * element sits in when there's room, otherwise below or above it. A finger held on an element counts
- * as hovering it: the card shows after the same delay and closes when the finger lifts. Spread
- * `bind(content)` on each element and render `node` once.
+ * as hovering it: the card shows after the same delay, follows the finger to other elements and
+ * closes when it lifts. Spread `bind(content)` on each element and render `node` once.
  */
 export function useHoverCard() {
   const [card, setCard] = useState<{ anchor: HTMLElement; content: ReactNode; touch: boolean } | null>(null);
@@ -216,8 +216,11 @@ export function useHoverCard() {
   const isOpen = useRef(false);
   // When the current touch went down, so a hold long enough to read the card isn't also a tap.
   const pressed = useRef(0);
+  // Once a held finger has opened a card, moving it goes from element to element, not scrolling.
+  const scrubbing = useRef(false);
   const show = (anchor: HTMLElement, content: ReactNode, touch = false) => {
     isOpen.current = true;
+    if (touch) scrubbing.current = true;
     setCard({ anchor, content, touch });
   };
   const hide = () => {
@@ -227,7 +230,7 @@ export function useHoverCard() {
   };
   const enter = (anchor: HTMLElement, content: ReactNode, touch: boolean) => {
     clearTimeout(timer.current);
-    if (isOpen.current) show(anchor, content, touch);
+    if (isOpen.current || scrubbing.current) show(anchor, content, touch);
     else timer.current = setTimeout(() => show(anchor, content, touch), 200);
   };
   const leave = () => {
@@ -269,28 +272,49 @@ export function useHoverCard() {
     };
   }, [card]);
   useEffect(() => () => clearTimeout(timer.current), []);
+  // Touch events go to the element the finger went down on wherever it moves, and React's touchmove
+  // is passive, so these are added to each element directly.
+  const attach = useCallback((node: HTMLElement | null) => {
+    if (!node) return;
+    const move = (e: TouchEvent) => scrubbing.current && e.cancelable && e.preventDefault();
+    const end = () => {
+      scrubbing.current = false;
+    };
+    node.addEventListener('touchmove', move, { passive: false });
+    node.addEventListener('touchend', end);
+    node.addEventListener('touchcancel', end);
+    return () => {
+      node.removeEventListener('touchmove', move);
+      node.removeEventListener('touchend', end);
+      node.removeEventListener('touchcancel', end);
+    };
+  }, []);
 
   // A touch enters when the finger goes down and leaves when it lifts or a scroll takes it over. A
-  // tap still acts; a hold of over half a second doesn't, and doesn't select text or open a menu.
+  // finger is held by the element it went down on; letting go of it lets the finger enter others. A
+  // tap still acts; a hold of over half a second doesn't. Holding doesn't select text (styles.css),
+  // and the long-press menu isn't prevented, as Android vibrates when a page prevents it.
   const bind = (content: ReactNode) => ({
+    ref: attach,
     'data-hovercard': '',
     onPointerEnter: (e: PointerEvent<HTMLElement>) => enter(e.currentTarget, content, e.pointerType === 'touch'),
     onPointerLeave: leave,
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
       pressed.current = e.pointerType === 'touch' ? e.timeStamp : 0;
-      if (!pressed.current) hide();
+      if (pressed.current) (e.target as Element).releasePointerCapture(e.pointerId);
+      else hide();
     },
     onPointerCancel: () => {
       pressed.current = 0;
     },
+    // A keyboard's click (detail 0) is never a hold.
     onClickCapture: (e: MouseEvent<HTMLElement>) => {
-      if (pressed.current && e.timeStamp - pressed.current > 500) {
+      if (pressed.current && e.detail > 0 && e.timeStamp - pressed.current > 500) {
         e.preventDefault();
         e.stopPropagation();
       }
       pressed.current = 0;
     },
-    onContextMenu: (e: MouseEvent<HTMLElement>) => pressed.current && e.preventDefault(),
     onFocus: (e: FocusEvent<HTMLElement>) => e.currentTarget.matches(':focus-visible') && show(e.currentTarget, content),
     onBlur: hide,
   });
