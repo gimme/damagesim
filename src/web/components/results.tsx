@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { DATA } from '../data.ts';
 import { Card, ItemIcon, ItemTip, fmt, useHoverCard } from './common.tsx';
-import { HpBar, LineChart, SimpleBars, SourceBars, Timeline, TypeLegend, TYPE_COLOR, TYPE_LABEL, type DmgType } from './charts.tsx';
+import { HpBar, LineChart, SimpleBars, SourceBars, SourceName, Timeline, TypeLegend, TYPE_COLOR, TYPE_LABEL, type DmgType } from './charts.tsx';
 import type { Scenario, SimResult, Sim } from '../../engine/sim.ts';
 import { resistSweep, optimizeCombo, compare } from '../../engine/analysis.ts';
 import { describeChampion } from '../../engine/describe.ts';
@@ -115,7 +115,9 @@ export function Details({ r, scenario, sim, state, pinned, onPin, onUnpin }: { r
             <thead>
               <tr>
                 <th>Source</th>
-                <th className="r">Hits</th>
+                <th className="r" title="Damage instances: an ability's parts, a DoT's ticks and each proc count separately.">
+                  Instances
+                </th>
                 <th className="r">Raw</th>
                 <th className="r">Dealt</th>
                 <th className="r">Share</th>
@@ -124,7 +126,9 @@ export function Details({ r, scenario, sim, state, pinned, onPin, onUnpin }: { r
             <tbody>
               {r.bySource.map((s) => (
                 <tr key={s.source + s.label}>
-                  <td>{s.label}</td>
+                  <td>
+                    <SourceName source={s.source} label={s.label} champion={r.champion.id} />
+                  </td>
                   <td className="r">{s.hits}</td>
                   <td className="r">{fmt(s.raw)}</td>
                   <td className="r">{fmt(s.damage)}</td>

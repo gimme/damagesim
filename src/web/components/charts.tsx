@@ -5,7 +5,7 @@ import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type Rea
 import type { DamageInstance } from '../../engine/effects.ts';
 import type { SourceTotal } from '../../engine/sim.ts';
 import { abilityIcon } from '../data.ts';
-import { Icon, fmt, sourceMark } from './common.tsx';
+import { Icon, fmt, initials, sourceMark } from './common.tsx';
 
 export type DmgType = 'physical' | 'magic' | 'true';
 export const TYPE_COLOR: Record<DmgType, string> = { magic: 'var(--magic)', physical: 'var(--physical)', true: 'var(--true)' };
@@ -353,9 +353,9 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
 }
 
 /** A source's name, or `children` in its place, with its icon on the left (the initials of its name when it has none). */
-function SourceName({ source, label, champion, children = label }: { source: string; label: string; champion: string; children?: ReactNode }) {
+export function SourceName({ source, label, champion, children = label }: { source: string; label: string; champion: string; children?: ReactNode }) {
   return (
-    <span className="tt-source">
+    <span className="source-name">
       <Icon src={blockMark(source, label, champion).icon} label={label} size="xs" />
       {children}
     </span>
@@ -489,27 +489,58 @@ export function Timeline({ events, startHp, maxHp, timeline, champion }: { event
 
 export function SourceBars({ sources, maxHp, champion }: { sources: SourceTotal[]; maxHp: number; champion: string }) {
   const tt = useTooltip();
+  const clipId = useId().replace(/[^\w-]/g, '');
+  const [broken, setBroken] = useState<ReadonlySet<string>>(new Set());
   const rows = sources.filter((s) => s.damage > 0.5);
   const W = tt.width;
   const rowH = 30;
+  const ICON = 20;
   const labelW = Math.min(230, W * 0.36);
+  // Each source's icon sits by its bar, its name to the left of it.
+  const iconX = labelW - 8 - ICON;
   const H = rows.length * rowH + 8;
   const max = niceMax(Math.max(1, ...rows.map((r) => r.damage)));
   const sx = (v: number) => (v / max) * (W - labelW - 64);
-  const maxChars = Math.floor((labelW - 12) / 7);
+  const maxChars = Math.floor((iconX - 8) / 7);
   return (
     <div className="chart-wrap" ref={tt.ref}>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Damage by source">
+        <defs>
+          <clipPath id={`${clipId}icon`} clipPathUnits="objectBoundingBox">
+            <rect width={1} height={1} rx={0.2} />
+          </clipPath>
+        </defs>
         {rows.map((s, i) => {
           let x = labelW;
           const y = i * rowH + 6;
           const parts = TYPE_ORDER.filter((t) => (s.type[t] ?? 0) > 0);
+          const { icon } = sourceMark(s.source, s.label, champion);
           return (
             <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} maxHp={maxHp} champion={champion} />)} onPointerLeave={tt.hide}>
               <rect x={0} y={y - 4} width={W} height={rowH} fill="transparent" />
-              <text x={labelW - 10} y={y + 15} textAnchor="end" fontSize={13} fill="var(--text-primary)">
+              <text x={iconX - 6} y={y + 15} textAnchor="end" fontSize={13} fill="var(--text-primary)">
                 {s.label.length > maxChars ? s.label.slice(0, maxChars - 1) + '…' : s.label}
               </text>
+              {/* The initials of its name stand in for an icon it doesn't have, as in Icon */}
+              {icon && !broken.has(icon) ? (
+                <image
+                  href={icon}
+                  x={iconX}
+                  y={y}
+                  width={ICON}
+                  height={ICON}
+                  preserveAspectRatio="xMidYMid slice"
+                  clipPath={`url(#${clipId}icon)`}
+                  onError={() => setBroken((b) => new Set(b).add(icon))}
+                />
+              ) : (
+                <>
+                  <rect x={iconX} y={y} width={ICON} height={ICON} rx={4} fill="var(--surface-3)" />
+                  <text x={iconX + ICON / 2} y={y + 13} textAnchor="middle" fontSize={8} fontWeight={650} fill="var(--text-secondary)">
+                    {initials(s.label)}
+                  </text>
+                </>
+              )}
               {parts.map((t, j) => {
                 const w = sx(s.type[t] ?? 0);
                 const last = j === parts.length - 1;

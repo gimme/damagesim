@@ -8,20 +8,23 @@ import { hasRuneModel } from '../../engine/runes.ts';
 import { itemText, runeText } from '../../engine/tooltip.ts';
 import type { Sim } from '../../engine/sim.ts';
 
-export function Icon({ src, label, size = '' }: { src: string; label: string; size?: '' | 'xs' | 'sm' | 'lg' }) {
-  const [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [src]);
-  const initials = label
+/** What stands in for a missing icon: the first letters of the name's first two words. */
+export const initials = (label: string) =>
+  label
     .replace(/[^A-Za-z ]/g, '')
     .split(' ')
     .map((w) => w[0])
     .join('')
     .slice(0, 2)
     .toUpperCase();
+
+export function Icon({ src, label, size = '' }: { src: string; label: string; size?: '' | 'xs' | 'sm' | 'lg' }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
   if (!src || failed)
     return (
       <span className={`icon ${size}`} aria-hidden>
-        {initials}
+        {initials(label)}
       </span>
     );
   return <img className={`icon ${size}`} src={src} alt="" loading="lazy" onError={() => setFailed(true)} />;

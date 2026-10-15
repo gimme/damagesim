@@ -655,13 +655,17 @@ label.field {
   margin-top: 4px;
   padding-top: 4px;
 }
-.tt-source {
+.source-name {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
-.tt-source .icon {
+.source-name .icon {
   margin-block: 1px;
+}
+/* A block in a table cell, so its name lines up with the numbers beside it */
+table.data .source-name {
+  display: flex;
 }
 
 /* Item hover card */
