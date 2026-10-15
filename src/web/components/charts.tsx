@@ -133,6 +133,53 @@ function textWidth(text: string, font: string) {
 // -----------------------------------------------------------------------------
 // HP bar: target health as a track, damage segments by source (part-to-whole)
 
+/** What one block of the HP bar by time holds: its parts by source, and when its first and last hits landed. */
+type Moment = SourceTotal & { action?: number; dot: boolean; parts: SourceTotal[]; from: number; to: number };
+/** The source of a block with several sources' DoTs. */
+const DOTS = 'dots';
+
+const addHit = (s: SourceTotal, e: DamageInstance) => {
+  s.damage += e.final ?? 0;
+  s.raw += e.raw;
+  s.hits++;
+  s.type[e.type] = (s.type[e.type] ?? 0) + (e.final ?? 0);
+};
+
+/**
+ * The hits as they landed, in blocks: one combo action's hits (its own, those counted as casts of
+ * their own, and the procs they set off: an attack and its on-hit items are one block), or the DoT
+ * ticks between two of those blocks, whatever their sources. An action's hit landing after another
+ * action's block began starts a new one, so the bar fills as the target's health went down. DoT
+ * ticks, and the procs they set off (sharing their cast), don't split blocks, or every tick would.
+ * A block is named by its first hit's source; several sources' DoTs are named DoTs.
+ */
+function moments(events: DamageInstance[]) {
+  const out: Moment[] = [];
+  const open = new Map<string, number>();
+  const ticks = new Set<number>();
+  for (const e of events) {
+    if (e.flags.dot) ticks.add(e.castId);
+    const dot = !!e.flags.dot || (!!e.flags.proc && ticks.has(e.castId));
+    const key = dot ? DOTS : `${e.action}`;
+    let i = open.get(key);
+    if (i === undefined || out.slice(i + 1).some((m) => !m.dot && (dot || m.action !== e.action))) {
+      open.set(key, (i = out.length));
+      out.push({ source: e.source, label: e.sourceLabel, action: e.action, dot, parts: [], damage: 0, raw: 0, hits: 0, type: {}, from: e.time, to: e.time });
+    }
+    const m = out[i];
+    let part = m.parts.find((p) => p.source === e.source && p.label === e.sourceLabel);
+    if (!part) m.parts.push((part = { source: e.source, label: e.sourceLabel, damage: 0, raw: 0, hits: 0, type: {} }));
+    addHit(part, e);
+    addHit(m, e);
+    m.to = e.time;
+  }
+  for (const m of out) {
+    m.parts.sort((a, b) => b.damage - a.damage);
+    if (m.dot && m.parts.length > 1) Object.assign(m, { source: DOTS, label: 'DoTs' });
+  }
+  return out;
+}
+
 export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sources: SourceTotal[]; events: DamageInstance[]; by: 'time' | 'size'; maxHp: number; startHp: number; champion: string }) {
   const tt = useTooltip();
   const clipId = useId().replace(/[^\w-]/g, '');
@@ -142,16 +189,16 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
   const total = sources.reduce((s, x) => s + x.damage, 0);
   const startOffset = ((maxHp - startHp) / maxHp) * W;
   let x = startOffset;
-  // One block per source, clipped at the target's health: by time in the order of their first hits,
-  // so the clip falls about where the target dies, or by size largest first. A source dealing several
-  // damage types has them as layers, each as tall as its share, so it stays one block. Its largest
-  // layer is on top; layers dealing exactly as much go in the legend's order instead.
-  const firstHit = new Map(sources.map((s) => [s, events.findIndex((e) => e.source === s.source && e.sourceLabel === s.label)]));
-  const ordered = by === 'time' ? [...sources].sort((a, b) => firstHit.get(a)! - firstHit.get(b)!) : sources;
+  // Blocks clipped at the target's health: by time as the hits landed (see moments), so a source used
+  // again shows again and the clip falls where the target dies; by size one per source, largest
+  // first. A block dealing several damage types has them as layers, each as tall as its share, so it
+  // stays one block. Its largest layer is on top; layers dealing exactly as much go in the legend's
+  // order instead.
+  const ordered: (SourceTotal | Moment)[] = by === 'time' ? moments(events) : sources;
   const amounts: Partial<Record<DmgType, number>> = {};
   for (const s of sources) for (const t of TYPE_ORDER) amounts[t] = (amounts[t] ?? 0) + (s.type[t] ?? 0);
   const order = typesByAmount(amounts);
-  const blocks: { s: SourceTotal; x: number; w: number; layers: { t: DmgType; top: number }[] }[] = [];
+  const blocks: { s: SourceTotal | Moment; x: number; w: number; layers: { t: DmgType; top: number }[] }[] = [];
   for (const s of ordered) {
     const sum = TYPE_ORDER.reduce((a, t) => a + Math.max(0, s.type[t] ?? 0), 0);
     const w = (Math.min(sum, Math.max(0, maxHp - (x / W) * maxHp)) / maxHp) * W;
@@ -168,6 +215,9 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
     x += w;
   }
   const last = blocks.at(-1);
+  // Each block gives 1px each side to the 2px between blocks, except one too thin to keep much color
+  // after it (a DoT's few ticks between two hits): it would read as a pale line, so it's drawn whole.
+  const gap = (w: number) => (w < 5 ? 0 : 1);
   const overkill = Math.max(0, total - startHp);
   // The health left, at the right end, is ticked like a health bar in game: a short notch every 100
   // and a longer one every 1000, counted from its empty end. Only the 1000s when the 100s are crowded.
@@ -190,7 +240,7 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
           {/* The bar's last block has the rounded end of a data bar */}
           {last && (
             <clipPath id={`${clipId}end`}>
-              <path d={barPath(last.x + 1, 0, Math.max(0.5, last.w - 2), H)} />
+              <path d={barPath(last.x + gap(last.w), 0, last.w - 2 * gap(last.w), H)} />
             </clipPath>
           )}
         </defs>
@@ -225,7 +275,7 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
         )}
         <g clipPath={`url(#${clipId}bar)`}>
           {blocks.map(({ s, x, w, layers }, i) => {
-            const mark = sourceMark(s.source, s.label, champion);
+            const mark = s.source === DOTS ? { text: 'DoTs', icon: '' } : sourceMark(s.source, s.label, champion);
             const icon = mark.icon && !broken.has(mark.icon) ? mark.icon : '';
             const textW = textWidth(mark.text, '650 12.5px');
             // The icon names a source better than its letters, so it is the one kept when both don't fit,
@@ -238,10 +288,10 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
               <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} maxHp={maxHp} />)} onPointerLeave={tt.hide}>
                 {/* The whole block, gap included, so moving across the bar never leaves all of them */}
                 <rect x={x} y={0} width={w} height={H} fill="transparent" />
-                {/* 2px between blocks. Each layer runs to the bottom, under the next, so no seam shows between them. */}
+                {/* 2px between blocks (see gap). Each layer runs to the bottom, under the next, so no seam shows between them. */}
                 <g clipPath={i === blocks.length - 1 ? `url(#${clipId}end)` : undefined}>
                   {layers.map(({ t, top }) => (
-                    <rect key={t} x={x + 1} y={top} width={Math.max(0.5, w - 2)} height={H - top} fill={TYPE_COLOR[t]} />
+                    <rect key={t} x={x + gap(w)} y={top} width={w - 2 * gap(w)} height={H - top} fill={TYPE_COLOR[t]} />
                   ))}
                 </g>
                 {(show === 'both' || show === 'icon') && (
@@ -278,24 +328,30 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
   );
 }
 
-function SourceTip({ s, maxHp }: { s: SourceTotal; maxHp: number }) {
+function SourceTip({ s, maxHp }: { s: SourceTotal | Moment; maxHp: number }) {
+  // A block of several sources lists them, each keyed by the type it deals most; one source, its types.
+  const rows =
+    'parts' in s && s.parts.length > 1
+      ? s.parts.map((p) => ({ key: `${p.source}|${p.label}`, t: typesByAmount(p.type)[0], name: p.label, damage: p.damage }))
+      : typesByAmount(s.type)
+          .filter((t) => t in s.type)
+          .map((t) => ({ key: t, t, name: TYPE_LABEL[t], damage: s.type[t]! }));
   return (
     <>
       <div className="tt-title">{s.label}</div>
-      {typesByAmount(s.type)
-        .filter((t) => t in s.type)
-        .map((t) => (
-          <div className="tt-row" key={t}>
-            <span>
-              <span className="line-key" style={{ background: TYPE_COLOR[t], marginRight: 6 }} />
-              {TYPE_LABEL[t]}
-            </span>
-            <strong>{fmt(s.type[t]!)}</strong>
-          </div>
-        ))}
+      {rows.map(({ key, t, name, damage }) => (
+        <div className="tt-row" key={key}>
+          <span>
+            <span className="line-key" style={{ background: TYPE_COLOR[t], marginRight: 6 }} />
+            {name}
+          </span>
+          <strong>{fmt(damage)}</strong>
+        </div>
+      ))}
       <div className="tt-row muted">
         <span>
           {s.hits} hit{s.hits === 1 ? '' : 's'} · {((s.damage / maxHp) * 100).toFixed(1)}% max HP
+          {'from' in s && (s.to - s.from < 0.005 ? ` · at ${s.from.toFixed(2)}s` : ` · ${s.from.toFixed(2)}–${s.to.toFixed(2)}s`)}
         </span>
       </div>
     </>
