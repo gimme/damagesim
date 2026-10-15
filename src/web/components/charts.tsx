@@ -228,9 +228,12 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
             const mark = sourceMark(s.source, s.label, champion);
             const icon = mark.icon && !broken.has(mark.icon) ? mark.icon : '';
             const textW = textWidth(mark.text, '650 12.5px');
-            const show = icon && ICON + 3 + textW + 8 <= w ? 'both' : textW + 6 <= w ? 'text' : null;
+            // The icon names a source better than its letters, so it is the one kept when both don't fit,
+            // and a source with an icon shows nothing rather than letters alone. Letters stand in for no icon.
+            const show = icon ? (ICON + 3 + textW + 8 <= w ? 'both' : ICON + 6 <= w ? 'icon' : null) : textW + 6 <= w ? 'text' : null;
             const cx = x + w / 2;
             const textX = show === 'both' ? cx + (ICON + 3) / 2 : cx;
+            const iconX = show === 'both' ? textX - textW / 2 - 3 - ICON : cx - ICON / 2;
             return (
               <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} maxHp={maxHp} />)} onPointerLeave={tt.hide}>
                 {/* The whole block, gap included, so moving across the bar never leaves all of them */}
@@ -241,10 +244,10 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
                     <rect key={t} x={x + 1} y={top} width={Math.max(0.5, w - 2)} height={H - top} fill={TYPE_COLOR[t]} />
                   ))}
                 </g>
-                {show === 'both' && (
+                {(show === 'both' || show === 'icon') && (
                   <image
                     href={icon}
-                    x={textX - textW / 2 - 3 - ICON}
+                    x={iconX}
                     y={(H - ICON) / 2}
                     width={ICON}
                     height={ICON}
@@ -254,7 +257,7 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
                     style={{ pointerEvents: 'none' }}
                   />
                 )}
-                {show && (
+                {(show === 'both' || show === 'text') && (
                   <text x={textX} y={H / 2 + 4.5} textAnchor="middle" fontSize={12.5} fontWeight={650} fill="#0b0b0b" style={{ pointerEvents: 'none' }}>
                     {mark.text}
                   </text>
