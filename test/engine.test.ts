@@ -12,7 +12,8 @@ import { compile } from '../src/engine/expr.ts';
 import { parseCombo, formatCombo } from '../src/engine/combo.ts';
 import { combineAmps } from '../src/engine/sim.ts';
 import { rankItems } from '../src/engine/analysis.ts';
-import { formatNumber, itemText } from '../src/engine/tooltip.ts';
+import { formatNumber, itemText, renderTooltip, runeText } from '../src/engine/tooltip.ts';
+import { NOT_LIVE_RUNES } from '../src/engine/runes.ts';
 
 const data = loadGameData('16.20');
 await loadAllKits();
@@ -224,4 +225,40 @@ test('item hover text: numbers for the attacker when the formula tooltip covers 
     const t = itemText(item, sim);
     for (const s of [...t.stats, t.body]) assert.ok(!/%i:|\{\{|@|^<br>|<br>$/.test(s), `${item.name}: ${s}`);
   }
+});
+
+test('rune hover text: the in-game tooltip with numbers for the attacker, else the description', () => {
+  const ahri = new Sim(data, { champion: 'Ahri', level: 11, items: ["Luden's Echo"], combo: [] });
+  const darius = new Sim(data, { champion: 'Darius', level: 11, items: ['Black Cleaver'], combo: [] });
+  const rune = (id: number) => data.runes.find((r) => r.id === id)!;
+  const electrocute = rune(8112);
+  const live = runeText(electrocute, ahri);
+  assert.ok(live.live && live.adaptive === 'magic');
+  assert.ok(live.body.includes(`<magicDamage>${formatNumber(ahri.evalDataCalc(electrocute.calcs, electrocute.values, 'TotalDamage'))}</magicDamage>`), live.body);
+  // The stats the rune tracks in game are left out.
+  assert.ok(!/Total Damage Dealt/i.test(live.body), live.body);
+  assert.equal(runeText(electrocute, darius).adaptive, 'physical');
+  // Without a simulator: the description, with ranges and ratios.
+  const desc = runeText(electrocute);
+  assert.ok(!desc.live && desc.body.includes('Damage: 70 - 240 (+0.1 bonus AD, +0.05 AP) damage.'), desc.body);
+  // Press the Attack's in-game damage is a value only the game knows, so its description is used.
+  assert.ok(runeText(rune(8005), ahri).body.includes('40 - 160 bonus <magicDamage>adaptive damage</magicDamage> (based on level)'));
+  // Melee/ranged splits take the attacker's side; the ranged share is a modified percentage.
+  assert.ok(runeText(rune(8369), ahri).body.includes('<gold>35%</gold> of that damage'));
+  assert.ok(runeText(rune(8369), darius).body.includes('<gold>50%</gold> of that damage'));
+  assert.ok(runeText(rune(9923), darius).body.includes('gain 90% Attack Speed'));
+  // Hashed values get the names the text uses: Jack of All Trades' Adaptive5 and Adaptive10.
+  assert.ok(runeText(rune(8316), ahri).body.includes('Gain 8 or 20 bonus Adaptive Force'));
+  for (const r of data.runes.filter((r) => !NOT_LIVE_RUNES.has(r.id))) {
+    for (const sim of [ahri, darius]) {
+      const t = runeText(r, sim);
+      assert.ok(t.body && !/%i:|\{\{|@|…|^<br>|<br>$|\(\s*\)|\[|\|\|/.test(t.body), `${r.name}: ${t.body}`);
+    }
+  }
+});
+
+test('a modified calculation shows in the format of the one it modifies', () => {
+  const sim = new Sim(data, { champion: 'Jax', level: 11, items: [], combo: [] });
+  const passive = sim.champ.abilities.flatMap((a) => a.spells).find((s) => s.scriptName === 'JaxPassive')!;
+  assert.match(renderTooltip(sim, 'P', passive), /\(max \d+(\.\d+)?% Attack Speed\)/);
 });

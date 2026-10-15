@@ -481,6 +481,30 @@ function buildItems(ddItems: any, bin: any): Record<string, ItemData> {
 // ---------------------------------------------------------------------------
 // Runes
 
+/** Give hashed data values the names the rune's text uses for them (Jack of All Trades' @Adaptive5@). */
+function unhashValues(values: Record<string, number>, texts: string[]): Record<string, number> {
+  const names = new Map<string, string>();
+  for (const t of texts) for (const m of t.matchAll(/@\s*([A-Za-z_]\w*)/g)) names.set(fnv1a(m[1]), m[1]);
+  return Object.fromEntries(
+    Object.entries(values).map(([k, v]) => {
+      const real = HASHED.test(k) ? names.get(k) : undefined;
+      if (real) resolvedHashes++;
+      return [real ?? k, v];
+    }),
+  );
+}
+
+/** A perk's long description and in-game tooltip, with its values and calculations under their real names. */
+function perkTexts(b: any, longDesc: string) {
+  const sd = b?.mScript?.mSpellScriptData ?? {};
+  const description = resolveIncludes(longDesc);
+  const tooltip = resolveIncludes(str(b?.mTooltipNameLocalizationKey));
+  const values = unhashValues(sd.mEffectAmount ?? {}, [description, tooltip]);
+  const calcs = convCalcs(sd.mCalculations);
+  unhashCalcs(calcs, Object.keys(values));
+  return { values, calcs, description, tooltip };
+}
+
 function buildRunes(ddRunes: any, bin: any): RuneData[] {
   const byId = new Map<number, any>();
   for (const v of Object.values(bin) as any[]) if (v?.__type === 'Perk' && v.mPerkId) byId.set(v.mPerkId, v);
@@ -489,9 +513,6 @@ function buildRunes(ddRunes: any, bin: any): RuneData[] {
     tree.slots.forEach((slot: any, row: number) => {
       for (const r of slot.runes) {
         const b = byId.get(r.id);
-        const sd = b?.mScript?.mSpellScriptData ?? {};
-        const calcs = convCalcs(sd.mCalculations);
-        unhashCalcs(calcs, Object.keys(sd.mEffectAmount ?? {}));
         out.push({
           id: r.id,
           key: r.key,
@@ -500,9 +521,7 @@ function buildRunes(ddRunes: any, bin: any): RuneData[] {
           treeId: tree.id,
           row,
           icon: r.icon,
-          values: sd.mEffectAmount ?? {},
-          calcs,
-          description: resolveIncludes(str(b?.mLongDescLocalizationKey) || r.longDesc || ''),
+          ...perkTexts(b, str(b?.mLongDescLocalizationKey) || r.longDesc || ''),
         });
       }
     });
@@ -510,7 +529,6 @@ function buildRunes(ddRunes: any, bin: any): RuneData[] {
   // Stat shards are not part of runesReforged.json.
   for (const v of Object.values(bin) as any[]) {
     if (v?.__type !== 'Perk' || !v.mPerkId || v.mPerkId < 5000 || v.mPerkId > 5999) continue;
-    const sd = v.mScript?.mSpellScriptData ?? {};
     out.push({
       id: v.mPerkId,
       key: v.mPerkName,
@@ -519,9 +537,7 @@ function buildRunes(ddRunes: any, bin: any): RuneData[] {
       treeId: 0,
       row: -1,
       icon: (v.mIconTextureName ?? '').replace(/\.tex$/, '.png'),
-      values: sd.mEffectAmount ?? {},
-      calcs: convCalcs(sd.mCalculations),
-      description: resolveIncludes(str(v.mLongDescLocalizationKey) || str(v.mShortDescLocalizationKey) || ''),
+      ...perkTexts(v, str(v.mLongDescLocalizationKey) || str(v.mShortDescLocalizationKey) || ''),
       ...(v.mStatModifiers ? { statModifiers: v.mStatModifiers } : {}),
     });
   }

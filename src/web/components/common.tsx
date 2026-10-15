@@ -5,7 +5,7 @@ import { getKit } from '../../kits/index.ts';
 import type { ItemData } from '../../engine/data-types.ts';
 import { ITEM_GROUPS, hasItemModel } from '../../engine/items.ts';
 import { hasRuneModel } from '../../engine/runes.ts';
-import { itemText } from '../../engine/tooltip.ts';
+import { itemText, runeText } from '../../engine/tooltip.ts';
 import type { Sim } from '../../engine/sim.ts';
 
 export function Icon({ src, label, size = '' }: { src: string; label: string; size?: '' | 'sm' | 'lg' }) {
@@ -351,6 +351,8 @@ const EMPHASIS: Record<string, string> = {
   physicaldamage: 'it-value physical',
   truedamage: 'it-value true',
   rules: 'it-rules',
+  b: 'it-name',
+  i: 'it-em',
 };
 
 export function Markup({ text }: { text: string }) {
@@ -388,10 +390,11 @@ export function Markup({ text }: { text: string }) {
   return <>{stack[0].kids}</>;
 }
 
-/** A rune's hover card: its description, without the numbers (shown as …). */
-export function RuneTip({ id }: { id: number }) {
+/** A rune's hover card: its description; numbers for the attacker when `sim` is given. */
+export function RuneTip({ id, sim }: { id: number; sim?: Sim | null }) {
   const rune = DATA.runes.find((r) => r.id === id);
   if (!rune) return null;
+  const text = runeText(rune, sim);
   return (
     <div className="item-tip">
       <div className="it-head">
@@ -400,9 +403,13 @@ export function RuneTip({ id }: { id: number }) {
         <span className="secondary">{rune.tree}</span>
       </div>
       <div className="it-body">
-        <Markup text={rune.description.replace(/@[^@]+@/g, '…')} />
+        <Markup text={text.body} />
       </div>
-      <div className="it-foot muted">{hasRuneModel(id) ? 'Effects simulated' : 'Not simulated'}</div>
+      <div className="it-foot muted">
+        <div>{hasRuneModel(id) ? 'Effects simulated' : 'Not simulated'}</div>
+        {text.adaptive && <div>Adaptive damage: {text.adaptive} at your stats</div>}
+        {text.live && <div>Numbers at your level and stats</div>}
+      </div>
     </div>
   );
 }

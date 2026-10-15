@@ -680,6 +680,9 @@ label.field {
   color: var(--text-muted);
   font-style: italic;
 }
+.it-em {
+  font-style: italic;
+}
 .it-foot {
   padding-top: 6px;
   border-top: 1px solid var(--grid);

@@ -159,7 +159,10 @@ export interface RuneData {
   icon: string;
   values: Record<string, number>;
   calcs: Record<string, CalcNode>;
+  /** Long description (the rune page's text), with @Placeholders@. */
   description: string;
+  /** In-game tooltip with @Placeholders@: calculations, and @f1@… stats the rune's script tracks. */
+  tooltip: string;
   statModifiers?: unknown;
 }
 

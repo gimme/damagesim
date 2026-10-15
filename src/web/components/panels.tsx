@@ -196,7 +196,7 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
 const LIVE_RUNES = DATA.runes.filter((r) => !NOT_LIVE_RUNES.has(r.id));
 const TREES = ['Precision', 'Domination', 'Sorcery', 'Resolve', 'Inspiration'];
 
-export function RunesPanel({ state, set }: { state: UIState; set: Set }) {
+export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim: Sim | null }) {
   const [tree, setTree] = useState(() => DATA.runes.find((r) => r.id === state.keystone)?.tree ?? 'Precision');
   const hover = useHoverCard();
   const keystones = LIVE_RUNES.filter((r) => r.row === 0 && r.tree === tree);
@@ -216,7 +216,7 @@ export function RunesPanel({ state, set }: { state: UIState; set: Set }) {
         </div>
         <div className="rune-grid" aria-label="Keystone">
           {keystones.map((r) => (
-            <button key={r.id} className="rune-btn" aria-pressed={state.keystone === r.id} onClick={() => set((s) => ({ ...s, keystone: s.keystone === r.id ? null : r.id }))} {...hover.bind(<RuneTip id={r.id} />)}>
+            <button key={r.id} className="rune-btn" aria-pressed={state.keystone === r.id} onClick={() => set((s) => ({ ...s, keystone: s.keystone === r.id ? null : r.id }))} {...hover.bind(<RuneTip id={r.id} sim={sim} />)}>
               <RuneIcon id={r.id} />
               {r.name}
               {!hasRuneModel(r.id) && <span className="muted">·</span>}
@@ -236,7 +236,7 @@ export function RunesPanel({ state, set }: { state: UIState; set: Set }) {
                 {minors
                   .filter((r) => r.tree === t)
                   .map((r) => (
-                    <button key={r.id} className="rune-btn" aria-pressed={state.minors.includes(r.id)} onClick={() => toggleMinor(r.id)} {...hover.bind(<RuneTip id={r.id} />)}>
+                    <button key={r.id} className="rune-btn" aria-pressed={state.minors.includes(r.id)} onClick={() => toggleMinor(r.id)} {...hover.bind(<RuneTip id={r.id} sim={sim} />)}>
                       <RuneIcon id={r.id} />
                       {r.name}
                     </button>

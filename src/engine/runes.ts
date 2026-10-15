@@ -26,6 +26,21 @@ function variableType(sim: Sim, adRatio: number, apRatio: number): 'physical' | 
   return adRatio * s.bonusAd > apRatio * s.ap ? 'physical' : 'magic';
 }
 
+/** The type each rune's adaptive damage takes. */
+const ADAPTIVE_DAMAGE: Record<number, (sim: Sim, v: Record<string, number>) => 'physical' | 'magic'> = {
+  8005: adaptiveType, // Press the Attack
+  8008: adaptiveType, // Lethal Tempo
+  8128: adaptiveType, // Dark Harvest
+  8214: adaptiveType, // Summon Aery
+  8112: (sim, v) => variableType(sim, v.BonusADRatio, v.APRatio), // Electrocute
+  8229: (sim, v) => variableType(sim, v.ADRatio, v.APRatio), // Arcane Comet
+};
+
+/** The type a rune's adaptive damage takes at the attacker's current stats; null if it deals none. */
+export function adaptiveDamageType(rune: RuneData, sim: Sim): 'physical' | 'magic' | null {
+  return ADAPTIVE_DAMAGE[rune.id]?.(sim, rune.values) ?? null;
+}
+
 /** Damage that can trigger "on damage" runes (not item/rune proc damage, except pets). */
 const triggers = (inst: DamageInstance) => !inst.flags.proc || inst.flags.pet;
 
@@ -65,7 +80,7 @@ const RUNES: Record<number, Factory> = {
           source: key,
           sourceLabel: rune.name,
           label: 'Proc',
-          type: adaptiveType(sim),
+          type: ADAPTIVE_DAMAGE[rune.id](sim, rune.values),
           amount: lerpLevel(sim.level, v.MinDamage, v.MaxDamage),
           flags: { kind: 'rune', proc: true },
         });
@@ -107,7 +122,7 @@ const RUNES: Record<number, Factory> = {
             source: `rune:${rune.id}`,
             sourceLabel: rune.name,
             label: 'Bolt',
-            type: adaptiveType(sim),
+            type: ADAPTIVE_DAMAGE[rune.id](sim, rune.values),
             amount: calc(sim, rune, 'NoteDamage'),
             flags: { kind: 'rune', proc: true },
           });
@@ -184,7 +199,7 @@ const RUNES: Record<number, Factory> = {
             source: `rune:${rune.id}`,
             sourceLabel: rune.name,
             label: 'Strike',
-            type: variableType(sim, v.BonusADRatio, v.APRatio),
+            type: ADAPTIVE_DAMAGE[rune.id](sim, v),
             amount: calc(sim, rune, 'TotalDamage'),
             flags: { kind: 'rune', proc: true },
           }),
@@ -216,7 +231,7 @@ const RUNES: Record<number, Factory> = {
           source: `rune:${rune.id}`,
           sourceLabel: rune.name,
           label: 'Harvest',
-          type: adaptiveType(sim),
+          type: ADAPTIVE_DAMAGE[rune.id](sim, rune.values),
           amount: calc(sim, rune, 'TotalDamage') + v.DamagePerSoulEssence * (sim.opt['darkHarvest.souls'] ?? 0),
           flags: { kind: 'rune', proc: true },
         });
@@ -298,7 +313,7 @@ const RUNES: Record<number, Factory> = {
             source: `rune:${rune.id}`,
             sourceLabel: rune.name,
             label: 'Aery',
-            type: adaptiveType(sim),
+            type: ADAPTIVE_DAMAGE[rune.id](sim, rune.values),
             amount: calc(sim, rune, 'DamageCalc'),
             flags: { kind: 'rune', proc: true },
           }),
@@ -324,7 +339,7 @@ const RUNES: Record<number, Factory> = {
             source: `rune:${rune.id}`,
             sourceLabel: rune.name,
             label: 'Comet',
-            type: variableType(sim, v.ADRatio, v.APRatio),
+            type: ADAPTIVE_DAMAGE[rune.id](sim, v),
             amount: calc(sim, rune, 'DamageCalc') * (1 + v.MaxDamageAmp * Math.min(dist / v.MaxRange, 1)),
             flags: { kind: 'rune', proc: true, aoe: true },
           }),
@@ -756,8 +771,8 @@ export function createRuneEffects(runes: RuneData[], setup: SetupCtx, sim: Sim):
       const n = types.size;
       const v = rune.values;
       const mods: Partial<StatMods> = { abilityHaste: n * v.HastePerStack };
-      if (n >= 10) mods.adaptive = v['{55d14eea}'];
-      else if (n >= 5) mods.adaptive = v['{1b48f5ea}'];
+      if (n >= 10) mods.adaptive = v.Adaptive10;
+      else if (n >= 5) mods.adaptive = v.Adaptive5;
       return mods;
     };
   }
