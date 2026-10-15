@@ -5,7 +5,7 @@ import { SHARD_ROWS, type UIState, type TargetState } from '../state.ts';
 import { TARGET_PRESETS, type TargetPreset } from '../../engine/presets.ts';
 import { maxRanks, resolveRanks, type Sim, type SimResult } from '../../engine/sim.ts';
 import { runeText } from '../../engine/tooltip.ts';
-import { NOT_LIVE_RUNES, bonusSkillPoints, hasRuneModel } from '../../engine/runes.ts';
+import { NOT_LIVE_RUNES, bonusSkillPoints } from '../../engine/runes.ts';
 import { parseCombo, formatCombo, type ComboStep } from '../../engine/combo.ts';
 import { conflicts } from '../../engine/analysis.ts';
 import { getKit } from '../../kits/index.ts';
@@ -27,7 +27,7 @@ export function AttackerPanel({ state, set, sim }: { state: UIState; set: Set; s
   const totalPoints = ranks.Q + ranks.W + ranks.E + ranks.R;
   const setRank = (k: 'Q' | 'W' | 'E' | 'R', v: number) => set((s) => ({ ...s, ranks: { ...ranks, [k]: Math.max(0, Math.min(max[k], v)) } }));
   return (
-    <Card title="Champion" right={<span className="muted small">patch {DATA.meta.patch}</span>}>
+    <Card title="Champion">
       <div className="stack" style={{ gap: 12 }}>
         <ChampionPicker value={state.champion} onChange={(id) => set((s) => ({ ...s, champion: id, ranks: null, options: {} }))} />
         <div className="row" style={{ flexWrap: 'nowrap' }}>
@@ -39,7 +39,6 @@ export function AttackerPanel({ state, set, sim }: { state: UIState; set: Set; s
             {state.level}
           </strong>
         </div>
-        {state.level > 18 && <div className="muted small">Levels 19–20 need the Top lane role quest.</div>}
         <div className="row" style={{ gap: 6 }}>
           {(['Q', 'W', 'E', 'R'] as const).map((k) => (
             <label key={k} className="field" style={{ alignItems: 'center' }}>
@@ -225,7 +224,6 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
             <button key={r.id} className="rune-btn" aria-pressed={state.keystone === r.id} onClick={() => set((s) => ({ ...s, keystone: s.keystone === r.id ? null : r.id }))} {...hover.bind(<RuneTip id={r.id} sim={sim} />)}>
               <RuneIcon id={r.id} />
               {r.name}
-              {!hasRuneModel(r.id) && <span className="muted">·</span>}
             </button>
           ))}
         </div>
@@ -367,7 +365,7 @@ function TargetItems({ items, onChange }: { items: number[]; onChange: (i: numbe
               onChange(items.filter((_, j) => j !== i));
             }}
             style={{ display: 'inline-flex', gap: 4, alignItems: 'center', padding: 2 }}
-            {...hover.bind(<ItemTip id={id} action="Click to remove" />)}
+            {...hover.bind(<ItemTip id={id} />)}
           >
             <ItemIcon id={id} size="sm" />
             <span className="muted">✕</span>
@@ -564,9 +562,11 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
           style={{ flex: 1, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
         />
       </div>
-      <div className="muted small" style={{ marginTop: 4 }}>
-        {editing && textError ? <span style={{ color: 'var(--critical)' }}>{textError}</span> : 'Shorthand: Q W E R P · AA, AA*3, AA! (crit) · Q:variant · ignite · item:<name> · wait:1.5'}
-      </div>
+      {editing && textError && (
+        <div className="small" style={{ marginTop: 4, color: 'var(--critical)' }}>
+          {textError}
+        </div>
+      )}
       {parsed.error && <div className="notice warn small">{parsed.error}</div>}
     </Card>
   );

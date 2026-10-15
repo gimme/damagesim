@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { DATA, championIcon, itemIcon, runeIcon } from '../data.ts';
 import { getKit } from '../../kits/index.ts';
 import type { ItemData } from '../../engine/data-types.ts';
-import { ITEM_GROUPS, hasItemModel } from '../../engine/items.ts';
+import { hasItemModel } from '../../engine/items.ts';
 import { hasRuneModel } from '../../engine/runes.ts';
 import { itemText, runeText } from '../../engine/tooltip.ts';
 import type { Sim } from '../../engine/sim.ts';
@@ -125,6 +125,9 @@ const ITEM_FILTERS: { label: string; test: (i: ItemData) => boolean }[] = [
   { label: 'Boots', test: (i) => i.tags.includes('Boots') },
 ];
 
+/** Whether an item has a passive or active the simulator doesn't model; stat-only items have none. */
+const effectsNotSimulated = (item: ItemData) => !hasItemModel(item.id) && /<(passive|active)>/i.test(item.description);
+
 export const SHOP_ITEMS: ItemData[] = Object.values(DATA.items)
   .filter((i) => (i.inStore || [3040, 3042, 3121].includes(i.id)) && !i.requiredChampion && i.gold.total > 0 && !i.tags.includes('Consumable') && !i.tags.includes('Trinket'))
   .sort((a, b) => b.depth - a.depth || a.name.localeCompare(b.name));
@@ -165,7 +168,7 @@ export function ItemPicker({ onPick, onClose, sim }: { onPick: (id: number) => v
             <span className="stack" style={{ gap: 0, minWidth: 0 }}>
               <span className="name">{i.name}</span>
               <span className="muted small">
-                {i.gold.total}g{hasItemModel(i.id) ? ' · modeled' : ''}
+                {i.gold.total}g{effectsNotSimulated(i) ? ' · stats only' : ''}
               </span>
             </span>
           </button>
@@ -405,25 +408,16 @@ export function RuneTip({ id, sim }: { id: number; sim?: Sim | null }) {
       <div className="it-body">
         <Markup text={text.body} />
       </div>
-      <div className="it-foot muted">
-        <div>{hasRuneModel(id) ? 'Effects simulated' : 'Not simulated'}</div>
-        {text.adaptive && <div>Adaptive damage: {text.adaptive} at your stats</div>}
-        {text.adaptiveForce && <div>Adaptive Force: {text.adaptiveForce === 'physical' ? 'AD' : 'AP'} at your stats</div>}
-        {text.live && <div>Numbers at your level and stats</div>}
-      </div>
+      {!hasRuneModel(id) && <div className="it-foot muted">Effects not simulated</div>}
     </div>
   );
 }
 
 /** An item's hover card: cost, stats and passive/active text; numbers for the attacker when `sim` is given. */
-export function ItemTip({ id, sim, action }: { id: number; sim?: Sim | null; action?: string }) {
+export function ItemTip({ id, sim }: { id: number; sim?: Sim | null }) {
   const item = DATA.items[id];
   if (!item) return null;
   const text = itemText(item, sim);
-  const groups = Object.entries(ITEM_GROUPS)
-    .filter(([, ids]) => ids.includes(id))
-    .map(([g]) => g);
-  const hasEffects = /<(passive|active)>/i.test(text.body);
   return (
     <div className="item-tip">
       <div className="it-head">
@@ -445,16 +439,7 @@ export function ItemTip({ id, sim, action }: { id: number; sim?: Sim | null; act
           <Markup text={text.body} />
         </div>
       )}
-      {(hasEffects || groups.length > 0 || text.live || action) && (
-        <div className="it-foot muted">
-          {hasEffects && <div>{hasItemModel(id) ? 'Effects simulated' : 'Stats only: effects not simulated'}</div>}
-          {groups.map((g) => (
-            <div key={g}>{g} item: only one per build</div>
-          ))}
-          {text.live && <div>Numbers at your level and stats</div>}
-          {action && <div>{action}</div>}
-        </div>
-      )}
+      {effectsNotSimulated(item) && <div className="it-foot muted">Effects not simulated</div>}
     </div>
   );
 }

@@ -132,8 +132,8 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
           <div className="row small muted" style={{ marginTop: 8, justifyContent: 'space-between' }}>
             <span>
               {view === 'map'
-                ? `Higher is more damage; the diagonal lines are equal damage per gold, so dots above a line beat that rate.${current != null ? ' The ring is the current item.' : ''} With a mouse, click a dot to buy it.`
-                : `Each item simulated ${slotLabel}, same combo and target. Per gold = damage gained per 1000 gold of item cost.`}
+                ? `The diagonal lines are equal damage per gold, so dots above a line beat that rate.${current != null ? ' The ring is the current item.' : ''}`
+                : 'Per gold = damage gained per 1000 gold of item cost.'}
               {current != null && rows.useful.some((r) => r.id === current) && ` ${DATA.items[current]?.name} ranks #${rows.useful.findIndex((r) => r.id === current) + 1} of ${rows.useful.length} ${by === 'perGold' ? 'per gold' : 'by damage'}.`}
               {rows.none > 0 && ` ${rows.none} other item${rows.none === 1 ? '' : 's'} add no damage.`}
             </span>

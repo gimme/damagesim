@@ -175,11 +175,13 @@ const meleeRanged = (text: string, ranged?: boolean) =>
 
 /** Riot's "adaptive damage" keyword and highlight color as the damage type the rune deals for the
  *  attacker, or highlighted values when it deals none (or there's no attacker). Damage a script value
- *  chose the type of (Dark Harvest's "<scaleAP>45 magic damage</scaleAP>") takes that type. */
-const markAdaptive = (markup: string, type: 'physical' | 'magic' | null) => {
+ *  chose the type of (Dark Harvest's "<scaleAP>45 magic damage</scaleAP>") takes that type, and the
+ *  "Adaptive Force" keyword the color of what it gives (AD: physical, AP: magic). */
+const markAdaptive = (markup: string, type: 'physical' | 'magic' | null, force: 'physical' | 'magic' | null) => {
   const tag = type ? `${type}Damage` : 'attention';
   return markup
     .replace(/<lol-uikit-tooltipped-keyword key=['"]LinkTooltip_Description_AdaptiveDmg['"]>([\s\S]*?)<\/lol-uikit-tooltipped-keyword>/gi, (_m, inner: string) => (type ? `<${tag}>${inner.replace(/<\/?font[^>]*>/gi, '')}</${tag}>` : inner))
+    .replace(/<lol-uikit-tooltipped-keyword key=['"]LinkTooltip_Description_Adaptive['"]>([\s\S]*?)<\/lol-uikit-tooltipped-keyword>/gi, (_m, inner: string) => (force ? `<${force}Damage>${inner.replace(/<\/?font[^>]*>/gi, '')}</${force}Damage>` : inner))
     .replace(/<font color=['"]#48C4B7['"]>([^<]*)<\/font>/gi, (_m, inner: string) => `<${tag}>${inner}</${tag}>`)
     .replace(/<(scaleAD|scaleAP)>([^<]*\b(physical|magic) damage)<\/\1>/gi, (_m, _t, inner: string, dt: string) => `<${dt.toLowerCase()}Damage>${inner}</${dt.toLowerCase()}Damage>`);
 };
@@ -219,16 +221,11 @@ function liveRuneTooltip(rune: RuneData, sim: Sim) {
 /**
  * What a rune's hover card shows, as tooltip markup. With a simulator, the in-game tooltip with
  * numbers for the champion, level and stats when it can be filled; otherwise the long description,
- * whose level-based values are ranges. `live` is set when numbers come from the simulator;
- * `adaptive` is the type the rune's adaptive damage takes at the simulator's stats, and
- * `adaptiveForce` what Adaptive Force it mentions gives (physical: AD, magic: AP).
+ * whose level-based values are ranges. `live` is set when numbers come from the simulator. Adaptive
+ * damage and Adaptive Force are colored by the type they take at the simulator's stats.
  */
-export function runeText(rune: RuneData, sim?: Sim | null): { body: string; live: boolean; adaptive: 'physical' | 'magic' | null; adaptiveForce: 'physical' | 'magic' | null } {
-  const adaptive = sim ? adaptiveDamageType(rune, sim) : null;
-  const result = (body: string, live: boolean) => {
-    const text = cleanRuneMarkup(markAdaptive(body, adaptive));
-    return { body: text, live, adaptive, adaptiveForce: sim && /adaptive force/i.test(text) ? sim.stats.adaptiveType : null };
-  };
+export function runeText(rune: RuneData, sim?: Sim | null): { body: string; live: boolean } {
+  const result = (body: string, live: boolean) => ({ body: cleanRuneMarkup(markAdaptive(body, sim ? adaptiveDamageType(rune, sim) : null, sim?.stats.adaptiveType ?? null)), live });
   const live = sim && rune.tooltip ? liveRuneTooltip(rune, sim) : null;
   if (live) return result(live.text, live.live);
   // A value only the game knows: dropped with its parentheses (Unsealed Spellbook's first cooldown).

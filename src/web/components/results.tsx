@@ -49,7 +49,7 @@ export function Summary({ r }: { r: SimResult }) {
       </div>
       {r.dotDamage > 1 && (
         <div className="muted small">
-          {fmt(r.comboDamage)} burst + {fmt(r.dotDamage)} damage over time (burns, bleeds, Ignite, auras).
+          {fmt(r.comboDamage)} burst + {fmt(r.dotDamage)} damage over time.
         </div>
       )}
       <Warnings r={r} />
@@ -110,7 +110,7 @@ export function Details({ r, scenario, sim, state, pinned, onPin, onUnpin }: { r
       {tab === 'Breakdown' && (
         <>
           <div className="row small secondary" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
-            <span>Damage dealt by source (after resistances and amplifiers).</span>
+            <span>Damage dealt by source.</span>
             <TypeLegend />
           </div>
           <SourceBars sources={r.bySource} />
@@ -254,7 +254,7 @@ function Compare({ r, pinned, onPin, onUnpin, scenario }: { r: SimResult; pinned
     <div className="stack">
       <div className="row">
         <span className="small secondary" style={{ flex: 1 }}>
-          Pin the current setup, change items/runes/combo, and compare. Pinned setups are re-simulated against the current target.
+          Pinned setups are re-simulated against the current target.
         </span>
         <button className="btn primary" onClick={onPin} disabled={pinned.length >= 6}>
           Pin current
@@ -263,7 +263,7 @@ function Compare({ r, pinned, onPin, onUnpin, scenario }: { r: SimResult; pinned
       <PinnedBars r={r} pinned={pinned} onUnpin={onUnpin} scenario={scenario} />
       <div className="row" style={{ marginTop: 8 }}>
         <span className="small secondary" style={{ flex: 1 }}>
-          Best ordering of the current combo's steps (tries every permutation, up to 5,040).
+          Best ordering of the current combo's steps.
         </span>
         <button className="btn" onClick={() => setCombos(optimizeCombo(DATA, scenario, { top: 8 }))}>
           Find best order
@@ -327,7 +327,7 @@ function Sweep({ scenario, r }: { scenario: Scenario; r: SimResult }) {
     <div className="stack">
       <div className="row">
         <span className="small secondary" style={{ flex: 1 }}>
-          Total damage of this combo as the target's {stat === 'mr' ? 'magic resist' : 'armor'} changes (other stats unchanged). The vertical line marks the current target.
+          Total damage of this combo as the target's {stat === 'mr' ? 'magic resist' : 'armor'} changes. The vertical line marks the current target.
         </span>
         <div className="segmented">
           <button aria-pressed={stat === 'armor'} onClick={() => setStat('armor')}>

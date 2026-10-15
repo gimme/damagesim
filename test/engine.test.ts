@@ -250,11 +250,11 @@ test('rune hover text: the in-game tooltip with numbers for the attacker, else t
   const rune = (id: number) => data.runes.find((r) => r.id === id)!;
   const electrocute = rune(8112);
   const live = runeText(electrocute, ahri);
-  assert.ok(live.live && live.adaptive === 'magic');
+  assert.ok(live.live);
   assert.ok(live.body.includes(`<magicDamage>${formatNumber(ahri.evalDataCalc(electrocute.calcs, electrocute.values, 'TotalDamage'))}</magicDamage>`), live.body);
   // The stats the rune tracks in game are left out.
   assert.ok(!/Total Damage Dealt/i.test(live.body), live.body);
-  assert.equal(runeText(electrocute, darius).adaptive, 'physical');
+  assert.ok(runeText(electrocute, darius).body.includes('<physicalDamage>adaptive damage</physicalDamage>'));
   // Without a simulator: the description, with ranges and ratios.
   const desc = runeText(electrocute);
   assert.ok(!desc.live && desc.body.includes('Damage: 70 - 240 (+0.1 bonus AD, +0.05 AP) damage.'), desc.body);
@@ -271,15 +271,15 @@ test('rune hover text: the in-game tooltip with numbers for the attacker, else t
   assert.ok(dh.body.includes(`deals <magicDamage>${formatNumber(harvest.raw)} magic damage</magicDamage>`), dh.body);
   assert.ok(dh.body.includes('Souls harvested: <font color=\'#fc314e\'>10</font>') && !/Total damage dealt/i.test(dh.body), dh.body);
   assert.equal(runeText(rune(5008), darius).body, '<scaleAD>+5.4 Attack Damage</scaleAD>');
-  // Adaptive Force: what it gives at the attacker's stats.
-  assert.equal(runeText(rune(8233), ahri).adaptiveForce, 'magic');
-  assert.equal(runeText(rune(8233), darius).adaptiveForce, 'physical');
+  // Adaptive Force: colored by what it gives at the attacker's stats.
+  assert.match(runeText(rune(8233), ahri).body, /<magicDamage>[\d.]+ Adaptive Force<\/magicDamage>/);
+  assert.match(runeText(rune(8233), darius).body, /<physicalDamage>[\d.]+ Adaptive Force<\/physicalDamage>/);
   // Melee/ranged splits take the attacker's side; the ranged share is a modified percentage.
   assert.ok(runeText(rune(8369), ahri).body.includes('<gold>35%</gold> of that damage'));
   assert.ok(runeText(rune(8369), darius).body.includes('<gold>50%</gold> of that damage'));
   assert.ok(runeText(rune(9923), darius).body.includes('gain 90% Attack Speed'));
   // Hashed values get the names the text uses: Jack of All Trades' Adaptive5 and Adaptive10.
-  assert.ok(runeText(rune(8316), ahri).body.includes('Gain 8 or 20 bonus Adaptive Force'));
+  assert.ok(runeText(rune(8316), ahri).body.includes('Gain 8 or 20 bonus <magicDamage>Adaptive Force</magicDamage>'));
   for (const r of data.runes.filter((r) => !NOT_LIVE_RUNES.has(r.id))) {
     for (const sim of [ahri, darius]) {
       const t = runeText(r, sim);

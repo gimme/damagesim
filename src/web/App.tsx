@@ -85,7 +85,6 @@ export function App() {
       <header className="topbar">
         <h1>lolsim</h1>
         <span className="badge">patch {DATA.meta.patch}</span>
-        <span className="muted small">Damage from the game's own formulas — champions, items, runes, combos.</span>
         <span className="spacer" />
         {!embedded && (
           <button className="btn small" onClick={() => copy(location.href, 'Link copied')}>
