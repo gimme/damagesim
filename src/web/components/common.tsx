@@ -218,14 +218,19 @@ export function useHoverCard() {
   const pressed = useRef(0);
   // Once a held finger has opened a card, moving it goes from element to element, not scrolling.
   const scrubbing = useRef(false);
+  // The element whose keyboard focus opened the card; only its blur closes it, as touching an
+  // element (a long press too) moves focus, which would close the card a finger opened.
+  const focused = useRef<HTMLElement | null>(null);
   const show = (anchor: HTMLElement, content: ReactNode, touch = false) => {
     isOpen.current = true;
+    focused.current = null;
     if (touch) scrubbing.current = true;
     setCard({ anchor, content, touch });
   };
   const hide = () => {
     clearTimeout(timer.current);
     isOpen.current = false;
+    focused.current = null;
     setCard(null);
   };
   const enter = (anchor: HTMLElement, content: ReactNode, touch: boolean) => {
@@ -315,8 +320,12 @@ export function useHoverCard() {
       }
       pressed.current = 0;
     },
-    onFocus: (e: FocusEvent<HTMLElement>) => e.currentTarget.matches(':focus-visible') && show(e.currentTarget, content),
-    onBlur: hide,
+    onFocus: (e: FocusEvent<HTMLElement>) => {
+      if (!e.currentTarget.matches(':focus-visible')) return;
+      show(e.currentTarget, content);
+      focused.current = e.currentTarget;
+    },
+    onBlur: (e: FocusEvent<HTMLElement>) => focused.current === e.currentTarget && hide(),
   });
   const node =
     card &&

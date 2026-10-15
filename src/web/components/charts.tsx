@@ -125,6 +125,8 @@ export function HpBar({ sources, maxHp, startHp }: { sources: SourceTotal[]; max
         {segs.map(({ s, t, x, w }, i) =>
           w <= 0 ? null : (
             <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} maxHp={maxHp} />)} onPointerLeave={tt.hide}>
+              {/* The whole segment, gap included, so moving across the bar never leaves all of them */}
+              <rect x={x} y={0} width={w} height={H} fill="transparent" />
               <rect x={x + 1} y={0} width={Math.max(0.5, w - 2)} height={H} fill={TYPE_COLOR[t]} rx={i === segs.length - 1 || i === 0 ? 4 : 0} />
               {w > 70 && (
                 <text x={x + w / 2} y={H / 2 + 4} textAnchor="middle" fontSize={12} fill="#fff" style={{ pointerEvents: 'none' }}>

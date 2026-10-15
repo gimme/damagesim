@@ -904,10 +904,14 @@ table.data th.r {
   color: var(--text-muted);
   margin-right: 4px;
 }
+/* A summary is a toggle: like a button's, its text isn't selectable (a long press on a phone
+   selected it, and the selection then misbehaved). */
 details summary {
   cursor: pointer;
   color: var(--text-secondary);
   font-size: 12.5px;
+  -webkit-user-select: none;
+  user-select: none;
 }
 .rune-grid {
   display: flex;
