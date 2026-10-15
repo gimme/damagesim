@@ -1,7 +1,7 @@
 // Small SVG charts. Color encodes damage type (magic / physical / true) with fixed slots, always
 // accompanied by a legend or labels; every chart has a hover tooltip and a table elsewhere.
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { DamageInstance } from '../../engine/effects.ts';
 import type { SourceTotal } from '../../engine/sim.ts';
 import { abilityIcon } from '../data.ts';
@@ -295,7 +295,7 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
             </g>
           ))}
           {notches.map((k) => (
-            <line key={k} x1={startOffset + k * tick} x2={startOffset + k * tick} y1={0} y2={k % 10 ? H * 0.3 : H * 0.55} stroke="var(--hp-track)" strokeWidth={k % 10 ? 1 : 2} style={{ pointerEvents: 'none' }} />
+            <line key={k} x1={startOffset + k * tick} x2={startOffset + k * tick} y1={0} y2={k % 10 ? H * 0.18 : H * 0.33} stroke="var(--hp-track)" strokeWidth={k % 10 ? 1 : 2} style={{ pointerEvents: 'none' }} />
           ))}
           {/* Over the notches */}
           {blocks.map(({ s, x, w }, i) => {
@@ -356,22 +356,23 @@ function SourceName({ source, label, champion, children = label }: { source: str
 }
 
 function SourceTip({ s, maxHp, champion }: { s: SourceTotal | Moment; maxHp?: number; champion: string }) {
-  // A block of several sources lists them, each number in the color of the type it deals most; one source, its types.
-  const rows =
-    'parts' in s && s.parts.length > 1
-      ? s.parts.map((p) => ({ key: `${p.source}|${p.label}`, t: typesByAmount(p.type)[0], name: <SourceName source={p.source} label={p.label} champion={champion} />, damage: p.damage }))
-      : typesByAmount(s.type)
-          .filter((t) => t in s.type)
-          .map((t) => ({ key: t, t, name: TYPE_LABEL[t], damage: s.type[t]! }));
+  // A row per source, its damage in its type's color. A source dealing several types splits it,
+  // largest first; a type dealing under half a point is left out unless it's the only one.
   return (
     <>
-      <div className="tt-title">
-        <SourceName source={s.source} label={s.label} champion={champion} />
-      </div>
-      {rows.map(({ key, t, name, damage }) => (
-        <div className="tt-row" key={key}>
-          <span>{name}</span>
-          <strong style={{ color: TYPE_TEXT[t] }}>{fmt(damage)}</strong>
+      {('parts' in s ? s.parts : [s]).map((p) => (
+        <div className="tt-row" key={`${p.source}|${p.label}`}>
+          <SourceName source={p.source} label={p.label} champion={champion} />
+          <span>
+            {typesByAmount(p.type)
+              .filter((t, i) => i === 0 || (p.type[t] ?? 0) >= 0.5)
+              .map((t, i) => (
+                <Fragment key={t}>
+                  {i > 0 && <span className="muted"> + </span>}
+                  <strong style={{ color: TYPE_TEXT[t] }}>{fmt(p.type[t] ?? 0)}</strong>
+                </Fragment>
+              ))}
+          </span>
         </div>
       ))}
       <div className="tt-row muted">
