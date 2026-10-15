@@ -1,7 +1,7 @@
 // Small SVG charts. Color encodes damage type (magic / physical / true) with fixed slots, always
 // accompanied by a legend or labels; every chart has a hover tooltip and a table elsewhere.
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { DamageInstance } from '../../engine/effects.ts';
 import type { SourceTotal } from '../../engine/sim.ts';
 import { fmt } from './common.tsx';
@@ -33,6 +33,7 @@ interface TipState {
 /** Tooltip + container width (charts draw in real pixels so text stays legible at any size). */
 export function useTooltip() {
   const ref = useRef<HTMLDivElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
   const [tip, setTip] = useState<TipState | null>(null);
   const [width, setWidth] = useState(900);
   useEffect(() => {
@@ -48,13 +49,26 @@ export function useTooltip() {
   const show = (e: { clientX: number; clientY: number }, content: ReactNode) => {
     const box = ref.current?.getBoundingClientRect();
     if (!box) return;
-    let x = e.clientX - box.left + 14;
-    const y = e.clientY - box.top + 14;
-    if (x > box.width - 220) x = Math.max(0, e.clientX - box.left - 230);
-    setTip({ x, y, content });
+    setTip({ x: e.clientX - box.left, y: e.clientY - box.top, content });
   };
+  // Below and right of the cursor; left of it when it would pass the chart's right edge, above it
+  // when it would pass the bottom of the window.
+  useLayoutEffect(() => {
+    const el = tipRef.current;
+    const box = ref.current?.getBoundingClientRect();
+    if (!tip || !el || !box) return;
+    el.style.left = '0px';
+    el.style.top = '0px';
+    const { width: w, height: h } = el.getBoundingClientRect();
+    let x = tip.x + 14;
+    if (x + w > box.width) x = Math.max(0, tip.x - 14 - w);
+    let y = tip.y + 14;
+    if (box.top + y + h > window.innerHeight - 8) y = Math.max(8 - box.top, tip.y - 14 - h);
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+  }, [tip]);
   const node = tip ? (
-    <div className="tooltip" style={{ left: tip.x, top: tip.y }} role="status">
+    <div ref={tipRef} className="tooltip" role="status">
       {tip.content}
     </div>
   ) : null;

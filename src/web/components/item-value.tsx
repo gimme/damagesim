@@ -1,9 +1,9 @@
 // Item value: what each legendary or pair of boots would add to the current build, ranked by damage
 // per gold or total damage, as a list or a gold-vs-damage map. Recomputed live as the build changes.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type PointerEvent } from 'react';
 import { DATA } from '../data.ts';
-import { Card, ItemIcon, ItemTip, fmt, useHoverCard } from './common.tsx';
+import { Card, ItemIcon, ItemTip, fmt } from './common.tsx';
 import { GoldScatter, useTooltip, type GoldPoint } from './charts.tsx';
 import { rankItems, defaultCandidates } from '../../engine/analysis.ts';
 import type { Scenario, Sim } from '../../engine/sim.ts';
@@ -157,8 +157,6 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
 
 function RankList({ rows: all, limit, by, current, slotLabel, onPick, sim }: { rows: Row[]; limit: number; by: 'perGold' | 'damage'; current: number | null; slotLabel: string; onPick: (id: number) => void; sim: Sim | null }) {
   const tt = useTooltip();
-  // The item's name shows its details; the rest of the row shows where its damage comes from.
-  const hover = useHoverCard();
   // The current item stays listed even when it isn't in the top rows.
   const rank = all.findIndex((r) => r.id === current) + 1;
   const rows = rank > limit ? [...all.slice(0, limit), all[rank - 1]] : all.slice(0, limit);
@@ -201,10 +199,15 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick, sim }: { r
               key={r.id}
               role="row"
               className={`iv-row ${isCurrent ? 'current' : ''}`}
-              onPointerMove={(e) => ((e.target as Element).closest('.iv-item') ? tt.hide() : tt.show(e, <RowTip row={r} current={current} />))}
+              onPointerMove={(e) => {
+                const col = nearestColumn(e);
+                if (col === 'iv-item') tt.show(e, <ItemTip id={r.id} sim={sim} />);
+                else if (col === 'iv-act') tt.hide();
+                else tt.show(e, <RowTip row={r} current={current} />);
+              }}
               onPointerLeave={tt.hide}
             >
-              <span role="cell" className="iv-item" {...hover.bind(<ItemTip id={r.id} sim={sim} />)}>
+              <span role="cell" className="iv-item">
                 <ItemIcon id={r.id} size="sm" />
                 <span className="iv-name">{r.item}</span>
                 <span className="muted num">{fmt(r.gold)}g</span>
@@ -233,9 +236,23 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick, sim }: { r
         })}
       </div>
       {tt.node}
-      {hover.node}
     </div>
   );
+}
+
+/** The column of a row the pointer is over or nearest to: the item shows its details, the bar and
+ *  numbers where its damage comes from, and the Buy column nothing. Nearest, so the row's padding
+ *  and the gaps between columns don't switch between them. */
+function nearestColumn(e: PointerEvent<HTMLElement>): string {
+  let best = '';
+  let bestDist = Infinity;
+  for (const cell of Array.from(e.currentTarget.children)) {
+    const r = cell.getBoundingClientRect();
+    const dx = Math.max(r.left - e.clientX, 0, e.clientX - r.right);
+    const dy = Math.max(r.top - e.clientY, 0, e.clientY - r.bottom);
+    if (dx * dx + dy * dy < bestDist) [best, bestDist] = [cell.classList[0], dx * dx + dy * dy];
+  }
+  return best;
 }
 
 function RowTip({ row: r, current, action }: { row: Row; current: number | null; action?: string }) {
