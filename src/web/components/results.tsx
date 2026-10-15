@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { DATA } from '../data.ts';
-import { Card, ItemIcon, fmt } from './common.tsx';
+import { Card, ItemIcon, ItemTip, fmt, useHoverCard } from './common.tsx';
 import { HpBar, LineChart, SimpleBars, SourceBars, Timeline, TypeLegend, TYPE_COLOR, TYPE_LABEL, TYPE_ORDER, type DmgType } from './charts.tsx';
 import type { Scenario, SimResult, Sim } from '../../engine/sim.ts';
 import { resistSweep, optimizeCombo, compare } from '../../engine/analysis.ts';
@@ -140,7 +140,7 @@ export function Details({ r, scenario, sim, state, pinned, onPin, onUnpin }: { r
       {tab === 'Abilities' && sim && <Abilities sim={sim} />}
       {tab === 'Compare' && <Compare r={r} pinned={pinned} onPin={onPin} onUnpin={onUnpin} scenario={scenario} />}
       {tab === 'Resist sweep' && <Sweep scenario={scenario} r={r} />}
-      {tab === 'Stats' && <Stats r={r} />}
+      {tab === 'Stats' && <Stats r={r} sim={sim} />}
     </section>
   );
 }
@@ -341,7 +341,8 @@ function Sweep({ scenario, r }: { scenario: Scenario; r: SimResult }) {
   );
 }
 
-function Stats({ r }: { r: SimResult }) {
+function Stats({ r, sim }: { r: SimResult; sim: Sim | null }) {
+  const hover = useHoverCard();
   const s = r.stats;
   const t = r.target;
   const rows: [string, string][] = [
@@ -374,11 +375,12 @@ function Stats({ r }: { r: SimResult }) {
       </div>
       <div className="row small" style={{ gap: 6 }}>
         {r.items.map((i) => (
-          <span key={i.id} className="row" style={{ gap: 4 }}>
+          <span key={i.id} className="row" style={{ gap: 4 }} {...hover.bind(<ItemTip id={i.id} sim={sim} />)}>
             <ItemIcon id={i.id} size="sm" />
             {i.name}
           </span>
         ))}
+        {hover.node}
       </div>
     </div>
   );

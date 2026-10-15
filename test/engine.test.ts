@@ -12,6 +12,7 @@ import { compile } from '../src/engine/expr.ts';
 import { parseCombo, formatCombo } from '../src/engine/combo.ts';
 import { combineAmps } from '../src/engine/sim.ts';
 import { rankItems } from '../src/engine/analysis.ts';
+import { formatNumber, itemText } from '../src/engine/tooltip.ts';
 
 const data = loadGameData('16.20');
 await loadAllKits();
@@ -204,4 +205,23 @@ test('rank items per gold: sorted by damage gained per 1000 gold of the item', (
   // Lich Bane's own Spellblade hit is part of its gain; Rabadon's only raises your other damage.
   assert.ok(lich.itemDamage > 0 && lich.itemDamage < lich.gain);
   assert.equal(res.items.find((x) => x.item === "Rabadon's Deathcap")!.itemDamage, 0);
+});
+
+test('item hover text: numbers for the attacker when the formula tooltip covers the shop text', () => {
+  const sim = new Sim(data, { champion: 'Ahri', level: 11, items: ["Luden's Echo"], combo: [] });
+  const luden = data.items[6655];
+  const live = itemText(luden, sim);
+  assert.ok(live.live);
+  assert.deepEqual(live.stats, ['<attention> 100</attention> Ability Power', '<attention> 600</attention> Mana', '<attention> 10</attention> Ability Haste']);
+  assert.ok(live.body.includes(`${formatNumber(sim.evalDataCalc(luden.calcs, luden.dataValues, 'Damage'))} bonus magic damage`), live.body);
+  // Without a simulator: the shop text, which leaves the damage blank.
+  const shop = itemText(luden);
+  assert.ok(!shop.live && shop.body.includes('Damaging Abilities fire 6 Echoes'));
+  // Ravenous Hydra's formula tooltip leaves out its active, so the shop text is used.
+  const hydra = itemText(data.items[3074], sim);
+  assert.ok(!hydra.live && /<active>Ravenous Crescent<\/active>/.test(hydra.body));
+  for (const item of Object.values(data.items).filter((i) => i.inStore && !i.requiredChampion)) {
+    const t = itemText(item, sim);
+    for (const s of [...t.stats, t.body]) assert.ok(!/%i:|\{\{|@|^<br>|<br>$/.test(s), `${item.name}: ${s}`);
+  }
 });

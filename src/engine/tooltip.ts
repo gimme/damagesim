@@ -1,6 +1,6 @@
 // Render ability tooltips with numbers filled in, for display and for checking against the client.
 
-import type { SpellData } from './data-types.ts';
+import type { ItemData, SpellData } from './data-types.ts';
 import type { Sim } from './sim.ts';
 import type { Slot } from './effects.ts';
 
@@ -57,4 +57,63 @@ export function renderTooltip(sim: Sim, slot: Slot, spell: SpellData, rank?: num
     .replace(/[ \t]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+/** Fill an item text's @Placeholders@ from the item's data values and, with a simulator, its
+ *  calculations for the simulator's champion, level and stats. Unresolved ones (melee/ranged splits,
+ *  text keys) are left out and reported. */
+function fillItemValues(text: string, item: ItemData, sim?: Sim | null): { text: string; resolved: boolean } {
+  let resolved = true;
+  const filled = text.replace(/@([^@]+)@/g, (_m, ref: string) => {
+    const [name, multStr] = ref.split('*');
+    const mult = multStr ? Number(multStr) : 1;
+    const lower = name.toLowerCase();
+    const ck = Object.keys(item.calcs).find((k) => k.toLowerCase() === lower);
+    if (ck && sim) {
+      const node = item.calcs[ck];
+      const v = sim.evalDataCalc(item.calcs, item.dataValues, ck) * mult;
+      return node.pct ? `${formatNumber(v * 100, node.precision)}%` : formatNumber(v, node.precision);
+    }
+    const dk = Object.keys(item.dataValues).find((k) => k.toLowerCase() === lower);
+    if (dk) return formatNumber(item.dataValues[dk] * mult);
+    resolved = false;
+    return '';
+  });
+  return { text: filled, resolved };
+}
+
+const sections = (markup: string) =>
+  [...new Set([...markup.matchAll(/<(passive|active)>([^<]*)<\/\1>/gi)].map((m) => m[2].replace(/:\s*$/, '').trim()))].sort().join('|');
+
+const cleanItemMarkup = (markup: string) =>
+  markup
+    .replace(/<\/?mainText>/gi, '')
+    .replace(/\{\{\s*Item_Keyword_OnHit\s*\}\}/g, 'On-Hit')
+    .replace(/\{\{[^}]*\}\}/g, '')
+    // The client draws an icon on its own line before an active; the text doesn't always break there.
+    .replace(/(<br\s*\/?>|\s)*%i:activeEffect%/gi, '<br><br>')
+    .replace(/%i:\w+%/g, '')
+    .replace(/\s*\((\s|<[^>]+>)*\)/g, '')
+    .replace(/<li>/gi, '<br>• ')
+    .replace(/^(\s|<br\s*\/?>)+|(\s|<br\s*\/?>)+$/gi, '');
+
+/**
+ * What an item's hover card shows, as tooltip markup: the shop text's stat lines, and its passive and
+ * active text. With a simulator, the text comes from the formula tooltip with numbers filled in, as
+ * long as it covers the same passives and actives; the shop text leaves values that depend on level
+ * or stats blank, and the formula tooltip sometimes omits an active or is out of date.
+ */
+export function itemText(item: ItemData, sim?: Sim | null): { stats: string[]; body: string; live: boolean } {
+  const stats = /<stats>([\s\S]*?)<\/stats>/i.exec(item.description)?.[1] ?? '';
+  const shop = item.description.replace(/<stats>[\s\S]*?<\/stats>/i, '');
+  const live = sim && item.tooltip ? fillItemValues(item.tooltip, item, sim) : null;
+  const useLive = !!live?.resolved && !live.text.includes('{{') && sections(live.text) === sections(shop);
+  return {
+    stats: fillItemValues(stats, item, sim)
+      .text.split(/<br\s*\/?>/i)
+      .map(cleanItemMarkup)
+      .filter((s) => /\d/.test(s.replace(/<[^>]+>/g, ''))),
+    body: cleanItemMarkup(useLive ? live.text : fillItemValues(shop, item, sim).text),
+    live: useLive,
+  };
 }

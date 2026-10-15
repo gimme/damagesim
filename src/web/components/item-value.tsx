@@ -3,10 +3,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { DATA } from '../data.ts';
-import { Card, ItemIcon, fmt } from './common.tsx';
+import { Card, ItemIcon, ItemTip, fmt, useHoverCard } from './common.tsx';
 import { GoldScatter, useTooltip, type GoldPoint } from './charts.tsx';
 import { rankItems, defaultCandidates } from '../../engine/analysis.ts';
-import type { Scenario } from '../../engine/sim.ts';
+import type { Scenario, Sim } from '../../engine/sim.ts';
 import type { UIState } from '../state.ts';
 
 type Set = (fn: (s: UIState) => UIState) => void;
@@ -17,7 +17,7 @@ const DEFAULT_IDS = defaultCandidates(DATA).map((i) => i.id);
 const SHOWN = 8;
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${fmt(Math.abs(v))}`;
 
-export function ItemValueCard({ state, set, scenario }: { state: UIState; set: Set; scenario: Scenario }) {
+export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; set: Set; scenario: Scenario; sim: Sim | null }) {
   const [by, setBy] = useState<'perGold' | 'damage'>('perGold');
   const [view, setView] = useState<'list' | 'map'>('list');
   const [showAll, setShowAll] = useState(false);
@@ -127,7 +127,7 @@ export function ItemValueCard({ state, set, scenario }: { state: UIState; set: S
           {!rows.useful.length ? (
             <div className="muted small">No legendary item or pair of boots adds damage to this combo.</div>
           ) : view === 'list' ? (
-            <RankList rows={rows.useful} limit={showAll ? Infinity : SHOWN} by={by} current={current} slotLabel={slotLabel} onPick={pick} />
+            <RankList rows={rows.useful} limit={showAll ? Infinity : SHOWN} by={by} current={current} slotLabel={slotLabel} onPick={pick} sim={sim} />
           ) : (
             <GoldScatter
               points={rows.useful.map((r): GoldPoint => ({ id: r.id, label: r.item, gold: r.gold, gain: r.gain, perGold: r.gainPerGold, highlight: r.id === current }))}
@@ -155,8 +155,10 @@ export function ItemValueCard({ state, set, scenario }: { state: UIState; set: S
   );
 }
 
-function RankList({ rows: all, limit, by, current, slotLabel, onPick }: { rows: Row[]; limit: number; by: 'perGold' | 'damage'; current: number | null; slotLabel: string; onPick: (id: number) => void }) {
+function RankList({ rows: all, limit, by, current, slotLabel, onPick, sim }: { rows: Row[]; limit: number; by: 'perGold' | 'damage'; current: number | null; slotLabel: string; onPick: (id: number) => void; sim: Sim | null }) {
   const tt = useTooltip();
+  // The item's name shows its details; the rest of the row shows where its damage comes from.
+  const hover = useHoverCard();
   // The current item stays listed even when it isn't in the top rows.
   const rank = all.findIndex((r) => r.id === current) + 1;
   const rows = rank > limit ? [...all.slice(0, limit), all[rank - 1]] : all.slice(0, limit);
@@ -199,10 +201,10 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick }: { rows: 
               key={r.id}
               role="row"
               className={`iv-row ${isCurrent ? 'current' : ''}`}
-              onPointerMove={(e) => tt.show(e, <RowTip row={r} current={current} />)}
+              onPointerMove={(e) => ((e.target as Element).closest('.iv-item') ? tt.hide() : tt.show(e, <RowTip row={r} current={current} />))}
               onPointerLeave={tt.hide}
             >
-              <span role="cell" className="iv-item">
+              <span role="cell" className="iv-item" {...hover.bind(<ItemTip id={r.id} sim={sim} />)}>
                 <ItemIcon id={r.id} size="sm" />
                 <span className="iv-name">{r.item}</span>
                 <span className="muted num">{fmt(r.gold)}g</span>
@@ -231,6 +233,7 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick }: { rows: 
         })}
       </div>
       {tt.node}
+      {hover.node}
     </div>
   );
 }

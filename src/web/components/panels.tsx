@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { DATA } from '../data.ts';
-import { Card, ChampionPicker, ItemIcon, ItemPicker, NumberField, RuneIcon, fmt } from './common.tsx';
+import { Card, ChampionPicker, ItemIcon, ItemPicker, ItemTip, NumberField, RuneIcon, fmt, useHoverCard } from './common.tsx';
 import { SHARD_ROWS, type UIState, type TargetState } from '../state.ts';
 import { TARGET_PRESETS, type TargetPreset } from '../../engine/presets.ts';
 import { maxRanks, resolveRanks, type Sim, type SimResult } from '../../engine/sim.ts';
@@ -122,8 +122,9 @@ function OptionsEditor({ state, set, sim }: { state: UIState; set: Set; sim: Sim
 
 // -----------------------------------------------------------------------------
 
-export function ItemsPanel({ state, set, gold }: { state: UIState; set: Set; gold: number }) {
+export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set; gold: number; sim: Sim | null }) {
   const [picking, setPicking] = useState<number | null>(null);
+  const hover = useHoverCard();
   const items = state.items;
   const build = items.filter((x): x is number => x != null).map((id) => DATA.items[id]);
   const warnings = build.flatMap((it, i) => {
@@ -142,7 +143,17 @@ export function ItemsPanel({ state, set, gold }: { state: UIState; set: Set; gol
     <Card title="Items" right={<span className="num secondary">{fmt(gold)}g</span>}>
       <div className="slots">
         {items.map((id, i) => (
-          <div key={i} className={`slot ${id ? 'filled' : ''}`} role="button" tabIndex={0} aria-label={id ? `Item slot ${i + 1}: ${DATA.items[id]?.name}` : `Empty item slot ${i + 1}`} title={id ? DATA.items[id]?.name : 'Add item'} onClick={() => setPicking(i)} onKeyDown={(e) => e.key === 'Enter' && setPicking(i)}>
+          <div
+            key={i}
+            className={`slot ${id ? 'filled' : ''}`}
+            role="button"
+            tabIndex={0}
+            aria-label={id ? `Item slot ${i + 1}: ${DATA.items[id]?.name}` : `Empty item slot ${i + 1}`}
+            title={id ? undefined : 'Add item'}
+            onClick={() => setPicking(i)}
+            onKeyDown={(e) => e.key === 'Enter' && setPicking(i)}
+            {...(id ? hover.bind(<ItemTip id={id} sim={sim} action="Click to change" />) : {})}
+          >
             {id ? <ItemIcon id={id} /> : '+'}
             {id && (
               <button
@@ -163,7 +174,8 @@ export function ItemsPanel({ state, set, gold }: { state: UIState; set: Set; gol
           </div>
         ))}
       </div>
-      {picking !== null && <ItemPicker onPick={pick} onClose={() => setPicking(null)} />}
+      {hover.node}
+      {picking !== null && <ItemPicker onPick={pick} onClose={() => setPicking(null)} sim={sim} />}
       {!!build.length && picking === null && (
         <div className="small secondary" style={{ marginTop: 8 }}>
           {build.map((b) => b.name).join(' · ')}
@@ -333,15 +345,27 @@ export function TargetPanel({ state, set, resolved, label }: { state: UIState; s
 
 function TargetItems({ items, onChange }: { items: number[]; onChange: (i: number[]) => void }) {
   const [open, setOpen] = useState(false);
+  const hover = useHoverCard();
   return (
     <div>
       <div className="row" style={{ gap: 4 }}>
         {items.map((id, i) => (
-          <button key={i} className="btn small" title={`Remove ${DATA.items[id]?.name}`} onClick={() => onChange(items.filter((_, j) => j !== i))} style={{ display: 'inline-flex', gap: 4, alignItems: 'center', padding: 2 }}>
+          <button
+            key={i}
+            className="btn small"
+            aria-label={`Remove ${DATA.items[id]?.name}`}
+            onClick={() => {
+              hover.hide();
+              onChange(items.filter((_, j) => j !== i));
+            }}
+            style={{ display: 'inline-flex', gap: 4, alignItems: 'center', padding: 2 }}
+            {...hover.bind(<ItemTip id={id} action="Click to remove" />)}
+          >
             <ItemIcon id={id} size="sm" />
             <span className="muted">✕</span>
           </button>
         ))}
+        {hover.node}
         {items.length < 6 && (
           <button className="btn small" onClick={() => setOpen(true)}>
             + item

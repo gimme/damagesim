@@ -601,6 +601,53 @@ label.field {
   font-variant-numeric: tabular-nums;
 }
 
+/* Item hover card */
+.tooltip.hovercard {
+  position: fixed;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 16px));
+}
+.item-tip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  line-height: 1.45;
+}
+.it-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.it-head strong {
+  flex: 1;
+  font-weight: 650;
+}
+.it-stats {
+  font-variant-numeric: tabular-nums;
+}
+.it-body {
+  color: var(--text-secondary);
+  padding-top: 8px;
+  border-top: 1px solid var(--grid);
+}
+.it-name {
+  color: var(--text-primary);
+  font-weight: 650;
+}
+.it-value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.it-rules {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.it-foot {
+  padding-top: 6px;
+  border-top: 1px solid var(--grid);
+}
+
 /* Item value ranking */
 .iv-row {
   display: grid;

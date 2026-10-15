@@ -105,7 +105,7 @@ export function App() {
       <div className="layout">
         <div>
           <AttackerPanel state={state} set={setState} sim={sim} />
-          <ItemsPanel state={state} set={setState} gold={result?.gold ?? 0} />
+          <ItemsPanel state={state} set={setState} gold={result?.gold ?? 0} sim={sim} />
           <RunesPanel state={state} set={setState} />
           <TargetPanel state={state} set={setState} resolved={result?.target} label={result ? `${result.target.label} · effective armor ${result.target.effectiveArmor.toFixed(0)}, MR ${result.target.effectiveMr.toFixed(0)}` : ''} />
           <SettingsPanel state={state} set={setState} />
@@ -116,7 +116,7 @@ export function App() {
           {result && (
             <>
               <Summary r={result} />
-              <ItemValueCard state={state} set={setState} scenario={scenario} />
+              <ItemValueCard state={state} set={setState} scenario={scenario} sim={sim} />
               <Details r={result} scenario={scenario} sim={sim} state={state} pinned={pinned} onPin={pin} onUnpin={(i) => setPinned((p) => p.filter((_, j) => j !== i))} />
             </>
           )}
