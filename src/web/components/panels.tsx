@@ -413,7 +413,8 @@ export function SettingsPanel({ state, set }: { state: UIState; set: Set }) {
         </div>
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <span className="small">Seconds already in combat</span>
-          <input type="number" min={0} max={30} step={1} style={{ width: 80 }} value={st.priorCombatTime} onChange={(e) => upd({ priorCombatTime: Number(e.target.value) })} />
+          {/* Nothing ramps longer: Riftmaker and Grasp take 4s, Liandry's and Haunting Guise 3s. */}
+          <input type="number" min={0} max={4} step={1} style={{ width: 80 }} value={st.priorCombatTime} onChange={(e) => upd({ priorCombatTime: Number(e.target.value) })} />
         </div>
         <label className="row small" style={{ justifyContent: 'space-between' }}>
           Let burns and bleeds finish after the combo

@@ -12,7 +12,7 @@ const kit: ChampionKit = {
     'Hymn of Valor Melody also empowers Sona\'s own next attack (on-hit magic damage).',
     'Accelerando stacks (option) grant basic ability haste up to the cap.',
   ],
-  options: [{ key: 'accelerando', label: 'Accelerando stacks', default: 40, min: 0, max: 200, step: 1, description: '+0.5 basic ability haste per stack (max 60).' }],
+  options: [{ key: 'accelerando', label: 'Accelerando stacks', default: 40, min: 0, max: 120, step: 1, description: '+0.5 basic ability haste per stack, up to 60 at 120 stacks (further stacks shorten R\'s cooldown instead; not modeled).' }],
   buffStacks: { '{1705b20f}': 'opt.accelerando' },
   stats: ({ opt, evalExpr }) => ({ basicAbilityHaste: Math.min(evalExpr('P.dv.AccelerandoCap'), opt.accelerando * evalExpr('P.dv.AccelerandoAHPerStack')) }),
   abilities: {

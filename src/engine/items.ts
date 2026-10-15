@@ -5,7 +5,7 @@
 // Behaviour sources: the in-game tooltips and docs/research/items.md.
 
 import type { ItemData } from './data-types.ts';
-import { addOnHitRepeat, forceCrit, triggersOnAttack, type DamageInstance, type DamageRequest, type Effect, type SetupCtx } from './effects.ts';
+import { addOnHitRepeat, DISTANCE, forceCrit, triggersOnAttack, type DamageInstance, type DamageRequest, type Effect, type SetupCtx } from './effects.ts';
 import type { Sim } from './sim.ts';
 import type { StatMods } from './stats.ts';
 
@@ -147,7 +147,7 @@ function energyEffect(): Effect {
     source: 'item',
     description: 'Energize charges: +6 per attack (+9 with Statikk Shiv); the attack after reaching 100 is Energized. Movement is not simulated.',
     limitations: ['Energize charges from movement are not simulated (only attacks).'],
-    options: [{ key: 'energized.start', label: 'Energize charges at start (100 = ready)', default: 100, min: 0, max: 100 }],
+    options: [{ key: 'energized.start', label: 'Energize charges at start (100 = ready)', default: 100, min: 0, max: 100, step: 5 }],
     onStart(sim) {
       sim.setCounter(ENERGY_KEY, sim.opt['energized.start'] ?? 100);
     },
@@ -491,10 +491,10 @@ const ITEMS: Record<number, Factory> = {
   2523: (item) =>
     effect(item, {
       description: 'Basic damage (attacks, Kraken Slayer…) deals up to 10% more based on distance (max at 500 range).',
-      options: [{ key: 'attackDistance', label: 'Attack distance (units)', default: 500, min: 0, max: 1200, step: 25 }],
+      options: [DISTANCE],
       beforeDamage(sim, inst) {
         if (!inst.flags.attack && !inst.flags.basic) return;
-        const dist = sim.opt['attackDistance'] ?? sim.stats.range;
+        const dist = sim.opt['distance'] ?? DISTANCE.default;
         inst.amps.push({ source: item.name, value: dv(item, 'MaxDamageAmp') * Math.min(1, dist / dv(item, 'MaxRange')), kind: 'dealt' });
       },
     }),
@@ -914,15 +914,15 @@ const ITEMS: Record<number, Factory> = {
   4628: (item) =>
     effect(item, {
       description: 'Champion-ability damage from 600+ range marks the target: you deal 10% more damage to it for 6s.',
-      options: [{ key: 'abilityDistance', label: 'Ability cast distance (units)', default: 0, min: 0, max: 2000, step: 50 }],
+      options: [DISTANCE],
       afterDamage(sim, inst) {
         // Every long-range hit marks the target again for the full duration.
-        if (!isChampionAbilityDamage(inst) || (sim.opt['abilityDistance'] ?? 0) < dv(item, 'SnipeRange')) return;
+        if (!isChampionAbilityDamage(inst) || (sim.opt['distance'] ?? DISTANCE.default) < dv(item, 'SnipeRange')) return;
         sim.setCounter(`horizon:${item.id}`, sim.time + dv(item, 'BuffDuration'));
       },
       beforeDamage(sim, inst) {
         // The triggering ability also benefits.
-        const marked = sim.time <= timerEnd(sim, `horizon:${item.id}`) || (isChampionAbilityDamage(inst) && (sim.opt['abilityDistance'] ?? 0) >= dv(item, 'SnipeRange'));
+        const marked = sim.time <= timerEnd(sim, `horizon:${item.id}`) || (isChampionAbilityDamage(inst) && (sim.opt['distance'] ?? DISTANCE.default) >= dv(item, 'SnipeRange'));
         if (marked && !inst.flags.unamplified) inst.amps.push({ source: item.name, value: dv(item, 'DamageAmp'), kind: 'dealt' });
       },
     }),

@@ -9,7 +9,7 @@ const kit: ChampionKit = {
   status: 'curated',
   options: [
     { key: 'dismounted', label: 'Dismounted', default: 0, toggle: true, description: 'Attacks deal P.calc.DismountedAttackPenalty less damage; use Q:pistol for Pocket Pistol.' },
-    { key: 'rChargeTime', label: 'Chaaaaaaaarge!!! travel time (s)', default: 0, min: 0, max: 4, step: 0.5, description: 'R damage grows from 1x to 3x over R.dv.SecondsToMaxPower seconds of charging.' },
+    { key: 'rChargeTime', label: 'Chaaaaaaaarge!!! travel time (s)', default: 0, min: 0, max: 3, step: 0.5, description: 'R damage grows from 1x to 3x over R.dv.SecondsToMaxPower seconds of charging.' },
   ],
   notes: [
     'Violent Tendencies (W passive) is automatic (hook): the first attack while W is ready triggers it and counts as hit 1; the 4th hit deals the bonus damage; +attack speed until then (max 4s). Each attack on a champion while W is on cooldown reduces it by W.dv.ChampCooldownRefund s.',

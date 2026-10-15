@@ -22,7 +22,7 @@ const kit: ChampionKit = {
   id: 'Bard',
   status: 'curated',
   options: [
-    { key: 'chimes', label: 'Chimes collected', default: 25, min: 0, max: 200, step: 1, description: 'Meep damage +6 per 5 Chimes.' },
+    { key: 'chimes', label: 'Chimes collected', default: 25, min: 0, max: 200, step: 5, description: 'Meep damage +6 per 5 Chimes.' },
     { key: 'meeps', label: 'Meeps (max, all ready at start)', default: 2, min: 0, max: 9, step: 1, description: 'Wiki: 1 Meep at 0 Chimes, 2 at 10, 3 at 30, 4 at 50…' },
   ],
   notes: [

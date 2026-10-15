@@ -147,6 +147,9 @@ export interface CastInfo {
   label: string;
 }
 
+/** Distance to the target, shared by Arcane Comet, Hexoptics C44 and Horizon Focus (positions are not simulated). */
+export const DISTANCE = { key: 'distance', label: 'Distance to target (units)', default: 600, min: 0, max: 2000, step: 100, description: 'Where your attacks and abilities hit the target from.' };
+
 export interface SetupCtx {
   level: number;
   ranged: boolean;

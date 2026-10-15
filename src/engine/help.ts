@@ -21,7 +21,7 @@ export const SCENARIO_HELP = `Scenario JSON (all fields except champion and comb
   "settings": {
     "finishDots": true,               // keep simulating burns/bleeds after the last step (else they stop 3s after it)
     "waitForCooldowns": true,         // repeated abilities wait for their cooldown
-    "priorCombatTime": 0,             // seconds already in combat (Liandry's/Riftmaker ramp)
+    "priorCombatTime": 0,             // seconds already in combat (Liandry's/Riftmaker ramp, Grasp; max 4 matters)
     "ampStacking": "additive"         // additive (live since 26.9) | multiplicative
   }
 }
@@ -36,8 +36,9 @@ Combo steps (array form):
 Combo shorthand: "Q W E R P AA AA*3 3AA AA! AA? Q! Q? Q:variant Q{out:1,back:0} Q+bonus ignite item:rocketbelt wait:1.5"
   (crits deal their expected value; ! crits every hit of the step that can crit, ? none, follow-up attacks included)
 
-Common options: self.hpPercent (your HP, for Last Stand etc.), gameTime (minutes; Gathering Storm),
-legend.stacks, darkHarvest.souls, comet.distance, aery.cycle, grasp.charged, firstStrike.active,
-suddenImpact.armed, energized.start (0-100), heartsteel.ready, heartsteel.stacks, glory.stacks,
-rodofages.stacks, yuntal.crit, deadmans.stacks, luden.targets, abilityDistance, attackDistance,
+Common options: self.hpPercent (your HP, for Last Stand etc.), gameTime (minutes; Gathering Storm,
+Conditioning), distance (to the target; Arcane Comet, Hexoptics C44, Horizon Focus), legend.stacks,
+darkHarvest.souls, aery.cycle, grasp.charged, firstStrike.active, suddenImpact.armed, energized.start
+(0-100), heartsteel.ready, heartsteel.stacks, glory.stacks, rodofages.stacks, yuntal.crit,
+deadmans.stacks, luden.targets,
 plus champion-specific options listed by "lolsim champion <name>" (e.g. stack counts).`;

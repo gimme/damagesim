@@ -136,8 +136,8 @@ Targets:
   and the target never fights back.
 * **Timing.** Casts use the game's cast times and attacks use your attack speed and windup.
   Projectile travel is approximated per component (`delay`), and attack-move and positioning are
-  ignored. Items and runes that depend on distance or movement have options (`comet.distance`,
-  `attackDistance`, `energized.start`, …).
+  ignored. Items and runes that depend on distance or movement have options (`distance`,
+  `energized.start`, …).
 * **On-hit vs on-attack.** Abilities the wiki lists as applying on-hit effects get item and rune
   on-hit effects. Only basic attacks and abilities that also trigger on-attack effects stack
   Guinsoo's, Lethal Tempo, Energize charges and similar. A champion's own passive on-hit applies

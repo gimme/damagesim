@@ -2,7 +2,7 @@
 // research notes in docs/research/runes.md (trigger rules, damage types, stacking).
 
 import type { RuneData } from './data-types.ts';
-import { triggersOnAttack, type DamageInstance, type Effect, type SetupCtx } from './effects.ts';
+import { DISTANCE, triggersOnAttack, type DamageInstance, type Effect, type SetupCtx } from './effects.ts';
 import type { Sim } from './sim.ts';
 import { GAME, type StatMods } from './stats.ts';
 import { ITEM_STAT_TYPES } from './items.ts';
@@ -63,6 +63,9 @@ const harvestDamage = (rune: RuneData, sim: Sim) => calc(sim, rune, 'TotalDamage
 const adaptiveIndex = (type: 'physical' | 'magic') => (type === 'physical' ? 0 : 1);
 /** Adaptive force as the stat it gives. */
 const adaptiveStat = (force: number, type: 'physical' | 'magic') => force * (type === 'physical' ? GAME.adaptiveToAd : GAME.adaptiveToAp);
+
+/** Game time, shared by Gathering Storm and Conditioning, in Gathering Storm's 10-minute steps. */
+const GAME_TIME = { key: 'gameTime', label: 'Game time (minutes)', default: 20, min: 0, max: 60, step: 10 };
 
 /**
  * The values the game's script sets in a rune's in-game tooltip (@f1@…, and the includes they pick),
@@ -373,13 +376,13 @@ const RUNES: Record<number, Factory> = {
     const v = rune.values;
     return base(rune, {
       description: 'Ability damage calls a comet (lands after 0.8s); damage grows up to +100% with distance (750 units).',
-      options: [{ key: 'comet.distance', label: 'Comet distance (units)', default: 550, min: 0, max: 1200, step: 25 }],
+      options: [DISTANCE],
       limitations: ['Assumes the comet hits (it can be dodged).'],
       afterDamage(sim, inst) {
         if (!(inst.flags.ability || inst.flags.pet) || (inst.flags.proc && !inst.flags.pet)) return;
         if (!sim.isReady(`rune:${rune.id}`)) return;
         sim.startCooldown(`rune:${rune.id}`, calc(sim, rune, 'CooldownCalc'));
-        const dist = sim.opt['comet.distance'] ?? 550;
+        const dist = sim.opt['distance'] ?? DISTANCE.default;
         sim.schedule(0.8, () =>
           sim.deal({
             source: `rune:${rune.id}`,
@@ -566,7 +569,7 @@ const RUNES: Record<number, Factory> = {
   9104: (rune) =>
     base(rune, {
       description: 'Attack speed per Legend stack.',
-      options: [{ key: 'legend.stacks', label: 'Legend stacks', default: 10, min: 0, max: 15 }],
+      options: [{ key: 'legend.stacks', label: 'Legend stacks', default: 10, min: 0, max: rune.values.MaxLegendStacks }],
       stats(ctx) {
         const v = rune.values;
         const n = Math.min(v.MaxLegendStacks, ctx.opt['legend.stacks'] ?? 10);
@@ -577,7 +580,7 @@ const RUNES: Record<number, Factory> = {
   9105: (rune) =>
     base(rune, {
       description: 'Basic ability haste per Legend stack.',
-      options: [{ key: 'legend.stacks', label: 'Legend stacks', default: 10, min: 0, max: 15 }],
+      options: [{ key: 'legend.stacks', label: 'Legend stacks', default: 10, min: 0, max: rune.values.MaxLegendStacks }],
       stats(ctx) {
         const v = rune.values;
         const n = Math.min(v.MaxLegendStacks, ctx.opt['legend.stacks'] ?? 10);
@@ -588,7 +591,7 @@ const RUNES: Record<number, Factory> = {
   9103: (rune) =>
     base(rune, {
       description: 'Life steal per Legend stack; +85 health at 15 stacks.',
-      options: [{ key: 'legend.stacks', label: 'Legend stacks', default: 10, min: 0, max: 15 }],
+      options: [{ key: 'legend.stacks', label: 'Legend stacks', default: 10, min: 0, max: rune.values.MaxLegendStacks }],
       stats(ctx) {
         const v = rune.values;
         const n = Math.min(v.MaxLegendStacks, ctx.opt['legend.stacks'] ?? 10);
@@ -672,7 +675,7 @@ const RUNES: Record<number, Factory> = {
   8236: (rune) =>
     base(rune, {
       description: 'Adaptive force every 10 minutes (8, 24, 48, 80… AP).',
-      options: [{ key: 'gameTime', label: 'Game time (minutes)', default: 20, min: 0, max: 60 }],
+      options: [GAME_TIME],
       stats(ctx) {
         // Tier k (every 10 minutes) adds k × 8 adaptive force: 8, 24, 48, 80…
         const k = Math.floor((ctx.opt['gameTime'] ?? 20) / rune.values.UpdateAfterMinutes);
@@ -714,7 +717,7 @@ const RUNES: Record<number, Factory> = {
   8429: (rune) =>
     base(rune, {
       description: '+8 armor/MR and +3% resists after 12 minutes.',
-      options: [{ key: 'gameTime', label: 'Game time (minutes)', default: 20, min: 0, max: 60 }],
+      options: [GAME_TIME],
       stats(ctx) {
         const v = rune.values;
         if ((ctx.opt['gameTime'] ?? 20) < v.MinutesRequired) return;
@@ -725,7 +728,7 @@ const RUNES: Record<number, Factory> = {
   8451: (rune) =>
     base(rune, {
       description: '+3 health per 8 nearby unit deaths; +3.5% max health at 120.',
-      options: [{ key: 'overgrowth.units', label: 'Overgrowth units', default: 120, min: 0, max: 400 }],
+      options: [{ key: 'overgrowth.units', label: 'Overgrowth units', default: 120, min: 0, max: 400, step: rune.values.UnitsPerTier }],
       stats(ctx) {
         const v = rune.values;
         const units = ctx.opt['overgrowth.units'] ?? 120;
