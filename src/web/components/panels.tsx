@@ -6,7 +6,7 @@ import { TARGET_PRESETS, type TargetPreset } from '../../engine/presets.ts';
 import { maxRanks, resolveRanks, type Sim, type SimResult } from '../../engine/sim.ts';
 import { runeText } from '../../engine/tooltip.ts';
 import { NOT_LIVE_RUNES, bonusSkillPoints } from '../../engine/runes.ts';
-import { parseCombo, formatCombo, type ComboStep } from '../../engine/combo.ts';
+import { critMarking, formatCombo, markCrit, parseCombo, type ComboStep, type CritMode } from '../../engine/combo.ts';
 import { conflicts } from '../../engine/analysis.ts';
 import { getKit } from '../../kits/index.ts';
 import type { Effect, Slot } from '../../engine/effects.ts';
@@ -400,18 +400,6 @@ export function SettingsPanel({ state, set }: { state: UIState; set: Set }) {
     <Card title="Settings">
       <div className="stack">
         <div className="row" style={{ justifyContent: 'space-between' }}>
-          <span className="small" title="Expected: crit-capable hits deal their average damage. Never/always: deterministic.">
-            Critical strikes
-          </span>
-          <div className="segmented">
-            {(['expected', 'never', 'always'] as const).map((c) => (
-              <button key={c} aria-pressed={st.crit === c} onClick={() => upd({ crit: c })}>
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="row" style={{ justifyContent: 'space-between' }}>
           <span className="small" title="Since patch 26.9 damage-dealt amplifiers add together; before, they multiplied.">
             Damage amplifiers
           </span>
@@ -467,15 +455,34 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
   const spellName = (slot: Slot) => (slot === 'P' ? champ.passive.name : champ.abilities.find((a) => a.slot === slot)?.spells[0]?.name ?? slot);
   const actives = (sim?.effects ?? []).filter((e) => e.active && e.source === 'item');
   const hasP = !!(kit.abilities.P?.components?.length || Object.keys(kit.abilities.P?.variants ?? {}).length);
-  const add = (st: ComboStep) => commit([...steps, st]);
+  // Crits aren't a setting: the buttons mark the steps that can crit (AA!, Q?), and show how they're
+  // marked: none pressed when they differ, the last pick while no step can crit. New steps follow.
+  const [lastCrits, setLastCrits] = useState<CritMode>('expected');
+  const crits = critMarking(steps, kit) ?? lastCrits;
+  const setCrits = (mode: CritMode) => {
+    setLastCrits(mode);
+    commit(steps.map((st) => markCrit(st, kit, mode)));
+  };
+  const follow = (st: ComboStep) => (crits === 'mixed' ? st : markCrit(st, kit, crits));
+  const add = (st: ComboStep) => commit([...steps, follow(st)]);
   const label = (st: ComboStep) => formatCombo([st]);
   return (
     <Card
       title="Combo"
       right={
-        <button className="btn small" onClick={() => commit([])}>
-          Clear
-        </button>
+        <div className="row" style={{ gap: 6 }}>
+          <span className="small secondary">Crits</span>
+          <div className="segmented small" role="group" aria-label="Crits" title="Expected: hits that can crit deal their average damage. Always (!) or never (?): marks every step that can crit.">
+            {(['expected', 'always', 'never'] as const).map((c) => (
+              <button key={c} aria-pressed={crits === c} onClick={() => setCrits(c)}>
+                {c}
+              </button>
+            ))}
+          </div>
+          <button className="btn small" onClick={() => commit([])}>
+            Clear
+          </button>
+        </div>
       }
     >
       <div className="combo-palette">
@@ -515,13 +522,13 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
                 <select
                   aria-label={`${st.slot} variant`}
                   value={st.variant ?? ''}
-                  onChange={(e) => commit(steps.map((x, j) => (j === i ? { ...st, variant: e.target.value || undefined } : x)))}
+                  onChange={(e) => commit(steps.map((x, j) => (j === i ? follow({ ...st, variant: e.target.value || undefined }) : x)))}
                   style={{ padding: '1px 2px', fontWeight: 600, background: 'transparent', border: 0 }}
                 >
-                  <option value="">{st.slot}</option>
+                  <option value="">{label({ ...st, variant: undefined })}</option>
                   {variants.map(([k, v]) => (
                     <option key={k} value={k}>
-                      {st.slot}: {v.label}
+                      {label({ ...st, variant: undefined })}: {v.label}
                     </option>
                   ))}
                 </select>

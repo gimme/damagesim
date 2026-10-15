@@ -14,10 +14,10 @@ const vigilance: BuffSpec = {
   empowerAttacks: { count: 'P.dv.NumAuto', components: [{ id: 'overcharged', label: 'Vigilance', type: 'magic', amount: 'P.calc.PassiveTotalDamage' }] },
 };
 
-/** Expected (or forced) crit factor for a crit multiplier under the current crit setting. */
+/** Expected (or forced) crit factor for a crit multiplier under the current crit mode. */
 function critFactor(sim: Sim, mult: number) {
-  if (sim.settings.crit === 'always') return mult;
-  if (sim.settings.crit === 'never') return 1;
+  if (sim.critMode() === 'always') return mult;
+  if (sim.critMode() === 'never') return 1;
   return 1 + Math.min(1, sim.stats.critChance) * (mult - 1);
 }
 

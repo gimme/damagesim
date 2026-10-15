@@ -9,7 +9,7 @@ import { computeStats, emptyMods, hasteCooldown, itemStatsToMods, mergeMods, typ
 import { effectiveResist, resistMultiplier, type DamageType } from './damage.ts';
 import type { AbilitySpec, BuffSpec, ChampionKit, ComponentSpec, DebuffSpec, Expr, MarkSpec, VariantSpec } from './kit-types.ts';
 import { addOnHitRepeat, type AttackInfo, type CastInfo, type DamageFlags, type DamageInstance, type DamageRequest, type Effect, type SetupCtx, type Slot } from './effects.ts';
-import { parseCombo, formatCombo, type ComboStep } from './combo.ts';
+import { parseCombo, formatCombo, type ComboStep, type CritMode } from './combo.ts';
 import { getKit } from '../kits/index.ts';
 import { createItemEffect, ITEM_GROUPS } from './items.ts';
 import { bonusSkillPoints, createRuneEffects } from './runes.ts';
@@ -47,8 +47,9 @@ export interface TargetSpec {
 }
 
 export interface SimSettings {
-  /** expected: average crit damage per crit-capable hit; never/always: deterministic. */
-  crit?: 'expected' | 'never' | 'always';
+  /** expected: average crit damage per crit-capable hit; never/always: deterministic. Combo steps'
+   *  crit marks (AA!, Q?) override it. */
+  crit?: CritMode;
   /** Keep simulating damage-over-time effects after the last step (default true). */
   finishDots?: boolean;
   /** Wait for an ability's cooldown when it's used again (default true); otherwise cast anyway. */
@@ -135,6 +136,8 @@ interface ScheduledEvent {
   time: number;
   seq: number;
   run: () => void;
+  /** The crit mark of the step that scheduled it. */
+  crit?: boolean;
 }
 
 interface ActiveBuff {
@@ -187,6 +190,9 @@ export class Sim {
   time = 0;
   private seq = 0;
   private queue: ScheduledEvent[] = [];
+  /** The crit mark of the combo step being resolved: set by the step, and by the events it scheduled
+   *  when they run, so it holds for everything the step causes (see critMode). */
+  private stepCrit: boolean | undefined;
   private nextCastId = 1;
   private nextInstId = 1;
   private staticMods: StatMods;
@@ -859,22 +865,36 @@ export class Sim {
   // Scheduling
 
   schedule(delay: number, run: () => void) {
-    this.queue.push({ time: this.time + Math.max(0, delay), seq: this.seq++, run });
-    this.queue.sort((a, b) => a.time - b.time || a.seq - b.seq);
+    this.scheduleAt(this.time + Math.max(0, delay), run);
   }
 
   scheduleAt(time: number, run: () => void) {
-    this.queue.push({ time: Math.max(this.time, time), seq: this.seq++, run });
+    this.queue.push({ time: Math.max(this.time, time), seq: this.seq++, run, crit: this.stepCrit });
     this.queue.sort((a, b) => a.time - b.time || a.seq - b.seq);
   }
 
   processUntil(t: number) {
+    const own = this.stepCrit;
     while (this.queue.length && this.queue[0].time <= t + 1e-9) {
       const ev = this.queue.shift()!;
       this.advanceTo(ev.time);
+      this.setStepCrit(ev.crit);
       ev.run();
     }
+    this.setStepCrit(own);
     this.advanceTo(t);
+  }
+
+  // Stats depend on it through hooks that read critMode (Yasuo's R).
+  private setStepCrit(crit: boolean | undefined) {
+    if (crit === this.stepCrit) return;
+    this.stepCrit = crit;
+    this.invalidateStats();
+  }
+
+  /** How crits resolve now: the crit mark of the step being resolved (AA!, Q?), else the setting. */
+  critMode(): CritMode {
+    return this.stepCrit === true ? 'always' : this.stepCrit === false ? 'never' : this.settings.crit;
   }
 
   private advanceTo(t: number) {
@@ -1144,10 +1164,11 @@ export class Sim {
     return r;
   }
 
-  critFactor(forced?: boolean): { crit: boolean; factor: number } {
+  critFactor(): { crit: boolean; factor: number } {
     const st = this.stats;
-    if (forced === true || this.settings.crit === 'always') return { crit: true, factor: st.critDamage };
-    if (forced === false || this.settings.crit === 'never') return { crit: false, factor: 1 };
+    const mode = this.critMode();
+    if (mode === 'always') return { crit: true, factor: st.critDamage };
+    if (mode === 'never') return { crit: false, factor: 1 };
     // Expected value.
     const factor = 1 + st.critChance * (st.critDamage - 1);
     return { crit: st.critChance >= 1, factor };
@@ -1156,7 +1177,7 @@ export class Sim {
   // ---------------------------------------------------------------------------
   // Components (ability hits)
 
-  private dealComponent(comp: ComponentSpec, ctx: { slot: Slot; spell: SpellData; rank: number; castId: number; sourceLabel: string; hit: number; hits: number; crit?: boolean; recast?: number }) {
+  private dealComponent(comp: ComponentSpec, ctx: { slot: Slot; spell: SpellData; rank: number; castId: number; sourceLabel: string; hit: number; hits: number; recast?: number }) {
     const ectx = { slot: ctx.slot, spell: ctx.spell, rank: ctx.rank, hit: ctx.hit, hits: ctx.hits, recast: ctx.recast };
     let amount = this.evalExpr(comp.amount, ectx);
     if (comp.min !== undefined) amount = Math.max(amount, this.evalExpr(comp.min, ectx));
@@ -1167,14 +1188,14 @@ export class Sim {
     if (comp.attack) {
       // Each hit of a multi-hit attack component is its own attack (Urgot W, Akshan E…) unless sameCast: true.
       const own = comp.sameCast === false || (comp.sameCast !== true && ctx.hits > 1);
-      this.performAttackHit({ castId: own ? this.newCastId() : ctx.castId, amount, comp, label: comp.label, sourceLabel: ctx.sourceLabel, fromAbility: ctx.slot, forcedCrit: ctx.crit });
+      this.performAttackHit({ castId: own ? this.newCastId() : ctx.castId, amount, comp, label: comp.label, sourceLabel: ctx.sourceLabel, fromAbility: ctx.slot });
       return;
     }
     let crit = false;
     if (comp.canCrit) {
-      const c = this.critFactor(ctx.crit);
+      const c = this.critFactor();
       const mult = comp.critMultiplier !== undefined ? this.evalExpr(comp.critMultiplier, ectx) : this.stats.critDamage;
-      const factor = c.crit ? mult : this.settings.crit === 'expected' && ctx.crit === undefined ? 1 + this.stats.critChance * (mult - 1) : 1;
+      const factor = c.crit ? mult : this.critMode() === 'expected' ? 1 + this.stats.critChance * (mult - 1) : 1;
       amount *= factor;
       crit = c.crit;
     }
@@ -1217,18 +1238,18 @@ export class Sim {
     label?: string;
     sourceLabel?: string;
     fromAbility?: Slot;
-    forcedCrit?: boolean;
     onHitOnly?: boolean;
     /** Optional components enabled for this attack (combo "AA+bounce"). */
     enable?: string[];
   }) {
     const st = this.stats;
     const canCrit = this.kit.attack?.canCrit !== false && (o.comp ? o.comp.canCrit !== false : true);
-    const c = canCrit ? this.critFactor(o.forcedCrit) : { crit: false, factor: 1 };
+    const c = canCrit ? this.critFactor() : { crit: false, factor: 1 };
+    const expected = this.critMode() === 'expected';
     let critMult = st.critDamage;
     if (canCrit && this.kit.attack?.critMultiplier !== undefined && !o.fromAbility) critMult = this.evalExpr(this.kit.attack.critMultiplier, { slot: 'P' });
-    const factor = !canCrit ? 1 : c.crit ? critMult : this.settings.crit === 'expected' && o.forcedCrit === undefined ? 1 + st.critChance * (critMult - 1) : 1;
-    const naturalCrit = !canCrit ? 0 : c.crit ? 1 : this.settings.crit === 'expected' && o.forcedCrit === undefined ? Math.min(1, st.critChance) : 0;
+    const factor = !canCrit ? 1 : c.crit ? critMult : expected ? 1 + st.critChance * (critMult - 1) : 1;
+    const naturalCrit = !canCrit ? 0 : c.crit ? 1 : expected ? Math.min(1, st.critChance) : 0;
 
     const atk: AttackInfo = {
       castId: o.castId,
@@ -1260,7 +1281,7 @@ export class Sim {
           if (comp.canCrit) {
             if (comp.critMultiplier !== undefined) {
               const m = this.evalExpr(comp.critMultiplier, { slot, spell, rank });
-              amount *= c.crit ? m : this.settings.crit === 'expected' && o.forcedCrit === undefined ? 1 + this.stats.critChance * (m - 1) : 1;
+              amount *= c.crit ? m : expected ? 1 + this.stats.critChance * (m - 1) : 1;
             } else amount *= factor;
           }
           if (!(amount > 0)) continue;
@@ -1346,7 +1367,7 @@ export class Sim {
       this.deal({
         source: o.fromAbility ?? 'AA',
         sourceLabel: o.sourceLabel ?? 'Basic attack',
-        label: o.label ?? (atk.crit ? 'Attack (crit)' : this.settings.crit === 'expected' && st.critChance > 0 && st.critChance < 1 && canCrit ? 'Attack (avg. crit)' : 'Attack'),
+        label: o.label ?? (atk.crit ? 'Attack (crit)' : expected && st.critChance > 0 && st.critChance < 1 && canCrit ? 'Attack (avg. crit)' : 'Attack'),
         type: o.comp && o.comp.type !== 'adaptive' ? o.comp.type : o.comp?.type === 'adaptive' ? 'adaptive' : (kitAtk?.type ?? 'physical'),
         amount: base,
         castId: o.castId,
@@ -1648,7 +1669,7 @@ export class Sim {
       this.freeAt = start + windup;
       this.attackReadyAt = start + period;
       timeline.push({ step: step.crit === true ? 'AA!' : step.crit === false ? 'AA?' : 'AA', start, end: start + windup });
-      this.scheduleAt(start + windup, () => this.performAttackHit({ castId, forcedCrit: step.crit, enable: step.enable }));
+      this.scheduleAt(start + windup, () => this.performAttackHit({ castId, enable: step.enable }));
     }
   }
 
@@ -1681,6 +1702,7 @@ export class Sim {
     const initialRed = this.targetReductions();
 
     for (const step of steps) {
+      this.setStepCrit(step.type === 'ability' || step.type === 'attack' ? step.crit : undefined);
       switch (step.type) {
         case 'ability':
           this.castAbility(step, timeline);
@@ -1722,6 +1744,7 @@ export class Sim {
         }
       }
     }
+    this.setStepCrit(undefined);
     const comboEnd = Math.max(this.time, this.freeAt);
     this.processUntil(comboEnd);
     // Delayed hits (projectiles, detonations) always land; DoTs continue only with finishDots.

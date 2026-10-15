@@ -9,7 +9,8 @@ import { effectiveResist, resistMultiplier } from '../src/engine/damage.ts';
 import { computeStats, emptyMods, levelStats } from '../src/engine/stats.ts';
 import { statProgression, evalPart } from '../src/engine/calc.ts';
 import { compile } from '../src/engine/expr.ts';
-import { parseCombo, formatCombo } from '../src/engine/combo.ts';
+import { critMarking, formatCombo, markCrit, parseCombo, rollsCrits } from '../src/engine/combo.ts';
+import { getKit } from '../src/kits/index.ts';
 import { combineAmps } from '../src/engine/sim.ts';
 import { rankItems } from '../src/engine/analysis.ts';
 import { formatNumber, itemText, renderTooltip, runeText } from '../src/engine/tooltip.ts';
@@ -93,6 +94,20 @@ test('combo shorthand round-trips', () => {
   assert.equal(steps.filter((s) => s.type === 'attack').length, 2);
   assert.equal(formatCombo(steps), 'E Q W R:dash AA*3 AA! ignite item:Hextech_Rocketbelt wait:1.5 Q{out:1,back:0} Q+bonus');
   assert.throws(() => parseCombo('Q X'));
+  assert.equal(formatCombo(parseCombo('Q! E? Q:tornado{a:1}!+bonus*2 AA*3?')), 'Q! E? Q:tornado{a:1}!+bonus Q:tornado{a:1}!+bonus AA*3?');
+});
+
+test('crit marks: the steps that roll crits, marked all at once', () => {
+  const yasuo = getKit(data.champions.Yasuo);
+  const steps = parseCombo('Q E AA R Q:tornado');
+  assert.deepEqual(steps.map((s) => rollsCrits(s, yasuo)), [true, false, true, false, true]);
+  assert.equal(critMarking(steps, yasuo), 'expected');
+  const marked = steps.map((s) => markCrit(s, yasuo, 'always'));
+  assert.equal(formatCombo(marked), 'Q! E AA! R Q:tornado!');
+  assert.equal(critMarking(marked, yasuo), 'always');
+  assert.equal(formatCombo(marked.map((s) => markCrit(s, yasuo, 'expected'))), 'Q E AA R Q:tornado');
+  assert.equal(critMarking(parseCombo('Q! AA?'), yasuo), 'mixed');
+  assert.equal(critMarking(parseCombo('E R'), yasuo), null);
 });
 
 test('default skill ranks: R at 6/11/16, one point in each basic, then max order', () => {
@@ -127,6 +142,21 @@ test('crit: 200% base, +30% with Infinity Edge, expected value in default mode',
   near(always.events[0].raw, ad * 2.3);
   const exp = simulate(data, { champion: 'Jinx', level: 1, items: ['Infinity Edge'], combo: 'AA', target: dummy });
   near(exp.events[0].raw, ad * (1 + 0.25 * 1.3));
+  // A step's crit mark overrides the setting either way.
+  near(simulate(data, { champion: 'Jinx', level: 1, items: ['Infinity Edge'], combo: 'AA?', target: dummy, settings: { crit: 'always' } }).events[0].raw, ad);
+  near(simulate(data, { champion: 'Jinx', level: 1, items: ['Infinity Edge'], combo: 'AA!', target: dummy, settings: { crit: 'never' } }).events[0].raw, ad * 2.3);
+});
+
+test('crit marks hold for everything the step causes: casts, and follow-up attacks', () => {
+  const total = (champion: string, combo: string, crit?: 'always' | 'never') =>
+    simulate(data, { champion, level: 18, items: ['Infinity Edge', 'Bloodthirster'], combo, target: { preset: 'tank' }, ...(crit ? { settings: { crit } } : {}) }).totalDamage;
+  // Yasuo's Q crits with its mark as with the setting; Akshan's second shot follows its attack's.
+  near(total('Yasuo', 'Q!'), total('Yasuo', 'Q', 'always'));
+  near(total('Yasuo', 'Q?'), total('Yasuo', 'Q', 'never'));
+  assert.ok(total('Yasuo', 'Q!') > total('Yasuo', 'Q'));
+  near(total('Akshan', 'AA!'), total('Akshan', 'AA', 'always'));
+  near(total('Lucian', 'Q AA!'), total('Lucian', 'Q AA', 'always'));
+  near(total('MasterYi', 'AA*4?'), total('MasterYi', 'AA*4', 'never'));
 });
 
 test('lethality is flat armor penetration at all levels', () => {

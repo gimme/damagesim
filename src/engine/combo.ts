@@ -1,6 +1,7 @@
 // Combo steps and the shorthand parser ("E Q AA W R AA ignite").
 
 import type { Slot } from './effects.ts';
+import type { ChampionKit } from './kit-types.ts';
 
 export type ComboStep =
   | {
@@ -14,8 +15,20 @@ export type ComboStep =
       enable?: string[];
       /** Treat this cast as missing the target (still triggers on-cast effects). */
       miss?: boolean;
+      /** Crit mark ("Q!", "Q?"): see the attack step's. */
+      crit?: boolean;
     }
-  | { type: 'attack'; count?: number; crit?: boolean; /** Enable optional on-hit components (e.g. "AA+bounce"). */ enable?: string[] }
+  | {
+      type: 'attack';
+      count?: number;
+      /**
+       * Crit mark ("AA!", "AA?"): true crits, false doesn't, unset follows the crit setting. It holds
+       * for every crit the step causes, follow-up attacks included (Akshan's second shot).
+       */
+      crit?: boolean;
+      /** Enable optional on-hit components (e.g. "AA+bounce"). */
+      enable?: string[];
+    }
   | { type: 'item'; item: number | string }
   | { type: 'summoner'; spell: 'ignite' }
   | { type: 'wait'; seconds: number };
@@ -29,6 +42,7 @@ const SLOTS = new Set(['P', 'Q', 'W', 'E', 'R']);
  *   Q{out:1,back:0}    override component hit counts
  *   Q+bonus            enable an optional component
  *   AA  A  AA*3  3AA   basic attacks;  AA! = forced crit,  AA? = forced non-crit
+ *   Q!  Q?             a cast whose hits that can crit all crit, or none do
  *   ignite             Ignite
  *   item:3152  item:rocketbelt   item active by id or name
  *   wait:1.5  ~1.5     wait seconds
@@ -61,7 +75,7 @@ export function parseCombo(src: string): ComboStep[] {
       steps.push({ type: 'item', item: /^\d+$/.test(v) ? Number(v) : v });
       continue;
     }
-    if ((m = /^([PQWER])(?:[:.]([A-Za-z0-9_-]+))?(\{[^}]*\})?((?:\+[A-Za-z0-9_-]+)*)(?:\s*[x*]\s*(\d+))?$/i.exec(tok))) {
+    if ((m = /^([PQWER])(?:[:.]([A-Za-z0-9_-]+))?(\{[^}]*\})?([!?])?((?:\+[A-Za-z0-9_-]+)*)(?:\s*[x*]\s*(\d+))?$/i.exec(tok))) {
       const slot = m[1].toUpperCase() as Slot;
       if (!SLOTS.has(slot)) throw new Error(`bad ability "${tok}"`);
       const step: ComboStep = { type: 'ability', slot };
@@ -73,8 +87,9 @@ export function parseCombo(src: string): ComboStep[] {
           step.hits[k.trim()] = Number(v);
         }
       }
-      if (m[4]) step.enable = m[4].split('+').filter(Boolean);
-      const times = Number(m[5] ?? 1);
+      if (m[4]) step.crit = m[4] === '!';
+      if (m[5]) step.enable = m[5].split('+').filter(Boolean);
+      const times = Number(m[6] ?? 1);
       for (let i = 0; i < times; i++) steps.push({ ...step });
       continue;
     }
@@ -90,11 +105,12 @@ export function formatCombo(steps: ComboStep[]): string {
         case 'ability': {
           let t = s.slot + (s.variant ? ':' + s.variant : '');
           if (s.hits && Object.keys(s.hits).length) t += '{' + Object.entries(s.hits).map(([k, v]) => `${k}:${v}`).join(',') + '}';
+          t += critSuffix(s.crit);
           if (s.enable?.length) t += s.enable.map((e) => '+' + e).join('');
           return t;
         }
         case 'attack':
-          return (s.count && s.count > 1 ? `AA*${s.count}` : 'AA') + (s.crit === true ? '!' : s.crit === false ? '?' : '') + (s.enable?.length ? s.enable.map((e) => '+' + e).join('') : '');
+          return (s.count && s.count > 1 ? `AA*${s.count}` : 'AA') + critSuffix(s.crit) + (s.enable?.length ? s.enable.map((e) => '+' + e).join('') : '');
         case 'item':
           return `item:${String(s.item).replace(/\s+/g, '_')}`;
         case 'summoner':
@@ -104,4 +120,40 @@ export function formatCombo(steps: ComboStep[]): string {
       }
     })
     .join(' ');
+}
+
+const critSuffix = (crit?: boolean) => (crit === true ? '!' : crit === false ? '?' : '');
+
+/** How crits resolve: their expected value, or every crit-capable hit crits or doesn't. */
+export type CritMode = 'expected' | 'always' | 'never';
+
+type MarkableStep = Extract<ComboStep, { type: 'attack' | 'ability' }>;
+const CRIT_MARK: Record<CritMode, boolean | undefined> = { expected: undefined, always: true, never: false };
+const markMode = (crit?: boolean): CritMode => (crit === true ? 'always' : crit === false ? 'never' : 'expected');
+
+/** Whether a step rolls crits: basic attacks (unless the champion's can't crit), and casts with a hit
+ *  that can crit (its variant's hits, for a variant). */
+export function rollsCrits(step: ComboStep, kit: ChampionKit): boolean {
+  const attacksCrit = kit.attack?.canCrit !== false;
+  if (step.type === 'attack') return attacksCrit;
+  if (step.type !== 'ability') return false;
+  const spec = kit.abilities[step.slot];
+  const key = step.variant ?? spec?.defaultVariant;
+  const variant = key ? Object.entries(spec?.variants ?? {}).find(([k]) => k.toLowerCase() === key.toLowerCase())?.[1] : undefined;
+  return (variant?.components ?? spec?.components ?? []).some((c) => c.canCrit || (c.attack && c.canCrit !== false && attacksCrit));
+}
+
+/** A step with the crit mark for `mode` (none for expected), if it rolls crits. */
+export function markCrit(step: ComboStep, kit: ChampionKit, mode: CritMode): ComboStep {
+  if (!rollsCrits(step, kit)) return step;
+  const { crit: _, ...rest } = step as MarkableStep;
+  const crit = CRIT_MARK[mode];
+  return crit === undefined ? rest : { ...rest, crit };
+}
+
+/** How the steps that roll crits are marked: their mode when they agree, 'mixed' when they don't,
+ *  null when no step rolls crits. */
+export function critMarking(steps: ComboStep[], kit: ChampionKit): CritMode | 'mixed' | null {
+  const modes = new Set(steps.filter((s) => rollsCrits(s, kit)).map((s) => markMode((s as MarkableStep).crit)));
+  return modes.size === 0 ? null : modes.size > 1 ? 'mixed' : [...modes][0];
 }

@@ -74,7 +74,7 @@ The CLI exposes the same features (`lolsim --help`); add `--json` for machine-re
 }
 ```
 
-Combo shorthand: `Q W E R P`, `AA`, `AA*3`, `AA!` (forced crit), `Q:variant`, `Q{out:1,back:0}` (hit
+Combo shorthand: `Q W E R P`, `AA`, `AA*3`, `AA!`/`Q!` (crits), `AA?`/`Q?` (doesn't), `Q:variant`, `Q{out:1,back:0}` (hit
 counts), `Q+bonus` (enable an optional hit), `ignite`, `item:rocketbelt`, `wait:1.5`. Run
 `lolsim scenario` for everything.
 
@@ -143,8 +143,9 @@ Targets:
   on-hit effects. Only basic attacks and abilities that also trigger on-attack effects stack
   Guinsoo's, Lethal Tempo, Energize charges and similar. A champion's own passive on-hit applies
   to its abilities only where the kit lists it (Warwick Q/R, Fizz Q).
-* **Crits** default to their expected value. Use `--crit always|never` or `AA!`/`AA?` for
-  deterministic hits.
+* **Crits** default to their expected value. Use `--crit always|never`, or mark steps: `AA!`/`Q!`
+  crit, `AA?`/`Q?` don't. A mark overrides `--crit` and holds for everything the step causes,
+  follow-up attacks included (Akshan's second shot, Lucian's Lightslinger).
 * **Situational stacks** are options with defaults: Dark Harvest souls, Legend stacks, Gathering
   Storm game time, Heartsteel stacks, champion stacks (Nasus, Veigar…). See `get_champion` and
   `scenario_help`.

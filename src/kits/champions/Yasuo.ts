@@ -26,15 +26,16 @@ const kit: ChampionKit = {
   hooks: {
     dynamicStats(sim) {
       const r = sim.buffs.get('yasuoR');
-      const share = sim.counter('yasuoRCritShare');
-      if (!r || r.expires < sim.time || share <= 0) return;
+      if (!r || r.expires < sim.time) return;
+      // The armor penetration is for crits: as much of it as the hit being resolved crits.
+      const mode = sim.critMode();
+      const share = mode === 'always' ? 1 : mode === 'never' ? 0 : sim.stats.critChance;
+      if (share <= 0) return;
       return { bonusArmorPenPercent: [(share * sim.dataValue(sim.spellFor('R'), 'RPercentArmorPen', sim.rankOf('R'))) / 100] };
     },
     afterDamage(sim, inst) {
       // The crit armor penetration starts once Last Breath's damage has landed.
       if (inst.source !== 'R' || inst.label !== 'Last Breath') return;
-      const crit = sim.settings.crit === 'always' ? 1 : sim.settings.crit === 'never' ? 0 : sim.stats.critChance;
-      sim.setCounter('yasuoRCritShare', crit);
       sim.addBuff({ id: 'yasuoR', label: 'Last Breath (armor pen)', expires: sim.time + sim.evalExpr('R.dv.RBuffDuration', { slot: 'R' }) });
     },
   },

@@ -19,7 +19,7 @@ export const SCENARIO_HELP = `Scenario JSON (all fields except champion and comb
     //   "damageReduction": 0. Raw fields also override a preset's or champion's numbers.
   },
   "settings": {
-    "crit": "expected",               // expected | never | always
+    "crit": "expected",               // expected | never | always; steps' crit marks (AA!, Q?) override it
     "finishDots": true,               // keep simulating burns/bleeds after the last step (else they stop 3s after it)
     "waitForCooldowns": true,         // repeated abilities wait for their cooldown
     "priorCombatTime": 0,             // seconds already in combat (Liandry's/Riftmaker ramp)
@@ -28,13 +28,14 @@ export const SCENARIO_HELP = `Scenario JSON (all fields except champion and comb
 }
 
 Combo steps (array form):
-  { "type": "ability", "slot": "Q", "variant": "empowered", "hits": { "componentId": 2 }, "enable": ["optionalComponentId"], "miss": false }
+  { "type": "ability", "slot": "Q", "variant": "empowered", "hits": { "componentId": 2 }, "enable": ["optionalComponentId"], "miss": false, "crit": true }
   { "type": "attack", "count": 3, "crit": true }
   { "type": "summoner", "spell": "ignite" }
   { "type": "item", "item": "Hextech Rocketbelt" }
   { "type": "wait", "seconds": 1.5 }
 
-Combo shorthand: "Q W E R P AA AA*3 3AA AA! AA? Q:variant Q{out:1,back:0} Q+bonus ignite item:rocketbelt wait:1.5"
+Combo shorthand: "Q W E R P AA AA*3 3AA AA! AA? Q! Q? Q:variant Q{out:1,back:0} Q+bonus ignite item:rocketbelt wait:1.5"
+  (! crits every hit of the step that can crit, ? none, follow-up attacks included)
 
 Common options: self.hpPercent (your HP, for Last Stand etc.), gameTime (minutes; Gathering Storm),
 legend.stacks, darkHarvest.souls, comet.distance, aery.cycle, grasp.charged, firstStrike.active,
