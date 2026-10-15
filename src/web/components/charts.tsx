@@ -276,15 +276,17 @@ function SourceTip({ s, maxHp }: { s: SourceTotal; maxHp: number }) {
   return (
     <>
       <div className="tt-title">{s.label}</div>
-      {(Object.entries(s.type) as [DmgType, number][]).map(([t, v]) => (
-        <div className="tt-row" key={t}>
-          <span>
-            <span className="line-key" style={{ background: TYPE_COLOR[t], marginRight: 6 }} />
-            {TYPE_LABEL[t]}
-          </span>
-          <strong>{fmt(v)}</strong>
-        </div>
-      ))}
+      {typesByAmount(s.type)
+        .filter((t) => t in s.type)
+        .map((t) => (
+          <div className="tt-row" key={t}>
+            <span>
+              <span className="line-key" style={{ background: TYPE_COLOR[t], marginRight: 6 }} />
+              {TYPE_LABEL[t]}
+            </span>
+            <strong>{fmt(s.type[t]!)}</strong>
+          </div>
+        ))}
       <div className="tt-row muted">
         <span>
           {s.hits} hit{s.hits === 1 ? '' : 's'} · {((s.damage / maxHp) * 100).toFixed(1)}% max HP
