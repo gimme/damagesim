@@ -14,13 +14,15 @@
   --accent: #2a78d6;
   --accent-wash: rgba(42, 120, 214, 0.1);
   --accent-text: #1c5cab;
-  --magic: #2a78d6;
-  --physical: #eb6834;
-  --true: #1baf7a;
-  /* Damage type colors for small text (>= 4.5:1 on --surface and --surface-2). */
-  --magic-text: #1c5cab;
-  --physical-text: #b5461a;
-  --true-text: #0a7a52;
+  /* Damage types in the game's colors (its floating combat text, ux/fonts.bin: magic #00b0f0,
+     physical #ff8c34, true #ffffff). White can't show on a light page, so true damage is a gray here. */
+  --magic: #00b0f0;
+  --physical: #ff8c34;
+  --true: #898781;
+  /* Damage type colors for small text (>= 4.5:1 on --surface and --surface-2): the game's hues, darker. */
+  --magic-text: #02739e;
+  --physical-text: #aa5401;
+  --true-text: #0b0b0b;
   --item-effect: #b87a00;
   --hp: #2a78d6;
   --good: #006300;
@@ -48,12 +50,12 @@
     --accent: #3987e5;
     --accent-wash: rgba(57, 135, 229, 0.16);
     --accent-text: #86b6ef;
-    --magic: #3987e5;
-    --physical: #d95926;
-    --true: #199e70;
-    --magic-text: #86b6ef;
-    --physical-text: #f0946a;
-    --true-text: #4fcf9c;
+    --magic: #00b0f0;
+    --physical: #ff8c34;
+    --true: #ffffff;
+    --magic-text: #00b0f0;
+    --physical-text: #ff8c34;
+    --true-text: #ffffff;
     --item-effect: #c98500;
     --hp: #3987e5;
     --good: #0ca30c;
@@ -76,12 +78,12 @@
   --accent: #3987e5;
   --accent-wash: rgba(57, 135, 229, 0.16);
   --accent-text: #86b6ef;
-  --magic: #3987e5;
-  --physical: #d95926;
-  --true: #199e70;
-  --magic-text: #86b6ef;
-  --physical-text: #f0946a;
-  --true-text: #4fcf9c;
+  --magic: #00b0f0;
+  --physical: #ff8c34;
+  --true: #ffffff;
+  --magic-text: #00b0f0;
+  --physical-text: #ff8c34;
+  --true-text: #ffffff;
   --item-effect: #c98500;
   --hp: #3987e5;
   --good: #0ca30c;

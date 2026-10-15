@@ -252,7 +252,7 @@ export function HpBar({ sources, maxHp, startHp, champion }: { sources: SourceTo
                   />
                 )}
                 {show && (
-                  <text x={textX} y={H / 2 + 4.5} textAnchor="middle" fontSize={12.5} fontWeight={650} fill="#fff" style={{ pointerEvents: 'none' }}>
+                  <text x={textX} y={H / 2 + 4.5} textAnchor="middle" fontSize={12.5} fontWeight={650} fill="#0b0b0b" style={{ pointerEvents: 'none' }}>
                     {mark.text}
                   </text>
                 )}
@@ -474,7 +474,7 @@ export function SimpleBars({ rows, unit = '', format = (v: number) => fmt(v) }: 
               <text x={labelW - 10} y={y + 15} textAnchor="end" fontSize={13} fill="var(--text-primary)" fontWeight={r.highlight ? 650 : 400}>
                 {r.label.length > maxChars ? r.label.slice(0, maxChars - 1) + '…' : r.label}
               </text>
-              <path d={barPath(labelW, y, Math.max(1, sx(r.value)), 20)} fill={r.highlight ? 'var(--accent)' : 'var(--magic)'} opacity={r.highlight ? 1 : 0.85} />
+              <path d={barPath(labelW, y, Math.max(1, sx(r.value)), 20)} fill="var(--accent)" opacity={r.highlight ? 1 : 0.85} />
               <text x={labelW + sx(r.value) + 8} y={y + 15} fontSize={12.5} fill="var(--text-secondary)" className="num">
                 {format(r.value)}
                 {r.sub && W >= 600 ? `  ·  ${r.sub}` : ''}
