@@ -4,6 +4,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { DamageInstance } from '../../engine/effects.ts';
 import type { SourceTotal } from '../../engine/sim.ts';
+import { abilityIcon } from '../data.ts';
 import { fmt, sourceMark } from './common.tsx';
 
 export type DmgType = 'physical' | 'magic' | 'true';
@@ -137,6 +138,8 @@ function textWidth(text: string, font: string) {
 type Moment = SourceTotal & { action?: number; dot: boolean; parts: SourceTotal[]; from: number; to: number };
 /** The source of a block with several sources' DoTs. */
 const DOTS = 'dots';
+/** A block's source in a few letters and its icon; several sources' DoTs show Brand's burn (Blaze), a common stand-in for damage over time. */
+const blockMark = (source: string, label: string, champion: string) => (source === DOTS ? { text: 'DoTs', icon: abilityIcon('Brand', 'P') } : sourceMark(source, label, champion));
 
 const addHit = (s: SourceTotal, e: DamageInstance) => {
   s.damage += e.final ?? 0;
@@ -275,12 +278,14 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
         )}
         <g clipPath={`url(#${clipId}bar)`}>
           {blocks.map(({ s, x, w, layers }, i) => {
-            const mark = s.source === DOTS ? { text: 'DoTs', icon: '' } : sourceMark(s.source, s.label, champion);
+            const mark = blockMark(s.source, s.label, champion);
             const icon = mark.icon && !broken.has(mark.icon) ? mark.icon : '';
+            // A source's icon names it, and an ability's key with it where there's room: a champion's
+            // ability icons are less known than which key they're on. Letters stand in for no icon. A
+            // block too narrow for the icon shows nothing.
+            const key = /^[QWER]$/.test(s.source);
             const textW = textWidth(mark.text, '650 12.5px');
-            // The icon names a source better than its letters, so it is the one kept when both don't fit,
-            // and a source with an icon shows nothing rather than letters alone. Letters stand in for no icon.
-            const show = icon ? (ICON + 3 + textW + 8 <= w ? 'both' : ICON + 6 <= w ? 'icon' : null) : textW + 6 <= w ? 'text' : null;
+            const show = icon ? (key && ICON + 3 + textW + 8 <= w ? 'both' : ICON + 6 <= w ? 'icon' : null) : textW + 6 <= w ? 'text' : null;
             const cx = x + w / 2;
             const textX = show === 'both' ? cx + (ICON + 3) / 2 : cx;
             const iconX = show === 'both' ? textX - textW / 2 - 3 - ICON : cx - ICON / 2;
