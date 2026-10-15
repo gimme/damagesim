@@ -210,7 +210,7 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick, sim }: { r
               <span role="cell" className="iv-item">
                 <ItemIcon id={r.id} size="sm" />
                 <span className="iv-name">{r.item}</span>
-                <span className="muted num">{fmt(r.gold)}g</span>
+                <span className="iv-gold muted num">{fmt(r.gold)}g</span>
               </span>
               <span role="cell" className="iv-track" aria-hidden>
                 {stats > 0.5 && <span className="iv-bar" style={{ width: `${(width * stats) / (stats + fx)}%` }} />}

@@ -749,17 +749,37 @@ label.field {
   grid-area: act;
   text-align: right;
 }
+/* Phones: one line per item, with only the number being ranked by; the legend gets its own line
+   above the column names, and the narrowest screens leave out the gold cost. */
 @media (max-width: 600px) {
   .iv-row {
-    grid-template-columns: minmax(0, 1fr) 70px 56px 46px;
-    grid-template-areas: 'item item item act' 'track pg dmg act';
-    row-gap: 2px;
-    padding-block: 5px;
+    grid-template-columns: minmax(0, 1fr) minmax(40px, 18%) 48px 44px;
+    grid-template-areas: 'item track num act';
+    column-gap: 6px;
+    padding-inline: 4px;
+  }
+  .iv-name {
+    font-size: 13px;
+  }
+  .iv-pg,
+  .iv-dmg {
+    grid-area: num;
+  }
+  .iv-pg:not(.on),
+  .iv-dmg:not(.on) {
+    display: none;
   }
   .iv-head {
-    grid-template-areas: 'track track track track' '. pg dmg act';
+    grid-template-areas: 'track track track track' 'item . num act';
+    row-gap: 4px;
   }
-  .iv-head .iv-item {
+  .iv-head .iv-pg,
+  .iv-head .iv-dmg {
+    justify-self: end;
+  }
+}
+@media (max-width: 480px) {
+  .iv-gold {
     display: none;
   }
 }

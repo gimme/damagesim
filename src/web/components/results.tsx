@@ -67,7 +67,7 @@ function Warnings({ r }: { r: SimResult }) {
         </div>
       ))}
       {r.notes.length > 0 && (
-        <button className="btn small ghost" style={{ alignSelf: 'flex-start', padding: 0 }} onClick={() => setShowNotes(!showNotes)}>
+        <button className="btn small ghost" style={{ alignSelf: 'flex-start', padding: 0, whiteSpace: 'normal', textAlign: 'left' }} onClick={() => setShowNotes(!showNotes)}>
           {showNotes ? '▾' : '▸'} {r.notes.length} model note{r.notes.length === 1 ? '' : 's'} (assumptions and what isn't simulated)
         </button>
       )}
