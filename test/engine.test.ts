@@ -208,7 +208,7 @@ test('rank items per gold: sorted by damage gained per 1000 gold of the item', (
   assert.equal(res.items.find((x) => x.item === "Rabadon's Deathcap")!.itemDamage, 0);
 });
 
-test('item hover text: numbers for the attacker when the formula tooltip covers the shop text', () => {
+test('item hover text: numbers for the attacker from the template the shop text is generated from', () => {
   const sim = new Sim(data, { champion: 'Ahri', level: 11, items: ["Luden's Echo"], combo: [] });
   const luden = data.items[6655];
   const live = itemText(luden, sim);
@@ -218,12 +218,29 @@ test('item hover text: numbers for the attacker when the formula tooltip covers 
   // Without a simulator: the shop text, which leaves the damage blank.
   const shop = itemText(luden);
   assert.ok(!shop.live && shop.body.includes('Damaging Abilities fire 6 Echoes'));
-  // Ravenous Hydra's formula tooltip leaves out its active, so the shop text is used.
-  const hydra = itemText(data.items[3074], sim);
-  assert.ok(!hydra.live && /<active>Ravenous Crescent<\/active>/.test(hydra.body));
+  // Ravenous Hydra's own tooltip string leaves out its active; the template has it.
+  const hydra = data.items[3074];
+  const hydraText = itemText(hydra, sim).body;
+  const crescent = formatNumber(sim.evalDataCalc(hydra.calcs, hydra.dataValues, 'PrimaryDamage'));
+  assert.ok(hydraText.includes(`<active>Ravenous Crescent</active> (10s)<br>Deal <physicalDamage>${crescent} physical damage`), hydraText);
+  // Melee/ranged values take the champion's side: Serpent's Fang's split, Voltaic Cyclosword's,
+  // Black Cleaver's include, Celestial Opposition's pair written out.
+  const caitlyn = new Sim(data, { champion: 'Caitlyn', level: 11, combo: [] });
+  const darius = new Sim(data, { champion: 'Darius', level: 11, combo: [] });
+  const body = (id: number, s: Sim) => itemText(data.items[id], s).body.replace(/<[^>]+>/g, '');
+  assert.ok(body(6695, darius).includes('reduces Shields they gain by 50% for 3 seconds'));
+  assert.ok(body(6695, caitlyn).includes('reduces Shields they gain by 35% for 3 seconds'));
+  assert.ok(body(6699, darius).includes("deals 9% target's Current Health as bonus physical damage and grants you 15 Lethality"));
+  assert.ok(body(6699, caitlyn).includes("deals 7% target's Current Health as bonus physical damage and grants you 12 Lethality"));
+  assert.ok(body(3071, darius).includes('grants 20 Move Speed') && body(3071, caitlyn).includes('grants 10 Move Speed'));
+  assert.ok(body(3869, darius).includes('damage by 35% for') && body(3869, caitlyn).includes('damage by 25% for'));
   for (const item of Object.values(data.items).filter((i) => i.inStore && !i.requiredChampion)) {
-    const t = itemText(item, sim);
-    for (const s of [...t.stats, t.body]) assert.ok(!/%i:|\{\{|@|^<br>|<br>$/.test(s), `${item.name}: ${s}`);
+    for (const s of [sim, caitlyn]) {
+      const t = itemText(item, s);
+      // Every item with passive or active text gets numbers.
+      assert.ok(t.live || !item.tooltip, `${item.name} falls back to the shop text`);
+      for (const line of [...t.stats, t.body]) assert.ok(!/%i:|\{\{|@|^<br>|<br>$/.test(line), `${item.name}: ${line}`);
+    }
   }
 });
 

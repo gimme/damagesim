@@ -9,8 +9,8 @@ the combo out on a timeline and reports every damage instance.
   live **item value** ranking: which item adds the most damage (per gold or in total) to your next
   slot or in place of an item you own, as a list (each bar split into the damage the item deals
   itself and what it adds to your other damage) or a gold-vs-damage map; one click buys it. Hovering
-  an item shows its cost, stats and passives, with the numbers for your champion's level and stats;
-  hovering a rune shows its tooltip the same way, and whether its adaptive damage is physical or
+  an item shows its cost, stats, passives and actives, with the numbers for your champion's level and
+  stats, melee or ranged; hovering a rune shows its tooltip the same way, and whether its adaptive damage is physical or
   magic for you. State lives in the URL, so links are shareable.
 * **AI agents:** an MCP server (simulate, compare, rank items, optimize builds and combo order) and a
   CLI with `--json` output.

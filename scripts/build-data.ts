@@ -247,6 +247,19 @@ function unhashCalcs(calcs: Record<string, CalcNode>, dvNames: string[], extraCa
   for (const k of Object.keys(calcs)) calcs[k] = walk(calcs[k]);
 }
 
+/** Give hashed data values or calculations the names a text uses for them (Jack of All Trades' @Adaptive5@). */
+function unhashValues<T>(values: Record<string, T>, texts: string[]): Record<string, T> {
+  const names = new Map<string, string>();
+  for (const t of texts) for (const m of t.matchAll(/@\s*([A-Za-z_]\w*)/g)) names.set(fnv1a(m[1]), m[1]);
+  return Object.fromEntries(
+    Object.entries(values).map(([k, v]) => {
+      const real = HASHED.test(k) ? names.get(k) : undefined;
+      if (real) resolvedHashes++;
+      return [real ?? k, v];
+    }),
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Champions
 
@@ -441,6 +454,18 @@ const ITEM_STAT_FIELDS: Record<string, string> = {
   mPercentCooldownMod: 'cdr',
 };
 
+/**
+ * The text the game generates an item's shop description from, with its values as placeholders: its
+ * passives, then its actives. Its other sections are the rules (Requires Smite…), the stats (the shop
+ * text has those) and the flavor text. Items' own tooltip strings leave out actives and some are out of
+ * date (Stormrazor's "Crit Harder").
+ */
+function itemTemplate(id: string): string {
+  const sections = [...str(`generatedtip_item_${id}_description`).matchAll(/<section>([\s\S]*?)<\/section>/g)].map((m) => m[1].trim());
+  if (sections.length < 5) return resolveIncludes(str(`item_${id}_tooltip`));
+  return resolveIncludes(sections.slice(2, 4).filter(Boolean).join('<br><br>'));
+}
+
 function buildItems(ddItems: any, bin: any): Record<string, ItemData> {
   const out: Record<string, ItemData> = {};
   for (const [id, dd] of Object.entries(ddItems.data) as [string, any][]) {
@@ -450,11 +475,25 @@ function buildItems(ddItems: any, bin: any): Record<string, ItemData> {
     if (!b) continue;
     const stats: Record<string, number> = {};
     for (const [field, key] of Object.entries(ITEM_STAT_FIELDS)) if (typeof b[field] === 'number' && b[field] !== 0) stats[key] = (stats[key] ?? 0) + b[field];
+    const tooltip = itemTemplate(id);
+    const rangeSplits: Record<string, { melee: string; ranged: string }> = {};
+    for (const [name, s] of Object.entries(b.StringCalculations ?? {}) as [string, any][]) {
+      const ref = (v: string) => /^@(\w+)@$/.exec(v ?? '')?.[1];
+      const melee = ref(s.MeleeResult);
+      const ranged = ref(s.RangedResult);
+      if (melee && ranged) rangeSplits[name] = { melee, ranged };
+    }
+    const names = [tooltip, ...Object.values(rangeSplits).map((s) => `@${s.melee}@ @${s.ranged}@`)];
     const dataValues: Record<string, number> = {};
     for (const dv of b.mDataValues ?? []) if (dv.mName) dataValues[dv.mName] = dv.mValue ?? 0;
-    const calcs = convCalcs(b.mItemCalculations);
+    // The text names some of the item's stats by their field (Guardian's Horn's @FlatHPRegenMod*5@).
+    for (const [, name] of tooltip.matchAll(/@(\w+)/g)) {
+      const field = Object.keys(b).find((k) => [`m${name}`, name].some((n) => n.toLowerCase() === k.toLowerCase()));
+      if (field && typeof b[field] === 'number' && !(name in dataValues)) dataValues[name] = b[field];
+    }
+    const calcs = unhashValues(convCalcs(b.mItemCalculations), names);
     unhashCalcs(calcs, Object.keys(dataValues));
-    const tooltip = resolveIncludes(str(`item_${id}_tooltip`) || '');
+    const effects: number[] = (b.mEffectAmount ?? []).map((v: any) => (typeof v === 'number' ? v : 0));
     const resolved = str(`generatedtip_item_${id}_externaldescription`);
     out[id] = {
       id: Number(id),
@@ -470,6 +509,8 @@ function buildItems(ddItems: any, bin: any): Record<string, ItemData> {
       stats,
       dataValues,
       calcs,
+      ...(Object.keys(rangeSplits).length ? { rangeSplits } : {}),
+      ...(effects.some((e) => e !== 0) ? { effects } : {}),
       tooltip,
       description: resolved,
       plaintext: dd.plaintext ?? '',
@@ -480,19 +521,6 @@ function buildItems(ddItems: any, bin: any): Record<string, ItemData> {
 
 // ---------------------------------------------------------------------------
 // Runes
-
-/** Give hashed data values the names the rune's text uses for them (Jack of All Trades' @Adaptive5@). */
-function unhashValues(values: Record<string, number>, texts: string[]): Record<string, number> {
-  const names = new Map<string, string>();
-  for (const t of texts) for (const m of t.matchAll(/@\s*([A-Za-z_]\w*)/g)) names.set(fnv1a(m[1]), m[1]);
-  return Object.fromEntries(
-    Object.entries(values).map(([k, v]) => {
-      const real = HASHED.test(k) ? names.get(k) : undefined;
-      if (real) resolvedHashes++;
-      return [real ?? k, v];
-    }),
-  );
-}
 
 /** The texts a tooltip's {{ Key_@f1@ }} includes choose between by a value the rune's script sets
  *  (Dark Harvest's damage type), by lowercase key. */
@@ -510,7 +538,7 @@ function perkTexts(b: any, longDesc: string) {
   const sd = b?.mScript?.mSpellScriptData ?? {};
   const description = resolveIncludes(longDesc);
   const tooltip = resolveIncludes(str(b?.mTooltipNameLocalizationKey));
-  const values = unhashValues(sd.mEffectAmount ?? {}, [description, tooltip]);
+  const values = unhashValues<number>(sd.mEffectAmount ?? {}, [description, tooltip]);
   const calcs = convCalcs(sd.mCalculations);
   unhashCalcs(calcs, Object.keys(values));
   const includes = scriptIncludes(tooltip);

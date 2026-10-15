@@ -142,6 +142,12 @@ export interface ItemData {
   stats: Record<string, number>;
   dataValues: Record<string, number>;
   calcs: Record<string, CalcNode>;
+  /** Tooltip values that differ for melee and ranged champions: the data value or calculation each
+   *  side uses (Serpent's Fang's @ShieldShredMeleeRangedSplit@). */
+  rangeSplits?: Record<string, { melee: string; ranged: string }>;
+  /** Values the tooltip names @Effect1Amount@… */
+  effects?: number[];
+  /** The passive and active text with @Placeholders@ the shop text is generated from. */
   tooltip: string;
   /** Tooltip with numbers resolved by the game's own text generator. */
   description: string;
