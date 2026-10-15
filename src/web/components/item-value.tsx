@@ -1,7 +1,7 @@
 // Item value: what each legendary or pair of boots would add to the current build, ranked by damage
 // per gold or total damage, as a list or a gold-vs-damage map. Recomputed live as the build changes.
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useMemo, useState, type PointerEvent } from 'react';
 import { DATA } from '../data.ts';
 import { Card, ItemIcon, ItemTip, fmt } from './common.tsx';
 import { GoldScatter, useTooltip, type GoldPoint } from './charts.tsx';
@@ -168,29 +168,28 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick, sim }: { r
     else tt.show(e, <RowTip row={r} current={current} />);
   };
   // Touch has no hover: a tap opens the card of the column tapped, and it stays until the next tap
-  // (on the same spot, elsewhere in the list or outside it). Phones show only icons, so this is how
-  // to see an item's name.
-  const tapped = useRef<string | null>(null);
+  // (on the same spot, on the card, elsewhere in the list or outside it). Phones show only icons, so
+  // this is how to see an item's name.
+  const [tapped, setTapped] = useState<string | null>(null);
+  const close = () => {
+    setTapped(null);
+    tt.hide();
+  };
   const tap = (e: PointerEvent<HTMLElement>, r: Row) => {
     const col = nearestColumn(e);
     const key = `${r.id} ${col}`;
-    if (col === 'iv-act' || tapped.current === key) {
-      tapped.current = null;
-      tt.hide();
-    } else {
-      tapped.current = key;
+    if (col === 'iv-act' || tapped === key) close();
+    else {
+      setTapped(key);
       show(e, r, col);
     }
   };
   useEffect(() => {
-    const outside = (e: globalThis.PointerEvent) => {
-      if (tapped.current == null || tt.ref.current?.contains(e.target as Node)) return;
-      tapped.current = null;
-      tt.hide();
-    };
+    if (tapped == null) return;
+    const outside = (e: globalThis.PointerEvent) => !tt.ref.current?.contains(e.target as Node) && close();
     document.addEventListener('pointerdown', outside);
     return () => document.removeEventListener('pointerdown', outside);
-  }, []);
+  }, [tapped]);
   return (
     <div className="chart-wrap" ref={tt.ref}>
       <div className="iv-list" role="table" aria-label="Items ranked by the damage they add">
@@ -229,7 +228,11 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick, sim }: { r
               key={r.id}
               role="row"
               className={`iv-row ${isCurrent ? 'current' : ''}`}
-              onPointerMove={(e) => e.pointerType !== 'touch' && show(e, r, nearestColumn(e))}
+              onPointerMove={(e) => {
+                if (e.pointerType === 'touch') return;
+                setTapped(null);
+                show(e, r, nearestColumn(e));
+              }}
               onPointerLeave={(e) => e.pointerType !== 'touch' && tt.hide()}
               onPointerUp={(e) => e.pointerType === 'touch' && tap(e, r)}
             >
@@ -261,7 +264,11 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick, sim }: { r
           );
         })}
       </div>
-      {tt.node}
+      {/* A tapped card takes taps itself, so a tap on it closes it instead of reaching the row or Buy
+          button under it; on click, as closing it earlier would let the click land on those. */}
+      <div className={tapped ? 'iv-tapped' : undefined} onClick={tapped ? close : undefined}>
+        {tt.node}
+      </div>
     </div>
   );
 }

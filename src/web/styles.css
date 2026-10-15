@@ -749,6 +749,10 @@ label.field {
   grid-area: act;
   text-align: right;
 }
+.iv-tapped .tooltip {
+  pointer-events: auto;
+  cursor: pointer;
+}
 /* Phones: one line per item, with only the icon (a tap shows its name, cost and details) and the
    number being ranked by; the legend gets its own line above the column names. */
 @media (max-width: 600px) {
