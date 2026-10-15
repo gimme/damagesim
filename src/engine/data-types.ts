@@ -161,8 +161,10 @@ export interface RuneData {
   calcs: Record<string, CalcNode>;
   /** Long description (the rune page's text), with @Placeholders@. */
   description: string;
-  /** In-game tooltip with @Placeholders@: calculations, and @f1@… stats the rune's script tracks. */
+  /** In-game tooltip with @Placeholders@: calculations, and @f1@… values the rune's script sets in play. */
   tooltip: string;
+  /** The texts the tooltip's {{ Key_@f1@ }} includes choose between, by lowercase key. */
+  includes?: Record<string, string>;
   statModifiers?: unknown;
 }
 

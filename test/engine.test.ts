@@ -241,8 +241,22 @@ test('rune hover text: the in-game tooltip with numbers for the attacker, else t
   // Without a simulator: the description, with ranges and ratios.
   const desc = runeText(electrocute);
   assert.ok(!desc.live && desc.body.includes('Damage: 70 - 240 (+0.1 bonus AD, +0.05 AP) damage.'), desc.body);
-  // Press the Attack's in-game damage is a value only the game knows, so its description is used.
-  assert.ok(runeText(rune(8005), ahri).body.includes('40 - 160 bonus <magicDamage>adaptive damage</magicDamage> (based on level)'));
+  // Numbers the game's script sets in play come from the simulator's model of the rune: Press the
+  // Attack's damage at your level, Dark Harvest's with its souls.
+  const pta = simulate(data, { champion: 'Ahri', level: 11, runes: ['Press the Attack'], combo: 'AA AA AA', target: dummy });
+  const ptaText = runeText(rune(8005), ahri);
+  assert.ok(ptaText.live && ptaText.body.includes(`deals <scaleLevel>${formatNumber(pta.events.find((e) => e.source === 'rune:8005')!.raw)}</scaleLevel> bonus <magicDamage>adaptive damage</magicDamage>`), ptaText.body);
+  assert.ok(ptaText.body.includes('3-Hit Cooldown: 6s') && !/Bonus Damage Dealt/.test(ptaText.body), ptaText.body);
+  assert.ok(runeText(rune(8005)).body.includes('40 - 160 bonus <attention>adaptive damage</attention>'));
+  const souls = { champion: 'Ahri', level: 11, items: ["Luden's Echo"], runes: ['Dark Harvest'], options: { 'darkHarvest.souls': 10 } };
+  const harvest = simulate(data, { ...souls, combo: 'Q', target: { ...dummy, hpPercent: 0.3 } }).events.find((e) => e.source === 'rune:8128')!;
+  const dh = runeText(rune(8128), new Sim(data, { ...souls, combo: [] }));
+  assert.ok(dh.body.includes(`deals <magicDamage>${formatNumber(harvest.raw)} magic damage</magicDamage>`), dh.body);
+  assert.ok(dh.body.includes('Souls harvested: <font color=\'#fc314e\'>10</font>') && !/Total damage dealt/i.test(dh.body), dh.body);
+  assert.equal(runeText(rune(5008), darius).body, '<scaleAD>+5.4 Attack Damage</scaleAD>');
+  // Adaptive Force: what it gives at the attacker's stats.
+  assert.equal(runeText(rune(8233), ahri).adaptiveForce, 'magic');
+  assert.equal(runeText(rune(8233), darius).adaptiveForce, 'physical');
   // Melee/ranged splits take the attacker's side; the ranged share is a modified percentage.
   assert.ok(runeText(rune(8369), ahri).body.includes('<gold>35%</gold> of that damage'));
   assert.ok(runeText(rune(8369), darius).body.includes('<gold>50%</gold> of that damage'));

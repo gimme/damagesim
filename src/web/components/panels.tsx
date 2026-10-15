@@ -4,6 +4,7 @@ import { Card, ChampionPicker, ItemIcon, ItemPicker, ItemTip, NumberField, RuneI
 import { SHARD_ROWS, type UIState, type TargetState } from '../state.ts';
 import { TARGET_PRESETS, type TargetPreset } from '../../engine/presets.ts';
 import { maxRanks, resolveRanks, type Sim, type SimResult } from '../../engine/sim.ts';
+import { runeText } from '../../engine/tooltip.ts';
 import { NOT_LIVE_RUNES, bonusSkillPoints, hasRuneModel } from '../../engine/runes.ts';
 import { parseCombo, formatCombo, type ComboStep } from '../../engine/combo.ts';
 import { conflicts } from '../../engine/analysis.ts';
@@ -203,7 +204,12 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
   const minors = LIVE_RUNES.filter((r) => r.row > 0);
   const toggleMinor = (id: number) =>
     set((s) => ({ ...s, minors: s.minors.includes(id) ? s.minors.filter((x) => x !== id) : s.minors.length >= 5 ? [...s.minors.slice(1), id] : [...s.minors, id] }));
-  const shardName = (id: number) => DATA.runes.find((r) => r.id === id)?.name ?? id;
+  // A shard's whole text is one line, so the options show it, with numbers at your level.
+  const shardLabel = (id: number) => {
+    const rune = DATA.runes.find((r) => r.id === id);
+    if (!rune) return String(id);
+    return runeText(rune, sim).body.replace(/<[^>]+>/g, '') || rune.name;
+  };
   return (
     <Card title="Runes">
       <div className="stack">
@@ -248,11 +254,11 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
         <div className="stack" style={{ gap: 6 }}>
           {SHARD_ROWS.map((row, i) => (
             <label key={row.label} className="row small secondary" style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-              {row.label} shard
-              <select id={`shard-${i}`} style={{ width: 200 }} value={state.shards[i]} onChange={(e) => set((s) => ({ ...s, shards: s.shards.map((x, j) => (j === i ? Number(e.target.value) : x)) }))}>
+              <span style={{ whiteSpace: 'nowrap', minWidth: '7.5em' }}>{row.label} shard</span>
+              <select id={`shard-${i}`} style={{ flex: '1 1 0', maxWidth: 250, minWidth: 0 }} value={state.shards[i]} onChange={(e) => set((s) => ({ ...s, shards: s.shards.map((x, j) => (j === i ? Number(e.target.value) : x)) }))}>
                 {row.options.map((o) => (
                   <option key={o} value={o}>
-                    {shardName(o)}
+                    {shardLabel(o)}
                   </option>
                 ))}
               </select>

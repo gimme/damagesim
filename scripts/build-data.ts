@@ -494,6 +494,17 @@ function unhashValues(values: Record<string, number>, texts: string[]): Record<s
   );
 }
 
+/** The texts a tooltip's {{ Key_@f1@ }} includes choose between by a value the rune's script sets
+ *  (Dark Harvest's damage type), by lowercase key. */
+function scriptIncludes(tooltip: string): Record<string, string> | undefined {
+  const out: Record<string, string> = {};
+  for (const m of tooltip.matchAll(/\{\{\s*(\w+)@f\d+@\s*\}\}/g)) {
+    const prefix = m[1].toLowerCase();
+    for (const key of Object.keys(STRINGS)) if (key.startsWith(prefix) && /^\w+$/.test(key.slice(prefix.length))) out[key] = resolveIncludes(STRINGS[key]);
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** A perk's long description and in-game tooltip, with its values and calculations under their real names. */
 function perkTexts(b: any, longDesc: string) {
   const sd = b?.mScript?.mSpellScriptData ?? {};
@@ -502,7 +513,8 @@ function perkTexts(b: any, longDesc: string) {
   const values = unhashValues(sd.mEffectAmount ?? {}, [description, tooltip]);
   const calcs = convCalcs(sd.mCalculations);
   unhashCalcs(calcs, Object.keys(values));
-  return { values, calcs, description, tooltip };
+  const includes = scriptIncludes(tooltip);
+  return { values, calcs, description, tooltip, ...(includes ? { includes } : {}) };
 }
 
 function buildRunes(ddRunes: any, bin: any): RuneData[] {

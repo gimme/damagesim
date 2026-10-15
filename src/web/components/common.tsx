@@ -408,6 +408,7 @@ export function RuneTip({ id, sim }: { id: number; sim?: Sim | null }) {
       <div className="it-foot muted">
         <div>{hasRuneModel(id) ? 'Effects simulated' : 'Not simulated'}</div>
         {text.adaptive && <div>Adaptive damage: {text.adaptive} at your stats</div>}
+        {text.adaptiveForce && <div>Adaptive Force: {text.adaptiveForce === 'physical' ? 'AD' : 'AP'} at your stats</div>}
         {text.live && <div>Numbers at your level and stats</div>}
       </div>
     </div>

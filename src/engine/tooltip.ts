@@ -3,7 +3,7 @@
 import type { CalcNode, ItemData, RuneData, SpellData } from './data-types.ts';
 import type { Sim } from './sim.ts';
 import type { Slot } from './effects.ts';
-import { adaptiveDamageType } from './runes.ts';
+import { adaptiveDamageType, runeScriptValues } from './runes.ts';
 
 export function formatNumber(v: number, precision?: number): string {
   if (!Number.isFinite(v)) return '?';
@@ -126,29 +126,26 @@ export function itemText(item: ItemData, sim?: Sim | null): { stats: string[]; b
 
 /** A rune text placeholder: @Name@, with an optional precision (.1) and multiplier (*100). */
 const RUNE_REF = /^\s*([A-Za-z_{}][\w{}]*)\s*(?:\.(-?\d+))?\s*(?:\*\s*(-?[\d.]+))?\s*$/;
-/** Values only the rune's script knows in game (@f1@, and includes chosen by them), mostly stats it tracks. */
-const RUNTIME = /@\s*f\d+[^@]*@|\{\{[^}]*@[^}]*\}\}/i;
 
-/** Fill a rune text's @Placeholders@ from its values and, with a simulator, its calculations. */
-function fillRuneValues(text: string, rune: RuneData, sim?: Sim | null) {
+/** Fill a rune text's @Placeholders@ from its values and, with a simulator, its calculations and the
+ *  values the game's script would set (@f1@…). */
+function fillRuneValues(text: string, rune: RuneData, sim?: Sim | null, script: Record<string, number> = {}) {
   let resolved = true;
-  let calcs = false;
+  let live = false;
   const filled = text.replace(/@([^@]+)@/g, (m, ref: string) => {
     const p = RUNE_REF.exec(ref);
     if (!p) return ((resolved = false), m);
     const lower = p[1].toLowerCase();
     const mult = p[3] ? Number(p[3]) : 1;
+    if (lower in script) return ((live = true), formatNumber(script[lower] * mult));
     const ck = Object.keys(rune.calcs).find((k) => k.toLowerCase() === lower);
-    if (ck && sim) {
-      calcs = true;
-      return formatCalc(rune.calcs, ck, sim.evalDataCalc(rune.calcs, rune.values, ck) * mult);
-    }
+    if (ck && sim) return ((live = true), formatCalc(rune.calcs, ck, sim.evalDataCalc(rune.calcs, rune.values, ck) * mult));
     const vk = Object.keys(rune.values).find((k) => k.toLowerCase() === lower);
     // The text's own precision is left out: Biscuit Delivery's 1.5% would show as 2%.
     if (vk) return formatNumber(rune.values[vk] * mult);
     return ((resolved = false), m);
   });
-  return { text: filled, resolved, calcs };
+  return { text: filled, resolved, live };
 }
 
 /** "[A Melee || B Ranged]": the side for the champion's attack type, both without one. */
@@ -159,12 +156,14 @@ const meleeRanged = (text: string, ranged?: boolean) =>
   });
 
 /** Riot's "adaptive damage" keyword and highlight color as the damage type the rune deals for the
- *  attacker, or highlighted values when it deals none (or there's no attacker). */
+ *  attacker, or highlighted values when it deals none (or there's no attacker). Damage a script value
+ *  chose the type of (Dark Harvest's "<scaleAP>45 magic damage</scaleAP>") takes that type. */
 const markAdaptive = (markup: string, type: 'physical' | 'magic' | null) => {
   const tag = type ? `${type}Damage` : 'attention';
   return markup
     .replace(/<lol-uikit-tooltipped-keyword key=['"]LinkTooltip_Description_AdaptiveDmg['"]>([\s\S]*?)<\/lol-uikit-tooltipped-keyword>/gi, (_m, inner: string) => (type ? `<${tag}>${inner.replace(/<\/?font[^>]*>/gi, '')}</${tag}>` : inner))
-    .replace(/<font color=['"]#48C4B7['"]>([^<]*)<\/font>/gi, (_m, inner: string) => `<${tag}>${inner}</${tag}>`);
+    .replace(/<font color=['"]#48C4B7['"]>([^<]*)<\/font>/gi, (_m, inner: string) => `<${tag}>${inner}</${tag}>`)
+    .replace(/<(scaleAD|scaleAP)>([^<]*\b(physical|magic) damage)<\/\1>/gi, (_m, _t, inner: string, dt: string) => `<${dt.toLowerCase()}Damage>${inner}</${dt.toLowerCase()}Damage>`);
 };
 
 const cleanRuneMarkup = (markup: string) =>
@@ -180,33 +179,44 @@ const cleanRuneMarkup = (markup: string) =>
     .replace(/^(\s|<br\s*\/?>)+|(\s|<br\s*\/?>)+$/gi, '');
 
 /**
- * The in-game tooltip with numbers for the simulator's champion, level and stats, without the stats
- * the rune tracks in game (damage dealt, stacks…). Null when the description itself depends on a value
- * only the game knows (Press the Attack's damage), or a placeholder can't be filled.
+ * The in-game tooltip with numbers for the simulator's champion, level and stats, and the values the
+ * game's script sets where the simulator models them (Dark Harvest's damage with its souls). Lines
+ * with a script value it doesn't model (damage dealt so far…) are left out. Null when the first line
+ * has one, or a placeholder can't be filled.
  */
 function liveRuneTooltip(rune: RuneData, sim: Sim) {
-  // Riot's melee/ranged split ({{ Item_Melee_Ranged_Split }}) picks a value by @ChampRange@.
-  const text = rune.tooltip.replace(/\{\{\s*Item_Range_Mod_@ChampRange@\s*\}\}/gi, sim.stats.ranged ? '@RangedItemCalcValue@' : '@MeleeItemCalcValue@');
+  const script = runeScriptValues(rune, sim);
+  const text = rune.tooltip
+    // Riot's melee/ranged split ({{ Item_Melee_Ranged_Split }}) picks a value by @ChampRange@.
+    .replace(/\{\{\s*Item_Range_Mod_@ChampRange@\s*\}\}/gi, sim.stats.ranged ? '@RangedItemCalcValue@' : '@MeleeItemCalcValue@')
+    // Includes a script value picks (Dark Harvest's physical or magic damage).
+    .replace(/\{\{\s*(\w+)@(f\d+)@\s*\}\}/gi, (m, prefix: string, f: string) => rune.includes?.[`${prefix}${script[f.toLowerCase()]}`.toLowerCase()] ?? m);
+  const unknown = (line: string) => [...line.matchAll(/@\s*(f\d+)[^@]*@/gi)].some((m) => !(m[1].toLowerCase() in script)) || /\{\{[^}]*@[^}]*\}\}/.test(line);
   const lines = text.split(/<br\s*\/?>|<hr\s*\/?>/i);
   const first = lines.find((l) => l.replace(/<[^>]+>/g, '').trim());
-  if (!first || RUNTIME.test(first)) return null;
-  const kept = lines.filter((l) => !RUNTIME.test(l)).join('<br>');
-  const live = fillRuneValues(meleeRanged(kept, sim.stats.ranged), rune, sim);
+  if (!first || unknown(first)) return null;
+  const kept = lines.filter((l) => !unknown(l)).join('<br>');
+  const live = fillRuneValues(meleeRanged(kept, sim.stats.ranged), rune, sim, script);
   return live.resolved ? live : null;
 }
 
 /**
  * What a rune's hover card shows, as tooltip markup. With a simulator, the in-game tooltip with
  * numbers for the champion, level and stats when it can be filled; otherwise the long description,
- * whose level-based values are ranges. `live` is set when numbers come from the simulator, and
- * `adaptive` is the type the rune's adaptive damage takes at the simulator's stats.
+ * whose level-based values are ranges. `live` is set when numbers come from the simulator;
+ * `adaptive` is the type the rune's adaptive damage takes at the simulator's stats, and
+ * `adaptiveForce` what Adaptive Force it mentions gives (physical: AD, magic: AP).
  */
-export function runeText(rune: RuneData, sim?: Sim | null): { body: string; live: boolean; adaptive: 'physical' | 'magic' | null } {
+export function runeText(rune: RuneData, sim?: Sim | null): { body: string; live: boolean; adaptive: 'physical' | 'magic' | null; adaptiveForce: 'physical' | 'magic' | null } {
   const adaptive = sim ? adaptiveDamageType(rune, sim) : null;
+  const result = (body: string, live: boolean) => {
+    const text = cleanRuneMarkup(markAdaptive(body, adaptive));
+    return { body: text, live, adaptive, adaptiveForce: sim && /adaptive force/i.test(text) ? sim.stats.adaptiveType : null };
+  };
   const live = sim && rune.tooltip ? liveRuneTooltip(rune, sim) : null;
-  if (live) return { body: cleanRuneMarkup(markAdaptive(live.text, adaptive)), live: live.calcs, adaptive };
+  if (live) return result(live.text, live.live);
   // A value only the game knows: dropped with its parentheses (Unsealed Spellbook's first cooldown).
   const text = meleeRanged(rune.description, sim?.stats.ranged).replace(/\s*\([^()]*@\s*f\d+[^@]*@[^()]*\)/gi, '');
   const desc = fillRuneValues(text, rune, sim);
-  return { body: cleanRuneMarkup(markAdaptive(desc.text.replace(/@[^@]+@/g, '…'), adaptive)), live: desc.calcs, adaptive };
+  return result(desc.text.replace(/@[^@]+@/g, '…'), desc.live);
 }

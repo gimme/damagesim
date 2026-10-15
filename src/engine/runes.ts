@@ -4,7 +4,7 @@
 import type { RuneData } from './data-types.ts';
 import { triggersOnAttack, type DamageInstance, type Effect, type SetupCtx } from './effects.ts';
 import type { Sim } from './sim.ts';
-import type { StatMods } from './stats.ts';
+import { GAME, type StatMods } from './stats.ts';
 import { ITEM_STAT_TYPES } from './items.ts';
 import { findItem } from './gamedata.ts';
 
@@ -39,6 +39,52 @@ const ADAPTIVE_DAMAGE: Record<number, (sim: Sim, v: Record<string, number>) => '
 /** The type a rune's adaptive damage takes at the attacker's current stats; null if it deals none. */
 export function adaptiveDamageType(rune: RuneData, sim: Sim): 'physical' | 'magic' | null {
   return ADAPTIVE_DAMAGE[rune.id]?.(sim, rune.values) ?? null;
+}
+
+/** Numbers a rune scales with level that its data has no formula for (the game's script works them
+ *  out in play): the names of their level 1 and level 18 values, linear in between (wiki). */
+const LEVEL_SCALED: Record<number, [min: string, max: string]> = {
+  8005: ['MinDamage', 'MaxDamage'], // Press the Attack's damage
+  8010: ['MinAdaptivePerStack', 'MaxAdaptivePerStack'], // Conqueror's adaptive force per stack
+  5001: ['StatGainMin', 'StatGainMax'], // Health Scaling
+};
+
+/** A rune's level-scaled number (LEVEL_SCALED) at a level. */
+const levelScaled = (rune: RuneData, level: number) => {
+  const [min, max] = LEVEL_SCALED[rune.id];
+  return lerpLevel(level, rune.values[min], rune.values[max]);
+};
+
+/** The damage Dark Harvest's souls (an option) add, and its damage with them. */
+const harvestSouls = (rune: RuneData, sim: Sim) => rune.values.DamagePerSoulEssence * (sim.opt['darkHarvest.souls'] ?? 0);
+const harvestDamage = (rune: RuneData, sim: Sim) => calc(sim, rune, 'TotalDamage') + harvestSouls(rune, sim);
+
+/** Which of two texts a script value picks by adaptive type: 0 for physical (AD), 1 for magic (AP). */
+const adaptiveIndex = (type: 'physical' | 'magic') => (type === 'physical' ? 0 : 1);
+/** Adaptive force as the stat it gives. */
+const adaptiveStat = (force: number, type: 'physical' | 'magic') => force * (type === 'physical' ? GAME.adaptiveToAd : GAME.adaptiveToAp);
+
+/**
+ * The values the game's script sets in a rune's in-game tooltip (@f1@…, and the includes they pick),
+ * as the simulator models them. Those it has no counterpart for (damage dealt so far…) are left out.
+ */
+const SCRIPT_VALUES: Record<number, (rune: RuneData, sim: Sim) => Record<string, number>> = {
+  8005: (rune, sim) => ({ f4: levelScaled(rune, sim.level) }), // Press the Attack: damage
+  8128: (rune, sim) => {
+    // Dark Harvest: f2 its damage type, f8 its damage, f5 souls, f6 their damage.
+    const type = ADAPTIVE_DAMAGE[rune.id](sim, rune.values);
+    return { f2: adaptiveIndex(type), f8: harvestDamage(rune, sim), f5: sim.opt['darkHarvest.souls'] ?? 0, f6: harvestSouls(rune, sim) };
+  },
+  // Conqueror: f4 the stat its adaptive force gives, f5 how much per stack.
+  8010: (rune, sim) => ({ f4: adaptiveIndex(sim.stats.adaptiveType), f5: adaptiveStat(levelScaled(rune, sim.level), sim.stats.adaptiveType) }),
+  5001: (rune, sim) => ({ f1: levelScaled(rune, sim.level) }), // Health Scaling
+  // Adaptive Force: f1 the stat it gives, f2 how much.
+  5008: (rune, sim) => ({ f1: adaptiveIndex(sim.stats.adaptiveType), f2: adaptiveStat(rune.values.StatGain2, sim.stats.adaptiveType) }),
+};
+
+/** The values the game's script would set in a rune's in-game tooltip, as the simulator models them. */
+export function runeScriptValues(rune: RuneData, sim: Sim): Record<string, number> {
+  return SCRIPT_VALUES[rune.id]?.(rune, sim) ?? {};
 }
 
 /** Damage that can trigger "on damage" runes (not item/rune proc damage, except pets). */
@@ -81,7 +127,7 @@ const RUNES: Record<number, Factory> = {
           sourceLabel: rune.name,
           label: 'Proc',
           type: ADAPTIVE_DAMAGE[rune.id](sim, rune.values),
-          amount: lerpLevel(sim.level, v.MinDamage, v.MaxDamage),
+          amount: levelScaled(rune, sim.level),
           flags: { kind: 'rune', proc: true },
         });
         // The triggering attack and proc are not amplified; everything afterwards is.
@@ -148,7 +194,7 @@ const RUNES: Record<number, Factory> = {
       dynamicStats(sim) {
         const n = sim.time <= expires ? stacks : 0;
         if (!n) return;
-        return { adaptive: n * lerpLevel(sim.level, v.MinAdaptivePerStack, v.MaxAdaptivePerStack) };
+        return { adaptive: n * levelScaled(rune, sim.level) };
       },
       afterDamage(sim, inst) {
         if (inst.flags.proc && !inst.flags.pet) return;
@@ -232,7 +278,7 @@ const RUNES: Record<number, Factory> = {
           sourceLabel: rune.name,
           label: 'Harvest',
           type: ADAPTIVE_DAMAGE[rune.id](sim, rune.values),
-          amount: calc(sim, rune, 'TotalDamage') + v.DamagePerSoulEssence * (sim.opt['darkHarvest.souls'] ?? 0),
+          amount: harvestDamage(rune, sim),
           flags: { kind: 'rune', proc: true },
         });
       },
@@ -726,7 +772,7 @@ const RUNES: Record<number, Factory> = {
   5005: (rune) => base(rune, { stats: () => ({ attackSpeed: rune.values.StatGain / 100 }) }),
   5007: (rune) => base(rune, { stats: () => ({ abilityHaste: rune.values.HasteGain }) }),
   5010: (rune) => base(rune, { stats: () => ({ msPercent: rune.values.StatGain1 / 100 }) }),
-  5001: (rune) => base(rune, { stats: (ctx) => ({ hp: lerpLevel(ctx.level, rune.values.StatGainMin, rune.values.StatGainMax) }) }),
+  5001: (rune) => base(rune, { stats: (ctx) => ({ hp: levelScaled(rune, ctx.level) }) }),
   5011: (rune) => base(rune, { stats: () => ({ hp: rune.values.StatGain }) }),
   5013: (rune) => base(rune, { stats: () => ({ tenacity: rune.values.StatGain / 100 }) }),
 };
