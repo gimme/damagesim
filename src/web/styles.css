@@ -23,7 +23,7 @@
   --magic-text: #02739e;
   --physical-text: #aa5401;
   --true-text: #0b0b0b;
-  --item-effect: #b87a00;
+  --item-effect: #008300;
   --hp: #2a78d6;
   --good: #006300;
   --warning: #fab219;
@@ -56,7 +56,7 @@
     --magic-text: #00b0f0;
     --physical-text: #ff8c34;
     --true-text: #ffffff;
-    --item-effect: #c98500;
+    --item-effect: #008300;
     --hp: #3987e5;
     --good: #0ca30c;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
@@ -84,7 +84,7 @@
   --magic-text: #00b0f0;
   --physical-text: #ff8c34;
   --true-text: #ffffff;
-  --item-effect: #c98500;
+  --item-effect: #008300;
   --hp: #3987e5;
   --good: #0ca30c;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
