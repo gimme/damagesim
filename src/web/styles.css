@@ -650,6 +650,11 @@ label.field {
 .tooltip .tt-row strong {
   font-variant-numeric: tabular-nums;
 }
+.tooltip .tt-total {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 4px;
+}
 .tt-source {
   display: inline-flex;
   align-items: center;

@@ -362,9 +362,11 @@ function SourceName({ source, label, champion, children = label }: { source: str
   );
 }
 
-function SourceTip({ s, maxHp, champion }: { s: SourceTotal | Moment; maxHp?: number; champion: string }) {
+function SourceTip({ s, maxHp, champion }: { s: SourceTotal | Moment; maxHp: number; champion: string }) {
   // A row per source, its damage in its type's color. A source dealing several types splits it,
-  // largest first; a type dealing under half a point is left out unless it's the only one.
+  // largest first; a type dealing under half a point is left out unless it's the only one. Under a
+  // rule, the total, and when a block of the HP bar by time landed. No hit count: an ability's parts
+  // aren't hits to a player (Smolder's W lands as three).
   return (
     <>
       {('parts' in s ? s.parts : [s]).map((p) => (
@@ -382,11 +384,11 @@ function SourceTip({ s, maxHp, champion }: { s: SourceTotal | Moment; maxHp?: nu
           </span>
         </div>
       ))}
-      <div className="tt-row muted">
+      <div className="tt-row tt-total">
+        <span className="muted">{'from' in s && (s.to - s.from < 0.005 ? `at ${s.from.toFixed(2)}s` : `${s.from.toFixed(2)}–${s.to.toFixed(2)}s`)}</span>
         <span>
-          {s.hits} hit{s.hits === 1 ? '' : 's'}
-          {maxHp && ` · ${((s.damage / maxHp) * 100).toFixed(1)}% max HP`}
-          {'from' in s && (s.to - s.from < 0.005 ? ` · at ${s.from.toFixed(2)}s` : ` · ${s.from.toFixed(2)}–${s.to.toFixed(2)}s`)}
+          <strong>{fmt(s.damage)}</strong>
+          <span className="muted"> ({((s.damage / maxHp) * 100).toFixed(1)}% max HP)</span>
         </span>
       </div>
     </>
@@ -485,7 +487,7 @@ export function Timeline({ events, startHp, maxHp, timeline, champion }: { event
 // -----------------------------------------------------------------------------
 // Horizontal stacked bars: damage by source, segments by damage type.
 
-export function SourceBars({ sources, champion }: { sources: SourceTotal[]; champion: string }) {
+export function SourceBars({ sources, maxHp, champion }: { sources: SourceTotal[]; maxHp: number; champion: string }) {
   const tt = useTooltip();
   const rows = sources.filter((s) => s.damage > 0.5);
   const W = tt.width;
@@ -503,7 +505,7 @@ export function SourceBars({ sources, champion }: { sources: SourceTotal[]; cham
           const y = i * rowH + 6;
           const parts = TYPE_ORDER.filter((t) => (s.type[t] ?? 0) > 0);
           return (
-            <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} champion={champion} />)} onPointerLeave={tt.hide}>
+            <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} maxHp={maxHp} champion={champion} />)} onPointerLeave={tt.hide}>
               <rect x={0} y={y - 4} width={W} height={rowH} fill="transparent" />
               <text x={labelW - 10} y={y + 15} textAnchor="end" fontSize={13} fill="var(--text-primary)">
                 {s.label.length > maxChars ? s.label.slice(0, maxChars - 1) + '…' : s.label}

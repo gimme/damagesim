@@ -110,7 +110,7 @@ export function Details({ r, scenario, sim, state, pinned, onPin, onUnpin }: { r
             <span>Damage dealt by source.</span>
             <TypeLegend />
           </div>
-          <SourceBars sources={r.bySource} champion={r.champion.id} />
+          <SourceBars sources={r.bySource} maxHp={r.target.maxHp} champion={r.champion.id} />
           <table className="data" style={{ marginTop: 10 }}>
             <thead>
               <tr>
