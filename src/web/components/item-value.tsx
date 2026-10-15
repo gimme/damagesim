@@ -205,7 +205,7 @@ function RankList({ rows: all, limit, by, current, slotLabel, onPick, sim }: { r
               stats
             </span>
             <span>
-              <span className="swatch" style={{ background: 'var(--item-effect)' }} />
+              <span className="swatch" style={{ background: 'var(--accent-2)' }} />
               effect damage
             </span>
           </span>
@@ -320,7 +320,7 @@ function RowTip({ row: r, current, view, action }: { row: Row; current: number |
           </div>
           <div className="tt-row">
             <span>
-              <span className="swatch" style={{ background: 'var(--item-effect)', marginRight: 6 }} />
+              <span className="swatch" style={{ background: 'var(--accent-2)', marginRight: 6 }} />
               Effect damage
             </span>
             <strong>{signed(r.itemDamage)}</strong>

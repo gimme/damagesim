@@ -373,7 +373,7 @@ export function Timeline({ events, startHp, maxHp, timeline }: { events: DamageI
             );
           });
         })()}
-        <path d={d} fill="none" stroke="var(--hp)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+        <path d={d} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         {events.map((ev) => (
           <circle key={ev.id} cx={sx(ev.time)} cy={sy(ev.targetHpAfter ?? 0)} r={4.5} fill={TYPE_COLOR[ev.type]} stroke="var(--surface)" strokeWidth={2} />
         ))}

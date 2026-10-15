@@ -326,7 +326,7 @@ function Sweep({ scenario, r }: { scenario: Scenario; r: SimResult }) {
           </button>
         </div>
       </div>
-      <LineChart xLabel={stat === 'mr' ? 'MR' : 'armor'} markerX={stat === 'mr' ? r.target.mr : r.target.armor} series={[{ label: 'Total damage', color: 'var(--hp)', points: points.map((p: any) => ({ x: p[stat], y: p.totalDamage })) }]} />
+      <LineChart xLabel={stat === 'mr' ? 'MR' : 'armor'} markerX={stat === 'mr' ? r.target.mr : r.target.armor} series={[{ label: 'Total damage', color: 'var(--accent)', points: points.map((p: any) => ({ x: p[stat], y: p.totalDamage })) }]} />
     </div>
   );
 }

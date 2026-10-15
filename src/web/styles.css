@@ -11,9 +11,12 @@
   --axis: #c3c2b7;
   --border: rgba(11, 11, 11, 0.1);
   --border-strong: rgba(11, 11, 11, 0.18);
-  --accent: #2a78d6;
-  --accent-wash: rgba(42, 120, 214, 0.1);
-  --accent-text: #1c5cab;
+  /* Accents, kept clear of the damage types' colors: violet for controls and for data that isn't a
+     damage type (item stats, a single series), pink beside it (item effect damage). */
+  --accent: #6250d6;
+  --accent-wash: rgba(98, 80, 214, 0.1);
+  --accent-text: #5641c6;
+  --accent-2: #d55181;
   /* Damage types in the game's colors (its floating combat text, ux/fonts.bin: magic #00b0f0,
      physical #ff8c34, true #ffffff). White can't show on a light page, so true damage is a gray here. */
   --magic: #00b0f0;
@@ -23,8 +26,6 @@
   --magic-text: #02739e;
   --physical-text: #aa5401;
   --true-text: #0b0b0b;
-  --item-effect: #008300;
-  --hp: #2a78d6;
   --good: #006300;
   --warning: #fab219;
   --critical: #d03b3b;
@@ -47,17 +48,16 @@
     --axis: #383835;
     --border: rgba(255, 255, 255, 0.1);
     --border-strong: rgba(255, 255, 255, 0.18);
-    --accent: #3987e5;
-    --accent-wash: rgba(57, 135, 229, 0.16);
-    --accent-text: #86b6ef;
+    --accent: #7262e4;
+    --accent-wash: rgba(114, 98, 228, 0.18);
+    --accent-text: #b1a8f4;
+    --accent-2: #d55181;
     --magic: #00b0f0;
     --physical: #ff8c34;
     --true: #ffffff;
     --magic-text: #00b0f0;
     --physical-text: #ff8c34;
     --true-text: #ffffff;
-    --item-effect: #008300;
-    --hp: #3987e5;
     --good: #0ca30c;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
   }
@@ -75,17 +75,16 @@
   --axis: #383835;
   --border: rgba(255, 255, 255, 0.1);
   --border-strong: rgba(255, 255, 255, 0.18);
-  --accent: #3987e5;
-  --accent-wash: rgba(57, 135, 229, 0.16);
-  --accent-text: #86b6ef;
+  --accent: #7262e4;
+  --accent-wash: rgba(114, 98, 228, 0.18);
+  --accent-text: #b1a8f4;
+  --accent-2: #d55181;
   --magic: #00b0f0;
   --physical: #ff8c34;
   --true: #ffffff;
   --magic-text: #00b0f0;
   --physical-text: #ff8c34;
   --true-text: #ffffff;
-  --item-effect: #008300;
-  --hp: #3987e5;
   --good: #0ca30c;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
 }
@@ -101,6 +100,7 @@ body {
   font-family: var(--font);
   font-size: 14px;
   line-height: 1.4;
+  accent-color: var(--accent);
 }
 button,
 input,
@@ -239,7 +239,6 @@ button:focus-visible {
   outline-offset: 1px;
 }
 input[type='range'] {
-  accent-color: var(--accent);
   flex: 1;
   min-width: 80px;
 }
@@ -748,7 +747,7 @@ label.field {
   background: var(--accent);
 }
 .iv-bar.fx {
-  background: var(--item-effect);
+  background: var(--accent-2);
 }
 .iv-bar:last-child {
   border-radius: 0 4px 4px 0;
