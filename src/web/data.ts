@@ -46,3 +46,5 @@ export const abilityIcon = (champion: string, slot: 'P' | 'Q' | 'W' | 'E' | 'R')
   return path ? bundledOr(`ability/${champion}/${slot}`, `https://raw.communitydragon.org/${DATA.meta.patch}/game/${path}`) : '';
 };
 export const summonerIcon = (key: string) => bundledOr(`summoner/${key}`, `${DD}spell/${key}.png`);
+// The Death Recap's icon for basic attacks.
+export const autoAttackIcon = () => bundledOr('ui/autoattack', `https://raw.communitydragon.org/${DATA.meta.patch}/game/assets/ux/deathrecap/autoattack.png`);

@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { DATA, abilityIcon, championIcon, itemIcon, runeIcon, summonerIcon } from '../data.ts';
+import { DATA, abilityIcon, autoAttackIcon, championIcon, itemIcon, runeIcon, summonerIcon } from '../data.ts';
 import { getKit } from '../../kits/index.ts';
 import type { ItemData } from '../../engine/data-types.ts';
 import { hasItemModel } from '../../engine/items.ts';
@@ -41,7 +41,7 @@ export const RuneIcon = ({ id }: { id: number }) => {
  */
 export function sourceMark(source: string, label: string, champion: string): { text: string; icon: string } {
   if (source === 'P' || source === 'Q' || source === 'W' || source === 'E' || source === 'R') return { text: source, icon: abilityIcon(champion, source) };
-  if (source === 'AA') return { text: 'AA', icon: '' };
+  if (source === 'AA') return { text: 'AA', icon: autoAttackIcon() };
   const words = label.split(/[\s-]+/).map((w) => w.replace(/[^\p{L}\d]/gu, ''));
   const text = words.length === 1 ? words[0].slice(0, 2).toUpperCase() : words.map((w) => w[0] ?? '').join('');
   const [kind, id] = source.split(':');

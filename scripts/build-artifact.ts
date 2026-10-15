@@ -31,6 +31,7 @@ for (const c of Object.values(data.champions)) for (const [slot, path] of Object
 for (const it of Object.values(data.items)) if ((it.inStore || [3040, 3042, 3121].includes(it.id)) && it.gold.total > 0) wanted.push([`item/${it.id}`, `${dd}item/${it.id}.png`]);
 for (const r of data.runes) if (r.icon.startsWith('perk-images')) wanted.push([`rune/${r.icon}`, `https://ddragon.leagueoflegends.com/cdn/img/${r.icon}`]);
 for (const key of Object.keys(data.summoners)) wanted.push([`summoner/${key}`, `${dd}spell/${key}.png`, 40]);
+wanted.push(['ui/autoattack', `https://raw.communitydragon.org/${data.meta.patch}/game/assets/ux/deathrecap/autoattack.png`, 32]);
 
 const icons: Record<string, string> = {};
 let fetched = 0;
