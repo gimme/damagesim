@@ -109,16 +109,15 @@ test('Abilities that apply on-hit and trigger on-attack (Smolder Q): Spellblade,
   assert.equal(bySource(lt2, 'rune:8008').length, 1, 'the 7th on-attack (an AA after 3 Q + 3 AA) fires a bolt');
 });
 
-test('Smolder E: another ability cast ends the flight, and E is not a dash (no Sudden Impact)', () => {
-  const bolts = (r: ReturnType<typeof simulate>) => r.events.filter((e) => e.label === 'Flap, Flap, Flap');
-  const full = simulate(data, { champion: 'Smolder', level: 11, runes: ['Sudden Impact'], combo: 'E wait:2 Q', target: dummy });
-  assert.equal(bolts(full).length, 6, 'uninterrupted flight at 125 stacks');
-  assert.equal(bySource(full, 'rune:8143').length, 0, 'Sudden Impact not armed');
-  const cut = simulate(data, { champion: 'Smolder', level: 11, combo: 'E wait:0.5 Q', target: dummy });
-  const qStart = cut.timeline.find((s) => s.step === 'Q')!.start;
-  assert.ok(bolts(cut).length > 0 && bolts(cut).length < 6, `${bolts(cut).length} bolts before Q`);
-  assert.ok(bolts(cut).every((e) => e.time < qStart));
-  assert.equal(cut.events.filter((e) => e.label === 'Flap, Flap, Flap (Dragon Practice)').length, bolts(cut).length);
+test('Smolder E: the full flight, then the next cast; E is not a dash (no Sudden Impact)', () => {
+  const r = simulate(data, { champion: 'Smolder', level: 11, runes: ['Sudden Impact'], combo: 'E Q', target: dummy });
+  const bolts = r.events.filter((e) => e.label === 'Flap, Flap, Flap');
+  assert.equal(bolts.length, 6, 'full flight at 125 stacks');
+  assert.equal(r.events.filter((e) => e.label === 'Flap, Flap, Flap (Dragon Practice)').length, 6);
+  const qStart = r.timeline.find((s) => s.step === 'Q')!.start;
+  assert.ok(qStart >= 1.25, `Q waits for the flight to end (${qStart})`);
+  assert.ok(bolts.every((e) => e.time < qStart));
+  assert.equal(bySource(r, 'rune:8143').length, 0, 'Sudden Impact not armed');
 });
 
 test('On-hit-only abilities (Fizz Q) consume Spellblade but do not trigger on-attack effects', () => {

@@ -4,9 +4,6 @@ import type { ChampionKit } from '../../engine/kit-types.ts';
 // Dragon Practice stacks are an option (fed to the game formulas' stack counter). Stacks gained
 // during the combo are ignored.
 const STACKS = '{32bcea5d}';
-// Time the current Flap, Flap, Flap was ended by another ability cast (0 = not ended).
-const FLIGHT_CUT = 'smolderFlightCut';
-const FLYING = `stacks.${FLIGHT_CUT} <= 0 || time < stacks.${FLIGHT_CUT}`;
 
 const kit: ChampionKit = {
   id: 'Smolder',
@@ -48,15 +45,19 @@ const kit: ChampionKit = {
       // Not a dash: it doesn't arm Sudden Impact.
       notes: [
         'Bolts hit the lowest-health enemy (the target) evenly over the flight; they are ability damage, not attacks.',
-        'Casting another ability ends the flight (wiki): bolts after that cast are lost.',
+        'Full flight assumed: Smolder is busy for 1.25s (another cast ends it early in the game).',
       ],
+      // Wiki: no cast time (data castTime is 0.25).
+      castTime: 0,
+      // In flight an attack command only moves Smolder, and a cast ends the flight.
+      lockout: 'dv.Duration',
       components: [
-        { id: 'bolt', label: 'Flap, Flap, Flap', type: 'physical', amount: `${FLYING} ? calc.DamagePerHit : 0`, hits: 'floor(calc.TotalNumberOfAttacks)', interval: 'dv.Duration / floor(calc.TotalNumberOfAttacks)', delay: 0.1 },
+        { id: 'bolt', label: 'Flap, Flap, Flap', type: 'physical', amount: 'calc.DamagePerHit', hits: 'floor(calc.TotalNumberOfAttacks)', interval: 'dv.Duration / floor(calc.TotalNumberOfAttacks)', delay: 0.1 },
         {
           id: 'practice',
           label: 'Flap, Flap, Flap (Dragon Practice)',
           type: 'magic',
-          amount: `${FLYING} ? P.calc.EBonusDamage : 0`,
+          amount: 'P.calc.EBonusDamage',
           hits: 'opt.stacks > 0 ? floor(calc.TotalNumberOfAttacks) : 0',
           interval: 'dv.Duration / floor(calc.TotalNumberOfAttacks)',
           delay: 0.1,
@@ -77,9 +78,6 @@ const kit: ChampionKit = {
   },
   hooks: {
     onCast(sim, cast) {
-      // The first ability cast after Flap, Flap, Flap ends the flight (harmless once it's over).
-      if (cast.slot === 'E') sim.setCounter(FLIGHT_CUT, 0);
-      else if (cast.slot !== 'P' && !sim.counter(FLIGHT_CUT)) sim.setCounter(FLIGHT_CUT, sim.time);
       if (cast.slot !== 'Q' || !cast.hitsTarget) return;
       const q = { slot: 'Q' as const };
       if (sim.opt.stacks >= sim.evalExpr('Q.dv.StackTier3', q))
