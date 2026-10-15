@@ -290,9 +290,9 @@ const EMPHASIS: Record<string, string> = {
   keywordmajor: 'it-name',
   spellname: 'it-name',
   attention: 'it-value',
-  magicdamage: 'it-value',
-  physicaldamage: 'it-value',
-  truedamage: 'it-value',
+  magicdamage: 'it-value magic',
+  physicaldamage: 'it-value physical',
+  truedamage: 'it-value true',
   rules: 'it-rules',
 };
 

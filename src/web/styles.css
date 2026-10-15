@@ -17,6 +17,10 @@
   --magic: #2a78d6;
   --physical: #eb6834;
   --true: #1baf7a;
+  /* Damage type colors for small text (>= 4.5:1 on --surface and --surface-2). */
+  --magic-text: #1c5cab;
+  --physical-text: #b5461a;
+  --true-text: #0a7a52;
   --item-effect: #b87a00;
   --hp: #2a78d6;
   --good: #006300;
@@ -47,6 +51,9 @@
     --magic: #3987e5;
     --physical: #d95926;
     --true: #199e70;
+    --magic-text: #86b6ef;
+    --physical-text: #f0946a;
+    --true-text: #4fcf9c;
     --item-effect: #c98500;
     --hp: #3987e5;
     --good: #0ca30c;
@@ -72,6 +79,9 @@
   --magic: #3987e5;
   --physical: #d95926;
   --true: #199e70;
+  --magic-text: #86b6ef;
+  --physical-text: #f0946a;
+  --true-text: #4fcf9c;
   --item-effect: #c98500;
   --hp: #3987e5;
   --good: #0ca30c;
@@ -638,6 +648,15 @@ label.field {
 .it-value {
   color: var(--text-primary);
   font-weight: 600;
+}
+.it-value.magic {
+  color: var(--magic-text);
+}
+.it-value.physical {
+  color: var(--physical-text);
+}
+.it-value.true {
+  color: var(--true-text);
 }
 .it-rules {
   color: var(--text-muted);
