@@ -1067,7 +1067,8 @@ table.data .source-name {
   flex: 1 1 0;
   min-width: 2px;
 }
-/* An item's bar and its legend: base, effect, and what it procs as effect, striped */
+/* An item's bar and its legend: base, effect, and what it procs as effect, striped from each
+   segment's left edge (135deg starts the gradient at the top-left corner) */
 .iv-base {
   background: var(--accent);
 }
@@ -1075,7 +1076,7 @@ table.data .source-name {
   background: var(--accent-2);
 }
 .iv-procs {
-  background: repeating-linear-gradient(-45deg, var(--accent-2) 0 3px, color-mix(in srgb, var(--accent-2) 40%, var(--surface)) 3px 6px);
+  background: repeating-linear-gradient(135deg, var(--accent-2) 0 3px, color-mix(in srgb, var(--accent-2) 40%, var(--surface)) 3px 6px);
 }
 .iv-head .iv-track {
   height: auto;
