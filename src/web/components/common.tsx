@@ -395,6 +395,27 @@ export function mergeProps(...all: Record<string, unknown>[]) {
 }
 
 /** Where a box's child is laid out in it. */
+/**
+ * Undo and redo for a value, whatever changes it: each change that isn't an undo or redo is a step
+ * back, and drops the steps forward. `set` puts a value back. The last 100 steps are kept.
+ */
+export function useHistory<T>(value: T, set: (v: T) => void, same: (a: T, b: T) => boolean) {
+  const [h, setH] = useState({ past: [] as T[], future: [] as T[], at: value });
+  if (h.at !== value) setH(same(h.at, value) ? { ...h, at: value } : { past: [...h.past, h.at].slice(-100), future: [], at: value });
+  const go = (from: T[], to: T[], back: boolean) => {
+    const v = from[from.length - 1];
+    const rest = { from: from.slice(0, -1), to: [...to, h.at] };
+    setH(back ? { past: rest.from, future: rest.to, at: v } : { past: rest.to, future: rest.from, at: v });
+    set(v);
+  };
+  return {
+    canUndo: h.past.length > 0,
+    canRedo: h.future.length > 0,
+    undo: () => h.past.length && go(h.past, h.future, true),
+    redo: () => h.future.length && go(h.future, h.past, false),
+  };
+}
+
 export type Place = { x: number; y: number; w: number; h: number };
 
 /** A child being pressed, then dragged once the pointer moves: where the pointer went down (x, y) and

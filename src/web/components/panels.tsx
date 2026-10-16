@@ -1,6 +1,6 @@
-import { useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { DATA, abilityIcon, championIcon } from '../data.ts';
-import { Card, ChampIcon, ChampionPicker, Icon, ItemIcon, ItemPicker, ItemTip, Markup, NumberField, RuneIcon, RuneTip, fmt, mergeProps, sourceMark, useDragOrder, useHoverCard } from './common.tsx';
+import { Card, ChampIcon, ChampionPicker, Icon, ItemIcon, ItemPicker, ItemTip, Markup, NumberField, RuneIcon, RuneTip, fmt, mergeProps, sourceMark, useDragOrder, useHistory, useHoverCard } from './common.tsx';
 import { SHARD_ROWS, TARGET_MODES, type UIState, type TargetMode, type TargetState, type TargetStats } from '../state.ts';
 import { ITEMS_BY_LEVEL_RULE, TARGET_PRESETS, isTargetPreset, itemsAtLevel, levelForItems, presetShardHp, type TargetPreset } from '../../engine/presets.ts';
 import { maxRanks, resolveRanks, type Sim, type SimResult } from '../../engine/sim.ts';
@@ -238,12 +238,42 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
     onPick: hover.hide,
   });
   const landing = order.drag && order.drag.to !== order.drag.from ? order.drag.to : null;
+  // Every change to the items, from here or elsewhere (a buy in Item value, Reset), can be undone.
+  const past = useHistory(
+    items,
+    (v) => {
+      hover.hide();
+      set((s) => ({ ...s, items: v }));
+    },
+    (a, b) => a.length === b.length && a.every((x, i) => x === b[i]),
+  );
+  // Ctrl+Z and Ctrl+Shift+Z (or Ctrl+Y) while in this card, or with nothing focused.
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || (k !== 'z' && k !== 'y')) return;
+      const el = e.target as HTMLElement;
+      if (el !== document.body && !order.box.current?.closest('.card')?.contains(el)) return;
+      if (el.matches('input, textarea, select, [contenteditable]')) return;
+      e.preventDefault();
+      if (k === 'z' && !e.shiftKey) past.undo();
+      else past.redo();
+    };
+    addEventListener('keydown', onKey);
+    return () => removeEventListener('keydown', onKey);
+  });
   return (
     <Card
       title="Items"
       right={
         <div className="row" style={{ gap: 6 }}>
           <span className="num secondary">{fmt(gold)}g</span>
+          <button className="btn small" disabled={!past.canUndo} onClick={past.undo} aria-label="Undo" title="Undo (Ctrl+Z)">
+            <span className="glyph">↶</span>
+          </button>
+          <button className="btn small" disabled={!past.canRedo} onClick={past.redo} aria-label="Redo" title="Redo (Ctrl+Shift+Z)">
+            <span className="glyph">↷</span>
+          </button>
           <button
             className="btn small"
             disabled={!build.length}

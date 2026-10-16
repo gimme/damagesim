@@ -211,6 +211,11 @@ a {
   letter-spacing: 0;
   font-weight: 500;
 }
+.btn .glyph {
+  font-size: 16px;
+  line-height: 0;
+  vertical-align: -1px;
+}
 .card h2 .btn:disabled {
   opacity: 0.45;
   cursor: default;
