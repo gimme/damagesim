@@ -158,7 +158,8 @@ const addHit = (s: SourceTotal, e: DamageInstance) => {
  * ticks, and the procs they set off (sharing their cast), don't split blocks, or every tick would.
  * A block is named by its first hit that isn't an item's or rune's proc (one can land before the
  * ability that set it off: Voltaic Cyclosword's before Smolder's W), else by its first hit; several
- * sources' DoTs are named DoTs.
+ * sources' DoTs are named DoTs. Its parts keep the order their first hits were applied in, not by
+ * damage, so hits landing together read in the order the engine dealt them.
  */
 function moments(events: DamageInstance[]) {
   const out: Moment[] = [];
@@ -185,10 +186,7 @@ function moments(events: DamageInstance[]) {
     addHit(m, e);
     m.to = e.time;
   }
-  for (const m of out) {
-    m.parts.sort((a, b) => b.damage - a.damage);
-    if (m.dot && m.parts.length > 1) Object.assign(m, { source: DOTS, label: 'DoTs' });
-  }
+  for (const m of out) if (m.dot && m.parts.length > 1) Object.assign(m, { source: DOTS, label: 'DoTs' });
   return out;
 }
 
@@ -363,10 +361,11 @@ export function SourceName({ source, label, champion, children = label }: { sour
 }
 
 function SourceTip({ s, maxHp, champion }: { s: SourceTotal | Moment; maxHp: number; champion: string }) {
-  // A row per source, its damage in its type's color. A source dealing several types splits it,
-  // largest first; a type dealing under half a point is left out unless it's the only one. Under a
-  // rule, the total, and when a block of the HP bar by time landed. No hit count: an ability's parts
-  // aren't hits to a player (Smolder's W lands as three).
+  // A row per source, its damage in its type's color; a block by time lists its sources in the order
+  // their hits were applied. A source dealing several types splits it, largest first; a type dealing
+  // under half a point is left out unless it's the only one. Under a rule, the total, and when a
+  // block of the HP bar by time landed. No hit count: an ability's parts aren't hits to a player
+  // (Smolder's W lands as three).
   return (
     <>
       {('parts' in s ? s.parts : [s]).map((p) => (
