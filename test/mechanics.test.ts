@@ -134,7 +134,7 @@ test('Smolder E: a flight time lands the bolts fired before it ends, and frees S
   const long = simulate(data, { champion: 'Smolder', level: 11, combo: 'E{5s} Q', target: dummy });
   assert.equal(bolts(long).length, all.length);
   assert.equal(at(long, 'Q'), at(full, 'Q'));
-  assert.ok(new Sim(data, { champion: 'Smolder', level: 11, combo: [] }).castDuration({ slot: 'E' })!.seconds === 1.25);
+  assert.ok(new Sim(data, { champion: 'Smolder', level: 11, combo: [] }).castSetting({ slot: 'E' })!.value === 1.25);
 });
 
 test('A toggle left on longer ticks longer, without busying the caster; a burn can\'t be ended early', () => {
@@ -147,7 +147,7 @@ test('A toggle left on longer ticks longer, without busying the caster; a burn c
   const r = simulate(data, { champion: 'Smolder', level: 11, options: { stacks: 250 }, combo: 'Q{1s}', target: dummy });
   assert.equal(r.events.filter((e) => e.label === 'Super Scorcher Breath (burn)').length, 3);
   assert.ok(r.warnings.some((m) => /can't be ended early/.test(m)));
-  assert.equal(new Sim(data, { champion: 'Smolder', level: 11, combo: [] }).castDuration({ slot: 'Q' }), null);
+  assert.equal(new Sim(data, { champion: 'Smolder', level: 11, combo: [] }).castSetting({ slot: 'Q' }), null);
 });
 
 test('A charge held for a step\'s seconds: damage, crowd control and cast time follow the hold', () => {
@@ -159,7 +159,7 @@ test('A charge held for a step\'s seconds: damage, crowd control and cast time f
   assert.ok(Math.abs(smash(sion('Q{0s}')).raw - min) < 1e-6);
   assert.ok(Math.abs(smash(sion('Q{1s}')).raw - (min + max) / 2) < 1e-6);
   assert.equal(sion('Q{1s}').timeline[0].end, 1);
-  assert.deepEqual(sim.castDuration({ slot: 'Q' }), { seconds: 2, maxSeconds: 2, held: true });
+  assert.deepEqual(sim.castSetting({ slot: 'Q' }), { kind: 'held', value: 2, max: 2, unit: 's' });
   // Stunned only when charged 1s or more: 1.25s, plus 0.25s per 0.25s beyond.
   const stun = (combo: string) => {
     const s = new Sim(data, { champion: 'Sion', level: 11, combo: [] });
@@ -174,9 +174,11 @@ test('A charge held for a step\'s seconds: damage, crowd control and cast time f
 });
 
 test('A channel ended early lands the hits fired by then, not the one at its end', () => {
-  const xerath = simulate(data, { champion: 'Xerath', level: 11, combo: 'R{2s}', target: dummy });
-  // Shots fire at 0.5, 1.1, 1.7… and land 0.627s later: three are fired by 2s.
-  assert.equal(xerath.events.filter((e) => e.source === 'R').length, 3);
+  // Xerath R: the shots fired, the last at 1.7s (0.5s, then every 0.6s) and landing 0.627s later.
+  const xerath = simulate(data, { champion: 'Xerath', level: 11, combo: 'R{3} Q', target: dummy });
+  assert.deepEqual(xerath.events.filter((e) => e.source === 'R').map((e) => Math.round(e.time * 1000) / 1000), [1.127, 1.727, 2.327]);
+  const castTime = new Sim(data, { champion: 'Xerath', level: 11, combo: [] }).spellFor('R').castTime ?? 0;
+  assert.ok(Math.abs(xerath.timeline[1].start - (castTime + 1.7)) < 1e-6, 'free once the last shot is fired');
   const fiddle = (combo: string) => simulate(data, { champion: 'Fiddlesticks', level: 11, combo, target: dummy }).events.filter((e) => e.label === 'Bountiful Harvest (final)').length;
   assert.equal(fiddle('W'), 1);
   assert.equal(fiddle('W{1s}'), 0);
@@ -286,7 +288,7 @@ test('Unending Despair + Liandry\'s burn stop pulsing after combat', () => {
 test('Press the Attack: 6s cooldown between procs; the amp ends 5s after combat', () => {
   const r = simulate(data, { champion: 'Jinx', level: 11, runes: ['Press the Attack'], combo: 'AA*20', target: dummy });
   assert.equal(bySource(r, 'rune:8005').length, 2);
-  const gap = simulate(data, { champion: 'Jinx', level: 11, runes: ['Press the Attack'], combo: 'AA*3 wait:6 AA', target: dummy });
+  const gap = simulate(data, { champion: 'Jinx', level: 11, runes: ['Press the Attack'], combo: 'AA*3 wait{6s} AA', target: dummy });
   assert.equal(bySource(gap, 'AA').at(-1)!.amps.length, 0);
 });
 
@@ -308,7 +310,7 @@ test('Malignance: ultimate hits on a target inside Hatefog refresh it (Malzahar 
 });
 
 test('Spear of Shojin: innate damage grants no stacks; empowered attacks (Garen Q) are amplified', () => {
-  const darius = simulate(data, { champion: 'Darius', level: 18, items: ['Spear of Shojin'], combo: 'AA wait:2 Q', target: dummy });
+  const darius = simulate(data, { champion: 'Darius', level: 18, items: ['Spear of Shojin'], combo: 'AA wait{2s} Q', target: dummy });
   assert.ok(bySource(darius, 'Q').every((e) => !e.amps.some((a) => a.source === 'Spear of Shojin')));
   const garen = simulate(data, { champion: 'Garen', level: 18, items: ['Spear of Shojin'], combo: 'E Q AA', target: dummy });
   assert.ok(bySource(garen, 'Q').some((e) => e.amps.some((a) => a.source === 'Spear of Shojin')));
@@ -355,7 +357,7 @@ test('Summon Aery: ability damage over time sends her (Malzahar E); persistent p
 });
 
 test('Sudden Impact: a dash during its cooldown does not arm it', () => {
-  const r = simulate(data, { champion: 'Riven', level: 18, runes: ['Sudden Impact'], combo: 'Q wait:8 E wait:2.5 AA', target: dummy });
+  const r = simulate(data, { champion: 'Riven', level: 18, runes: ['Sudden Impact'], combo: 'Q wait{8s} E wait{2.5s} AA', target: dummy });
   assert.equal(bySource(r, 'rune:8143').length, 1);
 });
 
@@ -443,8 +445,8 @@ test("Champion proc damage triggers nothing: Kog'Maw W's on-hit lights no Liandr
   assert.equal(bySource(kog, 'item:6653').length, 0);
   // Light Binding, the attack and the detonation are three casts, but only two hits for Electrocute.
   const lux = (combo: string) => bySource(simulate(data, { champion: 'Lux', level: 11, runes: ['Electrocute'], combo, target: dummy }), 'rune:8112').length;
-  assert.equal(lux('Q wait:1 AA'), 0);
-  assert.equal(lux('Q wait:1 AA E'), 1);
+  assert.equal(lux('Q wait{1s} AA'), 0);
+  assert.equal(lux('Q wait{1s} AA E'), 1);
 });
 
 test("Teemo's Toxic Shot is proc damage that still triggers Dark Harvest (wiki special case); Warwick's Eternal Hunger doesn't", () => {

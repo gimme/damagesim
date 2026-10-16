@@ -664,15 +664,15 @@ input.combo-text {
 .chip button:hover {
   color: var(--text-primary);
 }
-/* How long a cast lasts, where the player chooses it */
-.chip .duration {
+/* A number a step sets: seconds a cast lasts or charges, shots it fires, seconds to wait */
+.chip .step-number {
   display: inline-flex;
   align-items: baseline;
   gap: 2px;
   font-weight: 500;
   color: var(--text-secondary);
 }
-.chip .duration input[type='number'] {
+.chip .step-number input[type='number'] {
   width: 4.5ch;
   padding: 0 3px;
   border-radius: 4px;
@@ -685,13 +685,14 @@ input.combo-text {
   -moz-appearance: textfield;
   appearance: textfield;
 }
-.chip .duration input::-webkit-inner-spin-button,
-.chip .duration input::-webkit-outer-spin-button {
+.chip .step-number input::-webkit-inner-spin-button,
+.chip .step-number input::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-.chip .duration input.default {
+.chip .step-number input::placeholder {
   color: var(--text-muted);
+  opacity: 1;
 }
 
 /* Results */

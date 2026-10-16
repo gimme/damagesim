@@ -73,13 +73,16 @@ export interface Scenario {
 }
 
 /**
- * How long a cast whose duration the player chooses lasts by default and at most: seconds after its
- * cast time (AbilitySpec.variableDuration), or `held` to charge (AbilitySpec.charge).
+ * What a combo step sets about a cast, where the player chooses it: the seconds it lasts after its
+ * cast time (AbilitySpec.variableDuration), the seconds it's held to charge (charge), or how many of
+ * its repeating hits it fires (variableCount). By default `value`, at most `max`.
  */
-export interface CastDuration {
-  seconds: number;
-  maxSeconds: number;
-  held: boolean;
+export interface CastSetting {
+  kind: 'lasts' | 'held' | 'count';
+  value: number;
+  max: number;
+  /** "s", or what the hits are called ("shots"). */
+  unit: string;
 }
 
 /** How many hits, `first` seconds in and `interval` apart, land within `seconds` (at most `maxHits`). */
@@ -1421,20 +1424,25 @@ export class Sim {
     return c ? this.evalExpr(c.default, { slot }) : 0;
   }
 
-  /** How long a cast step lasts by default and at most, when the player chooses it (see AbilitySpec.variableDuration and charge). */
-  castDuration(step: Pick<Extract<ComboStep, { type: 'ability' }>, 'slot' | 'variant' | 'enable'>): CastDuration | null {
+  /** What a cast step can set, where the player chooses it (see CastSetting). */
+  castSetting(step: Pick<Extract<ComboStep, { type: 'ability' }>, 'slot' | 'variant' | 'enable'>): CastSetting | null {
     const spec = this.abilitySpec(step.slot);
     if (spec.charge) {
       const held = this.defaultCharge(step.slot);
-      return { seconds: held, maxSeconds: Math.max(held, spec.charge.max !== undefined ? this.evalExpr(spec.charge.max, { slot: step.slot }) : held), held: true };
+      return { kind: 'held', value: held, max: Math.max(held, spec.charge.max !== undefined ? this.evalExpr(spec.charge.max, { slot: step.slot }) : held), unit: 's' };
     }
     const key = step.variant ?? spec.defaultVariant;
     const variant = key ? this.variantOf(spec, key) : undefined;
     const ctx = { slot: step.slot, spell: this.spellFor(step.slot, variant ?? spec), rank: this.abilityRank(step.slot) };
-    return this.durationOf(spec, variant, step.enable, ctx, this.castTimeOf(spec, variant, ctx));
+    if (spec.variableCount) {
+      const r = this.repeating(variant?.components ?? spec.components ?? [], step.enable, ctx)[0];
+      return r ? { kind: 'count', value: r.hits, max: r.maxHits, unit: spec.variableCount } : null;
+    }
+    const range = this.durationOf(spec, variant, step.enable, ctx, this.castTimeOf(spec, variant, ctx));
+    return range && { kind: 'lasts', value: range.seconds, max: range.maxSeconds, unit: 's' };
   }
 
-  private durationOf(spec: AbilitySpec, variant: VariantSpec | undefined, enable: string[] | undefined, ctx: CastCtx, castTime: number): CastDuration | null {
+  private durationOf(spec: AbilitySpec, variant: VariantSpec | undefined, enable: string[] | undefined, ctx: CastCtx, castTime: number) {
     if (!spec.variableDuration) return null;
     // Its lockout, or as long as its repeating hits take: by default, and at most.
     let [last, lastMax] = [0, 0];
@@ -1447,7 +1455,7 @@ export class Sim {
     const max = spec.maxDuration !== undefined ? this.evalExpr(spec.maxDuration, ctx) : lockout !== undefined ? seconds : lastMax;
     // Up to the hundredth, so that typed back they still cover every hit.
     const up = (x: number) => Math.ceil(x * 100 - 1e-6) / 100;
-    return { seconds: up(seconds), maxSeconds: up(Math.max(seconds, max)), held: false };
+    return { seconds: up(seconds), maxSeconds: up(Math.max(seconds, max)) };
   }
 
   /** A cast's repeating hits (components with an interval): by default and at most, when the first
@@ -1536,8 +1544,8 @@ export class Sim {
     }
     // A charged cast: held for the step's seconds (at most the longest hold), else its default.
     if (spec.charge) {
-      const range = this.castDuration(step)!;
-      this.chargeHeld.set(slot, Math.max(0, Math.min(step.duration ?? range.seconds, range.maxSeconds)));
+      const held = this.castSetting(step)!;
+      this.chargeHeld.set(slot, Math.max(0, Math.min(step.duration ?? held.value, held.max)));
     }
     const castTime = this.castTimeOf(spec, variant, { slot, spell, rank });
     const castId = this.newCastId();
@@ -1579,11 +1587,21 @@ export class Sim {
     for (const b of Array.isArray(buffs) ? buffs : buffs ? [buffs] : []) this.applyBuff(b, slot, spell, rank, recast);
 
     // The seconds the player keeps it going after the cast time (a channel ended early, a toggle
-    // left on): its repeating hits land within them, and its lockout ends with them.
+    // left on), or as long as the hits it fires take: its repeating hits land within them, and its
+    // lockout ends with them.
     const comps = variant?.components ?? spec.components ?? [];
-    const range = step.duration !== undefined ? this.durationOf(spec, variant, step.enable, ectx, castTime) : null;
-    if (step.duration !== undefined && !range && !spec.charge) this.warn(`${label} can't be ended early, kept on or charged: ${formatCombo([step])} casts it in full`);
-    const span = range ? Math.min(step.duration!, range.maxSeconds) : undefined;
+    let span: number | undefined;
+    if (step.duration !== undefined) {
+      const range = this.durationOf(spec, variant, step.enable, ectx, castTime);
+      if (range) span = Math.min(step.duration, range.maxSeconds);
+      else if (!spec.charge) this.warn(`${label} can't be ended early, kept on or charged: ${formatCombo([step])} casts it in full`);
+    }
+    if (step.count !== undefined) {
+      const r = spec.variableCount ? this.repeating(comps, step.enable, ectx)[0] : undefined;
+      const n = r ? Math.max(0, Math.min(Math.round(step.count), r.maxHits)) : 0;
+      if (r) span = n > 0 ? r.first + (n - 1) * r.interval : 0;
+      else this.warn(`${label}'s hits aren't counted: ${formatCombo([step])} casts it in full`);
+    }
     const repeating = span !== undefined ? this.repeating(comps, step.enable, ectx) : [];
 
     const end = start + castTime;
@@ -1813,7 +1831,7 @@ export class Sim {
           const start = Math.max(this.time, this.freeAt);
           this.processUntil(start + step.seconds);
           this.freeAt = this.time;
-          timeline.push({ step: `wait:${step.seconds}`, start, end: this.time });
+          timeline.push({ step: formatCombo([step]), start, end: this.time });
           break;
         }
         case 'summoner': {

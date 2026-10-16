@@ -12,7 +12,7 @@ const kit: ChampionKit = {
   notes: [
     'An Acquired Taste: attacks deal bonus magic damage on-hit; attacks and Tongue Lash add a stack (max 3, 5s).',
     'Tongue Lash on a target with 3 stacks stuns and consumes them (the Q hit then adds a fresh stack — assumption).',
-    'Devour needs 3 stacks (not enforced) and consumes them; the target is devoured for the full duration and takes the damage when spat out. The target is untargetable meanwhile — put Devour last or add wait:3.',
+    'Devour needs 3 stacks (not enforced) and consumes them; the target is devoured for the full duration and takes the damage when spat out. The target is untargetable meanwhile — put Devour last or add wait{3s}.',
   ],
   marks: [{ id: 'taste', label: 'An Acquired Taste', maxStacks: 'P.dv.MaxStacks', duration: 'P.dv.Duration', appliedBy: ['attack', 'Q'] }],
   attack: {

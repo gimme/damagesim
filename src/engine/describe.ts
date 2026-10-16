@@ -86,8 +86,8 @@ export function describeChampion(sim: Sim) {
       cooldown: slot === 'P' || !cdSpell.cooldown ? null : cdSpell.cooldown.slice(1, maxRank + 1).map((c) => Math.round((cdSpell.cooldownFixed ? c : hasteCooldown(c, haste)) * 100) / 100),
       cost: spell.cost?.slice(0, maxRank) ?? null,
       castTime: spec.castTime !== undefined ? sim.evalExpr(spec.castTime, { slot }) : spell.castTime,
-      // Seconds a step can set (`Q{1s}`): how long it lasts, or is held to charge.
-      duration: slot === 'P' ? null : sim.castDuration({ slot }),
+      // What a step can set (`Q{1s}`, `R{3}`): how long it lasts or is held to charge, or how many hits it fires.
+      setting: slot === 'P' ? null : sim.castSetting({ slot }),
       tooltip: ab ? renderTooltip(sim, slot, spell) : '',
       components: comps.map((c) => componentInfo(sim, slot, c, abilitySpell)),
       variants: Object.entries(spec.variants ?? {}).map(([key, v]) => ({ key, label: v.label, note: v.note, components: v.components.map((c) => componentInfo(sim, slot, c, v.spell ?? spec.spell)) })),

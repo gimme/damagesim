@@ -24,7 +24,7 @@ const kit: ChampionKit = {
   status: 'curated',
   notes: [
     'Hate Spike: the first cast (dart) marks the target; its next 3 attacks or ability hits (one per cast, from a later cast) deal the mark bonus. Write "Q Q Q Q" for dart + 3 recasts — the recast spikes consume the 3 stacks.',
-    'Allure: write "W wait:2.5 …" — the next attack/ability hit at least 2.5s after W charms and shreds MR; earlier it only slows.',
+    'Allure: write "W wait{2.5s} …" — the next attack/ability hit at least 2.5s after W charms and shreds MR; earlier it only slows.',
     'Whiplash defaults to the normal cast; use E:empowered for the Demon Shade dash (out of combat).',
   ],
   abilities: {

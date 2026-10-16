@@ -134,6 +134,10 @@ hits take; give hits that can go on longer a `maxHits`, and a channel that can a
 its delay, Xerath R), and a hit at the end of a full channel (Fiddlesticks W's last tick) doesn't. Don't
 mark what the player can't end (burns, fixed zones).
 
+When the player chooses how many hits it fires rather than for how long (Xerath R's shots), mark it
+`variableCount: 'shots'` instead: a step sets the count (`R{3}`) of its first repeating component,
+the others land for as long as those take, and its lockout ends when the last is fired.
+
 An ability held to charge (Sion Q, Varus Q) takes `charge: { default, max }`: the step's seconds are the
 hold (usually the full charge by default, at most `max`), which `castTime`, amounts and `cc` read as `charge`, e.g.
 `amount: 'lerp(calc.MinDamage, calc.MaxDamage, min(1, charge / 1.25))'`. Use it in place of

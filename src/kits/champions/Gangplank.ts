@@ -37,7 +37,7 @@ const kit: ChampionKit = {
   status: 'curated',
   notes: [
     'Trial by Fire: off cooldown, a basic attack burns for P.calc.TotalDamage true damage over P.dv.DoTDuration (10 ticks); Parrrley does not trigger it. Destroying a Powder Keg (Q:barrel) refreshes the cooldown.',
-    'Powder Keg: E only places the keg. Detonate it next to the target with Q:barrel once it is down to 1 health (3 health, decaying 1 per P.calc.BarrelDecayTime: ~4s before level 7, 2s at 7-12, 1s from 13), e.g. "E wait:2 Q:barrel".',
+    'Powder Keg: E only places the keg. Detonate it next to the target with Q:barrel once it is down to 1 health (3 health, decaying 1 per P.calc.BarrelDecayTime: ~4s before level 7, 2s at 7-12, 1s from 13), e.g. "E wait{2s} Q:barrel".',
     'Cannon Barrage: the target is assumed to stay in the zone for all waves; +deathsDaughter for the upgrade, R:fireAtWill for 18 waves.',
   ],
   abilities: {

@@ -7,7 +7,7 @@ const kit: ChampionKit = {
   status: 'curated',
   notes: [
     'Dream Dust is a mark refreshed by any ability hit; it ticks every 0.5s while active (6 ticks per application).',
-    'Lilting Lullaby: the wake-up damage is dealt by the next attack/ability hit after R (Dream Dust ticks do not wake). The sleep starts 1.5s after the cast: add wait:1.5 before the waking hit. The Dream Dust requirement is not checked.',
+    'Lilting Lullaby: the wake-up damage is dealt by the next attack/ability hit after R (Dream Dust ticks do not wake). The sleep starts 1.5s after the cast: add wait{1.5s} before the waking hit. The Dream Dust requirement is not checked.',
   ],
   marks: [
     {

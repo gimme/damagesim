@@ -143,7 +143,7 @@ Every wiki value matches `values[level]`, and none match `values[level-1]`:
 **Reproduce:**
 ```
 node src/cli/main.ts simulate -c Graves -l 1 --combo "AA?" --target hp=5000,armor=0,mr=0   # TOTAL 0
-node src/cli/main.ts simulate -c Lux -l 18 --ranks Q=1,W=0,E=0,R=0 --combo "Q wait:0.5 AA" --target hp=5000,armor=0,mr=0 --events   # Illumination 190 (wiki 200)
+node src/cli/main.ts simulate -c Lux -l 18 --ranks Q=1,W=0,E=0,R=0 --combo "Q wait{0.5s} AA" --target hp=5000,armor=0,mr=0 --events   # Illumination 190 (wiki 200)
 node src/cli/main.ts champion Katarina -l 1      # "dealing 0 magic damage"
 node scripts/inspect-champion.ts Sett 11 --all-spells | grep RightPunchBonus   # 50 (wiki 55)
 ```

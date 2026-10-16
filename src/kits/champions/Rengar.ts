@@ -36,7 +36,7 @@ const kit: ChampionKit = {
   notes: [
     'Ferocity is not tracked: use Q:emp / W:emp / E:emp for the empowered (4 Ferocity) casts.',
     'Savagery replaces the next attack\'s damage; it is assumed to crit like a normal attack (the wiki says it "will critically strike … based on crit chance" without a formula).',
-    'Thrill of the Hunt: "R AA" = the leap attack out of camouflage (add wait:2 for the fade-in if needed). The leap adds bonus damage and shreds flat armor.',
+    'Thrill of the Hunt: "R AA" = the leap attack out of camouflage (add wait{2s} for the fade-in if needed). The leap adds bonus damage and shreds flat armor.',
     'Bonetooth Necklace AD from takedowns is not modeled.',
   ],
   abilities: {

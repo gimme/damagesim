@@ -31,17 +31,17 @@ export const SCENARIO_HELP = `Scenario JSON (all fields except champion and comb
 
 Combo steps (array form):
   { "type": "ability", "slot": "Q", "variant": "empowered", "hits": { "componentId": 2 }, "enable": ["optionalComponentId"], "miss": false, "crit": true }
-  { "type": "ability", "slot": "E", "duration": 0.5 }   // seconds: see E{0.5s} below
+  { "type": "ability", "slot": "E", "duration": 0.5 }   // seconds, or "count": 3: see E{0.5s} below
   { "type": "attack", "count": 3, "crit": true }
   { "type": "summoner", "spell": "ignite" }
   { "type": "item", "item": "Hextech Rocketbelt" }
   { "type": "wait", "seconds": 1.5 }
 
-Combo shorthand: "Q W E R P AA AA*3 3AA AA! AA? Q! Q? Q:variant Q{out:1,back:0} E{0.5s} Q+bonus ignite item:rocketbelt wait:1.5"
+Combo shorthand: "Q W E R P AA AA*3 3AA AA! AA? Q! Q? Q:variant Q{out:1,back:0} E{0.5s} R{3} Q+bonus ignite item:rocketbelt wait wait{1.5s}"
   (crits deal their expected value; ! crits every hit of the step that can crit, ? none, follow-up attacks included)
   E{0.5s}: how long a cast lasts where the player chooses it: a channel ended early (Smolder E,
-  Katarina R), a toggle left on (Karthus E), or a charge held (Sion Q{1s}, Varus Q{0s}). Q{id:N} sets
-  one component's hits.
+  Katarina R), a toggle left on (Karthus E), or a charge held (Sion Q{1s}, Varus Q{0s}). R{3}: how
+  many shots Xerath R fires. Q{id:N} sets one component's hits. wait = 1 second.
 
 Common options: self.hpPercent (your HP in %, for Last Stand etc.), gameTime (minutes; Gathering Storm,
 Conditioning), distance (to the target; Arcane Comet, Hexoptics C44, Horizon Focus), legend.stacks,

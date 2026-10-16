@@ -19,7 +19,7 @@ const kit: ChampionKit = {
     'More Sparkles!: every ability cast empowers the next attack within 5s.',
     'Paddle Star: minimum damage by default (short travel); Q:max for a full-distance (redirected) star.',
     'Spell Thief: casting W (a picked-up shard) fires 3 bolts; the stolen spell itself and the bolts from summoner spell casts are not modeled.',
-    'Sleepy Trouble Bubble: the target falls asleep DrowsyDuration after the hit — wait before the waking hit (e.g. "E wait:1.4 Q:max") to get the MR reduction and the capped true-damage wake bonus.',
+    'Sleepy Trouble Bubble: the target falls asleep DrowsyDuration after the hit — wait before the waking hit (e.g. "E wait{1.4s} Q:max") to get the MR reduction and the capped true-damage wake bonus.',
   ],
   hooks: {
     afterDamage(sim, inst) {

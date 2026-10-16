@@ -3,7 +3,7 @@ import { DATA, abilityIcon, championIcon, runeIcon } from '../data.ts';
 import { Card, ChampIcon, ChampionPicker, Icon, ItemIcon, ItemPicker, ItemTip, Markup, NumberField, RuneTip, fmt, mergeProps, sourceMark, useDragOrder, useHistory, useHoverCard } from './common.tsx';
 import { TARGET_MODES, type UIState, type TargetMode, type TargetState, type TargetStats } from '../state.ts';
 import { ITEMS_BY_LEVEL_RULE, TARGET_PRESETS, isTargetPreset, itemsAtLevel, levelForItems, presetShardHp, type TargetPreset } from '../../engine/presets.ts';
-import { maxRanks, resolveRanks, type CastDuration, type Sim, type SimResult } from '../../engine/sim.ts';
+import { maxRanks, resolveRanks, type CastSetting, type Sim, type SimResult } from '../../engine/sim.ts';
 import { renderTooltip, runeText } from '../../engine/tooltip.ts';
 import { describeChampion } from '../../engine/describe.ts';
 import { bonusSkillPoints } from '../../engine/runes.ts';
@@ -766,39 +766,55 @@ const moveStep = <T,>(steps: T[], from: number, to: number) => {
 type AbilityStep = Extract<ComboStep, { type: 'ability' }>;
 
 /**
- * How many seconds a cast lasts, where the player chooses it (Smolder E's flight, Karthus E's
- * toggle), or is held to charge (Sion Q), typed in its step. The default shows faded, and emptying
- * the field brings it back.
+ * A number a step sets (seconds a cast lasts or charges, the shots it fires, seconds to wait), typed
+ * in its chip. Unset, the field is empty with the default as its placeholder, so a click types a
+ * number from scratch; emptying it goes back to the default.
  */
-function DurationField({ step, range, onChange }: { step: AbilityStep; range: CastDuration; onChange: (s: AbilityStep) => void }) {
+function StepNumber({ value, placeholder, max, step, unit, label, title, onChange }: { value?: number; placeholder: number; max?: number; step: number; unit: string; label: string; title: string; onChange: (v?: number) => void }) {
   const [text, setText] = useState<string | null>(null);
-  const set = (duration?: number) => {
-    const { duration: _, ...rest } = step;
-    onChange(duration === undefined ? rest : { ...rest, duration });
-  };
   return (
-    <span className="duration" title={`${range.held ? 'How long it charges' : 'How long it lasts'}, in seconds (default ${fmt(range.seconds, 2)}, at most ${fmt(range.maxSeconds, 2)})`}>
+    <span className="step-number" title={title}>
       <input
         type="number"
-        aria-label={`${step.slot} seconds`}
-        className={step.duration === undefined ? 'default' : undefined}
-        value={text ?? step.duration ?? range.seconds}
+        aria-label={label}
+        value={text ?? value ?? ''}
+        placeholder={String(Math.round(placeholder * 100) / 100)}
         min={0}
-        max={range.maxSeconds}
-        step={0.25}
+        max={max}
+        step={step}
         onChange={(e) => {
           setText(e.target.value);
           const v = Number(e.target.value);
-          if (e.target.value.trim() !== '' && Number.isFinite(v) && v >= 0) set(v);
+          if (e.target.value.trim() !== '' && Number.isFinite(v) && v >= 0) onChange(step === 1 ? Math.round(v) : v);
         }}
         onBlur={() => {
-          if (text?.trim() === '') set();
+          if (text?.trim() === '') onChange(undefined);
           setText(null);
         }}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === 'Escape') && e.currentTarget.blur()}
       />
-      s
+      {unit}
     </span>
+  );
+}
+
+const SETTING_TITLE: Record<CastSetting['kind'], string> = { lasts: 'How long it lasts, in seconds', held: 'How long it charges, in seconds', count: 'How many it fires' };
+
+/** A cast's setting in its step (see CastSetting). */
+function CastSettingField({ step, setting, onChange }: { step: AbilityStep; setting: CastSetting; onChange: (s: AbilityStep) => void }) {
+  const key = setting.kind === 'count' ? 'count' : 'duration';
+  const { duration: _d, count: _c, ...rest } = step;
+  return (
+    <StepNumber
+      value={step[key]}
+      placeholder={setting.value}
+      max={setting.max}
+      step={setting.kind === 'count' ? 1 : 0.25}
+      unit={setting.unit}
+      label={`${step.slot} ${setting.unit === 's' ? 'seconds' : setting.unit}`}
+      title={`${SETTING_TITLE[setting.kind]} (default ${fmt(setting.value, setting.kind === 'count' ? 0 : 2)}, at most ${fmt(setting.max, setting.kind === 'count' ? 0 : 2)})`}
+      onChange={(v) => onChange(v === undefined ? rest : { ...rest, [key]: v })}
+    />
   );
 }
 
@@ -848,8 +864,8 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
   const follow = (st: ComboStep) => (crits === 'mixed' ? st : markCrit(st, kit, crits));
   const add = (st: ComboStep) => commit([...steps, follow(st)]);
   const label = (st: ComboStep) => formatCombo([st]);
-  // A step's label in its chip, without the seconds its field shows.
-  const chipLabel = (st: ComboStep) => label(st.type === 'ability' ? { ...st, duration: undefined } : st);
+  // A step's label in its chip, without the number its field shows.
+  const chipLabel = (st: ComboStep) => (st.type === 'ability' ? label({ ...st, duration: undefined, count: undefined }) : st.type === 'wait' ? 'wait' : label(st));
   // A step's icon, as its damage shows it in the results; none for a wait or an item not found.
   const icon = (source: string, name: string, size: 'xs' | 'sm') => <Icon src={sourceMark(source, name, state.champion).icon} label={name} size={size} />;
   const stepIcon = (st: ComboStep) => {
@@ -929,8 +945,8 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
             {e.active!.label}
           </button>
         ))}
-        <button className="combo-key" title="Wait 1 second" onClick={() => add({ type: 'wait', seconds: 1 })}>
-          +1s
+        <button className="combo-key" title="Wait, 1 second unless you set it" onClick={() => add({ type: 'wait', seconds: 1 })}>
+          Wait
         </button>
       </div>
       {!typing ? (
@@ -942,7 +958,8 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
           )}
           {steps.map((st, i) => {
             const variants = st.type === 'ability' ? Object.entries(kit.abilities[st.slot]?.variants ?? {}) : [];
-            const range = st.type === 'ability' ? sim?.castDuration(st) : null;
+            const setting = st.type === 'ability' ? sim?.castSetting(st) : null;
+            const replace = (next: ComboStep) => commit(steps.map((x, j) => (j === i ? next : x)));
             return (
               <span
                 key={i}
@@ -977,7 +994,18 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
                 ) : (
                   <span title={st.type === 'ability' ? spellName(st.slot) : undefined}>{chipLabel(st)}</span>
                 )}
-                {st.type === 'ability' && range && <DurationField step={st} range={range} onChange={(next) => commit(steps.map((x, j) => (j === i ? next : x)))} />}
+                {st.type === 'ability' && setting && <CastSettingField step={st} setting={setting} onChange={replace} />}
+                {st.type === 'wait' && (
+                  <StepNumber
+                    value={st.seconds === 1 ? undefined : st.seconds}
+                    placeholder={1}
+                    step={0.25}
+                    unit="s"
+                    label="Seconds to wait"
+                    title="Seconds to wait (default 1)"
+                    onChange={(v) => replace({ ...st, seconds: v ?? 1 })}
+                  />
+                )}
                 <button aria-label="Remove step" tabIndex={-1} onClick={() => commit(steps.filter((_, j) => j !== i))}>
                   ✕
                 </button>

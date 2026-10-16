@@ -13,6 +13,8 @@ export type ComboStep =
       hits?: Record<string, number>;
       /** Seconds the cast lasts, where the player chooses it (Smolder E's flight, Karthus E's toggle), or is held to charge (Sion Q). */
       duration?: number;
+      /** How many of its repeating hits it fires, where the player chooses it (Xerath R's shots). */
+      count?: number;
       /** Enable optional components by id. */
       enable?: string[];
       /** Treat this cast as missing the target (still triggers on-cast effects). */
@@ -42,13 +44,14 @@ const SLOTS = new Set(['P', 'Q', 'W', 'E', 'R']);
  *   Q W E R P          cast an ability (P = passive proc where the kit defines one)
  *   Q:empowered        cast a variant
  *   Q{out:1,back:0}    override component hit counts
- *   E{0.5s}            how long the cast lasts (a channel ended early, a toggle left on)
+ *   E{0.5s}  R{3}      how long the cast lasts (a channel ended early, a toggle left on, a
+ *                      charge held), or how many hits it fires (Xerath R's shots)
  *   Q+bonus            enable an optional component
  *   AA  A  AA*3  3AA   basic attacks;  AA! = forced crit,  AA? = forced non-crit
  *   Q!  Q?             a cast whose hits that can crit all crit, or none do
  *   ignite             Ignite
  *   item:3152  item:rocketbelt   item active by id or name
- *   wait:1.5  ~1.5     wait seconds
+ *   wait  wait{1.5s}   wait 1 second, or that many
  */
 export function parseCombo(src: string): ComboStep[] {
   const steps: ComboStep[] = [];
@@ -65,8 +68,8 @@ export function parseCombo(src: string): ComboStep[] {
       steps.push({ type: 'attack', count, ...(m[4] === '!' ? { crit: true } : m[4] === '?' ? { crit: false } : {}), ...(enable.length ? { enable } : {}) });
       continue;
     }
-    if ((m = /^(?:wait:|~)(\d*\.?\d+)s?$/i.exec(tok))) {
-      steps.push({ type: 'wait', seconds: Number(m[1]) });
+    if ((m = /^wait(?:\{(\d*\.?\d+)s?\})?$/i.exec(tok))) {
+      steps.push({ type: 'wait', seconds: m[1] !== undefined ? Number(m[1]) : 1 });
       continue;
     }
     if (/^(ignite|ign|dot)$/i.test(tok)) {
@@ -85,13 +88,14 @@ export function parseCombo(src: string): ComboStep[] {
       if (m[2]) step.variant = m[2];
       if (m[3]) {
         for (const kv of m[3].slice(1, -1).split(/[;,]/).filter(Boolean)) {
-          const secs = /^(\d*\.?\d+)s$/i.exec(kv.trim());
-          if (secs) {
-            step.duration = Number(secs[1]);
+          const n = /^(\d*\.?\d+)(s?)$/i.exec(kv.trim());
+          if (n) {
+            if (n[2]) step.duration = Number(n[1]);
+            else step.count = Number(n[1]);
             continue;
           }
           const [k, v] = kv.split(':');
-          if (v === undefined || !Number.isFinite(Number(v))) throw new Error(`bad "${kv}" in "${tok}" (expected seconds like {0.5s}, or hits like {id:3})`);
+          if (v === undefined || !Number.isFinite(Number(v))) throw new Error(`bad "${kv}" in "${tok}" (expected seconds like {0.5s}, a count like {3}, or hits like {id:3})`);
           (step.hits ??= {})[k.trim()] = Number(v);
         }
       }
@@ -101,7 +105,7 @@ export function parseCombo(src: string): ComboStep[] {
       for (let i = 0; i < times; i++) steps.push({ ...step });
       continue;
     }
-    throw new Error(`can't parse combo token "${tok}" (expected Q/W/E/R/P, AA, ignite, item:<name>, wait:<s>)`);
+    throw new Error(`can't parse combo token "${tok}" (expected Q/W/E/R/P, AA, ignite, item:<name>, wait{<s>s})`);
   }
   return steps;
 }
@@ -114,6 +118,7 @@ export function formatCombo(steps: ComboStep[]): string {
           let t = s.slot + (s.variant ? ':' + s.variant : '');
           const inner = [
             ...(s.duration !== undefined ? [`${s.duration}s`] : []),
+            ...(s.count !== undefined ? [String(s.count)] : []),
             ...Object.entries(s.hits ?? {}).map(([k, v]) => `${k}:${v}`),
           ];
           if (inner.length) t += '{' + inner.join(',') + '}';
@@ -128,7 +133,7 @@ export function formatCombo(steps: ComboStep[]): string {
         case 'summoner':
           return 'ignite';
         case 'wait':
-          return `wait:${s.seconds}`;
+          return s.seconds === 1 ? 'wait' : `wait{${s.seconds}s}`;
       }
     })
     .join(' ');
@@ -138,7 +143,7 @@ const critSuffix = (crit?: boolean) => (crit === true ? '!' : crit === false ? '
 
 /**
  * The steps as `kit`'s champion takes them, for a champion switch: another champion's variants,
- * durations, hit counts, optional hits and crit marks are dropped.
+ * durations, counts, hit counts, optional hits and crit marks are dropped.
  */
 export function fitCombo(steps: ComboStep[], kit: ChampionKit): ComboStep[] {
   // Optional hits an attack step can enable: the kit's on-hits and its abilities' empowered attacks.
@@ -161,7 +166,7 @@ export function fitCombo(steps: ComboStep[], kit: ChampionKit): ComboStep[] {
     }
     if (step.type !== 'ability') return step;
     const spec = kit.abilities[step.slot];
-    const { variant: key, duration, hits, enable, ...rest } = step;
+    const { variant: key, duration, count, hits, enable, ...rest } = step;
     const variant = key ? Object.keys(spec?.variants ?? {}).find((k) => k.toLowerCase() === key.toLowerCase()) : undefined;
     const ids = new Set(((variant ? spec?.variants?.[variant].components : spec?.components) ?? ([] as ComponentSpec[])).map((c) => c.id));
     const kept = Object.entries(hits ?? {}).filter(([id]) => ids.has(id));
@@ -169,6 +174,7 @@ export function fitCombo(steps: ComboStep[], kit: ChampionKit): ComboStep[] {
       ...rest,
       ...(variant ? { variant } : {}),
       ...(duration !== undefined && (spec?.variableDuration || spec?.charge) ? { duration } : {}),
+      ...(count !== undefined && spec?.variableCount ? { count } : {}),
       ...(kept.length ? { hits: Object.fromEntries(kept) } : {}),
       ...(keep(enable, (id) => ids.has(id)) ? { enable: keep(enable, (id) => ids.has(id)) } : {}),
     };

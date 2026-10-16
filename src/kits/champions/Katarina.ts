@@ -7,7 +7,7 @@ const kit: ChampionKit = {
   id: 'Katarina',
   status: 'curated',
   notes: [
-    'Dagger pickups are the "P" step (Voracity slash, applies on-hit). Write e.g. "Q wait:1 E P" or "W wait:1.25 E P": the Dagger must have landed.',
+    'Dagger pickups are the "P" step (Voracity slash, applies on-hit). Write e.g. "Q wait{1s} E P" or "W wait{1.25s} E P": the Dagger must have landed.',
     'Each pickup also reduces Shunpo\'s remaining cooldown by E.calc.DaggerCooldownReduction (hook).',
     'Death Lotus knives apply on-hit effects at R.dv.OnHitRatio (25/30/35%) effectiveness; the 2.5s channel locks Katarina out (lockout).',
   ],

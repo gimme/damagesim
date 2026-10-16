@@ -223,10 +223,10 @@ const tank: TargetSpec = { preset: 'tank' };
 const PROBES: Probe[] = [
   { key: 'melee-aa', champion: 'Garen', combo: 'AA*8', target: tank },
   { key: 'ranged-aa', champion: 'Jinx', combo: 'AA*8', target: tank },
-  { key: 'abilities', champion: 'Ahri', combo: 'E Q W R wait:2 R', target: tank },
+  { key: 'abilities', champion: 'Ahri', combo: 'E Q W R wait{2s} R', target: tank },
   { key: 'mixed-melee', champion: 'Jax', combo: 'Q AA W AA E AA R AA AA AA', target: tank },
   { key: 'mixed-ranged', champion: 'Ezreal', combo: 'Q AA W AA E AA R AA Q AA', target: tank },
-  { key: 'sustained', champion: 'Jax', combo: 'AA*3 wait:3 Q AA W AA E AA AA AA', target: tank },
+  { key: 'sustained', champion: 'Jax', combo: 'AA*3 wait{3s} Q AA W AA E AA AA AA', target: tank },
   // Recasts wait for cooldowns (haste, cooldown refunds).
   { key: 'cooldowns', champion: 'Ezreal', combo: 'Q AA Q AA Q AA Q', target: tank },
   // Below-half-health target (Dark Harvest, Coup de Grace, Shadowflame…) and attacker (Last Stand).

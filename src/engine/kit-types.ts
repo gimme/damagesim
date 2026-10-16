@@ -251,6 +251,11 @@ export interface AbilitySpec {
   /** The most seconds a variableDuration cast lasts after its cast time (default: its lockout, else as long as its hits' maxHits take). */
   maxDuration?: Expr;
   /**
+   * The player chooses how many of its repeating hits to fire, called this ("shots": Xerath R): a
+   * combo step sets the count (`R{3}`), and its lockout ends when the last is fired.
+   */
+  variableCount?: string;
+  /**
    * Held to charge (Sion Q, Varus Q): a combo step sets the seconds held (`Q{0.5s}`), which
    * expressions read as `charge` (castTime, amounts, cc). `default`: the hold when the step doesn't
    * say (usually the full charge); `max`: the longest hold (default `default`).

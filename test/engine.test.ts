@@ -91,9 +91,10 @@ test('expression language', () => {
 });
 
 test('combo shorthand round-trips', () => {
-  const steps = parseCombo('E > Q, W R:dash AA*3 AA! ignite item:Hextech_Rocketbelt wait:1.5 Q{out:1,back:0} Q+bonus');
+  const steps = parseCombo('E > Q, W R:dash AA*3 AA! ignite item:Hextech_Rocketbelt wait{1.5s} wait Q{out:1,back:0} Q+bonus');
   assert.equal(steps.filter((s) => s.type === 'attack').length, 2);
-  assert.equal(formatCombo(steps), 'E Q W R:dash AA*3 AA! ignite item:Hextech_Rocketbelt wait:1.5 Q{out:1,back:0} Q+bonus');
+  assert.equal(formatCombo(steps), 'E Q W R:dash AA*3 AA! ignite item:Hextech_Rocketbelt wait{1.5s} wait Q{out:1,back:0} Q+bonus');
+  assert.deepEqual(steps.filter((s) => s.type === 'wait'), [{ type: 'wait', seconds: 1.5 }, { type: 'wait', seconds: 1 }]);
   assert.throws(() => parseCombo('Q X'));
   assert.equal(formatCombo(parseCombo('Q! E? Q:tornado{a:1}!+bonus*2 AA*3?')), 'Q! E? Q:tornado{a:1}!+bonus Q:tornado{a:1}!+bonus AA*3?');
   assert.deepEqual(parseCombo('E{0.5s} R{1.5s,zone:10}'), [
@@ -101,12 +102,13 @@ test('combo shorthand round-trips', () => {
     { type: 'ability', slot: 'R', duration: 1.5, hits: { zone: 10 } },
   ]);
   assert.equal(formatCombo(parseCombo('E{0.5s}! R{1.5s,zone:10}')), 'E{0.5s}! R{1.5s,zone:10}');
-  assert.throws(() => parseCombo('E{3}'));
+  assert.deepEqual(parseCombo('R{3}'), [{ type: 'ability', slot: 'R', count: 3 }]);
+  assert.throws(() => parseCombo('E{a}'));
 });
 
 test("a champion switch drops the other champion's variants, durations, hit counts and crit marks", () => {
   const ahri = getKit(data.champions.Ahri);
-  assert.equal(formatCombo(fitCombo(parseCombo('Q:tap{tick:3}! E{0.5s} W+bonus AA!+bounce R:Q2 ignite wait:1'), ahri)), 'Q E W AA! R ignite wait:1');
+  assert.equal(formatCombo(fitCombo(parseCombo('Q:tap{tick:3}! E{0.5s} W+bonus AA!+bounce R:Q2{3} ignite wait'), ahri)), 'Q E W AA! R ignite wait');
   const smolder = getKit(data.champions.Smolder);
   assert.equal(formatCombo(fitCombo(parseCombo('E{0.5s} R:Center Q{burn:1}'), smolder)), 'E{0.5s} R:center Q{burn:1}');
 });
@@ -268,7 +270,7 @@ test("rank items: what an item's hits proc is split from its own damage and its 
   assert.equal(cap.procDamage, 0);
   assert.deepEqual(cap.procs, []);
   // With an attack after it, Electrocute strikes without Squall too: on Squall instead isn't a proc.
-  const later = { ...base, combo: 'W Q wait:2 AA' };
+  const later = { ...base, combo: 'W Q wait{2s} AA' };
   assert.ok(simulate(data, later).bySource.some((s) => s.label === 'Electrocute'));
   assert.equal(rankItems(data, later, { candidates: ['Stormsurge'] }).items[0].procDamage, 0);
   // Any hit that lands only with the item counts: here Smolder's execute, in range only with its damage.
