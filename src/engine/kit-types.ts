@@ -227,6 +227,7 @@ export interface VariantSpec {
   dash?: boolean;
   cc?: CCSpec[];
   lockout?: Expr;
+  attackLockout?: Expr;
   cooldown?: Expr;
   buff?: BuffSpec | BuffSpec[];
   /** `null` clears the ability's debuff for this variant. */
@@ -256,6 +257,12 @@ export interface AbilitySpec {
    * damage (which follows castTime + delay). Default: the cast time.
    */
   lockout?: Expr;
+  /**
+   * Seconds from the start of the cast the caster can't attack, while still free to cast (the wiki's
+   * "unable to move or attack while Rocket Grab is in flight"): delays the next attack, not the next
+   * cast. A lockout that stops casting too ("unable to act") is `lockout`.
+   */
+  attackLockout?: Expr;
   /**
    * The player chooses how long it lasts: ends the channel early (Smolder E: cast something, or fly
    * out of range) or leaves the toggle on (Karthus E). A combo step sets its seconds after the cast

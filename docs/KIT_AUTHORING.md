@@ -259,6 +259,9 @@ other on-hit effects apply, but Guinsoo's/Lethal Tempo/Energize charges don't st
 * `onHitEffectiveness` also works on an empowered attack's components (Azir soldier stabs).
 * `lockout`: seconds the caster is busy from cast start (channels/dashes) without delaying damage;
   `variableDuration: true` when the player can end it early (see Components).
+* `attackLockout`: seconds from cast start the caster can't attack but can still cast, the wiki's
+  "unable to move or attack while Rocket Grab is in flight" (Blitzcrank Q, Leona E, Sett E). "Unable to
+  act" stops casting too: that is `lockout`.
 * `cooldown`: base cooldown expression when the data's is missing/wrong; `notUltimate: true` for an R that isn't one (Udyr).
 * `buff` may be an array (several buffs per cast).
 * `followUpCrits: true`: the cast sets off a hit that can crit outside its components (a hook's;

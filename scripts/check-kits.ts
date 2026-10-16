@@ -43,6 +43,7 @@ function* expressions(kit: ChampionKit): Generator<{ where: string; slot: Slot; 
         if (vb.duration !== undefined) yield { where: `${slot}:${vk}.buff.duration`, slot, expr: vb.duration, spell: vs };
       }
       for (const cc of v.cc ?? []) yield { where: `${slot}:${vk}.cc.${cc.kind}`, slot, expr: cc.duration, spell: vs };
+      for (const k of ['castTime', 'lockout', 'attackLockout', 'cooldown'] as const) if (v[k] !== undefined) yield { where: `${slot}:${vk}.${k}`, slot, expr: v[k], spell: vs };
     }
     for (const b of (Array.isArray(a.buff) ? a.buff : [a.buff]).filter(Boolean)) {
       yield { where: `${slot}.buff.duration`, slot, expr: b.duration };
@@ -62,7 +63,7 @@ function* expressions(kit: ChampionKit): Generator<{ where: string; slot: Slot; 
     }
     for (const cc of a.cc ?? []) yield { where: `${slot}.cc.${cc.kind}`, slot, expr: cc.duration };
     if (a.recastDelay !== undefined) yield { where: `${slot}.recastDelay`, slot, expr: a.recastDelay };
-    for (const k of ['castTime', 'lockout', 'cooldown', 'recastWindow'] as const) if (a[k] !== undefined) yield { where: `${slot}.${k}`, slot, expr: a[k] };
+    for (const k of ['castTime', 'lockout', 'attackLockout', 'cooldown', 'recastWindow'] as const) if (a[k] !== undefined) yield { where: `${slot}.${k}`, slot, expr: a[k] };
   }
   for (const m of kit.marks ?? []) {
     const slot = (m.slot ?? 'P') as Slot;

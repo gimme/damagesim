@@ -1650,6 +1650,8 @@ export class Sim {
     const lockout = lockExpr !== undefined ? this.evalExpr(lockExpr, ectx) : 0;
     this.freeAt = span !== undefined && lockExpr !== undefined ? end + span : Math.max(end, start + lockout);
     if (resets) this.attackReadyAt = this.freeAt;
+    const attackLock = variant?.attackLockout ?? spec.attackLockout;
+    if (attackLock !== undefined) this.attackReadyAt = Math.max(this.attackReadyAt, start + this.evalExpr(attackLock, ectx));
     timeline.push({ step: formatCombo([step]), start, end: this.freeAt });
 
     if (!hitsTarget) return;
