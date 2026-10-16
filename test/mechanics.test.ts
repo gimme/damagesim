@@ -134,6 +134,7 @@ test('Smolder E: a flight time lands the bolts fired before it ends, and frees S
   const long = simulate(data, { champion: 'Smolder', level: 11, combo: 'E{5s} Q', target: dummy });
   assert.equal(bolts(long).length, all.length);
   assert.equal(at(long, 'Q'), at(full, 'Q'));
+  assert.ok(long.warnings.some((w) => /lasts at most 1.25s/.test(w)));
   assert.ok(new Sim(data, { champion: 'Smolder', level: 11, combo: [] }).castSetting({ slot: 'E' })!.value === 1.25);
 });
 

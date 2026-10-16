@@ -91,6 +91,8 @@ const hitsWithin = (first: number, interval: number, maxHits: number, seconds: n
 
 type CastCtx = { slot: Slot; spell: SpellData; rank: number; recast?: number };
 
+const round2 = (x: number) => Math.round(x * 100) / 100;
+
 export interface SourceTotal {
   source: string;
   label: string;
@@ -1545,6 +1547,7 @@ export class Sim {
     // A charged cast: held for the step's seconds (at most the longest hold), else its default.
     if (spec.charge) {
       const held = this.castSetting(step)!;
+      if (step.duration !== undefined && step.duration > held.max + 1e-9) this.warn(`${label} charges for at most ${round2(held.max)}s, so ${formatCombo([step])} is held ${round2(held.max)}s`);
       this.chargeHeld.set(slot, Math.max(0, Math.min(step.duration ?? held.value, held.max)));
     }
     const castTime = this.castTimeOf(spec, variant, { slot, spell, rank });
@@ -1593,12 +1596,15 @@ export class Sim {
     let span: number | undefined;
     if (step.duration !== undefined) {
       const range = this.durationOf(spec, variant, step.enable, ectx, castTime);
-      if (range) span = Math.min(step.duration, range.maxSeconds);
-      else if (!spec.charge) this.warn(`${label} can't be ended early, kept on or charged: ${formatCombo([step])} casts it in full`);
+      if (range) {
+        span = Math.min(step.duration, range.maxSeconds);
+        if (step.duration > range.maxSeconds + 1e-9) this.warn(`${label} lasts at most ${round2(range.maxSeconds)}s, so ${formatCombo([step])} lasts ${round2(range.maxSeconds)}s`);
+      } else if (!spec.charge) this.warn(`${label} can't be ended early, kept on or charged: ${formatCombo([step])} casts it in full`);
     }
     if (step.count !== undefined) {
       const r = spec.variableCount ? this.repeating(comps, step.enable, ectx)[0] : undefined;
       const n = r ? Math.max(0, Math.min(Math.round(step.count), r.maxHits)) : 0;
+      if (r && step.count > r.maxHits) this.warn(`${label} fires at most ${r.maxHits} ${spec.variableCount}, so ${formatCombo([step])} fires ${r.maxHits}`);
       if (r) span = n > 0 ? r.first + (n - 1) * r.interval : 0;
       else this.warn(`${label}'s hits aren't counted: ${formatCombo([step])} casts it in full`);
     }

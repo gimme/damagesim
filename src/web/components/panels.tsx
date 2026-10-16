@@ -768,7 +768,8 @@ type AbilityStep = Extract<ComboStep, { type: 'ability' }>;
 /**
  * A number a step sets (seconds a cast lasts or charges, the shots it fires, seconds to wait), typed
  * in its chip. Unset, the field is empty with the default as its placeholder, so a click types a
- * number from scratch; emptying it goes back to the default.
+ * number from scratch; emptying it goes back to the default. A number over the most there can be
+ * counts as the most, and shows as it once the field is left.
  */
 function StepNumber({ value, placeholder, max, step, unit, label, title, onChange }: { value?: number; placeholder: number; max?: number; step: number; unit: string; label: string; title: string; onChange: (v?: number) => void }) {
   const [text, setText] = useState<string | null>(null);
@@ -785,7 +786,7 @@ function StepNumber({ value, placeholder, max, step, unit, label, title, onChang
         onChange={(e) => {
           setText(e.target.value);
           const v = Number(e.target.value);
-          if (e.target.value.trim() !== '' && Number.isFinite(v) && v >= 0) onChange(step === 1 ? Math.round(v) : v);
+          if (e.target.value.trim() !== '' && Number.isFinite(v) && v >= 0) onChange(Math.min(step === 1 ? Math.round(v) : v, max ?? Infinity));
         }}
         onBlur={() => {
           if (text?.trim() === '') onChange(undefined);
