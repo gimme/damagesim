@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState, type KeyboardEvent } from 'react';
 import { DATA, abilityIcon, championIcon } from '../data.ts';
-import { Card, ChampIcon, ChampionPicker, Icon, ItemIcon, ItemPicker, ItemTip, Markup, NumberField, RuneIcon, RuneTip, fmt, sourceMark, useHoverCard } from './common.tsx';
+import { Card, ChampIcon, ChampionPicker, Icon, ItemIcon, ItemPicker, ItemTip, Markup, NumberField, RuneIcon, RuneTip, fmt, mergeProps, sourceMark, useDragOrder, useHoverCard } from './common.tsx';
 import { SHARD_ROWS, TARGET_MODES, type UIState, type TargetMode, type TargetState, type TargetStats } from '../state.ts';
 import { ITEMS_BY_LEVEL_RULE, TARGET_PRESETS, isTargetPreset, itemsAtLevel, levelForItems, presetShardHp, type TargetPreset } from '../../engine/presets.ts';
 import { maxRanks, resolveRanks, type Sim, type SimResult } from '../../engine/sim.ts';
@@ -202,28 +202,62 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
     const c = conflicts(build.slice(0, i), it);
     return c ? [`${it.name}: only one ${c === 'duplicate' ? 'copy' : c === 'boots' ? 'pair of boots' : `${c} item`} works`] : [];
   });
-  const pick = (id: number) => {
+  const put = (i: number, id: number | null) =>
     set((s) => {
       const next = [...s.items];
-      next[picking ?? 0] = id;
+      next[i] = id;
       return { ...s, items: next };
     });
+  const pick = (id: number) => {
+    put(picking ?? 0, id);
     setPicking(null);
   };
+  // An item is dragged onto another slot to swap them, or into an empty one; the slot it would land
+  // in slides over to the one it left. Arrow keys swap a focused item with its neighbour, Delete
+  // removes it. The picker stays with what it was opened for.
+  const swap = (from: number, to: number) => {
+    const order = items.map((_, j) => j);
+    [order[from], order[to]] = [order[to], order[from]];
+    return order;
+  };
+  const order = useDragOrder({
+    count: items.length,
+    arrange: swap,
+    // The slot its middle is nearest, within a slot's size; farther away, it goes back.
+    landAt: (x, y, cells, _at, from) => {
+      const d = cells.map((c) => Math.hypot((x - c.x) / c.w - 0.5, (y - c.y) / c.h - 0.5));
+      const k = d.indexOf(Math.min(...d));
+      return d[k] < 1 ? k : from;
+    },
+    move: (from, to) => {
+      set((s) => ({ ...s, items: swap(from, to).map((j) => s.items[j]) }));
+      setPicking((p) => (p === from ? to : p === to ? from : p));
+    },
+    onPick: hover.hide,
+  });
   return (
     <Card title="Items" right={<span className="num secondary">{fmt(gold)}g</span>}>
-      <div className="slots">
+      <div className="slots" ref={order.box}>
         {items.map((id, i) => (
           <div
             key={i}
-            className={`slot ${id ? 'filled' : ''}`}
+            className={`slot ${id ? 'filled' : ''} ${order.drag?.from === i ? 'dragging' : ''}`}
             role="button"
             tabIndex={0}
-            aria-label={id ? `Item slot ${i + 1}: ${DATA.items[id]?.name}` : `Empty item slot ${i + 1}`}
+            aria-label={id ? `Item slot ${i + 1}: ${DATA.items[id]?.name}. Arrow keys move it, Delete removes it.` : `Empty item slot ${i + 1}`}
             title={id ? undefined : 'Add item'}
-            onClick={() => setPicking(i)}
-            onKeyDown={(e) => e.key === 'Enter' && setPicking(i)}
-            {...(id ? hover.bind(<ItemTip id={id} sim={sim} />) : {})}
+            {...mergeProps(id ? hover.bind(<ItemTip id={id} sim={sim} />) : {}, order.item(i, !!id), {
+              onClick: () => setPicking(i),
+              onKeyDown: (e: KeyboardEvent) => {
+                if (e.target !== e.currentTarget) return;
+                if (e.key === 'Enter') setPicking(i);
+                else if (id && (e.key === 'Delete' || e.key === 'Backspace')) {
+                  e.preventDefault();
+                  hover.hide();
+                  put(i, null);
+                }
+              },
+            })}
           >
             {id ? <ItemIcon id={id} /> : '+'}
             {id && (
@@ -232,11 +266,7 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
                 aria-label={`Remove ${DATA.items[id]?.name}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  set((s) => {
-                    const next = [...s.items];
-                    next[i] = null;
-                    return { ...s, items: next };
-                  });
+                  put(i, null);
                 }}
               >
                 ✕
@@ -646,12 +676,6 @@ const moveStep = <T,>(steps: T[], from: number, to: number) => {
   return next;
 };
 
-/** A step being pressed, then dragged once the pointer moves: where the pointer went down (x, y) and
- *  is (px, py), its offset in the step (ox, oy), the step's size, its transform, and the index it
- *  would drop at (null until it moves). */
-type Grab = { from: number; x: number; y: number; px: number; py: number; ox: number; oy: number; w: number; h: number; tx: number; ty: number; to: number | null };
-type Slot2D = { x: number; y: number; w: number; h: number };
-
 export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; sim: Sim | null }) {
   const [text, setText] = useState(state.combo);
   // The combo shows as steps; the pencil (or a click on the box's empty space) turns it into its
@@ -714,95 +738,21 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
     }
     return null;
   };
+  // A step is dragged to its new place, the others sliding aside to open the gap it will land in.
   // Arrow keys move a focused step, Delete removes it; focus stays on it, or on the next one.
-  const refocus = useRef<number | null>(null);
-  // A step is dragged to its new place (a pointer that moves a few pixels from where it went down on
-  // the step, not on its buttons). It follows the pointer by its transform, set on each move without
-  // rendering; the other steps slide aside to open the gap it will land in, and on release it glides
-  // into it. While dragging, the steps are laid out by flex `order` rather than moved in the DOM, so
-  // the dragged one keeps the pointer captured: a finger's drag doesn't scroll the page (styles.css)
-  // and the step follows it outside the box. Escape puts it back.
-  const seq = useRef<HTMLDivElement>(null);
-  const chips = useRef<(HTMLElement | null)[]>([]);
-  const grab = useRef<Grab | null>(null);
-  const [drag, setDrag] = useState<{ from: number; to: number } | null>(null);
-  /** The steps' places in the box as laid out (not as they slide), measured whenever they change. */
-  const slots = useRef<Slot2D[]>([]);
-  /** Where each step is on screen before a change that moves them, by its index after it; the
-   *  change's render slides them from there. `settle`: a dropped step, which also loses its lift. */
-  const glide = useRef<{ from: (DOMRect | undefined)[]; settle?: { at: number; lift: Keyframe } } | null>(null);
-  const onScreen = (order: number[], skip?: number) => order.map((j) => (j === skip ? undefined : chips.current[j]?.getBoundingClientRect()));
-  const indices = () => steps.map((_, j) => j);
-  /** How a dragged step looks, to fade from as it lands; over the others meanwhile. */
-  const lift = (el: Element): Keyframe => {
-    const c = getComputedStyle(el);
-    return { boxShadow: c.boxShadow, borderColor: c.borderColor, opacity: c.opacity, zIndex: 2 };
-  };
-  /** Where the dragged step lands with its middle at (x, y) in the box: before the first other step
-   *  it is before in reading order (above its line, or on it and left of its middle). */
-  const dropAt = (from: number, x: number, y: number) => {
-    const others = steps.flatMap((_, j) => (j !== from && slots.current[j] ? [slots.current[j]] : []));
-    const to = others.findIndex((r) => y < r.y || (y <= r.y + r.h && x < r.x + r.w / 2));
-    return to < 0 ? others.length : to;
-  };
-  /** Moves the dragged step under the pointer, then the gap to where it would land. */
-  const track = () => {
-    const g = grab.current;
-    const [el, home] = [g && chips.current[g.from], g && slots.current[g.from]];
-    if (!g || g.to == null || !el || !home) return;
-    const box = seq.current!.getBoundingClientRect();
-    const [x, y] = [g.px - g.ox - box.left, g.py - g.oy - box.top];
-    [g.tx, g.ty] = [x - home.x, y - home.y];
-    el.style.transform = `translate(${g.tx}px, ${g.ty}px)`;
-    const to = dropAt(g.from, x + g.w / 2, y + g.h / 2);
-    if (to !== g.to) reorder(to);
-  };
-  const reorder = (to: number) => {
-    const g = grab.current!;
-    g.to = to;
-    glide.current = { from: onScreen(indices(), g.from) };
-    setDrag({ from: g.from, to });
-  };
-  /** Ends a drag: the step glides from where it was let go to its new place, or back on a cancel. */
-  const drop = (keep: boolean) => {
-    const g = grab.current;
-    grab.current = null;
-    const el = g && chips.current[g.from];
-    if (g?.to == null || !el) return;
-    const to = keep ? g.to : g.from;
-    glide.current = { from: onScreen(moveStep(indices(), g.from, to)), settle: { at: to, lift: lift(el) } };
-    el.style.transform = '';
-    setDrag(null);
-    if (to === g.from) return;
-    if (document.activeElement === el) refocus.current = to;
-    commit(moveStep(steps, g.from, to));
-  };
-  // After a render that moves steps: measure where they are now, and slide each from where it was.
-  useLayoutEffect(() => {
-    const g = glide.current;
-    glide.current = null;
-    if (!g || !seq.current) return;
-    const box = seq.current.getBoundingClientRect();
-    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    chips.current.forEach((el, k) => {
-      if (!el) return;
-      const f = g.from[k];
-      if (f) el.getAnimations().forEach((a) => a.cancel());
-      const r = el.getBoundingClientRect();
-      const [tx, ty] = k === drag?.from ? [grab.current?.tx ?? 0, grab.current?.ty ?? 0] : [0, 0];
-      slots.current[k] = { x: r.left - tx - box.left, y: r.top - ty - box.top, w: r.width, h: r.height };
-      const [dx, dy] = f ? [f.left - r.left, f.top - r.top] : [0, 0];
-      const settle = g.settle?.at === k;
-      if (still || !f || (!settle && Math.abs(dx) + Math.abs(dy) < 0.5)) return;
-      const [a, b] = settle ? [g.settle!.lift, lift(el)] : [{}, {}];
-      el.animate([{ transform: `translate(${dx}px, ${dy}px)`, ...a }, { transform: 'none', ...b }], { duration: settle ? 180 : 160, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
-    });
-    track();
+  const order = useDragOrder({
+    count: steps.length,
+    arrange: (from, to) => moveStep(steps.map((_, j) => j), from, to),
+    // Before the first other step it is before in reading order (above its line, or on it and left of
+    // its middle).
+    landAt: (x, y, cells, at) => {
+      const others = cells.filter((_, k) => k !== at);
+      const to = others.findIndex((r) => y < r.y || (y <= r.y + r.h && x < r.x + r.w / 2));
+      return to < 0 ? others.length : to;
+    },
+    move: (from, to) => commit(moveStep(steps, from, to)),
   });
-  useEffect(() => {
-    if (refocus.current != null) chips.current[refocus.current]?.focus();
-    refocus.current = null;
-  }, [state.combo]);
+  const drag = order.drag;
 
   return (
     <Card
@@ -856,7 +806,7 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
         </button>
       </div>
       {!typing ? (
-        <div className="combo-seq" ref={seq} style={{ marginTop: 10 }} role="list" aria-label="Combo sequence" onClick={(e) => e.target === e.currentTarget && startTyping()}>
+        <div className="combo-seq" ref={order.box} style={{ marginTop: 10 }} role="list" aria-label="Combo sequence" onClick={(e) => e.target === e.currentTarget && startTyping()}>
           {!steps.length && (
             <span className="muted small" style={{ pointerEvents: 'none' }}>
               Click abilities above to build a combo.
@@ -864,57 +814,21 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
           )}
           {steps.map((st, i) => {
             const variants = st.type === 'ability' ? Object.entries(kit.abilities[st.slot]?.variants ?? {}) : [];
-            const dragging = drag?.from === i;
-            // While one is dragged: its place among the others, which keep their order around it.
-            const rest = drag && i > drag.from ? i - 1 : i;
-            const order = !drag ? undefined : dragging ? drag.to : rest >= drag.to ? rest + 1 : rest;
             return (
               <span
                 key={i}
-                ref={(el) => {
-                  chips.current[i] = el;
-                }}
-                className={`chip ${dragging ? 'dragging' : ''}`}
+                className={`chip ${drag?.from === i ? 'dragging' : ''}`}
                 role="listitem"
                 tabIndex={0}
                 aria-label={`Step ${i + 1} of ${steps.length}: ${label(st)}. Arrow keys move it, Delete removes it.`}
-                style={order != null ? { order } : undefined}
-                onPointerDown={(e) => {
-                  if (e.button !== 0 || (e.target as Element).closest('button, select')) return;
-                  const r = e.currentTarget.getBoundingClientRect();
-                  grab.current = { from: i, x: e.clientX, y: e.clientY, px: e.clientX, py: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, w: r.width, h: r.height, tx: 0, ty: 0, to: null };
-                  e.currentTarget.setPointerCapture(e.pointerId);
-                }}
-                onPointerMove={(e) => {
-                  const g = grab.current;
-                  if (!g || g.from !== i) return;
-                  [g.px, g.py] = [e.clientX, e.clientY];
-                  if (g.to != null) return track();
-                  if ((g.px - g.x) ** 2 + (g.py - g.y) ** 2 < 16) return;
-                  // Picked up mid-glide: from where it is on screen.
-                  e.currentTarget.getAnimations().forEach((a) => a.cancel());
-                  reorder(i);
-                }}
-                onPointerUp={() => drop(true)}
-                onPointerCancel={() => drop(false)}
-                onLostPointerCapture={() => drop(false)}
-                // The icon is an image, which the browser would drag itself (and cancel the pointer).
-                onDragStart={(e) => e.preventDefault()}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape' && grab.current?.to != null) return drop(false);
-                  if (e.target !== e.currentTarget) return;
-                  const to = e.key === 'ArrowLeft' ? i - 1 : e.key === 'ArrowRight' ? i + 1 : null;
-                  if (to != null && to >= 0 && to < steps.length) {
+                {...mergeProps(order.item(i), {
+                  onKeyDown: (e: KeyboardEvent) => {
+                    if (e.target !== e.currentTarget || (e.key !== 'Delete' && e.key !== 'Backspace')) return;
                     e.preventDefault();
-                    refocus.current = to;
-                    glide.current = { from: onScreen(moveStep(indices(), i, to)) };
-                    commit(moveStep(steps, i, to));
-                  } else if (e.key === 'Delete' || e.key === 'Backspace') {
-                    e.preventDefault();
-                    refocus.current = Math.min(i, steps.length - 2);
+                    order.focusLater(Math.min(i, steps.length - 2));
                     commit(steps.filter((_, j) => j !== i));
-                  }
-                }}
+                  },
+                })}
               >
                 {stepIcon(st)}
                 {variants.length > 0 && st.type === 'ability' ? (

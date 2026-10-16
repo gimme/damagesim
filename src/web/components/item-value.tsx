@@ -1,7 +1,7 @@
 // Item value: what each legendary or pair of boots would add to the current build, ranked by damage
 // per gold or total damage, as a list or a gold-vs-damage map. Recomputed live as the build changes.
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { DATA } from '../data.ts';
 import { Card, ItemIcon, ItemTip, fmt } from './common.tsx';
 import { GoldScatter, useTooltip, type GoldPoint } from './charts.tsx';
@@ -39,6 +39,16 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   const [showAll, setShowAll] = useState(false);
   // The slot being ranked: the first empty one, or a filled one whose item is being reconsidered.
   const [chosen, setChosen] = useState<number | null>(null);
+  // It follows its item when the build's items are swapped.
+  const seen = useRef(state.items);
+  useLayoutEffect(() => {
+    const [was, now] = [seen.current, state.items];
+    seen.current = now;
+    const id = chosen != null ? was[chosen] : null;
+    if (id == null || now[chosen!] === id) return;
+    const to = now.findIndex((x, k) => x === id && was[k] !== id);
+    if (to >= 0) setChosen(to);
+  }, [state.items]);
   const firstEmpty = state.items.findIndex((x) => x == null);
   const slot = chosen != null && (state.items[chosen] != null || chosen === firstEmpty) ? chosen : firstEmpty >= 0 ? firstEmpty : state.items.length - 1;
   const current = state.items[slot];

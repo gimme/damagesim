@@ -420,8 +420,21 @@ label.field {
   font-size: 18px;
   min-width: 0;
 }
+/* An item is dragged to another slot; a finger's drag on it doesn't scroll the page. */
 .slot.filled {
   border-style: solid;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.slot.dragging {
+  z-index: 2;
+  cursor: grabbing;
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+  opacity: 0.9;
+  will-change: transform;
 }
 .slot img,
 .slot .icon {
@@ -447,6 +460,9 @@ label.field {
 .slot:hover .remove,
 .slot:focus-within .remove {
   display: block;
+}
+.slot.dragging .remove {
+  display: none;
 }
 .item-grid {
   display: grid;

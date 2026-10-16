@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type FocusEvent, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { DATA, abilityIcon, autoAttackIcon, championIcon, itemIcon, runeIcon, summonerIcon } from '../data.ts';
 import { getKit } from '../../kits/index.ts';
@@ -381,6 +381,191 @@ export function useHoverCard() {
       document.body,
     );
   return { bind, node, hide };
+}
+
+/** One element's props from several sources: the handlers for the same event all run, in order. */
+export function mergeProps(...all: Record<string, unknown>[]) {
+  const out: Record<string, unknown> = {};
+  for (const props of all)
+    for (const [k, v] of Object.entries(props)) {
+      const was = out[k];
+      out[k] = /^on[A-Z]/.test(k) && typeof was === 'function' && typeof v === 'function' ? (...a: unknown[]) => (was(...a), v(...a)) : v;
+    }
+  return out;
+}
+
+/** Where a box's child is laid out in it. */
+export type Place = { x: number; y: number; w: number; h: number };
+
+/** A child being pressed, then dragged once the pointer moves: where the pointer went down (x, y) and
+ *  is (px, py), its offset in the child (ox, oy), the child's size, its transform, and the index it
+ *  would drop at (null until it moves). */
+type Grab = { from: number; x: number; y: number; px: number; py: number; ox: number; oy: number; w: number; h: number; tx: number; ty: number; to: number | null };
+
+/**
+ * The first `count` children of a box, dragged to new places with a mouse or a finger: a pointer that
+ * moves a few pixels from where it went down on one (not on its buttons) picks it up. It follows the
+ * pointer by its transform, set on each move without rendering; the others slide to where they'd be
+ * if it landed there, and on release it glides into its place. While dragging, the children are laid
+ * out by flex or grid `order` rather than moved in the DOM, so the dragged one keeps the pointer
+ * captured: a finger's drag doesn't scroll the page (with touch-action: none) and it follows the
+ * pointer outside the box. Escape, a cancelled touch or a lost pointer capture puts it back. Arrow
+ * keys move a focused child, and focus follows it.
+ *
+ * - `arrange(from, to)`: the children's indices in their new order, with `from` moved to `to`.
+ * - `landAt(x, y, cells, at, from)`: where the dragged child lands with its middle at (x, y) in the
+ *   box, from the places of the children in their order as laid out; it is at `at` among them.
+ * - `move(from, to)`: makes the move.
+ * - `onPick(i)`: when child i is picked up.
+ */
+export function useDragOrder({
+  count,
+  arrange,
+  landAt,
+  move,
+  onPick,
+}: {
+  count: number;
+  arrange: (from: number, to: number) => number[];
+  landAt: (x: number, y: number, cells: Place[], at: number, from: number) => number;
+  move: (from: number, to: number) => void;
+  onPick?: (i: number) => void;
+}) {
+  const box = useRef<HTMLDivElement>(null);
+  const child = (k: number) => box.current?.children[k] as HTMLElement | undefined;
+  const grab = useRef<Grab | null>(null);
+  const [drag, setDrag] = useState<{ from: number; to: number } | null>(null);
+  /** Whether the last press picked its child up: its click isn't one. */
+  const moved = useRef(false);
+  /** The child to focus after the next render. */
+  const refocus = useRef<number | null>(null);
+  /** The children's places in the box as laid out (not as they slide), measured whenever they change. */
+  const homes = useRef<Place[]>([]);
+  /** Where each child is on screen before a change that moves them, by its index after it; the
+   *  change's render slides them from there. `settle`: a dropped child, which also loses its lift. */
+  const glide = useRef<{ from: (DOMRect | undefined)[]; settle?: { at: number; lift: Keyframe } } | null>(null);
+  const onScreen = (order: number[], skip?: number) => order.map((j) => (j === skip ? undefined : child(j)?.getBoundingClientRect()));
+  const indices = () => Array.from({ length: count }, (_, j) => j);
+  /** How a dragged child looks, to fade from as it lands; over the others meanwhile. */
+  const lift = (el: Element): Keyframe => {
+    const c = getComputedStyle(el);
+    return { boxShadow: c.boxShadow, borderColor: c.borderColor, opacity: c.opacity, zIndex: 2 };
+  };
+  /** Moves the dragged child under the pointer, then the others to where it would land. */
+  const track = () => {
+    const g = grab.current;
+    const [el, home] = [g && child(g.from), g && homes.current[g.from]];
+    if (!g || g.to == null || !el || !home) return;
+    const b = box.current!.getBoundingClientRect();
+    const [x, y] = [g.px - g.ox - b.left, g.py - g.oy - b.top];
+    [g.tx, g.ty] = [x - home.x, y - home.y];
+    el.style.transform = `translate(${g.tx}px, ${g.ty}px)`;
+    const to = landAt(x + g.w / 2, y + g.h / 2, arrange(g.from, g.to).map((j) => homes.current[j]), g.to, g.from);
+    if (to !== g.to) reorder(to);
+  };
+  const reorder = (to: number) => {
+    const g = grab.current!;
+    g.to = to;
+    glide.current = { from: onScreen(indices(), g.from) };
+    setDrag({ from: g.from, to });
+  };
+  /** Ends a drag: the child glides from where it was let go to its new place, or back on a cancel. */
+  const drop = (keep: boolean) => {
+    const g = grab.current;
+    grab.current = null;
+    const el = g && child(g.from);
+    if (g?.to == null || !el) return;
+    const to = keep ? g.to : g.from;
+    glide.current = { from: onScreen(arrange(g.from, to)), settle: { at: to, lift: lift(el) } };
+    el.style.transform = '';
+    setDrag(null);
+    if (to === g.from) return;
+    if (document.activeElement === el) refocus.current = to;
+    move(g.from, to);
+  };
+  /** Moves child `from` to `to` at once (the keyboard's way), focus following it. */
+  const shift = (from: number, to: number) => {
+    refocus.current = to;
+    glide.current = { from: onScreen(arrange(from, to)) };
+    move(from, to);
+  };
+  // After a render that moves children: measure where they are now, and slide each from where it was.
+  useLayoutEffect(() => {
+    const g = glide.current;
+    glide.current = null;
+    if (!g || !box.current) return;
+    const b = box.current.getBoundingClientRect();
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    for (let k = 0; k < count; k++) {
+      const el = child(k);
+      if (!el) continue;
+      const f = g.from[k];
+      if (f) el.getAnimations().forEach((a) => a.cancel());
+      const r = el.getBoundingClientRect();
+      const [tx, ty] = k === drag?.from ? [grab.current?.tx ?? 0, grab.current?.ty ?? 0] : [0, 0];
+      homes.current[k] = { x: r.left - tx - b.left, y: r.top - ty - b.top, w: r.width, h: r.height };
+      const [dx, dy] = f ? [f.left - r.left, f.top - r.top] : [0, 0];
+      const settle = g.settle?.at === k;
+      if (still || !f || (!settle && Math.abs(dx) + Math.abs(dy) < 0.5)) continue;
+      const [a, z] = settle ? [g.settle!.lift, lift(el)] : [{}, {}];
+      el.animate([{ transform: `translate(${dx}px, ${dy}px)`, ...a }, { transform: 'none', ...z }], { duration: settle ? 180 : 160, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
+    }
+    track();
+  });
+  useEffect(() => {
+    if (refocus.current != null) child(refocus.current)?.focus();
+    refocus.current = null;
+  });
+
+  const placed = drag && arrange(drag.from, drag.to);
+  /** Props for child i; one that can't be `movable` still makes way for the others. */
+  const item = (i: number, movable = true) => ({
+    style: placed ? { order: placed.indexOf(i) } : undefined,
+    onPointerDown: (e: PointerEvent<HTMLElement>) => {
+      moved.current = false;
+      if (!movable || e.button !== 0 || (e.target as Element).closest('button, select')) return;
+      const r = e.currentTarget.getBoundingClientRect();
+      grab.current = { from: i, x: e.clientX, y: e.clientY, px: e.clientX, py: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, w: r.width, h: r.height, tx: 0, ty: 0, to: null };
+      e.currentTarget.setPointerCapture(e.pointerId);
+    },
+    onPointerMove: (e: PointerEvent<HTMLElement>) => {
+      const g = grab.current;
+      if (!g || g.from !== i) return;
+      [g.px, g.py] = [e.clientX, e.clientY];
+      if (g.to != null) return track();
+      if ((g.px - g.x) ** 2 + (g.py - g.y) ** 2 < 16) return;
+      // Picked up mid-glide: from where it is on screen.
+      e.currentTarget.getAnimations().forEach((a) => a.cancel());
+      moved.current = true;
+      onPick?.(i);
+      reorder(i);
+    },
+    onPointerUp: () => drop(true),
+    onPointerCancel: () => drop(false),
+    onLostPointerCapture: () => drop(false),
+    // An icon is an image, which the browser would drag itself (and cancel the pointer).
+    onDragStart: (e: DragEvent<HTMLElement>) => e.preventDefault(),
+    // A mouse's click after a drag isn't one (a keyboard's, detail 0, is).
+    onClickCapture: (e: MouseEvent<HTMLElement>) => {
+      if (!moved.current || e.detail === 0) return;
+      moved.current = false;
+      e.preventDefault();
+      e.stopPropagation();
+    },
+    onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
+      if (e.key === 'Escape' && grab.current?.to != null) return drop(false);
+      if (!movable || e.target !== e.currentTarget) return;
+      const to = e.key === 'ArrowLeft' ? i - 1 : e.key === 'ArrowRight' ? i + 1 : null;
+      if (to == null || to < 0 || to >= count) return;
+      e.preventDefault();
+      shift(i, to);
+    },
+  });
+  /** Focuses child k after the next render. */
+  const focusLater = (k: number) => {
+    refocus.current = k;
+  };
+  return { box, drag, item, focusLater };
 }
 
 // Riot tooltip markup (from itemText: tags, <br>, no icons or {{keys}}) as React elements. Unknown
