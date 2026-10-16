@@ -246,7 +246,7 @@ test("rank items: what an item's hits proc is split from its own damage and its 
   const electrocute = simulate(data, { ...base, items: [...base.items, 'Stormsurge'] }).bySource.find((s) => s.label === 'Electrocute')!.damage;
   const res = rankItems(data, base, { candidates: ['Stormsurge', "Rabadon's Deathcap"] });
   const storm = res.items.find((x) => x.item === 'Stormsurge')!;
-  assert.deepEqual(storm.procs.map((p) => p.label), ['Electrocute']);
+  assert.deepEqual(storm.procs.map((p) => p.name), ['Electrocute']);
   near(storm.procDamage, electrocute, 0.1);
   // The rest of the gain beyond Squall itself is its AP raising W and Q.
   assert.ok(storm.itemDamage > 0 && storm.gain - storm.itemDamage - storm.procDamage > 0);
@@ -263,7 +263,7 @@ test("rank items: what an item's hits proc is split from its own damage and its 
   assert.equal(executes(exec.items).length, 0);
   const [execute] = executes([...exec.items, "Lord Dominik's Regards"]);
   const ldr = rankItems(data, exec, { candidates: ["Lord Dominik's Regards"] }).items[0];
-  assert.deepEqual(ldr.procs.map((p) => p.source), ['Q']);
+  assert.deepEqual(ldr.procs.map((p) => [p.source, p.name]), [['Q', 'Execute']]);
   near(ldr.procDamage, execute.final!, 0.1);
 });
 

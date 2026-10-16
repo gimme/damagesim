@@ -20,16 +20,16 @@ const SHOWN = 8;
 const STANDOUT = 1.15;
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${fmt(Math.abs(v))}`;
 
-/** The parts of an item's bar: its boost to your other damage (its stats, Rabadon's-style
+/** The parts of an item's bar: the scaling it adds to your other damage (its stats, Rabadon's-style
  *  multipliers), the damage it deals itself (its procs, burns) and the hits of your other damage that
  *  land only with it (Electrocute it procs, an execute it brings the target into range of). */
-const PARTS = ['boost', 'effect', 'procs'] as const;
+const PARTS = ['scaling', 'effect', 'procs'] as const;
 type Part = (typeof PARTS)[number];
 
 /** A row's parts; a negative or negligible one is left out of the bar. */
 function split(r: Row): Record<Part, number> {
-  const v = { boost: r.gain - r.itemDamage - r.procDamage, effect: r.itemDamage, procs: r.procDamage };
-  return { boost: v.boost > 0.5 ? v.boost : 0, effect: v.effect > 0.5 ? v.effect : 0, procs: v.procs > 0.5 ? v.procs : 0 };
+  const v = { scaling: r.gain - r.itemDamage - r.procDamage, effect: r.itemDamage, procs: r.procDamage };
+  return { scaling: v.scaling > 0.5 ? v.scaling : 0, effect: v.effect > 0.5 ? v.effect : 0, procs: v.procs > 0.5 ? v.procs : 0 };
 }
 
 const Swatch = ({ part, gap }: { part: Part; gap?: boolean }) => <span className={`swatch iv-${part}`} style={gap ? { marginRight: 6 } : undefined} />;
@@ -434,10 +434,11 @@ function nearestColumn(e: PointerEvent<HTMLElement>): string {
 }
 
 /** A row's card shows what its view doesn't: in the list, which already has the numbers, how the bar
- *  splits between boost, effect (by the item's hits' names) and procs damage, the parts it has; on
- *  the map, whose dots only have positions, the numbers. Both show what the item procs. */
+ *  splits between scaling, effect and procs damage, the parts it has, the hits by name; on the map,
+ *  whose dots only have positions, the numbers. Both name what the item procs. */
 function RowTip({ row: r, current, champion, view, action }: { row: Row; current: number | null; champion: string; view: 'list' | 'map'; action?: ReactNode }) {
-  const boost = r.gain - r.itemDamage - r.procDamage;
+  const scaling = r.gain - r.itemDamage - r.procDamage;
+  const procs = r.procs.map((p) => <SourceRow key={`${p.source}|${p.name}`} part="procs" {...p} champion={champion} />);
   return (
     <>
       <div className="tt-title">
@@ -445,27 +446,19 @@ function RowTip({ row: r, current, champion, view, action }: { row: Row; current
       </div>
       {view === 'list' ? (
         <>
-          {Math.abs(boost) >= 0.5 && (
+          {Math.abs(scaling) >= 0.5 && (
             <div className="tt-row">
               <span>
-                <Swatch part="boost" gap />
-                Boost
+                <Swatch part="scaling" gap />
+                Scaling
               </span>
-              <strong>{signed(boost)}</strong>
+              <strong>{signed(scaling)}</strong>
             </div>
           )}
-          {r.itemHits.length > 0 && (
-            <div className="tt-row">
-              <span className="source-name">
-                <Swatch part="effect" />
-                <Icon src={sourceMark(`item:${r.id}`, r.item, champion).icon} label={r.item} size="xs" />
-                {/* Its hits by name: Squall, Spellblade; Luden's Echo and its repeats as one */}
-                {[...new Set(r.itemHits.map((h) => h.label.replace(/ \(.*\)$/, '')))].join(', ')}
-              </span>
-              <strong>{signed(r.itemDamage)}</strong>
-            </div>
-          )}
-          <Procs row={r} champion={champion} />
+          {r.itemHits.map((h) => (
+            <SourceRow key={h.name} part="effect" source={`item:${r.id}`} {...h} champion={champion} />
+          ))}
+          {procs}
         </>
       ) : (
         <>
@@ -477,7 +470,7 @@ function RowTip({ row: r, current, champion, view, action }: { row: Row; current
             <span>Per 1000 gold</span>
             <strong>{fmt(r.gainPerGold, 1)}</strong>
           </div>
-          <Procs row={r} champion={champion} />
+          {procs}
         </>
       )}
       {action && <div className="tt-foot">{action}</div>}
@@ -485,18 +478,17 @@ function RowTip({ row: r, current, champion, view, action }: { row: Row; current
   );
 }
 
-/** The damage of the hits that land only with the item, by their sources' icons. */
-function Procs({ row: r, champion }: { row: Row; champion: string }) {
-  if (!r.procs.length) return null;
+/** Damage of one of an item's hits (Squall) or of one of its procs (Electrocute, Smolder's Execute),
+ *  by its part's swatch and its source's icon. */
+function SourceRow({ part, source, name, damage, champion }: { part: Part; source: string; name: string; damage: number; champion: string }) {
   return (
     <div className="tt-row">
       <span className="source-name">
-        <Swatch part="procs" />
-        {r.procs.map((p) => (
-          <Icon key={`${p.source}|${p.label}`} src={sourceMark(p.source, p.label, champion).icon} label={p.label} size="xs" />
-        ))}
+        <Swatch part={part} />
+        <Icon src={sourceMark(source, name, champion).icon} label={name} size="xs" />
+        {name}
       </span>
-      <strong>{signed(r.procDamage)}</strong>
+      <strong>{signed(damage)}</strong>
     </div>
   );
 }
