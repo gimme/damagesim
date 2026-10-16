@@ -510,6 +510,9 @@ label.field {
 .item-option:hover {
   background: var(--accent-wash);
 }
+.item-option.top {
+  border-color: var(--accent);
+}
 .item-option .name {
   font-size: 12px;
   line-height: 1.2;
