@@ -58,7 +58,7 @@ writeFileSync(join(OUT, 'icons.json'), JSON.stringify(icons));
 
 const css = readFileSync(join(BUILD, 'app.css'), 'utf8');
 copyFileSync(join(BUILD, 'app.js'), join(OUT, 'app.js'));
-const page = `<title>lolsim</title>
+const page = `<title>damagesim</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 ${css}

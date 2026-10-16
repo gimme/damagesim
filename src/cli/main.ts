@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// lolsim — League of Legends damage simulator CLI.
+// damagesim — League of Legends damage simulator CLI.
 // Every command accepts --json for machine-readable output (for AI agents and scripts).
 
 import { readFileSync } from 'node:fs';
@@ -12,18 +12,18 @@ import { describeChampion, describeItem, listItems, listRunes, listChampions } f
 import { SCENARIO_HELP } from '../engine/help.ts';
 import { isTargetPreset } from '../engine/presets.ts';
 
-const HELP = `lolsim — League of Legends damage simulator (patch data in data/generated)
+const HELP = `damagesim — League of Legends damage simulator (patch data in data/generated)
 
-Usage: lolsim <command> [options]      (add --json to any command for JSON output)
+Usage: damagesim <command> [options]      (add --json to any command for JSON output)
 
 Commands
-  simulate     Run a combo.          lolsim simulate -c Ahri -l 11 -i "Luden's Echo,Sorcerer's Shoes" -r Electrocute --combo "E Q W R AA" --target hp=2000,armor=80,mr=50
-  compare      Compare item builds.  lolsim compare -c Jinx -l 13 --combo "AA*8" --build "Kraken Slayer,Infinity Edge" --build "Yun Tal Wildarrows,Infinity Edge"
-  rank-items   Value of adding each item to a build.   lolsim rank-items -c Zed -l 11 -i "Youmuu's Ghostblade" --combo "W E Q AA R"
-  optimize     Best N items from a pool.               lolsim optimize -c Syndra -l 16 --slots 3 --combo "Q E W R"
-  combo-order  Best ordering of the given combo steps. lolsim combo-order -c Ahri -l 11 --combo "E Q W R"
-  sweep        Damage vs. target armor or MR.          lolsim sweep -c Ahri --combo "E Q W" --stat mr
-  champion     Abilities, formulas and kit details.    lolsim champion Ahri -l 11
+  simulate     Run a combo.          damagesim simulate -c Ahri -l 11 -i "Luden's Echo,Sorcerer's Shoes" -r Electrocute --combo "E Q W R AA" --target hp=2000,armor=80,mr=50
+  compare      Compare item builds.  damagesim compare -c Jinx -l 13 --combo "AA*8" --build "Kraken Slayer,Infinity Edge" --build "Yun Tal Wildarrows,Infinity Edge"
+  rank-items   Value of adding each item to a build.   damagesim rank-items -c Zed -l 11 -i "Youmuu's Ghostblade" --combo "W E Q AA R"
+  optimize     Best N items from a pool.               damagesim optimize -c Syndra -l 16 --slots 3 --combo "Q E W R"
+  combo-order  Best ordering of the given combo steps. damagesim combo-order -c Ahri -l 11 --combo "E Q W R"
+  sweep        Damage vs. target armor or MR.          damagesim sweep -c Ahri --combo "E Q W" --stat mr
+  champion     Abilities, formulas and kit details.    damagesim champion Ahri -l 11
   champions    List champions and kit status.
   items        List items (filter with --search).
   runes        List runes.
@@ -239,7 +239,7 @@ async function main() {
     }
     case 'champion': {
       const name = positionals[1] ?? o.champion;
-      if (!name) throw new Error('usage: lolsim champion <name>');
+      if (!name) throw new Error('usage: damagesim champion <name>');
       const sim = new Sim(data, { champion: name, level: Number(o.level ?? 11), combo: [], items: list(o.items), ranks: o.ranks ? (kv(o.ranks) as any) : undefined });
       const d = describeChampion(sim);
       return out(d, () => {

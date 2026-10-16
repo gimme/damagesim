@@ -131,7 +131,7 @@ export function decodeState(hash: string): UIState | null {
   }
 }
 
-const STORAGE_KEY = 'lolsim:state';
+const STORAGE_KEY = 'damagesim:state';
 
 export function loadSavedState(): UIState | null {
   try {

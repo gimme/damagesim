@@ -1,6 +1,6 @@
-# lolsim
+# damagesim
 
-A League of Legends damage simulator: pick a **champion**, **level/ranks**, **items**, **runes**, a
+A League of Legends damage simulator and item build optimizer: pick a **champion**, **level/ranks**, **items**, **runes**, a
 **combo** of abilities, attacks, item actives and Ignite, and a **target**: a squishy, bruiser or
 tank preset at a level relative to yours, an enemy champion with items, or raw HP/armor/MR. It plays
 the combo out on a timeline and reports every damage instance.
@@ -36,13 +36,13 @@ Requires Node ≥ 22.18 (runs the TypeScript sources directly; no build step for
 ## Using it from an AI agent (MCP)
 
 ```bash
-claude mcp add lolsim -- node /absolute/path/to/lolsim/src/mcp/server.ts
+claude mcp add damagesim -- node /absolute/path/to/damagesim/src/mcp/server.ts
 ```
 
 Or in any MCP client config:
 
 ```json
-{ "mcpServers": { "lolsim": { "command": "node", "args": ["/absolute/path/to/lolsim/src/mcp/server.ts"] } } }
+{ "mcpServers": { "damagesim": { "command": "node", "args": ["/absolute/path/to/damagesim/src/mcp/server.ts"] } } }
 ```
 
 Tools:
@@ -58,7 +58,7 @@ Tools:
 | `resist_sweep` | Damage as target armor or MR varies |
 | `list_champions`, `list_items`, `get_item`, `list_runes`, `scenario_help` | Lookup and docs |
 
-The CLI exposes the same features (`lolsim --help`); add `--json` for machine-readable output.
+The CLI exposes the same features (`damagesim --help`); add `--json` for machine-readable output.
 
 ## Scenario format
 
@@ -75,7 +75,7 @@ The CLI exposes the same features (`lolsim --help`); add `--json` for machine-re
 
 Combo shorthand: `Q W E R P`, `AA`, `AA*3`, `AA!`/`Q!` (crits), `AA?`/`Q?` (doesn't), `Q:variant`, `Q{out:1,back:0}` (hit
 counts), `Q+bonus` (enable an optional hit), `ignite`, `item:rocketbelt`, `wait:1.5`. Run
-`lolsim scenario` for everything.
+`damagesim scenario` for everything.
 
 Targets:
 * `{ "preset": "squishy" | "bruiser" | "tank", "levelDiff": 0 }`: the average base stats of the
@@ -103,7 +103,7 @@ Only the stats of a target's items count: it never fights back, so their passive
    Hashed names in the data are resolved with Riot's FNV-1a hash.
 2. **Formulas are executed, not transcribed.** `src/engine/calc.ts` evaluates Riot's formula trees
    (stat ratios, level interpolation, breakpoints, buff counters, ranged multipliers…). A component's
-   number equals the client tooltip's number at the same rank, level and stats. `lolsim champion X`
+   number equals the client tooltip's number at the same rank, level and stats. `damagesim champion X`
    prints both, side by side.
 3. **Game mechanics follow patch 16.20.** Checked against the official wiki and patch notes
    (`docs/research/`):
@@ -126,7 +126,7 @@ Only the stats of a target's items count: it never fights back, so their passive
    `node scripts/check-kits.ts` validates every kit's formulas at several levels.
 6. **Behaviour the game files don't encode** is checked against the wiki. The files hold the
    numbers, but not whether an ability applies on-hit effects or triggers on-attack effects, or
-   whether it can crit. `npm run wiki` downloads the wiki pages lolsim is checked against: every
+   whether it can crit. `npm run wiki` downloads the wiki pages damagesim is checked against: every
    ability's data, the items, runes and their articles, champion stats and "Attack effects".
    It fetches 50 pages per request (about 60 requests, a minute) and on later runs only pages that
    changed (about 15 requests). `npm run audit` then compares every kit with the ability
@@ -180,7 +180,7 @@ data/generated/ processed game data per patch (committed); data/raw is the downl
 src/engine/     calc (formula interpreter), expr, stats, damage, sim (timeline), items, runes,
                 summoners, autokit, analysis (compare/rank/optimize), describe, tooltip
 src/kits/       champion kits (curated) + registry
-src/cli/        lolsim CLI
+src/cli/        damagesim CLI
 src/mcp/        MCP server
 src/web/        React UI (Vite)
 docs/           KIT_AUTHORING.md, COVERAGE.md, research/ (mechanics notes with sources)

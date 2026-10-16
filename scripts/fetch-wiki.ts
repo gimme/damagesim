@@ -1,4 +1,4 @@
-// Downloads the League wiki pages lolsim is checked against into data/raw/wiki/pages.json, in
+// Downloads the League wiki pages damagesim is checked against into data/raw/wiki/pages.json, in
 // batches through the MediaWiki API, and only re-downloads pages that changed since the last run.
 //
 // Groups:
@@ -23,7 +23,7 @@ import { loadGameData } from '../src/node/load.ts';
 const API = 'https://wiki.leagueoflegends.com/en-us/api.php';
 // The wiki's bot protection challenges browser-like user agents from non-browser clients; the
 // MediaWiki API asks clients to identify themselves anyway.
-const UA = 'lolsim-wiki-audit/0.1 (League damage simulator; MediaWiki API client)';
+const UA = 'damagesim-wiki-audit/0.1 (League damage simulator; MediaWiki API client)';
 const DIR = join(import.meta.dirname, '..', 'data', 'raw', 'wiki');
 export const WIKI_CACHE = join(DIR, 'pages.json');
 

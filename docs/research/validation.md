@@ -1,4 +1,4 @@
-# Wiki cross-check of lolsim, patch 16.20 (wiki "V26.20")
+# Wiki cross-check of damagesim, patch 16.20 (wiki "V26.20")
 
 Read-only audit. Nothing under /home/user/dev was modified. The wiki data came from `Template:Data_<Champ>/<Ability>?action=raw`, `Module:ChampionData/data` (base stats) and the patch-history pages. Our numbers came from `scripts/inspect-champion.ts`, `src/cli/main.ts champion … --json` and `simulate … --events`. Scratch scripts are in `scratchpad/research/scripts/`.
 

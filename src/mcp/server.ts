@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // MCP server (stdio) exposing the simulator to AI agents.
 //
-//   claude mcp add lolsim -- node /path/to/lolsim/src/mcp/server.ts
+//   claude mcp add damagesim -- node /path/to/damagesim/src/mcp/server.ts
 //
 // Tools: list_champions, get_champion, list_items, get_item, list_runes, simulate, compare_builds,
 // rank_items, optimize_build, optimize_combo, resist_sweep, scenario_help.
@@ -141,7 +141,7 @@ const safe =
   };
 
 const server = new McpServer(
-  { name: 'lolsim', version: '0.1.0' },
+  { name: 'damagesim', version: '0.1.0' },
   {
     instructions: `League of Legends damage simulator for patch ${data.meta.patch}. Numbers come from the game's own data files.
 Typical flow: get_champion (see abilities, per-hit values, kit notes and options) → simulate a combo vs. a target → compare_builds / rank_items / optimize_build to recommend items, optimize_combo for ability order.

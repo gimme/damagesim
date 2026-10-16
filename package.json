@@ -1,5 +1,5 @@
 {
-  "name": "lolsim",
+  "name": "damagesim",
   "version": "0.1.0",
   "private": true,
   "description": "League of Legends damage simulator: champions, builds, runes, combos vs. a target. Web UI for humans, CLI + MCP server for AI agents.",
@@ -8,7 +8,7 @@
     "node": ">=22.18"
   },
   "bin": {
-    "lolsim": "src/cli/main.ts"
+    "damagesim": "src/cli/main.ts"
   },
   "scripts": {
     "data:fetch": "node scripts/fetch-data.ts",

@@ -83,7 +83,7 @@ export function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <h1>lolsim</h1>
+        <h1>damagesim</h1>
         <span className="badge">patch {DATA.meta.patch}</span>
         <span className="spacer" />
         {!embedded && (
@@ -123,7 +123,7 @@ export function App() {
             Numbers come from the patch {DATA.meta.patch} game files ({DATA.meta.cdragonVersion}). Champions marked “auto kit” have abilities mapped from tooltips automatically: per-hit values are exact, hit counts and
             conditions may not be.
           </p>
-          <p className="muted small">lolsim isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing League of Legends. League of Legends and Riot Games are trademarks or registered trademarks of Riot Games, Inc.</p>
+          <p className="muted small">damagesim isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing League of Legends. League of Legends and Riot Games are trademarks or registered trademarks of Riot Games, Inc.</p>
         </div>
       </div>
     </div>

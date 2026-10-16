@@ -1,4 +1,4 @@
-// Scenario format documentation (shown by `lolsim scenario` and the MCP server).
+// Scenario format documentation (shown by `damagesim scenario` and the MCP server).
 
 export const SCENARIO_HELP = `Scenario JSON (all fields except champion and combo are optional):
 {
@@ -43,4 +43,4 @@ darkHarvest.souls, aery.cycle, grasp.charged, firstStrike.active, suddenImpact.a
 (0-100), heartsteel.ready, heartsteel.stacks, glory.stacks, rodofages.stacks, yuntal.crit,
 deadmans.stacks, luden.targets, combat.seconds (seconds already in combat when the combo starts, 0-4;
 Liandry's, Riftmaker and Haunting Guise ramp, Grasp's charge),
-plus champion-specific options listed by "lolsim champion <name>" (e.g. stack counts).`;
+plus champion-specific options listed by "damagesim champion <name>" (e.g. stack counts).`;
