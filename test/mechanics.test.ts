@@ -351,3 +351,14 @@ test('Damage records the combo action that set it off, across separate-cast hits
   const ticks = bySource(brand, 'item:6653');
   assert.ok(ticks.length > 1 && ticks.every((t) => t.action === e.castId));
 });
+
+test("Iceborn Gauntlet's frost field adds no Electrocute stack; Smolder's execute is part of the hit that executes", () => {
+  // W and Q are two hits; Q's Spellblade field doesn't make a third (in game, 16.20).
+  const smolder = { champion: 'Smolder', level: 11, items: ['Iceborn Gauntlet'], runes: ['Electrocute'], combo: 'W Q', target: { preset: 'squishy' as const } };
+  const iceborn = simulate(data, smolder);
+  assert.ok(bySource(iceborn, 'item:6662').length > 0);
+  assert.equal(bySource(iceborn, 'rune:8112').length, 0);
+  const r = simulate(data, { ...smolder, level: 9, items: ['Essence Reaver', "Lord Dominik's Regards"], options: { stacks: 225 }, combo: 'E Q AA Q' });
+  const execute = r.events.find((e) => e.label === 'Execute')!;
+  assert.ok(r.events.some((e) => e.source === 'Q' && e.label !== 'Execute' && e.castId === execute.castId && e.time === execute.time));
+});

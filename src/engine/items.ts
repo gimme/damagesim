@@ -207,7 +207,8 @@ const ITEMS: Record<number, Factory> = {
   3100: (item) => spellblade(item, (sim) => ({ type: 'magic', amount: calc(sim, item, 'SpellbladeDamage') }), { attackSpeedWhileReady: dv(item, 'SheenASBuff') }),
   6662: (item) =>
     spellblade(item, (sim) => ({ type: 'physical', amount: calc(sim, item, 'SpellbladeDamage') }), {
-      onProc: (sim, castId) => sim.applyCC('slow', dv(item, 'SlowFieldDuration'), castId + 0.5),
+      // The frost field is part of the attack's cast instance: it adds no Electrocute stack (in game, 16.20).
+      onProc: (sim, castId) => sim.applyCC('slow', dv(item, 'SlowFieldDuration'), castId),
     }),
   3508: (item) => spellblade(item, (sim) => ({ type: 'physical', amount: calc(sim, item, 'SpellbladeDamage') })),
   2510: (item) => spellblade(item, (sim) => ({ type: 'magic', amount: calc(sim, item, 'SpellbladeDamage') }), { repeatOnHit: true }),
