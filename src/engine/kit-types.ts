@@ -63,6 +63,9 @@ export interface ComponentSpec {
   pet?: boolean;
   /** Not counted as ability damage for item/rune triggers (e.g. passive procs). */
   noProc?: boolean;
+  /** Proc damage (the wiki's "deals proc damage", Smolder's Q burn): no spell effects (Liandry's,
+   *  Luden's) and no rune triggers (Dark Harvest). */
+  proc?: boolean;
   /** Excluded unless the combo step enables it. */
   optional?: boolean;
   /** Short condition shown in the UI, e.g. "if the target is isolated". */

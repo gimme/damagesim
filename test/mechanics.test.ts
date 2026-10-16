@@ -362,3 +362,14 @@ test("Iceborn Gauntlet's frost field adds no Electrocute stack; Smolder's execut
   const execute = r.events.find((e) => e.label === 'Execute')!;
   assert.ok(r.events.some((e) => e.source === 'Q' && e.label !== 'Execute' && e.castId === execute.castId && e.time === execute.time));
 });
+
+test("Smolder's Q burn is proc damage: it doesn't keep Liandry's burning, unlike Brand's Blaze", () => {
+  const torment = (stacks: number) => bySource(simulate(data, { champion: 'Smolder', level: 11, items: ["Liandry's Torment"], options: { stacks }, combo: 'Q', target: dummy }), 'item:6653');
+  const burning = simulate(data, { champion: 'Smolder', level: 11, items: ["Liandry's Torment"], options: { stacks: 225 }, combo: 'Q', target: dummy });
+  assert.ok(burning.events.some((e) => e.label === 'Super Scorcher Breath (burn)' && e.flags.proc));
+  assert.equal(torment(225).length, torment(125).length);
+  // Blaze's ticks refresh Liandry's: it burns past its 3s.
+  const brand = simulate(data, { champion: 'Brand', level: 11, items: ["Liandry's Torment"], combo: 'Q', target: dummy });
+  const ticks = bySource(brand, 'item:6653');
+  assert.ok(ticks[ticks.length - 1].time - ticks[0].time > 3);
+});

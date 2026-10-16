@@ -1048,7 +1048,7 @@ export class Sim {
           type: comp.type,
           amount,
           castId,
-          flags: { kind: 'ability', slot, ability: !comp.noProc, aoe: !!comp.aoe, dot: !!comp.dot, pet: !!comp.pet },
+          flags: { kind: 'ability', slot, ability: !comp.noProc && !comp.proc, proc: !!comp.proc, aoe: !!comp.aoe, dot: !!comp.dot, pet: !!comp.pet },
           markSource: spec.id,
         });
         void inst;
@@ -1129,7 +1129,7 @@ export class Sim {
       const castId = this.newCastId();
       for (const comp of c.components) {
         const amount = this.evalExpr(comp.amount, { slot, spell, rank });
-        this.deal({ source: slot, sourceLabel: comp.source ?? d.label, label: comp.label, type: comp.type, amount, castId, flags: { kind: 'ability', slot, ability: !comp.noProc }, markSource: d.id });
+        this.deal({ source: slot, sourceLabel: comp.source ?? d.label, label: comp.label, type: comp.type, amount, castId, flags: { kind: 'ability', slot, ability: !comp.noProc && !comp.proc, proc: !!comp.proc }, markSource: d.id });
       }
     }
   }
@@ -1212,14 +1212,14 @@ export class Sim {
       flags: {
         kind: 'ability',
         slot: ctx.slot,
-        ability: !comp.noProc,
+        ability: !comp.noProc && !comp.proc,
         // Abilities that apply on-hit (Ezreal Q, Fizz Q) count as on-hit for marks like Fizz W.
         onHit: !!comp.onHit,
         aoe: !!comp.aoe,
         dot: !!comp.dot,
         pet: !!comp.pet,
         crit,
-        proc: false,
+        proc: !!comp.proc,
       },
       ...(comp.note ? { note: comp.note } : {}),
     });
@@ -1295,7 +1295,7 @@ export class Sim {
             amount,
             castId: o.castId,
             // Empowered-attack damage from an ability counts as ability damage; passive on-hits don't.
-            flags: { kind: 'ability', slot, onHit: true, ability: slot !== 'P' && !comp.noProc, crit: !!comp.canCrit && c.crit, dot: !!comp.dot, aoe: !!comp.aoe },
+            flags: { kind: 'ability', slot, onHit: true, ability: slot !== 'P' && !comp.noProc && !comp.proc, proc: !!comp.proc, crit: !!comp.canCrit && c.crit, dot: !!comp.dot, aoe: !!comp.aoe },
           };
           // Delayed / periodic parts of an empowered attack (bleeds, lightning) land later.
           const delay = (comp.delay !== undefined ? this.evalExpr(comp.delay, { slot, spell, rank }) : 0) + (comp.interval !== undefined ? this.evalExpr(comp.interval, { slot, spell, rank }) * h : 0);
@@ -1648,7 +1648,7 @@ export class Sim {
         const id = this.newCastId();
         for (const comp of det.components) {
           const amount = this.evalExpr(comp.amount, ctx);
-          if (amount > 0) this.deal({ source: slot, sourceLabel: det.label ?? d.label, label: comp.label, type: comp.type, amount, castId: id, flags: { kind: 'ability', slot, ability: !comp.noProc }, markSource: d.id });
+          if (amount > 0) this.deal({ source: slot, sourceLabel: det.label ?? d.label, label: comp.label, type: comp.type, amount, castId: id, flags: { kind: 'ability', slot, ability: !comp.noProc && !comp.proc, proc: !!comp.proc }, markSource: d.id });
         }
         if (det.storeFraction !== undefined && (cur.stored ?? 0) > 0) {
           const frac = this.evalExpr(det.storeFraction, ctx);

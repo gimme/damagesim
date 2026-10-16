@@ -24,12 +24,14 @@ const kit: ChampionKit = {
           id: 'burn',
           label: 'Super Scorcher Breath (burn)',
           type: 'true',
-          // 225+ stacks: ticks once per second (wiki).
+          // 225+ stacks: ticks once per second (wiki). The wiki: "The burn deals proc damage" (no
+          // Liandry's, unlike Brand's passive burn).
           amount: 'calc.Tier3_Burn * target.maxHp / dv.Tier3_DotLength',
           hits: 'opt.stacks >= dv.StackTier3 ? dv.Tier3_DotLength : 0',
           interval: 1,
           delay: 1.15,
           dot: true,
+          proc: true,
         },
       ],
     },
