@@ -57,6 +57,9 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
+      // Wiki: unable to move or attack during the dash and the 1.05s grab (Relentless Force can be
+      // cast): 0.25s cast time + the grab, cast from up close.
+      attackLockout: 1.3,
       cc: [{ kind: 'immobilize', duration: 'dv.RStunDuration' }],
       components: [{ id: 'cease', label: 'Cease and Desist', type: 'physical', amount: 'calc.Damage', delay: 0.4 }],
     },

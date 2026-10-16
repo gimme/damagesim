@@ -21,6 +21,8 @@ const kit: ChampionKit = {
           label: 'hold',
           // Minimum charge time (dv.MinChargeTime).
           castTime: 0.5,
+          // Wiki: unable to act while the harpoon flies: the 0.5s charge + the 0.25s to the hit.
+          lockout: 0.75,
           cc: [{ kind: 'immobilize', duration: 0.25 }, { kind: 'slow', duration: 'dv.SlowDuration' }],
           note: 'Pull duration is not in the data; 0.25 s assumed.',
           components: [{ id: 'harpoon', label: 'Bone Skewer (hold)', type: 'physical', amount: 'calc.TotalDamage', delay: 0.25 }],

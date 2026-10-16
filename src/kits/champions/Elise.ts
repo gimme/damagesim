@@ -90,6 +90,9 @@ const kit: ChampionKit = {
           label: 'Rappel',
           spell: 'EliseSpiderE',
           dash: true,
+          // Wiki: unable to act while lifting up (0.6s) and descending onto the target (0.4s), recast
+          // right away.
+          lockout: 1,
           cc: [], // don't inherit Cocoon's stun
           components: [],
           buff: { id: 'eliseRappel', label: 'Rappel', duration: 'dv.BuffDuration' },

@@ -73,6 +73,8 @@ const kit: ChampionKit = {
       components: [beatDrop],
     },
     R: {
+      // Wiki: two 0.5s cast times; the wave goes out after the first, the second only locks Seraphine out.
+      lockout: 1,
       cc: [{ kind: 'immobilize', duration: 'dv.RChannelDuration' }],
       components: [{ id: 'encore', label: 'Encore', type: 'magic', amount: 'calc.R1TotalDamage', aoe: true, delay: 0.3 }],
     },

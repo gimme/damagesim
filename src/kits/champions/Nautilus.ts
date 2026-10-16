@@ -12,6 +12,9 @@ const kit: ChampionKit = {
     Q: {
       dash: true,
       cc: [{ kind: 'immobilize', duration: 0.5 }],
+      // Wiki: unable to move or attack while the anchor flies (0.25s cast time + the 0.3s flight); he
+      // can cast any ability during the dash.
+      attackLockout: 0.55,
       notes: ['Stun duration is not in the data ("briefly"); 0.5 s assumed.'],
       components: [{ id: 'anchor', label: 'Dredge Line', type: 'magic', amount: 'calc.QDamageCalc', delay: 0.3 }],
     },

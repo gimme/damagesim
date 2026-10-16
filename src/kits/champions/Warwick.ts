@@ -16,6 +16,8 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       dash: true,
+      // Wiki: the lockout lasts the bite's 0.2475s delay from the start of the cast.
+      lockout: 0.2475,
       notes: ['Tap: bite applying on-hit effects. Hold deals the same damage.'],
       components: [
         { id: 'bite', label: 'Jaws of the Beast', type: 'magic', amount: 'calc.BaseBiteDamage + dv.TargetPercentHPDamage / 100 * target.maxHp', onHit: true, onAttack: true, delay: 0.15 },

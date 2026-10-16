@@ -13,6 +13,9 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       notes: ['Rocks: first instantly, then four more over ~1.5s (≈0.375s apart).'],
+      // Wiki: unable to attack until the third shard is launched, 1s after the 0.25s cast time; she can
+      // move and cast meanwhile.
+      attackLockout: 1.25,
       components: [
         { id: 'rock', label: 'Threaded Volley', type: 'magic', amount: 'calc.RockDamage', aoe: true, delay: 0.1 },
         { id: 'rest', label: 'Threaded Volley (repeat)', type: 'magic', amount: 'calc.RockDamage * (1 - dv.ExtraMissileReducedDamagePercent / 100)', aoe: true, hits: 4, maxHits: 4, delay: 0.475, interval: 0.375 },
@@ -21,6 +24,7 @@ const kit: ChampionKit = {
         boulder: {
           label: 'boulder',
           note: 'Cast on Worked Ground: one boulder dealing 180% damage and slowing.',
+          attackLockout: 0, // a single boulder: no shards to wait for
           cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
           components: [{ id: 'boulder', label: 'Threaded Volley (boulder)', type: 'magic', amount: 'calc.BigRockDamage', aoe: true, delay: 0.2 }],
         },

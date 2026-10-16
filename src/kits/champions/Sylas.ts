@@ -50,6 +50,9 @@ const kit: ChampionKit = {
       buff: petricite,
       dash: true,
       castTime: 0.5, // Abscond + Abduct casts (0.25s each)
+      // Wiki: unable to act while dashing to the target and for 0.05s after: the chains' 0.2s flight
+      // (~440 units at 2500 speed, decelerating) and the dash back at 1800 speed (~0.25s).
+      lockout: 1,
       cc: [{ kind: 'immobilize', duration: 'dv.KnockUpDuration' }],
       notes: ['One E step = Abscond (dash) + Abduct recast (pull, damage, knock-up); grants two Petricite charges.'],
       components: [{ id: 'abduct', label: 'Abduct', type: 'magic', amount: 'calc.Damage', delay: 0.2 }],

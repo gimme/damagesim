@@ -75,6 +75,8 @@ const kit: ChampionKit = {
     R: {
       buff: drakehoundsStep,
       dash: true,
+      // Wiki: unable to act during the 0.7s cast time and while the target is suppressed.
+      lockout: '0.7 + dv.Suppress_Duration',
       cc: [{ kind: 'immobilize', duration: 'dv.Suppress_Duration + dv.Stun_Duration' }],
       notes: ['Suppression then slam (damage after the suppression) and a short stun. Passive: % armor penetration.'],
       components: [{ id: 'slam', label: 'Public Execution', type: 'physical', amount: 'calc.Calc_Damage', delay: 'dv.Suppress_Duration' }],

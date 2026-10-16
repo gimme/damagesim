@@ -35,6 +35,8 @@ const kit: ChampionKit = {
     },
     W: {
       notes: ['The stab fires 0.5s into the parry. Variant W:stun if an immobilizing effect was parried.'],
+      // Wiki: unable to act during the whole 0.75s stance.
+      lockout: 'dv.ParryDuration',
       cc: [{ kind: 'slow', duration: 'dv.CCDuration' }],
       components: [{ id: 'stab', label: 'Riposte', type: 'magic', amount: 'calc.StabDamage', delay: 0.5 }],
       variants: {

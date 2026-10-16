@@ -31,6 +31,8 @@ const kit: ChampionKit = {
     },
     W: { noTarget: true, notes: ['Plants a Seed; no damage.'], components: [] },
     E: {
+      // Wiki: locked out of actions for 0.15s after the 0.25s cast time.
+      lockout: 0.4,
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
       buff: { id: 'zyraLasher', label: 'Vine Lasher', duration: 'P.dv.PlantDuration' },
       components: [{ id: 'roots', label: 'Grasping Roots', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.4 }, ...plant('lasher', 'Vine Lasher', 'zyraSpitter')],

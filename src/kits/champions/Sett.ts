@@ -42,6 +42,8 @@ const kit: ChampionKit = {
     },
     E: {
       notes: ['A lone champion is only slowed; E:stun when another enemy is on the opposite side.'],
+      // Wiki: unable to move or attack for 0.25s after the 0.25s cast time.
+      attackLockout: 0.5,
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       components: [{ id: 'smash', label: 'Facebreaker', type: 'physical', amount: 'calc.DamageCalc', aoe: true }],
       variants: {

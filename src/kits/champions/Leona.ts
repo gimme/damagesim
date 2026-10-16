@@ -37,6 +37,9 @@ const kit: ChampionKit = {
     E: {
       dash: true,
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
+      // Wiki: unable to move or attack while the blade flies (0.25s cast time + the 0.25s flight); she
+      // can cast any ability during the dash.
+      attackLockout: 0.5,
       components: [{ id: 'blade', label: 'Zenith Blade', type: 'magic', amount: 'calc.TotalDamageTooltip', aoe: true, delay: 0.25 }],
     },
     R: {

@@ -164,7 +164,7 @@ test('A charge held for a step\'s seconds: damage, crowd control and cast time f
   assert.ok(Math.abs(smash(sion('Q')).raw - max) < 1e-6, 'full charge by default');
   assert.ok(Math.abs(smash(sion('Q{0s}')).raw - min) < 1e-6);
   assert.ok(Math.abs(smash(sion('Q{1s}')).raw - (min + max) / 2) < 1e-6);
-  assert.equal(sion('Q{1s}').timeline[0].end, 1);
+  assert.equal(sion('Q{1s}').timeline[0].end, 1.25, 'the 1s hold, then locked out for 0.25s');
   assert.deepEqual(sim.castSetting({ slot: 'Q' }), { kind: 'held', value: 2, min: 0, max: 2, unit: 's' });
   // Stunned only when charged 1s or more: 1.25s, plus 0.25s per 0.25s beyond.
   const stun = (combo: string) => {

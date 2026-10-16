@@ -91,6 +91,8 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
+      // Wiki: unable to act while the target is knocked up (after the 0.25s cast time).
+      lockout: '0.25 + dv.RKnockupDuration',
       cc: [{ kind: 'immobilize', duration: 'dv.RKnockupDuration' }],
       components: [{ id: 'breath', label: 'Last Breath', type: 'physical', amount: 'calc.Damage', aoe: true, delay: 0.5 }],
     },

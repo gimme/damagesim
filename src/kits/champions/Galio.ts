@@ -36,6 +36,8 @@ const kit: ChampionKit = {
       // Charged for up to MaxChargeDuration; damage and taunt grow over the first 1.25s (wiki).
       charge: { default: 1.25, max: 'dv.MaxChargeDuration' },
       castTime: 'charge',
+      // Wiki: unable to attack or cast for 0.4s after the release.
+      lockout: 'charge + 0.4',
       cc: [{ kind: 'immobilize', duration: 'lerp(dv.CCDurationMin, dv.CCDurationMax, min(1, charge / 1.25))' }],
       components: [{ id: 'release', label: 'Shield of Durand', type: 'magic', amount: 'lerp(calc.MinTotalDamage, calc.MaxTotalDamage, min(1, charge / 1.25))', aoe: true }],
     },

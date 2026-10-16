@@ -26,6 +26,9 @@ const kit: ChampionKit = {
     Q: {
       notes: ['Root on the first enemy hit. The recast throws the target; its damage only hits the enemies it is thrown into, so it is not modeled against a single target.'],
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
+      // Wiki: while the root's tether lasts Renata can't declare attacks: 0.25s cast time + the 0.3s
+      // flight + RootDuration (the recast that ends it isn't modeled).
+      attackLockout: '0.55 + dv.RootDuration',
       components: [{ id: 'handshake', label: 'Handshake', type: 'magic', amount: 'calc.TotalDamage', delay: 0.3 }],
     },
     W: { noTarget: true, notes: ['Ally buff; not modeled.'], components: [] },

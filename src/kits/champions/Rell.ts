@@ -35,6 +35,8 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
+      // Wiki: unable to act for 0.35s after the 0.4s cast time.
+      lockout: 0.75,
       notes: ['Consumes Full Tilt\'s empowerment if active (explosion).'],
       components: [
         { id: 'strike', label: 'Shattering Strike', type: 'magic', amount: 'calc.Damage', aoe: true },

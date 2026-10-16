@@ -54,6 +54,8 @@ const kit: ChampionKit = {
     },
     R: {
       notes: ['Untargetable for 1.5s; daggers land after 1s and leave 5 feathers (wiki).'],
+      // Wiki: unable to attack or cast during the 1.5s Featherstorm.
+      lockout: 1.5,
       components: [{ id: 'storm', label: 'Featherstorm', type: 'physical', amount: 'calc.Damage', aoe: true, delay: 'dv.RAttackDelay' }],
     },
   },

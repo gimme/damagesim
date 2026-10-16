@@ -7,6 +7,8 @@ const kit: ChampionKit = {
   notes: ['Sap Magic (self heal and its cooldown refunds) is not modeled.'],
   abilities: {
     Q: {
+      // Wiki: locked out for 0.075s after the 0.375s cast time.
+      lockout: 0.45,
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       components: [{ id: 'smash', label: 'Bramble Smash', type: 'magic', amount: 'calc.TotalDamage + calc.TotalPercentHealth * target.maxHp', aoe: true }],
       variants: {

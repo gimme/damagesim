@@ -82,6 +82,8 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
+      // Wiki: locked out of actions for 0.45s after the 0.75s cast time.
+      lockout: 1.2,
       cc: [{ kind: 'immobilize', duration: 'dv.RKnockupDuration' }],
       components: [
         { id: 'physical', label: 'Fate Sealed (physical)', type: 'physical', amount: 'calc.TooltipDamage', aoe: true },

@@ -50,6 +50,9 @@ const kit: ChampionKit = {
       },
     },
     W: {
+      // Wiki: unable to declare attacks until the sweep lands (0.25s cast time + ChargeDuration; the
+      // wiki says ~1.1s); other abilities can be cast meanwhile.
+      attackLockout: '0.25 + dv.ChargeDuration',
       components: [{ id: 'sweep', label: 'Tactical Sweep', type: 'physical', amount: 'calc.BaseDamageTotal', aoe: true, delay: 'dv.ChargeDuration' }],
       variants: {
         outer: {

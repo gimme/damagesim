@@ -12,7 +12,7 @@ const kit: ChampionKit = {
   notes: [
     'An Acquired Taste: attacks deal bonus magic damage on-hit; attacks and Tongue Lash add a stack (max 3, 5s).',
     'Tongue Lash on a target with 3 stacks stuns and consumes them (the Q hit then adds a fresh stack — assumption).',
-    'Devour needs 3 stacks (not enforced) and consumes them; the target is devoured for the full duration and takes the damage when spat out. The target is untargetable meanwhile — put Devour last or add wait{3s}.',
+    'Devour needs 3 stacks (not enforced) and consumes them; the target is devoured for the full duration and takes the damage when spat out. Tahm Kench waits until 0.4s after the spit (Regurgitate\'s lockout) before his next step, so nothing hits the untargetable target meanwhile.',
   ],
   marks: [{ id: 'taste', label: 'An Acquired Taste', maxStacks: 'P.dv.MaxStacks', duration: 'P.dv.Duration', appliedBy: ['attack', 'Q'] }],
   attack: {
@@ -41,6 +41,8 @@ const kit: ChampionKit = {
         { kind: 'slow', duration: 'dv.SlowDuration' },
       ],
       notes: ['Deals Tongue Lash damage plus An Acquired Taste damage; stuns if the target already had 3 stacks.'],
+      // Wiki: unable to move or attack while the tongue flies (0.25s cast time + its travel).
+      attackLockout: 0.25 + Q_DELAY,
       components: [
         { id: 'lash', label: 'Tongue Lash', type: 'magic', amount: 'calc.TotalDamage', delay: Q_DELAY },
         { id: 'taste', label: 'An Acquired Taste', type: 'magic', amount: 'P.calc.TotalDamage', delay: Q_DELAY, proc: true },
@@ -49,6 +51,8 @@ const kit: ChampionKit = {
     W: {
       dash: true,
       castTime: 'dv.ChannelTime',
+      // Wiki: unable to act for 0.65s after the blink at the end of the channel: ChannelTime + 0.65 = TotalTime.
+      lockout: 'dv.TotalTime',
       cc: [{ kind: 'immobilize', duration: 'dv.KnockUpDuration' }],
       notes: ['Dives for 1.35s, the area erupts 1.5s after the channel starts.'],
       components: [{ id: 'dive', label: 'Abyssal Dive', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 'dv.AoEDelayFromChannelStart - dv.ChannelTime' }],
@@ -56,6 +60,9 @@ const kit: ChampionKit = {
     E: { noTarget: true, notes: ['Thick Skin (grey health / shield) deals no damage.'], components: [] },
     R: {
       castTime: 'dv.CastTime',
+      // The target is untargetable until spat out, and Regurgitate leaves Tahm Kench unable to act for
+      // 0.4s (wiki): busy until then.
+      lockout: 'dv.CastTime + dv.EnemyDuration + 0.4',
       notes: ['Damage is dealt when the target is spat out (after the full devour duration).'],
       components: [{ id: 'devour', label: 'Devour', type: 'magic', amount: 'dv.BaseDamage + calc.PercentHPDamage * target.maxHp', delay: 'dv.EnemyDuration' }],
     },

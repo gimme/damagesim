@@ -51,6 +51,8 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
+      // Wiki: unable to act for 0.5s after the dash ends (0.35s cast time + the 0.3s dash to the hit + 0.5s).
+      lockout: 1.15,
       cc: [{ kind: 'immobilize', duration: 'dv.KnockupDuration' }],
       notes: ['Default: Ornn rams terrain (e.g. his Q pillar) and knocks up. Variant "noWall": no terrain, no knock-up. The target takes the damage once either way.'],
       variants: {
@@ -82,6 +84,9 @@ const kit: ChampionKit = {
         recast: {
           label: 'recast',
           dash: true,
+          // Wiki: locked out of all actions during the dash (300 units at 1600 speed ≈ 0.19s) and for
+          // 0.5s afterwards, after the 0.5s cast time.
+          lockout: 1.19,
           cc: [{ kind: 'immobilize', duration: 'dv.RStunDuration' }],
           components: [{ id: 'elemental', label: 'Call of the Forge God (recast)', type: 'magic', amount: 'calc.RDamageCalc', aoe: true, delay: 0.5 }],
         },

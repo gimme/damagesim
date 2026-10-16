@@ -71,6 +71,8 @@ const kit: ChampionKit = {
       ],
     },
     R: {
+      // Wiki: locked out of moving and attacking for 0.25s after the 1s cast time.
+      attackLockout: 1.25,
       cc: [{ kind: 'slow', duration: 1 }],
       notes: ['Explosion (true damage + % missing health) after the 1s cast, then true form: bonus HP, range and total attack speed.'],
       buff: {

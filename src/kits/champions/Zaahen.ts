@@ -110,6 +110,9 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
+      // Wiki: unable to act from the start of the 0.5s cast time until the slam 0.6s after the launch
+      // (sometimes up to 0.25s longer).
+      lockout: 1.1,
       components: [{ id: 'stab', label: 'Grim Deliverance', type: 'physical', amount: 'calc.DamageEndCalc', aoe: true, delay: 0.3 }],
     },
   },

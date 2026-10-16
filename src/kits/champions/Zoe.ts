@@ -67,7 +67,15 @@ const kit: ChampionKit = {
       ],
       components: [{ id: 'bubble', label: 'Sleepy Trouble Bubble', type: 'magic', amount: 'calc.TotalDamageTooltip', delay: 0.4 }],
     },
-    R: { dash: true, noTarget: true, buff: sparkles, components: [] },
+    R: {
+      dash: true,
+      noTarget: true,
+      // Wiki: unable to act for a varied ~0.55-0.75s from the start of the cast time (bugged): the
+      // shortest. The second lockout before she blinks back (~1s later) isn't modeled.
+      lockout: 0.55,
+      buff: sparkles,
+      components: [],
+    },
   },
 };
 export default kit;

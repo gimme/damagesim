@@ -25,6 +25,8 @@ const kit: ChampionKit = {
         'Spins 7 times plus 1 per 25% bonus attack speed; the nearest enemy (a single target always is) takes 25% more.',
         'Each spin can crit for +30% of bonus crit damage. 6 spins shred 25% armor for 6s.',
       ],
+      // Wiki: unable to declare attacks while spinning (the full 3s; ending it early isn't modeled).
+      attackLockout: 'dv.Duration',
       debuff: { id: 'garenE', label: 'Judgment shred', duration: 'dv.ShredDuration', armorReduction: 'dv.ShredAmount', afterHits: 6 },
       components: [
         {

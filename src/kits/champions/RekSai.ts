@@ -51,9 +51,12 @@ const kit: ChampionKit = {
       name: 'Burrow / Un-burrow',
       notes: ['Un-burrow: damage around Rek\'Sai and knock-up on the primary target.'],
       cc: [{ kind: 'immobilize', duration: "spell['RekSaiW'].dv.KnockupDuration" }],
+      // Wiki: unable to move or attack for 0.15s (LockoutTime) after hitting an enemy, which happens at
+      // the end of the 0.25s cast time.
+      attackLockout: "0.25 + spell['RekSaiW'].dv.LockoutTime",
       components: [{ id: 'unburrow', label: 'Un-burrow', type: 'magic', amount: "spell['RekSaiW'].calc.UnburrowDamage", aoe: true }],
       variants: {
-        burrow: { label: 'burrow', spell: 'RekSaiW', cc: [], components: [] },
+        burrow: { label: 'burrow', spell: 'RekSaiW', cc: [], attackLockout: 0, components: [] },
       },
     },
     E: {
@@ -68,6 +71,8 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
+      // Wiki: unable to act from the cast until the pounce lands (0.35s cast time + the hit's delay).
+      lockout: '0.35 + dv.CastBuffDuration',
       components: [
         { id: 'rush', label: 'Void Rush', type: 'physical', amount: 'calc.RBaseDamageCalc + dv.PercentHealthDamage / 100 * target.maxHp', delay: 'dv.CastBuffDuration' },
       ],

@@ -43,6 +43,8 @@ const kit: ChampionKit = {
     },
     W: {
       notes: ['Two slashes: immediately and after 0.75s (SlashDuration); each adds Daredevil Impulse damage.'],
+      // Wiki: can't attack (nor cast Flair) during the whirl; Wild Rush and Inferno Trigger can be cast.
+      attackLockout: 'dv.SlashDuration',
       components: [
         { id: 'whirl', label: 'Blade Whirl', type: 'physical', amount: 'calc.DamageCalc', hits: 2, interval: 'dv.SlashDuration', aoe: true },
         melee('impulse', 'Daredevil Impulse', { hits: 2, interval: 'dv.SlashDuration' }),
@@ -57,6 +59,8 @@ const kit: ChampionKit = {
       ],
     },
     R: {
+      // Wiki: can't attack (nor cast Flair or Blade Whirl) during the 2.25s torrent; Wild Rush can be cast.
+      attackLockout: 2.25,
       components: [
         {
           id: 'shot',

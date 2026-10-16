@@ -16,9 +16,10 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       // Charged for up to 2s, the damage growing every 0.25s from min to max (wiki). Released, Sion is
-      // locked out for 0.25s.
+      // locked out of all actions for 0.25s (Soul Furnace excepted).
       charge: { default: 2 },
       castTime: 'max(0.25, charge)',
+      lockout: 'max(0.25, charge) + 0.25',
       notes: [
         'Default: fully charged (2s): max damage, knock-up and a 2.25s stun. Set the seconds held (Q{1s}): charged 1s or more it stuns for 1.25s + 0.25s per 0.25s beyond 1s; less only slows briefly.',
       ],

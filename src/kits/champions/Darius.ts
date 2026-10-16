@@ -25,6 +25,8 @@ const kit: ChampionKit = {
   stats: ({ ranks, evalExpr }) => (ranks.E > 0 ? { armorPenPercent: [evalExpr('E.dv.PassivePercentArmorPen') / 100] } : {}),
   abilities: {
     Q: {
+      // Wiki: unable to declare attacks (or cast E/R) while he hefts the axe for 0.75s.
+      attackLockout: 0.75,
       variants: {
         handle: {
           label: 'handle',
