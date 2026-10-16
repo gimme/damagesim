@@ -211,6 +211,11 @@ a {
   letter-spacing: 0;
   font-weight: 500;
 }
+.card h2 .btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  background: var(--surface-2);
+}
 .row {
   display: flex;
   gap: 8px;

@@ -239,7 +239,25 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
   });
   const landing = order.drag && order.drag.to !== order.drag.from ? order.drag.to : null;
   return (
-    <Card title="Items" right={<span className="num secondary">{fmt(gold)}g</span>}>
+    <Card
+      title="Items"
+      right={
+        <div className="row" style={{ gap: 6 }}>
+          <span className="num secondary">{fmt(gold)}g</span>
+          <button
+            className="btn small"
+            disabled={!build.length}
+            onClick={() => {
+              hover.hide();
+              setPicking(null);
+              set((s) => ({ ...s, items: s.items.map(() => null) }));
+            }}
+          >
+            Clear
+          </button>
+        </div>
+      }
+    >
       <div className="slots" ref={order.box}>
         {items.map((id, i) => (
           <div
