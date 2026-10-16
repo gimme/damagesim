@@ -777,10 +777,6 @@ input.combo-text {
 .tooltip .tt-row strong {
   font-variant-numeric: tabular-nums;
 }
-.tooltip .tt-sub {
-  padding-left: 16px;
-  color: var(--text-secondary);
-}
 .tooltip .tt-total {
   border-top: 1px solid var(--border);
   margin-top: 4px;

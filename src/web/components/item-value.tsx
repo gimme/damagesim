@@ -3,7 +3,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { DATA } from '../data.ts';
-import { Card, ItemIcon, ItemTip, fmt } from './common.tsx';
+import { Card, Icon, ItemIcon, ItemTip, fmt, sourceMark } from './common.tsx';
 import { GoldScatter, useTooltip, type GoldPoint } from './charts.tsx';
 import { rankItems, defaultCandidates } from '../../engine/analysis.ts';
 import type { Scenario, Sim } from '../../engine/sim.ts';
@@ -161,11 +161,11 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
           {!rows.length ? (
             <div className="muted small">No legendary item or pair of boots adds damage to this combo.</div>
           ) : view === 'list' ? (
-            <RankList rows={rows} shown={SHOWN} expanded={showAll} onExpand={setShowAll} by={by} setBy={setBy} current={current} lead={lead} slotLabel={slotLabel} onPick={pick} sim={sim} />
+            <RankList rows={rows} shown={SHOWN} expanded={showAll} onExpand={setShowAll} by={by} setBy={setBy} current={current} lead={lead} slotLabel={slotLabel} onPick={pick} sim={sim} champion={state.champion} />
           ) : (
             <GoldScatter
               points={rows.map((r): GoldPoint => ({ id: r.id, label: r.item, gold: r.gold, gain: r.gain, perGold: r.gainPerGold, highlight: r.id === current, standout: lead.has(r.id) }))}
-              tip={(p, touch) => <RowTip row={rows.find((r) => r.id === p.id)!} current={current} view="map" action={p.id === current || touch ? undefined : 'Click to buy'} />}
+              tip={(p, touch) => <RowTip row={rows.find((r) => r.id === p.id)!} current={current} champion={state.champion} view="map" action={p.id === current || touch ? undefined : 'Click to buy'} />}
               onPick={(p) => pick(p.id)}
             />
           )}
@@ -202,6 +202,7 @@ function RankList({
   slotLabel,
   onPick,
   sim,
+  champion,
 }: {
   rows: Row[];
   shown: number;
@@ -214,6 +215,7 @@ function RankList({
   slotLabel: string;
   onPick: (id: number) => void;
   sim: Sim | null;
+  champion: string;
 }) {
   const tt = useTooltip();
   // Under the top rows, a line with Show all / Show less, then the rest: collapsed, only the current
@@ -247,7 +249,7 @@ function RankList({
     tt.show(
       e,
       <>
-        {col === 'iv-item' ? <ItemTip id={r.id} sim={sim} /> : <RowTip row={r} current={current} view="list" />}
+        {col === 'iv-item' ? <ItemTip id={r.id} sim={sim} /> : <RowTip row={r} current={current} champion={champion} view="list" />}
         {buy}
       </>,
     );
@@ -434,7 +436,7 @@ function nearestColumn(e: PointerEvent<HTMLElement>): string {
 /** A row's card shows what its view doesn't: in the list, which already has the numbers, how the bar
  *  splits between stats, effect and procs damage; on the map, whose dots only have positions, the
  *  numbers. Both name what the item's hits proc. */
-function RowTip({ row: r, current, view, action }: { row: Row; current: number | null; view: 'list' | 'map'; action?: ReactNode }) {
+function RowTip({ row: r, current, champion, view, action }: { row: Row; current: number | null; champion: string; view: 'list' | 'map'; action?: ReactNode }) {
   return (
     <>
       <div className="tt-title">
@@ -456,7 +458,7 @@ function RowTip({ row: r, current, view, action }: { row: Row; current: number |
             </span>
             <strong>{signed(r.itemDamage)}</strong>
           </div>
-          <Procs row={r} swatch />
+          <Procs row={r} champion={champion} swatch />
         </>
       ) : (
         <>
@@ -468,7 +470,7 @@ function RowTip({ row: r, current, view, action }: { row: Row; current: number |
             <span>Per 1000 gold</span>
             <strong>{fmt(r.gainPerGold, 1)}</strong>
           </div>
-          <Procs row={r} />
+          <Procs row={r} champion={champion} />
         </>
       )}
       {action && <div className="tt-foot">{action}</div>}
@@ -476,36 +478,20 @@ function RowTip({ row: r, current, view, action }: { row: Row; current: number |
   );
 }
 
-/** The damage of what the item's hits set off: one proc on a line of its own, several under a total. */
-function Procs({ row: r, swatch }: { row: Row; swatch?: boolean }) {
+/** The damage of what the item's hits set off, with their icons. */
+function Procs({ row: r, champion, swatch }: { row: Row; champion: string; swatch?: boolean }) {
   if (!r.procs.length) return null;
-  const key = swatch && <Swatch part="procs" gap />;
-  if (r.procs.length === 1)
-    return (
-      <div className="tt-row">
-        <span>
-          {key}
-          Procs {r.procs[0].label}
-        </span>
-        <strong>{signed(r.procDamage)}</strong>
-      </div>
-    );
   return (
-    <>
-      <div className="tt-row">
-        <span>
-          {key}
-          Procs
-        </span>
-        <strong>{signed(r.procDamage)}</strong>
-      </div>
-      {r.procs.map((p) => (
-        <div key={`${p.source}|${p.label}`} className="tt-row tt-sub">
-          <span>{p.label}</span>
-          <span className="num">{signed(p.damage)}</span>
-        </div>
-      ))}
-    </>
+    <div className="tt-row">
+      <span className="source-name">
+        {swatch && <Swatch part="procs" />}
+        Procs
+        {r.procs.map((p) => (
+          <Icon key={`${p.source}|${p.label}`} src={sourceMark(p.source, p.label, champion).icon} label={p.label} size="xs" />
+        ))}
+      </span>
+      <strong>{signed(r.procDamage)}</strong>
+    </div>
   );
 }
 
