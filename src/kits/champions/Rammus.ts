@@ -15,6 +15,8 @@ const kit: ChampionKit = {
     Q: {
       notes: ['Default: Rammus rolls into the target (collision damage, knock-back, slow). Time spent rolling is not modeled.'],
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }, { kind: 'slow', duration: 'dv.SlowDuration' }],
+      // Wiki: no attacks while rolling, which stops at the collision (Defensive Ball Curl can be cast).
+      attackLockout: 0.5,
       components: [{ id: 'ball', label: 'Powerball', type: 'magic', amount: 'calc.PowerBallDamage', aoe: true, delay: 0.5 }],
       variants: {
         roll: { label: 'roll (no collision)', cc: [], components: [], note: 'Start rolling without colliding (used before R:powerball).' },

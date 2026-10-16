@@ -46,6 +46,8 @@ const kit: ChampionKit = {
     W: {
       dash: true,
       notes: ['Crash Down: leap, knock-up and damage; Rell then dismounts (+attack speed, +range).'],
+      // Wiki: no attacks during the leap (0.625s cast time) and the ~0.5s slide after it; E and R can be cast.
+      attackLockout: 1.125,
       cc: [{ kind: 'immobilize', duration: 'dv.CrashDownKnockupDuration' }],
       buff: dismounted,
       components: [{ id: 'crash', label: 'Crash Down', type: 'magic', amount: 'calc.DismountDamage', aoe: true, delay: 0.35 }],
@@ -53,6 +55,7 @@ const kit: ChampionKit = {
         mountup: {
           label: 'mount up',
           spell: 'RellW_MountUp',
+          attackLockout: 0,
           cc: [],
           buff: {
             id: 'rellMountUp',

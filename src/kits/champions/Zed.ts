@@ -77,12 +77,15 @@ const kit: ChampionKit = {
       dash: true,
       recasts: 2,
       recastDelay: 'dv.RReactivateCD',
+      // Wiki: unable to attack or cast during the 0.6s delay and the 0.35s dash to the target.
+      lockout: 0.95,
       buff: { id: 'zedR', label: 'Death Mark Shadow', duration: 'dv.RShadowDurationDisplayed' },
       debuff: { id: MARK, label: 'Death Mark', duration: 'dv.RDeathMarkDuration' },
       variants: {
         swap: {
           label: 'swap',
           dash: true,
+          lockout: 0,
           buff: [],
           debuff: null,
           components: [],

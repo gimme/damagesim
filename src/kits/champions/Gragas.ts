@@ -22,6 +22,8 @@ const kit: ChampionKit = {
     },
     W: {
       notes: ['Empowers the next attack with bonus magic damage (target and nearby enemies). Follow with AA.'],
+      // Wiki: he drinks for a 0.75s channel, unable to attack or cast meanwhile.
+      lockout: 0.75,
       buff: {
         id: 'gragasW',
         label: 'Drunken Rage',

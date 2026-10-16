@@ -32,12 +32,15 @@ const kit: ChampionKit = {
     R: {
       dash: true,
       notes: ['Default: Shadow\'s surge plus the recast dash (≈0.5s later). "R:surge" = first part only.'],
+      // Wiki: unable to attack or cast during the recast's dash: busy until it lands (0.25s cast time +
+      // the dash hit's 0.8s delay).
+      lockout: 1.05,
       components: [
         { id: 'surge', label: 'Shadow Surge', type: 'magic', amount: 'calc.RDamageCalc', delay: 0.3 },
         { id: 'dash', label: 'Shadow Surge (dash)', type: 'magic', amount: 'calc.RecastDamageCalc', delay: 0.8, sameCast: false },
       ],
       variants: {
-        surge: { label: 'surge', components: [{ id: 'surge', label: 'Shadow Surge', type: 'magic', amount: 'calc.RDamageCalc', delay: 0.3 }] },
+        surge: { label: 'surge', lockout: 0, components: [{ id: 'surge', label: 'Shadow Surge', type: 'magic', amount: 'calc.RDamageCalc', delay: 0.3 }] },
       },
     },
   },

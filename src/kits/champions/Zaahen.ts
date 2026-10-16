@@ -95,6 +95,8 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
+      // Wiki: no attacks during the dash (The Darkin Glaive can be cast).
+      attackLockout: 'dv.DashDistance / dv.DashSpeed',
       notes: ['Default: target inside the slice; E:edge for the outer edge (sweet spot).'],
       variants: {
         edge: {

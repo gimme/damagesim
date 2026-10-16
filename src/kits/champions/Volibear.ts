@@ -57,6 +57,8 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
+      // Wiki: the leap takes 1s, unable to attack or cast meanwhile.
+      lockout: 1,
       notes: ['Lands ≈0.75s after the cast (approximation); grants bonus health and attack range for the transform duration.'],
       buff: { id: 'voliR', label: 'Stormbringer', duration: 'dv.TransformDuration', stats: { hp: 'dv.HealthAmount', range: 'dv.BonusAttackRange' } },
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
