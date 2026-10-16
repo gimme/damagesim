@@ -19,7 +19,7 @@ const wEmpowered: BuffSpec = {
     replaceBase: true,
     // Each strike applies on-hit effects.
     onHitRepeats: 'W.dv.EmpoweredNumHits - 1',
-    components: [{ id: 'strikes', label: 'Shield Vault strike', type: 'physical', amount: "W.calc['{1b016817}']", hits: 'W.dv.EmpoweredNumHits', canCrit: true }],
+    components: [{ id: 'strikes', label: 'Shield Vault (strike)', type: 'physical', amount: "W.calc['{1b016817}']", hits: 'W.dv.EmpoweredNumHits', canCrit: true }],
   },
 };
 

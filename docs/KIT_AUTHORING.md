@@ -100,8 +100,16 @@ comparisons, `&& || !` and `cond ? a : b`. Names that aren't identifiers use bra
 ## Components
 
 ```ts
-{ id: 'out', label: 'Orb (out)', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.3 }
+{ id: 'out', label: 'Orb of Deception (out)', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.3 }
 ```
+
+**Naming hits.** A hit's `label` names it on its own, wherever it's shown beside its source (the
+ability, passive or mark) or without it: the ability's own damage by the ability's name, a part of it
+by that name with the part in parentheses (`Super Scorcher Breath (burn)`, `Super Scorcher Breath
+(execute)`, `Hemorrhage (bleed)`), and a hit with a name of its own in the game by that name (Gold
+Card, Tailwind, Eternal Hunger). Never a bare word like Execute, Bleed or Burn, a shortened source
+name (Orb for Orb of Deception) or `Blaze burn` for `Blaze (burn)`: the HP bar's hover card names a
+part that way when its hits are all one part of their source.
 
 | Field | Use |
 |---|---|
@@ -118,7 +126,7 @@ comparisons, `&& || !` and `cond ? a : b`. Names that aren't identifiers use bra
 | `areaOnHit: true` | on-hit applied by an area effect, which Press the Attack ignores (Katarina daggers, Master Yi Q) |
 | `proc: true` | proc damage (the wiki's "spell effects: proc", "deals proc damage"; Lux's Illumination, Kog'Maw W's on-hit): no spell effects (Liandry's, Luden's, Comet), no rune triggers (Electrocute, Dark Harvest, Conqueror, Cheap Shot), doesn't apply or detonate the kit's marks |
 | `noProc: true` | not ability damage, but not proc damage either (the wiki's "default damage"): no spell effects, still triggers runes. Also an ability's attack that works like a regular attack (Jayce W, Rengar Q) |
-| `execute: true` | a literal execute (Pyke R, Urgot's Mercy): kills, so it sets off nothing at all. Like any damage counted past the kill, it counts for its full value, the health it executes below (`amount`, 0 when out of range), as true damage with no amps or mitigation, also when the target's health is already past 0. Only the largest execute counts, whenever it lands (the target dies once). From a hook, `sim.deal` with `flags.execute`: it lands after the rest of that instant's damage (the procs of the hit that set it off too) |
+| `execute: true` | a literal execute (Pyke R, Urgot's Mercy): kills, so it sets off nothing at all. Like any damage counted past the kill, it counts for its full value, the health it executes below (`amount`, 0 when out of range), as true damage with no amps or mitigation, also when the target's health is already past 0. Only the largest execute counts, whenever it lands (the target dies once). From a hook, `sim.deal` with `flags.execute`. One a hook asks for, or one of a cast's hits landing together, lands after the rest of that instant's damage: the hits, then what they set off, then the execute |
 | `spell: true` | spell damage where the hit otherwise isn't: a passive's part of an attack (Diana's Moonsilver Blade), which is default damage unless marked |
 | `slot` | in the kit's `attack`: the basic ability whose passive deals the hit (Ekko W's Parallel Convergence, Teemo's Toxic Shot), shown under that ability, its `calc.`/`dv.` that ability's |
 | `min`, `max` | clamp the amount (e.g. Darius R cap) |
@@ -127,6 +135,11 @@ comparisons, `&& || !` and `cond ? a : b`. Names that aren't identifiers use bra
 Hit counts default to 1. For "deals X per second for N seconds" use `hits: N`, `interval: 1`, `dot: true`
 (or the real tick rate if known). If the number of hits depends on stats, use an expression
 (Garen E: `'dv.NumTicks + floor(bonusAs / dv.ASPerTick)'`).
+
+A cast's hits landing at the same moment (the same delay) are dealt together in component order, then
+what they set off: the on-hit effects of its `onHit`/`attack` hits and items', runes' and Ignite's procs
+(Smolder Q, its Dragon Practice bonus, then Spellblade). A kit hook's damage is dealt when the hook
+deals it, except an execute, which comes last (see `execute: true`).
 
 When the player chooses how long an ability lasts (a channel they can end early: Smolder E,
 Katarina R; a toggle: Karthus E), mark it `variableDuration: true`. A combo step then sets its
@@ -200,7 +213,7 @@ attack: { onHit: [...], everyNth: { n: 3, label: 'Silver Bolts', components: [..
 ```ts
 marks: [{ id: 'hemorrhage', label: 'Hemorrhage', maxStacks: 'P.dv.MaxStacks', duration: 'P.dv.BleedDuration',
   appliedBy: ['attack', 'Q', 'W'],          // 'attack' | 'ability' | 'onhit' | slots
-  dot: { interval: 1.25, components: [{ id: 'bleed', label: 'Bleed', type: 'physical', amount: 'P.calc.BleedDamagePerStack / 4 * stacks.hemorrhage', dot: true }] },
+  dot: { interval: 1.25, components: [{ id: 'bleed', label: 'Hemorrhage (bleed)', type: 'physical', amount: 'P.calc.BleedDamagePerStack / 4 * stacks.hemorrhage', dot: true }] },
   atMax: { components: [...], consume: true, cooldown: 'P.dv.Cooldown', buff: {...} } }]
 ```
 Use `stacks.<id>` in any expression (Darius R). One stack per cast by default (`oncePerCast`).

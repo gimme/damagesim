@@ -663,12 +663,12 @@ const RUNES: Record<number, Factory> = {
   // Scorch
   8237: (rune) =>
     base(rune, {
-      description: 'Ability damage burns the champion for magic damage after 1s (10s cooldown).',
+      description: 'Ability damage burns the champion: one hit of magic damage 1s later, not damage over time (10s cooldown).',
       afterDamage(sim, inst) {
         if (!inst.flags.ability || inst.flags.proc || !sim.isReady(`rune:${rune.id}`)) return;
         sim.startCooldown(`rune:${rune.id}`, rune.values.BurnlockoutDuration);
         sim.schedule(rune.values.DotDuration, () =>
-          sim.deal({ source: `rune:${rune.id}`, sourceLabel: rune.name, label: 'Scorch', type: 'magic', amount: calc(sim, rune, 'DamageCalc'), flags: { kind: 'rune', proc: true, dot: true } }),
+          sim.deal({ source: `rune:${rune.id}`, sourceLabel: rune.name, label: 'Scorch', type: 'magic', amount: calc(sim, rune, 'DamageCalc'), flags: { kind: 'rune', proc: true } }),
         );
       },
     }),

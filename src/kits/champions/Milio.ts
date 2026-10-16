@@ -23,7 +23,7 @@ function consumeFiredUp(sim: Sim, castId: number): Parameters<Sim['deal']>[0] {
       sim.deal({
         source: 'P',
         sourceLabel: 'Fired Up!',
-        label: 'Fired Up! burn',
+        label: 'Fired Up! (burn)',
         type: 'magic',
         amount: sim.evalExpr(`P.calc.BurnDamage / ${ticks}`, { slot: 'P' }),
         castId: burnId,

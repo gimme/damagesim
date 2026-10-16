@@ -504,7 +504,7 @@ function RowTip({ row: r, current, champion, view, action }: { row: Row; current
   );
 }
 
-/** Damage of one of an item's hits (Squall) or of one of its procs (Electrocute, Smolder's Execute),
+/** Damage of one of an item's hits (Squall) or of one of its procs (Electrocute, Smolder's execute),
  *  by its part's swatch and its source's icon. */
 function SourceRow({ part, source, name, damage, champion }: { part: Part; source: string; name: string; damage: number; champion: string }) {
   return (

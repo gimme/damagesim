@@ -24,12 +24,12 @@ const kit: ChampionKit = {
   marks: [
     {
       id: 'toxicShot',
-      label: 'Toxic Shot poison',
+      label: 'Toxic Shot',
       slot: 'E',
       maxStacks: 1,
       duration: 'E.dv.PoisonDuration',
       appliedBy: ['attack'],
-      dot: { interval: 'E.dv.TickFrequency', components: [{ id: 'poison', label: 'Poison', type: 'magic', amount: 'E.calc.TickCalculatedDamage', hits: 'E.rank > 0 ? 1 : 0', dot: true, proc: true, harvest: true }] },
+      dot: { interval: 'E.dv.TickFrequency', components: [{ id: 'poison', label: 'Toxic Shot (poison)', type: 'magic', amount: 'E.calc.TickCalculatedDamage', hits: 'E.rank > 0 ? 1 : 0', dot: true, proc: true, harvest: true }] },
     },
   ],
   abilities: {

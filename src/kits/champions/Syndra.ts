@@ -39,7 +39,7 @@ const kit: ChampionKit = {
       if (sim.evalExpr(SPLINTERS, { slot: 'P' }) < sim.evalExpr('P.dv.RUpgradeThreshold', { slot: 'P' })) return;
       const line = sim.evalExpr('R.dv.UpgradeExecuteThreshold', { slot: 'R' }) * sim.target.maxHp;
       if (sim.target.hp > line) return;
-      sim.deal({ source: 'R', sourceLabel: inst.sourceLabel, label: 'Execute', type: 'true', amount: line, castId: inst.castId, flags: { kind: 'ability', slot: 'R', execute: true } });
+      sim.deal({ source: 'R', sourceLabel: inst.sourceLabel, label: `${inst.sourceLabel} (execute)`, type: 'true', amount: line, castId: inst.castId, flags: { kind: 'ability', slot: 'R', execute: true } });
     },
   },
   abilities: {

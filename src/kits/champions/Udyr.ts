@@ -24,7 +24,7 @@ const lightning: BuffSpec = {
   id: 'udyrLightning',
   label: 'Awakened Wilding Claw',
   duration: 'Q.dv.AttackSpeedDurationEmpowered',
-  empowerAttacks: { count: 2, components: [{ id: 'lightning', label: 'Lightning', type: 'magic', amount: 'Q.calc.EmpoweredLightningBonus * target.maxHp', hits: 'Q.dv.Bounces', interval: 0.2 }] },
+  empowerAttacks: { count: 2, components: [{ id: 'lightning', label: 'Awakened Wilding Claw (lightning)', type: 'magic', amount: 'Q.calc.EmpoweredLightningBonus * target.maxHp', hits: 'Q.dv.Bounces', interval: 0.2 }] },
 };
 const mantleAttacks = stanceAttacks('Iron Mantle', 'W.dv.ShieldDuration', []);
 // Stampede: the empowered attack dashes and stuns (per-target cooldown ≥ 4.4s, so one stun per cast).
@@ -34,7 +34,7 @@ const stampedeAttacks: BuffSpec = {
   duration: 'E.dv.MoveSpeedDuration',
   empowerAttacks: { count: 1, components: [], cc: [{ kind: 'immobilize', duration: 'E.dv.StunDuration' }] },
 };
-const stormAttacks = stanceAttacks('Wingborne Storm', 'R.dv.BuffDuration', [{ id: 'pulse', label: 'Storm pulse', type: 'magic', amount: 'R.calc.PulseDamage', aoe: true }]);
+const stormAttacks = stanceAttacks('Wingborne Storm', 'R.dv.BuffDuration', [{ id: 'pulse', label: 'Wingborne Storm (pulse)', type: 'magic', amount: 'R.calc.PulseDamage', aoe: true }]);
 const monkTraining: BuffSpec = {
   id: 'monkTraining',
   label: 'Monk Training',

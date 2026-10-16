@@ -169,7 +169,7 @@ const kit: ChampionKit = {
           sim.deal({
             source: 'P',
             sourceLabel: 'Signature of the Visionary',
-            label: 'Signature',
+            label: 'Signature of the Visionary',
             type: 'magic',
             amount,
             flags: { kind: 'ability', slot: 'P', ability: true, aoe: true }, // area damage, with spell effects (wiki)

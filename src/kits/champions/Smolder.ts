@@ -90,7 +90,7 @@ const kit: ChampionKit = {
       if (sim.time > sim.counter('smolderBurnUntil')) return;
       const line = sim.evalExpr('Q.calc.Tier3_ExecuteThreshold', q) * sim.target.maxHp;
       if (sim.target.hp >= line) return;
-      sim.deal({ source: 'Q', sourceLabel: 'Super Scorcher Breath', label: 'Execute', type: 'true', amount: line, castId: inst.castId, flags: { kind: 'ability', slot: 'Q', execute: true } });
+      sim.deal({ source: 'Q', sourceLabel: 'Super Scorcher Breath', label: 'Super Scorcher Breath (execute)', type: 'true', amount: line, castId: inst.castId, flags: { kind: 'ability', slot: 'Q', execute: true } });
     },
   },
 };

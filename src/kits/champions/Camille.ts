@@ -75,7 +75,7 @@ const kit: ChampionKit = {
         id: 'camilleR',
         label: 'The Hextech Ultimatum',
         duration: 'dv.RDuration',
-        onHit: [{ id: 'ultimatum', label: 'Hextech Ultimatum', type: 'magic', amount: 'R.dv.RPercentCurrentHPDamage / 100 * target.hp', proc: true }],
+        onHit: [{ id: 'ultimatum', label: 'The Hextech Ultimatum', type: 'magic', amount: 'R.dv.RPercentCurrentHPDamage / 100 * target.hp', proc: true }],
       },
       components: [],
     },

@@ -226,6 +226,8 @@ export class Sim {
   private stepCrit: boolean | undefined;
   /** The combo action being resolved (its castId): set like stepCrit, and dealt damage records it. */
   private action: number | undefined;
+  /** While a cast's hits landing together are dealt: what they set off, to deal after them (see landTogether). */
+  private setOff: (() => void)[] | null = null;
   private nextCastId = 1;
   private nextInstId = 1;
   /** Hits whose hooks are running: an execute they ask for waits. */
@@ -947,19 +949,28 @@ export class Sim {
   // Damage
 
   /**
-   * Deal one damage request: amps, mitigation, HP update, hooks. An execute (flags.execute) kills the
-   * target. Like any damage counted past the kill, it counts for its full value (the health it
-   * executes below) as true damage, with no amps or mitigation, and sets off nothing. The target dies
-   * once: only the largest execute counts, whenever it lands, and takes the place of a smaller one
-   * before it. One a hit's hooks ask for lands after the rest of this instant's damage (what the hit
-   * procs too). Nothing is dealt (undefined) when it waits or doesn't count.
+   * Deal one damage request: amps, mitigation, HP update, hooks. An item's, rune's or summoner
+   * spell's proc that a cast's hits landing together set off is dealt after them (see landTogether).
+   *
+   * An execute (flags.execute) kills the target. Like any damage counted past the kill, it counts for
+   * its full value (the health it executes below) as true damage, with no amps or mitigation, and sets
+   * off nothing. The target dies once: only the largest execute counts, whenever it lands, and takes
+   * the place of a smaller one before it. One asked for while hits are being dealt (by a hit's hooks,
+   * or among a cast's hits landing together) lands after the rest of this instant's damage: the hits,
+   * then what they set off, then the execute.
    */
-  deal(req: DamageRequest): DamageInstance | undefined {
+  deal(req: DamageRequest) {
+    const kind = req.flags?.kind;
+    if (req.flags?.execute && (this.dealing || this.setOff)) this.schedule(0, () => this.deal(req));
+    else if (this.setOff && (kind === 'item' || kind === 'rune' || kind === 'summoner')) this.setOff.push(() => this.apply(req));
+    else this.apply(req);
+  }
+
+  private apply(req: DamageRequest) {
     const st = this.stats;
     const execute = !!req.flags?.execute;
     if (execute) {
-      if (this.dealing) this.schedule(0, () => this.deal(req));
-      if (this.dealing || req.amount <= (this.execution?.final ?? 0)) return undefined;
+      if (req.amount <= (this.execution?.final ?? 0)) return;
       if (this.execution) this.takeBack(this.execution);
     }
     let type: DamageType = execute ? 'true' : req.type === 'adaptive' ? (st.adaptiveType === 'physical' ? 'physical' : 'magic') : req.type;
@@ -992,7 +1003,11 @@ export class Sim {
     };
 
     if (!execute) {
+      // What lands before the hit (Voltaic Cyclosword's Firmament) isn't set off by it.
+      const setOff = this.setOff;
+      this.setOff = null;
       for (const e of this.effects) e.beforeDamage?.(this, inst);
+      this.setOff = setOff;
       for (const b of this.buffs.values()) if (b.expires >= this.time && b.amp) inst.amps.push({ id: b.slot, source: b.label, value: b.amp, kind: 'dealt' });
       for (const d of this.debuffs.values()) if (d.expires >= this.time && d.amp) inst.amps.push({ id: d.slot, source: d.label, value: d.amp, kind: 'taken' });
       if (inst.flags.unamplified) inst.amps = inst.amps.filter((a) => a.kind === 'taken');
@@ -1032,7 +1047,10 @@ export class Sim {
     if (this.target.hp <= 0 && this.target.killTime === undefined) this.target.killTime = this.time;
     if (!inst.flags.aura) this.lastCombatTime = this.time;
     this.events.push(inst);
-    if (execute) return (this.execution = inst);
+    if (execute) {
+      this.execution = inst;
+      return;
+    }
     for (const d of this.debuffs.values()) if (d.spec?.detonate && d.expires >= this.time && !inst.fromMark) d.stored = (d.stored ?? 0) + final;
 
     this.dealing++;
@@ -1042,7 +1060,6 @@ export class Sim {
       this.processMarks(inst);
     }
     this.dealing--;
-    return inst;
   }
 
   /** Take back an execute a larger one replaces: the hits after it find the health it took, and the
@@ -1111,7 +1128,7 @@ export class Sim {
         if (comp.min !== undefined) amount = Math.max(amount, this.evalExpr(comp.min, { slot, spell, rank }));
         if (comp.max !== undefined) amount = Math.min(amount, this.evalExpr(comp.max, { slot, spell, rank }));
         if (!(amount > 0)) return;
-        const inst = this.deal({
+        this.deal({
           source: slot,
           sourceLabel: label,
           label: comp.label,
@@ -1121,7 +1138,6 @@ export class Sim {
           flags: componentFlags(comp, slot),
           markSource: spec.id,
         });
-        void inst;
         };
         const at = delay0 + interval * h;
         if (at > 0) this.schedule(at, run);
@@ -1430,7 +1446,8 @@ export class Sim {
       atk.extra.push(...again.extra);
     }
 
-    if (!o.onHitOnly && !atk.replaceBase) {
+    const attack = () => {
+      if (o.onHitOnly || atk.replaceBase) return;
       const base = (o.amount ?? st.ad * (kitAtk?.damageMult !== undefined ? this.evalExpr(kitAtk.damageMult, { slot: 'P' }) : 1)) * atk.baseMult * atk.critFactor;
       this.deal({
         source: o.fromAbility ?? 'AA',
@@ -1445,14 +1462,23 @@ export class Sim {
           ? { kind: 'ability', slot: spellOf, attack: true, ability: true, crit: atk.crit }
           : { kind: o.fromAbility ? 'ability' : 'attack', slot: o.fromAbility, attack: !o.fromAbility, ability: !!o.fromAbility, crit: atk.crit, ...(o.fromAbility ? { basic: true } : {}) },
       });
-    }
+    };
     // Abilities that apply on-hit at reduced effectiveness (Azir soldiers, Akshan E…).
     const eff = o.comp?.onHitEffectiveness !== undefined ? this.evalExpr(o.comp.onHitEffectiveness, { slot: o.fromAbility ?? 'P' }) : (empoweredEff ?? 1);
-    for (const x of atk.extra) {
-      const scaled = eff !== 1 && x.flags?.onHit && x.flags.kind !== 'ability' && !x.flags.fullOnHit ? { ...x, amount: x.amount * eff } : x;
-      this.deal({ ...scaled, castId: x.castId ?? o.castId });
-    }
-    for (const f of pendingCC) f();
+    // Its on-hit effects, items' too, are part of the attack: not what it sets off.
+    const onHits = () => {
+      for (const x of atk.extra) {
+        const scaled = eff !== 1 && x.flags?.onHit && x.flags.kind !== 'ability' && !x.flags.fullOnHit ? { ...x, amount: x.amount * eff } : x;
+        this.apply({ ...scaled, castId: x.castId ?? o.castId });
+      }
+      for (const f of pendingCC) f();
+    };
+    // An attack-like ability hit lands with the cast's other hits, and applies its on-hit effects
+    // after them; an attack lands with its on-hit effects, then what they set off (landTogether).
+    if (this.setOff) {
+      attack();
+      this.setOff.push(onHits);
+    } else this.landTogether([attack, onHits]);
   }
 
   // ---------------------------------------------------------------------------
@@ -1704,6 +1730,7 @@ export class Sim {
           else apply();
         }
     };
+    const landing = new Map<number, (() => void)[]>();
     for (const comp of comps) {
       const enabled = step.enable?.includes(comp.id) || !comp.optional;
       let hits = step.hits?.[comp.id] ?? (enabled ? this.evalExpr(comp.hits ?? 1, ectx) : 0);
@@ -1719,7 +1746,8 @@ export class Sim {
       for (let h = 0; h < hits; h++) {
         const at = end + delay + interval * h;
         const hitIdx = h;
-        this.scheduleAt(at, () => {
+        if (!landing.has(at)) landing.set(at, []);
+        landing.get(at)!.push(() => {
           const n = ++landed;
           onHitN(n, 'before');
           this.dealComponent(comp, { slot, spell, rank, castId, sourceLabel: label, hit: hitIdx, hits, recast });
@@ -1727,11 +1755,26 @@ export class Sim {
         });
       }
     }
+    for (const [at, together] of landing) this.scheduleAt(at, () => this.landTogether(together));
     if (!comps.length && (debuff || ccs.length))
       this.scheduleAt(end, () => {
         onHitN(1, 'before');
         onHitN(1, 'after');
       });
+  }
+
+  /**
+   * Deal a cast's hits that land at the same moment, then what they set off: the on-hit effects they
+   * apply and their items', runes' and summoner spells' procs. An ability's parts read as one hit,
+   * as an attack's do before its items' on-hits: Smolder's Q, then its Dragon Practice bonus, then
+   * Essence Reaver's Spellblade.
+   */
+  private landTogether(hits: (() => void)[]) {
+    const outer = this.setOff;
+    const setOff: (() => void)[] = (this.setOff = []);
+    for (const hit of hits) hit();
+    this.setOff = outer;
+    for (const f of setOff) f();
   }
 
   /** Crowd control on the target: tracked as a debuff and announced to effects (Aftershock, Cheap Shot…). */
@@ -1840,7 +1883,7 @@ export class Sim {
         }
         if (det.storeFraction !== undefined && (cur.stored ?? 0) > 0) {
           const frac = this.evalExpr(det.storeFraction, ctx);
-          this.deal({ source: slot, sourceLabel: det.label ?? d.label, label: 'Stored damage', type: det.storeType ?? 'physical', amount: (cur.stored ?? 0) * frac, castId: id, flags: { kind: 'ability', slot, ability: true }, markSource: d.id });
+          this.deal({ source: slot, sourceLabel: det.label ?? d.label, label: `${det.label ?? d.label} (stored damage)`, type: det.storeType ?? 'physical', amount: (cur.stored ?? 0) * frac, castId: id, flags: { kind: 'ability', slot, ability: true }, markSource: d.id });
         }
         void appliedAt;
       });

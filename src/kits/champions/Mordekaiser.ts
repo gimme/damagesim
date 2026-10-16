@@ -22,7 +22,7 @@ function maybeStartAura(sim: Sim, castId: number) {
     sim.deal({
       source: 'P',
       sourceLabel: 'Darkness Rise',
-      label: 'Darkness Rise aura',
+      label: 'Darkness Rise (aura)',
       type: 'magic',
       amount: sim.evalExpr(`(P.calc.AuraDamagePerStack + P.calc.PercentHealthForAura / 100 * target.maxHp) * ${AURA_TICK}`, { slot: 'P' }),
       castId,

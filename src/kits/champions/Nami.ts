@@ -36,7 +36,7 @@ const kit: ChampionKit = {
         empowerAttacks: {
           count: 'dv.HitCount',
           cc: [{ kind: 'slow', duration: 'E.dv.SlowDuration' }],
-          components: [{ id: 'blessing', label: 'Blessing', type: 'magic', amount: 'E.calc.TotalDamage', proc: true }],
+          components: [{ id: 'blessing', label: "Tidecaller's Blessing", type: 'magic', amount: 'E.calc.TotalDamage', proc: true }],
         },
       },
     },
@@ -59,7 +59,7 @@ const kit: ChampionKit = {
       sim.deal({
         source: 'E',
         sourceLabel: "Tidecaller's Blessing",
-        label: 'Blessing (ability)',
+        label: "Tidecaller's Blessing (ability)",
         type: 'magic',
         amount: sim.evalExpr('E.calc.TotalDamage', { slot: 'E' }),
         castId: inst.castId,

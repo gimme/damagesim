@@ -38,7 +38,7 @@ const kit: ChampionKit = {
     },
     W: {
       buff: moonsilver,
-      components: [{ id: 'orb', label: 'Pale Cascade orb', type: 'magic', amount: 'calc.TotalDamage', hits: 3, maxHits: 3, interval: 0.5, delay: 0.25, aoe: true }],
+      components: [{ id: 'orb', label: 'Pale Cascade (orb)', type: 'magic', amount: 'calc.TotalDamage', hits: 3, maxHits: 3, interval: 0.5, delay: 0.25, aoe: true }],
     },
     E: {
       dash: true,

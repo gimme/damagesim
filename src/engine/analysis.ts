@@ -127,7 +127,7 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
       itemHits: ownHits(r, source),
       /** Part of the gain dealt by hits of your other damage that land only with the item (Electrocute it procs, an execute it brings the target into range of); the rest is its stats and amplifiers raising your other damage. */
       procDamage: round(procs.reduce((sum, p) => sum + p.damage, 0)),
-      /** The procDamage by what it is (Electrocute, Liandry's Torment, Execute), largest first. */
+      /** The procDamage by what it is (Electrocute, Liandry's Torment, Super Scorcher Breath (execute)), largest first. */
       procs: byName(new Map(procs.map((p) => [`${p.source}|${p.name}`, p]))),
       killed: r.killed,
       ...(r.killTime !== undefined ? { killTime: round(r.killTime, 2) } : {}),
@@ -189,7 +189,7 @@ function hitCounts(r: SimResult, of?: Map<string, unknown>) {
  * execute it brings the target into range of; not Electrocute striking on its hit instead of a later
  * one, which lands either way. Nor a hit that only changed kind (an attack now critting on average):
  * a source's new hits are at most how many more it lands in all. Named by the rune or item, or by
- * the champion's hit (Execute, Blaze explosion).
+ * the champion's hit (Super Scorcher Breath (execute), Blaze (explosion)).
  */
 function newHits(r: SimResult, base: ReturnType<typeof hitCounts>, item: string) {
   const more = new Map<string, number>();
@@ -205,7 +205,9 @@ function newHits(r: SimResult, base: ReturnType<typeof hitCounts>, item: string)
     const n = k.hits - (was?.hits ?? 0);
     if (n <= 0) continue;
     const damage = Math.max(0, Math.min((k.damage / k.hits) * n, k.damage - (was?.damage ?? 0)));
-    found.push({ id: `${k.source}|${k.label}`, source: k.source, name: k.source.includes(':') ? k.label : hitName(k.hit), hits: n, damage });
+    // A part of its source keeps its name (Super Scorcher Breath (execute)); a hit of its own drops its variant.
+    const name = k.source.includes(':') ? k.label : k.hit.startsWith(`${k.label} (`) ? k.hit : hitName(k.hit);
+    found.push({ id: `${k.source}|${k.label}`, source: k.source, name, hits: n, damage });
   }
   const named = new Map<string, { source: string; damage: number }>();
   for (const f of found) {

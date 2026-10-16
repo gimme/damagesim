@@ -7,15 +7,15 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       components: [
-        { id: 'out', label: 'Orb (out)', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.3 },
-        { id: 'back', label: 'Orb (return)', type: 'true', amount: 'calc.TotalDamage', aoe: true, delay: 0.9 },
+        { id: 'out', label: 'Orb of Deception (out)', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.3 },
+        { id: 'back', label: 'Orb of Deception (return)', type: 'true', amount: 'calc.TotalDamage', aoe: true, delay: 0.9 },
       ],
     },
     W: {
       notes: ['Against a single target: the first fox-fire deals full damage, the other two 40%.'],
       components: [
-        { id: 'first', label: 'Fox-fire', type: 'magic', amount: 'calc.SingleFireDamage', delay: 0.25 },
-        { id: 'extra', label: 'Fox-fire (repeat)', type: 'magic', amount: 'calc.MultiFireDamage', hits: 2, maxHits: 2, interval: 0.15, delay: 0.4 },
+        { id: 'first', label: 'Fox-Fire', type: 'magic', amount: 'calc.SingleFireDamage', delay: 0.25 },
+        { id: 'extra', label: 'Fox-Fire (repeat)', type: 'magic', amount: 'calc.MultiFireDamage', hits: 2, maxHits: 2, interval: 0.15, delay: 0.4 },
       ],
     },
     E: {

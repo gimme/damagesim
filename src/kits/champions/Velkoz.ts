@@ -76,7 +76,7 @@ const kit: ChampionKit = {
         'Full channel: 13 ticks every 0.2s after a 0.2s delay (wiki); total = tooltip damage. Set the seconds (R{1.5s}) to end it early.',
       ],
       components: [
-        { id: 'beam', label: 'Disintegration Ray', type: 'magic', amount: 'calc.TotalDamage / 13', hits: 13, interval: 0.2, delay: 0.2, aoe: true, dot: true },
+        { id: 'beam', label: 'Life Form Disintegration Ray', type: 'magic', amount: 'calc.TotalDamage / 13', hits: 13, interval: 0.2, delay: 0.2, aoe: true, dot: true },
       ],
     },
   },

@@ -29,7 +29,7 @@ const kit: ChampionKit = {
         components: [
           {
             id: 'burn',
-            label: 'Blaze burn',
+            label: 'Blaze (burn)',
             type: 'magic',
             amount: `P.dv.PercentHealthDamage / 100 * target.maxHp / ${BLAZE_DURATION / BLAZE_TICK} * stacks.blaze`,
             dot: true,
@@ -58,7 +58,7 @@ const kit: ChampionKit = {
           sim.deal({
             source: 'P',
             sourceLabel: 'Blaze',
-            label: 'Blaze explosion',
+            label: 'Blaze (explosion)',
             type: 'magic',
             amount: sim.evalExpr('P.calc.ExplosionDamage * target.maxHp', { slot: 'P' }),
             flags: { kind: 'ability', slot: 'P', ability: true, aoe: true },
@@ -101,7 +101,7 @@ const kit: ChampionKit = {
       components: [
         {
           id: 'bounce',
-          label: 'Pyroclasm bounce',
+          label: 'Pyroclasm (bounce)',
           type: 'magic',
           amount: 'calc.TotalDamage',
           hits: 3,

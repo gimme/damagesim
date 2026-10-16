@@ -296,11 +296,11 @@ test("rank items: what an item's hits proc is split from its own damage and its 
   assert.equal(rankItems(data, later, { candidates: ['Stormsurge'] }).items[0].procDamage, 0);
   // Any hit that lands only with the item counts: here Smolder's execute, in range only with its damage.
   const exec = { ...base, level: 9, items: ['Essence Reaver'], options: { stacks: 225 }, combo: 'E Q AA Q' };
-  const executes = (items: string[]) => simulate(data, { ...exec, items }).events.filter((e) => e.label === 'Execute');
+  const executes = (items: string[]) => simulate(data, { ...exec, items }).events.filter((e) => e.label === 'Super Scorcher Breath (execute)');
   assert.equal(executes(exec.items).length, 0);
   const [execute] = executes([...exec.items, "Lord Dominik's Regards"]);
   const ldr = rankItems(data, exec, { candidates: ["Lord Dominik's Regards"] }).items[0];
-  assert.deepEqual(ldr.procs.map((p) => [p.source, p.name]), [['Q', 'Execute']]);
+  assert.deepEqual(ldr.procs.map((p) => [p.source, p.name]), [['Q', 'Super Scorcher Breath (execute)']]);
   near(ldr.procDamage, execute.final!, 0.1);
 });
 

@@ -32,7 +32,7 @@ const kit: ChampionKit = {
       components: [
         {
           id: 'burn',
-          label: 'Valkyrie burn',
+          label: 'Valkyrie (burn)',
           type: 'magic',
           amount: 'calc.MaximumDamage / dv.MaximumTicks',
           hits: 3,

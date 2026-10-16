@@ -29,7 +29,7 @@ const kit: ChampionKit = {
       components: [
         {
           id: 'spin',
-          label: 'Spin',
+          label: 'Judgment',
           type: 'physical',
           amount: 'calc.TotalDamage * (1 + dv.NearestEnemyBonus)',
           hits: 'dv.NumTicks + floor(bonusAs / dv.ASPerTick)',

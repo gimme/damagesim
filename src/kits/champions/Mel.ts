@@ -5,7 +5,7 @@ import { effectiveResist, resistMultiplier } from '../../engine/damage.ts';
 // Mel — patch 16.20.
 
 const OVERWHELM = 'P.dv.OverwhelmDuration';
-const PROJECTILE = 'Searing Brilliance projectile';
+const PROJECTILE = 'Searing Brilliance (projectile)';
 const STORED = "spell['MelR'].calc.PassiveFlatDamage + spell['MelR'].calc.PassiveStackDamage * stacks.overwhelm";
 
 /** Overwhelm execute: once the stored damage (after MR) reaches the target's health, it is executed. */

@@ -91,7 +91,7 @@ const kit: ChampionKit = {
         sim.deal({
           source: 'Q',
           sourceLabel: 'Hate Spike',
-          label: 'Hate Spike mark',
+          label: 'Hate Spike (mark)',
           type: 'magic',
           amount: sim.evalExpr('Q.calc.TotalBonusDamage', { slot: 'Q' }),
           castId: inst.castId,

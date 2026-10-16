@@ -45,7 +45,7 @@ const kit: ChampionKit = {
       components: [
         {
           id: 'shot',
-          label: 'Purge shot',
+          label: 'Purge (shot)',
           type: 'physical',
           amount: 'calc.DamagePerShot',
           attack: true,

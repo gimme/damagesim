@@ -84,7 +84,7 @@ const kit: ChampionKit = {
       const castId = sim.newCastId();
       for (let i = 1; i <= ticks; i++)
         sim.schedule(i * BURN_TICK, () =>
-          sim.deal({ source: 'P', sourceLabel: 'Trial by Fire', label: 'Burn', type: 'true', amount: perTick, castId, flags: { kind: 'ability', slot: 'P', ability: false, proc: true, dot: true }, markSource: 'trialByFire' }),
+          sim.deal({ source: 'P', sourceLabel: 'Trial by Fire', label: 'Trial by Fire (burn)', type: 'true', amount: perTick, castId, flags: { kind: 'ability', slot: 'P', ability: false, proc: true, dot: true }, markSource: 'trialByFire' }),
         );
     },
   },
