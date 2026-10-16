@@ -1,6 +1,9 @@
 import type { ChampionKit } from '../../engine/kit-types.ts';
 
 // Poppy — patch 16.20.
+/** Seconds Keeper's Verdict is held for its charged release (wiki). */
+const CHARGED = 0.5;
+
 const kit: ChampionKit = {
   id: 'Poppy',
   status: 'curated',
@@ -39,19 +42,13 @@ const kit: ChampionKit = {
       components: [{ id: 'tackle', label: 'Heroic Charge', type: 'physical', amount: 'calc.TackleDamage', delay: 0.1 }],
     },
     R: {
-      // Charged to full power.
-      castTime: 'dv.DurationUntilFullyCharged',
-      cc: [{ kind: 'immobilize', duration: 'dv.KnockupDurationCharged' }],
-      notes: ['Default: charged release (full damage, knock back). Variant "quick": uncharged swing (half damage, 1 s knock-up).'],
-      variants: {
-        quick: {
-          label: 'uncharged',
-          castTime: 0.25,
-          cc: [{ kind: 'immobilize', duration: 'dv.KnockupDurationSnap' }],
-          components: [{ id: 'verdict', label: "Keeper's Verdict", type: 'physical', amount: 'calc.HalfDamage', aoe: true }],
-        },
-      },
-      components: [{ id: 'verdict', label: "Keeper's Verdict", type: 'physical', amount: 'calc.Damage', aoe: true, delay: 0.2 }],
+      // Charged for up to ChannelMaxDuration: 0.5s of it doubles the damage and knocks back, whose
+      // distance grows until DurationUntilFullyCharged (wiki).
+      charge: { default: 'dv.DurationUntilFullyCharged', max: 'dv.ChannelMaxDuration' },
+      castTime: 'max(0.25, charge)',
+      cc: [{ kind: 'immobilize', duration: `charge >= ${CHARGED} ? dv.KnockupDurationCharged : dv.KnockupDurationSnap` }],
+      notes: ['Default: charged release (full damage, knock back). Set the seconds held (R{0s}): under 0.5s it is the uncharged swing (half damage, 1s knock-up).'],
+      components: [{ id: 'verdict', label: "Keeper's Verdict", type: 'physical', amount: `charge >= ${CHARGED} ? calc.Damage : calc.HalfDamage`, aoe: true, delay: `charge >= ${CHARGED} ? 0.2 : 0` }],
     },
   },
   hooks: {

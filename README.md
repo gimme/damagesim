@@ -76,7 +76,7 @@ The CLI exposes the same features (`damagesim --help`); add `--json` for machine
 ```
 
 Combo shorthand: `Q W E R P`, `AA`, `AA*3`, `AA!`/`Q!` (crits), `AA?`/`Q?` (doesn't), `Q:variant`, `Q{out:1,back:0}` (hit
-counts), `E{0.5s}` (how long a channel or toggle lasts: Smolder E ended early, Karthus E left on), `Q+bonus` (enable an
+counts), `E{0.5s}` (how long a channel, toggle or charge lasts: Smolder E ended early, Karthus E left on, Sion Q held), `Q+bonus` (enable an
 optional hit), `ignite`, `item:rocketbelt`, `wait:1.5`. Run
 `damagesim scenario` for everything.
 

@@ -37,8 +37,10 @@ const kit: ChampionKit = {
     },
     W: {
       notes: [
-        'Fires 3 shots per second for 4 seconds (13 shots, wiki) at ranks 1–4; at max rank Purge is a toggle, modeled as the same 4-second window (override with W{shot:N}).',
+        'Fires 3 shots per second for 4 seconds (13 shots, wiki) at ranks 1–4; at max rank Purge is a toggle, by default the same 4 seconds. Set the seconds to end it early (W{2s}) or, at max rank, keep it on (W{8s}).',
       ],
+      // Recast after 0.5s to end it; at max rank it lasts until then (dv.Duration 25000).
+      variableDuration: true,
       components: [
         {
           id: 'shot',
@@ -50,6 +52,7 @@ const kit: ChampionKit = {
           canCrit: false,
           onHitEffectiveness: 0.5,
           hits: 'floor(min(dv.Duration, 4) * dv.WAttacksPerSecond) + 1',
+          maxHits: 'floor(min(dv.Duration, 30) * dv.WAttacksPerSecond) + 1',
           interval: '1 / dv.WAttacksPerSecond',
         },
       ],

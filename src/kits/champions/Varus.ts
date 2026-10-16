@@ -7,6 +7,9 @@ import type { DamageInstance } from '../../engine/effects.ts';
 // magic damage, amplified by Piercing Arrow's charge. Detonation, the W-active bonus and R's delayed
 // stacks are done in hooks because they read/clear the mark at hit time.
 
+/** Seconds of charge for Piercing Arrow's full damage and detonation amp (wiki). */
+const CHARGED = 1.25;
+
 function addBlight(sim: Sim) {
   const max = sim.evalExpr('W.dv.MaxStacks', { slot: 'W' });
   let m = sim.marks.get('blight');
@@ -56,21 +59,15 @@ const kit: ChampionKit = {
   },
   abilities: {
     Q: {
-      // Damage (and detonation amp) reaches its maximum after 1.25s of charging (wiki).
-      castTime: 1.25,
+      // Charged for up to MaxChannelDuration; damage (and detonation amp) grows to its maximum over
+      // the first 1.25s (wiki).
+      charge: { default: CHARGED, max: 'dv.MaxChannelDuration' },
+      castTime: 'charge',
       notes: [
-        'Default: fully charged (1.25s charge, maximum damage, +50% Blight detonation). "Q:quick" = uncharged release.',
-        'After W, the next Piercing Arrow adds % missing health magic damage (more when fully charged).',
+        'Default: fully charged (1.25s charge, maximum damage, +50% Blight detonation). Set the seconds held (Q{0.5s}): damage and detonation amp grow over the first 1.25s.',
+        'After W, the next Piercing Arrow adds % missing health magic damage (more the longer it was charged).',
       ],
-      components: [{ id: 'arrow', label: 'Piercing Arrow (charged)', type: 'physical', amount: 'calc.TotalDamageMax', delay: 0.25 }],
-      variants: {
-        quick: {
-          label: 'quick',
-          castTime: 0,
-          note: 'Released immediately: minimum damage, no detonation amp.',
-          components: [{ id: 'arrow', label: 'Piercing Arrow', type: 'physical', amount: 'calc.TotalDamageMinTooltip', delay: 0.25 }],
-        },
-      },
+      components: [{ id: 'arrow', label: 'Piercing Arrow', type: 'physical', amount: `lerp(calc.TotalDamageMinTooltip, calc.TotalDamageMax, min(1, charge / ${CHARGED}))`, delay: 0.25 }],
     },
     W: {
       noTarget: true,
@@ -90,16 +87,16 @@ const kit: ChampionKit = {
   },
   hooks: {
     onCast(sim, cast) {
-      if (cast.slot === 'Q') sim.setCounter('varus.qCharged', cast.variant === 'quick' ? 0 : 1);
+      if (cast.slot === 'Q') sim.setCounter('varus.qCharge', sim.evalExpr(`min(1, charge / ${CHARGED})`, { slot: 'Q' }));
     },
     afterDamage(sim, inst) {
       if (inst.fromMark || inst.flags.kind !== 'ability' || inst.flags.attack) return;
       const slot = inst.flags.slot;
       if (slot !== 'Q' && slot !== 'E' && slot !== 'R') return;
-      const charged = slot === 'Q' && sim.counter('varus.qCharged') > 0;
+      const charge = slot === 'Q' ? sim.counter('varus.qCharge') : 0;
       if (slot === 'Q' && sim.getBuff('varusW')) {
         sim.removeBuff('varusW');
-        const pct = sim.evalExpr(charged ? 'W.calc.MaxQEmpowerPercentHP' : 'W.calc.QEmpowerPercentHP', { slot: 'W' });
+        const pct = sim.evalExpr(`lerp(W.calc.QEmpowerPercentHP, W.calc.MaxQEmpowerPercentHP, ${charge})`, { slot: 'W' });
         const missing = sim.target.maxHp - (inst.targetHpBefore ?? sim.target.hp);
         sim.deal({
           source: 'Q',
@@ -112,7 +109,7 @@ const kit: ChampionKit = {
           markSource: 'varusW',
         });
       }
-      detonate(sim, inst, charged ? 1 + sim.evalExpr('Q.dv.MaxChargeAmp', { slot: 'Q' }) : 1);
+      detonate(sim, inst, 1 + charge * sim.evalExpr('Q.dv.MaxChargeAmp', { slot: 'Q' }));
       if (slot === 'R') {
         const n = sim.evalExpr('R.dv.PassiveStacksAdded', { slot: 'R' });
         const every = sim.evalExpr('R.dv.TimeBetweenStackAddition', { slot: 'R' });

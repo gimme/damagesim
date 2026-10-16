@@ -26,7 +26,7 @@ const comboStep = z.union([
     slot: z.enum(['P', 'Q', 'W', 'E', 'R']),
     variant: z.string().optional(),
     hits: z.record(z.string(), z.number()).optional(),
-    duration: z.number().optional().describe('Seconds the cast lasts, where the player chooses it: a channel ended early (Smolder E, Katarina R) or a toggle left on (Karthus E)'),
+    duration: z.number().optional().describe('Seconds the cast lasts, where the player chooses it: a channel ended early (Smolder E, Katarina R), a toggle left on (Karthus E), or a charge held (Sion Q)'),
     enable: z.array(z.string()).optional(),
     miss: z.boolean().optional(),
     crit: z.boolean().optional(),

@@ -150,6 +150,38 @@ test('A toggle left on longer ticks longer, without busying the caster; a burn c
   assert.equal(new Sim(data, { champion: 'Smolder', level: 11, combo: [] }).castDuration({ slot: 'Q' }), null);
 });
 
+test('A charge held for a step\'s seconds: damage, crowd control and cast time follow the hold', () => {
+  const sion = (combo: string) => simulate(data, { champion: 'Sion', level: 11, combo, target: dummy });
+  const smash = (r: ReturnType<typeof simulate>) => r.events.find((e) => e.source === 'Q')!;
+  const sim = new Sim(data, { champion: 'Sion', level: 11, combo: [] });
+  const [min, max] = [sim.evalExpr('calc.MinDamageTotal', { slot: 'Q' }), sim.evalExpr('calc.MaxDamageTotal', { slot: 'Q' })];
+  assert.ok(Math.abs(smash(sion('Q')).raw - max) < 1e-6, 'full charge by default');
+  assert.ok(Math.abs(smash(sion('Q{0s}')).raw - min) < 1e-6);
+  assert.ok(Math.abs(smash(sion('Q{1s}')).raw - (min + max) / 2) < 1e-6);
+  assert.equal(sion('Q{1s}').timeline[0].end, 1);
+  assert.deepEqual(sim.castDuration({ slot: 'Q' }), { seconds: 2, maxSeconds: 2, held: true });
+  // Stunned only when charged 1s or more: 1.25s, plus 0.25s per 0.25s beyond.
+  const stun = (combo: string) => {
+    const s = new Sim(data, { champion: 'Sion', level: 11, combo: [] });
+    s.run(parseCombo(combo));
+    return s.evalExpr(s.kit.abilities.Q!.cc![0].duration, { slot: 'Q' });
+  };
+  assert.equal(stun('Q{0.5s}'), 0);
+  assert.equal(stun('Q{1s}'), 1.25);
+  assert.equal(stun('Q{1.5s}'), 1.75);
+  // Viego W defaults to a quick release.
+  assert.equal(simulate(data, { champion: 'Viego', level: 11, combo: 'W', target: dummy }).timeline[0].end, 0);
+});
+
+test('A channel ended early lands the hits fired by then, not the one at its end', () => {
+  const xerath = simulate(data, { champion: 'Xerath', level: 11, combo: 'R{2s}', target: dummy });
+  // Shots fire at 0.5, 1.1, 1.7… and land 0.627s later: three are fired by 2s.
+  assert.equal(xerath.events.filter((e) => e.source === 'R').length, 3);
+  const fiddle = (combo: string) => simulate(data, { champion: 'Fiddlesticks', level: 11, combo, target: dummy }).events.filter((e) => e.label === 'Bountiful Harvest (final)').length;
+  assert.equal(fiddle('W'), 1);
+  assert.equal(fiddle('W{1s}'), 0);
+});
+
 test('On-hit-only abilities (Fizz Q) consume Spellblade but do not trigger on-attack effects', () => {
   const r = simulate(data, { champion: 'Fizz', level: 11, items: ['Lich Bane'], runes: ['Lethal Tempo'], combo: 'Q', target: dummy });
   assert.equal(bySource(r, 'item:3100').length, 1, 'Spellblade');

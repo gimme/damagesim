@@ -33,8 +33,9 @@ const kit: ChampionKit = {
     R: {
       // Busy until the last recast: 0.5s ascension + one recast every CDPerShot.
       lockout: '0.5 + (dv.NumberOfShots - 1) * dv.CDPerShot',
+      variableDuration: true,
       notes: [
-        'One R step = the whole channel: every shot (count from data) lands 0.627s after its recast (wiki), recasts every CDPerShot after the 0.5s ascension.',
+        'One R step = the whole channel: every shot (count from data) lands 0.627s after its recast (wiki), recasts every CDPerShot after the 0.5s ascension. Set the seconds to stop early (R{2s}): the shots fired by then land.',
         'Each shot that hits a champion grants a stack that raises the damage of later shots (wiki) — shot n deals base + n × ramp damage.',
       ],
       components: [
@@ -46,6 +47,7 @@ const kit: ChampionKit = {
           hits: 'dv.NumberOfShots',
           interval: 'dv.CDPerShot',
           delay: 0.5 + 0.627,
+          travel: 0.627,
           aoe: true,
           sameCast: false,
         },

@@ -40,7 +40,8 @@ Combo steps (array form):
 Combo shorthand: "Q W E R P AA AA*3 3AA AA! AA? Q! Q? Q:variant Q{out:1,back:0} E{0.5s} Q+bonus ignite item:rocketbelt wait:1.5"
   (crits deal their expected value; ! crits every hit of the step that can crit, ? none, follow-up attacks included)
   E{0.5s}: how long a cast lasts where the player chooses it: a channel ended early (Smolder E,
-  Katarina R) or a toggle left on (Karthus E). Q{id:N} sets one component's hits.
+  Katarina R), a toggle left on (Karthus E), or a charge held (Sion Q{1s}, Varus Q{0s}). Q{id:N} sets
+  one component's hits.
 
 Common options: self.hpPercent (your HP in %, for Last Stand etc.), gameTime (minutes; Gathering Storm,
 Conditioning), distance (to the target; Arcane Comet, Hexoptics C44, Horizon Focus), legend.stacks,

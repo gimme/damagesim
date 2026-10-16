@@ -1,6 +1,9 @@
 import type { ChampionKit } from '../../engine/kit-types.ts';
 
 // Sion — patch 16.20.
+/** Unstoppable Onslaught's power from the seconds charging: each full second up to 3 (wiki). */
+const R_POWER = 'min(1, floor(charge) / 3)';
+
 const kit: ChampionKit = {
   id: 'Sion',
   status: 'curated',
@@ -12,28 +15,18 @@ const kit: ChampionKit = {
   stats: ({ opt }) => ({ hp: opt.furnaceHp }),
   abilities: {
     Q: {
-      // Charge time is the cast time: damage grows from min to max over 2s.
-      castTime: 2,
+      // Charged for up to 2s, the damage growing every 0.25s from min to max (wiki). Released, Sion is
+      // locked out for 0.25s.
+      charge: { default: 2 },
+      castTime: 'max(0.25, charge)',
       notes: [
-        'Default: fully charged (2s) — max damage, knock-up + stun 2.25s. Q:half = 1s charge (midpoint damage, 1.25s stun); Q:tap = released at once (min damage, brief slow).',
+        'Default: fully charged (2s): max damage, knock-up and a 2.25s stun. Set the seconds held (Q{1s}): charged 1s or more it stuns for 1.25s + 0.25s per 0.25s beyond 1s; less only slows briefly.',
       ],
-      // Stun 1.25–2.25s by charge time (upper bound from the tooltip text).
-      cc: [{ kind: 'immobilize', duration: 'dv.BaseStunTime + 1' }],
-      components: [{ id: 'smash', label: 'Decimating Smash', type: 'physical', amount: 'calc.MaxDamageTotal', aoe: true }],
-      variants: {
-        half: {
-          label: '1s charge',
-          castTime: 1,
-          cc: [{ kind: 'immobilize', duration: 'dv.BaseStunTime' }],
-          components: [{ id: 'smash', label: 'Decimating Smash', type: 'physical', amount: 'lerp(calc.MinDamageTotal, calc.MaxDamageTotal, 0.5)', aoe: true }],
-        },
-        tap: {
-          label: 'uncharged',
-          castTime: 0.25,
-          cc: [{ kind: 'slow', duration: 0.25 }],
-          components: [{ id: 'smash', label: 'Decimating Smash', type: 'physical', amount: 'calc.MinDamageTotal', aoe: true }],
-        },
-      },
+      cc: [
+        { kind: 'immobilize', duration: 'charge >= 1 ? dv.BaseStunTime + min(1, floor((charge - 1) * 4) / 4) : 0' },
+        { kind: 'slow', duration: 'charge < 1 ? 0.25 : 0' },
+      ],
+      components: [{ id: 'smash', label: 'Decimating Smash', type: 'physical', amount: 'lerp(calc.MinDamageTotal, calc.MaxDamageTotal, min(1, floor(charge * 4) / 8))', aoe: true }],
     },
     W: {
       notes: ['Shield, then the recast detonation after DetonateRecastCooldown (3s).'],
@@ -48,26 +41,15 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
-      // Damage and stun scale with charge time, maximum after 3s (wiki).
-      castTime: 3,
-      notes: ['Default: full-length charge (3s) — max damage and stun. R:short = a short charge (min damage and stun).'],
+      // Charges for up to 8s; damage and stun grow every second up to 3s (wiki).
+      charge: { default: 3, max: 8 },
+      castTime: 'max(0.5, charge)',
+      notes: ['Default: a 3s charge (max damage and stun). Set the seconds charging (R{1s}): damage and stun grow each full second up to 3.'],
       cc: [
-        { kind: 'immobilize', duration: 'dv.MaxStunDuration' },
+        { kind: 'immobilize', duration: `lerp(dv.MinStunDuration, dv.MaxStunDuration, ${R_POWER})` },
         { kind: 'slow', duration: 3 },
       ],
-      components: [{ id: 'slam', label: 'Unstoppable Onslaught', type: 'physical', amount: 'calc.MaxDamageTotal', aoe: true }],
-      variants: {
-        short: {
-          label: 'short charge',
-          castTime: 0.5,
-          dash: true,
-          cc: [
-            { kind: 'immobilize', duration: 'dv.MinStunDuration' },
-            { kind: 'slow', duration: 3 },
-          ],
-          components: [{ id: 'slam', label: 'Unstoppable Onslaught', type: 'physical', amount: 'calc.MinDamageTotal', aoe: true }],
-        },
-      },
+      components: [{ id: 'slam', label: 'Unstoppable Onslaught', type: 'physical', amount: `lerp(calc.MinDamageTotal, calc.MaxDamageTotal, ${R_POWER})`, aoe: true }],
     },
   },
 };

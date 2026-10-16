@@ -9,7 +9,6 @@ const kit: ChampionKit = {
   status: 'curated',
   options: [
     { key: 'dismounted', label: 'Dismounted', default: 0, toggle: true, description: 'Attacks deal P.calc.DismountedAttackPenalty less damage; use Q:pistol for Pocket Pistol.' },
-    { key: 'rChargeTime', label: 'Chaaaaaaaarge!!! travel time (s)', default: 0, min: 0, max: 3, step: 0.5, description: 'R damage grows from 1x to 3x over R.dv.SecondsToMaxPower seconds of charging.' },
   ],
   notes: [
     'Violent Tendencies (W passive) is automatic (hook): the first attack while W is ready triggers it and counts as hit 1; the 4th hit deals the bonus damage; +attack speed until then (max 4s). Each attack on a champion while W is on cooldown reduces it by W.dv.ChampCooldownRefund s.',
@@ -60,17 +59,12 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
+      // The seconds charging toward the target: the damage grows to its maximum over SecondsToMaxPower.
+      charge: { default: 0, max: 'dv.SecondsToMaxPower' },
+      castTime: 'charge',
       cc: [{ kind: 'immobilize', duration: 0.25 }], // brief knockback (150 units), duration estimated
-      notes: ['Damage scales with charge time (opt.rChargeTime); R:max for a fully charged ram.'],
-      components: [{ id: 'ram', label: 'Chaaaaaaaarge!!!', type: 'magic', amount: rDamage('opt.rChargeTime') }],
-      variants: {
-        max: {
-          label: 'max charge',
-          dash: true,
-          cc: [{ kind: 'immobilize', duration: 0.25 }],
-          components: [{ id: 'ram', label: 'Chaaaaaaaarge!!! (max)', type: 'magic', amount: 'calc.MaximumChargeDamage * target.maxHp' }],
-        },
-      },
+      notes: ['Damage scales with the seconds charging (R{3s} for a fully charged ram); default an immediate ram.'],
+      components: [{ id: 'ram', label: 'Chaaaaaaaarge!!!', type: 'magic', amount: rDamage('charge') }],
     },
   },
   hooks: {

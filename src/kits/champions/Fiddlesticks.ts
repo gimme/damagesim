@@ -48,7 +48,11 @@ const kit: ChampionKit = {
     },
     W: {
       lockout: 'dv.DrainDuration',
-      notes: ['Drain ticks every 1/dv.TicksPerSecond s for dv.DrainDuration s; the last tick adds dv.PercentMultiplier × missing health (uninterrupted channel).'],
+      variableDuration: true,
+      notes: [
+        'Drain ticks every 1/dv.TicksPerSecond s for dv.DrainDuration s; the last tick adds dv.PercentMultiplier × missing health (uninterrupted channel).',
+        'Set the seconds to end the channel early (W{1s}): the ticks so far land, without the final one.',
+      ],
       components: [
         {
           id: 'drain',

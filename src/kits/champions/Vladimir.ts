@@ -36,14 +36,12 @@ const kit: ChampionKit = {
       components: [{ id: 'pool', label: 'Sanguine Pool', type: 'magic', amount: 'calc.TotalDamage / 4', hits: 4, interval: 0.5, aoe: true, dot: true }],
     },
     E: {
-      // Damage maxes out after TimetoRampMaxDamage (1s) of charging.
-      castTime: 1,
-      notes: ['Default: charged 1s (maximum damage, slows). "E:quick" = released immediately (minimum damage).'],
-      cc: [{ kind: 'slow', duration: 0.5 }],
-      components: [{ id: 'tides', label: 'Tides of Blood (charged)', type: 'magic', amount: 'calc.MaxDamageTooltip', aoe: true, delay: 0.1 }],
-      variants: {
-        quick: { label: 'quick', castTime: 0, cc: [], components: [{ id: 'tides', label: 'Tides of Blood', type: 'magic', amount: 'calc.MinDamageTooltip', aoe: true, delay: 0.1 }] },
-      },
+      // Charged for up to MaxChannelTime; the damage grows over the first TimetoRampMaxDamage (1s), which also slows.
+      charge: { default: 'dv.TimetoRampMaxDamage', max: 'dv.MaxChannelTime' },
+      castTime: 'charge',
+      notes: ['Default: charged 1s (maximum damage, slows). Set the seconds held (E{0.5s}): the damage grows from min to max over the first second.'],
+      cc: [{ kind: 'slow', duration: 'charge >= dv.TimetoRampMaxDamage ? 0.5 : 0' }],
+      components: [{ id: 'tides', label: 'Tides of Blood', type: 'magic', amount: 'lerp(calc.MinDamageTooltip, calc.MaxDamageTooltip, min(1, charge / dv.TimetoRampMaxDamage))', aoe: true, delay: 0.1 }],
     },
     R: {
       notes: ['Amplifies all damage the target takes by 10% for 4s, then detonates; the detonation is amplified by Hemoplague itself (wiki).'],

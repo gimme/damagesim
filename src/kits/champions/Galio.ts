@@ -13,7 +13,7 @@ const kit: ChampionKit = {
   notes: [
     'Colossal Smash: when off cooldown (P.calc.PassiveCooldownModified), the next attack deals P.calc.TotalDamage magic damage instead of its normal damage (the AD part can crit). Each ability cast that hits cuts the cooldown by P.dv.ChargeRatePerHit s.',
     'Winds of War: a single target is assumed to be hit by one windblast, then to stand in the tornado for its full duration.',
-    'Shield of Durand defaults to a full charge (dv.MaxChargeDuration s of charging, max damage and taunt); W:tap for an immediate release.',
+    'Shield of Durand defaults to a full charge (1.25s: max damage and taunt); set the seconds held (W{0.5s}) for less.',
   ],
   abilities: {
     Q: {
@@ -33,18 +33,11 @@ const kit: ChampionKit = {
       ],
     },
     W: {
-      castTime: 'dv.MaxChargeDuration',
-      cc: [{ kind: 'immobilize', duration: 'dv.CCDurationMax' }],
-      components: [{ id: 'release', label: 'Shield of Durand', type: 'magic', amount: 'calc.MaxTotalDamage', aoe: true }],
-      variants: {
-        tap: {
-          label: 'tap',
-          castTime: 0,
-          note: 'Released without charging: minimum damage and taunt.',
-          cc: [{ kind: 'immobilize', duration: 'dv.CCDurationMin' }],
-          components: [{ id: 'release', label: 'Shield of Durand', type: 'magic', amount: 'calc.MinTotalDamage', aoe: true }],
-        },
-      },
+      // Charged for up to MaxChargeDuration; damage and taunt grow over the first 1.25s (wiki).
+      charge: { default: 1.25, max: 'dv.MaxChargeDuration' },
+      castTime: 'charge',
+      cc: [{ kind: 'immobilize', duration: 'lerp(dv.CCDurationMin, dv.CCDurationMax, min(1, charge / 1.25))' }],
+      components: [{ id: 'release', label: 'Shield of Durand', type: 'magic', amount: 'lerp(calc.MinTotalDamage, calc.MaxTotalDamage, min(1, charge / 1.25))', aoe: true }],
     },
     E: {
       dash: true,

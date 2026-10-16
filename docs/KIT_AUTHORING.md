@@ -76,6 +76,7 @@ Amounts, hit counts, durations etc. are expression strings (or plain numbers):
 | `opt.name` | A kit option (declare it in `options`) |
 | `target.immobilized target.slowed target.impaired target.cced` | 1 if the target currently has that crowd control from you |
 | `recast` | 1-based index of the cast within a recast chain |
+| `charge` | Seconds the slot's cast was held to charge (`charge` abilities; their default before a cast) |
 | `stacks.markId` | Current stacks of a kit mark; `buff.id` / `debuff.id` are 1 while active (or the stack count) |
 | `hit`, `hits` | Index (0-based) and count of the current hit in a multi-hit component |
 | `time`, `combatTime` | Seconds since combo start / since entering combat |
@@ -129,7 +130,14 @@ Katarina R; a toggle: Karthus E), mark it `variableDuration: true`. A combo step
 seconds after its cast time (`E{0.5s}`, the web UI's field on the step): its repeating hits land
 within them and its lockout ends with them. It lasts its lockout by default, else as long as its
 hits take; give hits that can go on longer a `maxHits`, and a channel that can a `maxDuration`
-(Aurelion Sol Q). Don't mark what the player can't end (burns, fixed zones).
+(Aurelion Sol Q). Hits fired before it ends still land: give a missile's flight as `travel` (part of
+its delay, Xerath R), and a hit at the end of a full channel (Fiddlesticks W's last tick) doesn't. Don't
+mark what the player can't end (burns, fixed zones).
+
+An ability held to charge (Sion Q, Varus Q) takes `charge: { default, max }`: the step's seconds are the
+hold (usually the full charge by default, at most `max`), which `castTime`, amounts and `cc` read as `charge`, e.g.
+`amount: 'lerp(calc.MinDamage, calc.MaxDamage, min(1, charge / 1.25))'`. Use it in place of
+quick/tap variants.
 
 ## Abilities
 

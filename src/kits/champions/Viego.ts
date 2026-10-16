@@ -33,19 +33,12 @@ const kit: ChampionKit = {
     W: {
       dash: true,
       debuff: MARK,
-      notes: ['Default: quick release (minimum stun). "W:charged" = charged for 1s (maximum stun, wiki).'],
-      cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
+      // Charged for up to MaxChargeTime; the stun grows by 0.25s per 0.25s over the first second (wiki).
+      charge: { default: 0, max: 'dv.MaxChargeTime' },
+      castTime: 'charge',
+      notes: ['Default: quick release (minimum stun). Set the seconds held (W{1s} for the maximum stun).'],
+      cc: [{ kind: 'immobilize', duration: 'lerp(dv.StunDuration, dv.MaxStunTT, min(1, floor(charge * 4) / 4))' }],
       components: [{ id: 'maw', label: 'Spectral Maw', type: 'magic', amount: 'calc.TotalDamage', delay: 0.2 }],
-      variants: {
-        charged: {
-          label: 'charged',
-          castTime: 1,
-          dash: true,
-          debuff: MARK,
-          cc: [{ kind: 'immobilize', duration: 'dv.MaxStunTT' }],
-          components: [{ id: 'maw', label: 'Spectral Maw', type: 'magic', amount: 'calc.TotalDamage', delay: 0.2 }],
-        },
-      },
     },
     E: {
       noTarget: true,

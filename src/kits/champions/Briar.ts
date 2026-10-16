@@ -3,6 +3,9 @@ import type { ChampionKit } from '../../engine/kit-types.ts';
 // Briar — patch 16.20.
 // Crimson Curse: P.calc['{15da76ad}'] is the bleed's damage per second for one stack
 // (BleedDamageOverDurationTooltip = it × BleedDuration); each stack beyond the first adds BleedPercentAdd.
+/** Chilling Scream's damage by the seconds charged: 2.5% of the full damage uncharged, all of it at 1s (wiki). */
+const SCREAM = 'calc.Damage * lerp(0.025, 1, min(1, charge))';
+
 const kit: ChampionKit = {
   id: 'Briar',
   status: 'curated',
@@ -76,23 +79,26 @@ const kit: ChampionKit = {
       },
     },
     E: {
-      castTime: 1, // full charge (wiki: charges for up to 1 second)
+      // Charged for up to 1s (wiki): the damage grows from 2.5% to all of it, and only a full charge knocks back.
+      charge: { default: 1 },
+      castTime: 'charge',
+      notes: ['Default: fully charged (1s, knocks back). Set the seconds held (E{0.5s}) for less damage and no knock back.'],
       cc: [
         { kind: 'slow', duration: 'dv.SlowDuration' },
-        { kind: 'immobilize', duration: 'dv.RKnockupDuration' },
+        { kind: 'immobilize', duration: 'charge >= 1 ? dv.RKnockupDuration : 0' },
       ],
       // Chilling Scream removes Blood Frenzy: overwrite the buff with an instantly expiring one.
       buff: { id: 'briarFrenzy', label: 'Blood Frenzy (ended)', duration: 0 },
-      components: [{ id: 'scream', label: 'Chilling Scream', type: 'magic', amount: 'calc.Damage', aoe: true }],
+      components: [{ id: 'scream', label: 'Chilling Scream', type: 'magic', amount: SCREAM, aoe: true }],
       variants: {
         wall: {
           label: 'wall hit',
-          note: 'Knocked into terrain: extra damage and a stun.',
+          note: 'Knocked into terrain (full charge only): extra damage and a stun.',
           buff: { id: 'briarFrenzy', label: 'Blood Frenzy (ended)', duration: 0 },
-          cc: [{ kind: 'immobilize', duration: 'dv.WallStunDuration' }],
+          cc: [{ kind: 'immobilize', duration: 'charge >= 1 ? dv.WallStunDuration : 0' }],
           components: [
-            { id: 'scream', label: 'Chilling Scream', type: 'magic', amount: 'calc.Damage', aoe: true },
-            { id: 'wall', label: 'Chilling Scream (wall)', type: 'magic', amount: 'calc.WallHitDamage', delay: 0.25 },
+            { id: 'scream', label: 'Chilling Scream', type: 'magic', amount: SCREAM, aoe: true },
+            { id: 'wall', label: 'Chilling Scream (wall)', type: 'magic', amount: 'calc.WallHitDamage', hits: 'charge >= 1 ? 1 : 0', delay: 0.25 },
           ],
         },
       },

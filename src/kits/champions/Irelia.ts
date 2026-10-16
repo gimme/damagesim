@@ -38,13 +38,11 @@ const kit: ChampionKit = {
       components: [{ id: 'surge', label: 'Bladesurge', type: 'physical', amount: 'calc.ChampionDamage', onHit: true, delay: 0.15 }],
     },
     W: {
-      // Damage grows with charge time up to dv.ChargeTimeForMax; default = full charge.
-      castTime: 'dv.ChargeTimeForMax',
-      notes: ['Default: charged for dv.ChargeTimeForMax seconds (max damage). W:tap = instant release (minimum damage).'],
-      components: [{ id: 'dance', label: 'Defiant Dance', type: 'physical', amount: 'calc.MaxDamageCalc', aoe: true }],
-      variants: {
-        tap: { label: 'tap', castTime: 0, components: [{ id: 'dance', label: 'Defiant Dance (tap)', type: 'physical', amount: 'calc.MinDamageCalc', aoe: true }] },
-      },
+      // Charged for up to MaxDuration; the damage grows to its maximum over ChargeTimeForMax.
+      charge: { default: 'dv.ChargeTimeForMax', max: 'dv.MaxDuration' },
+      castTime: 'charge',
+      notes: ['Default: charged for dv.ChargeTimeForMax seconds (max damage). Set the seconds held (W{0s} for an instant release): the damage grows from min to max until then.'],
+      components: [{ id: 'dance', label: 'Defiant Dance', type: 'physical', amount: 'lerp(calc.MinDamageCalc, calc.MaxDamageCalc, min(1, charge / dv.ChargeTimeForMax))', aoe: true }],
     },
     E: {
       // One step = both casts. The step lasts until the blades meet (recast delay + blade travel) so the

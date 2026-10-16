@@ -51,18 +51,13 @@ const kit: ChampionKit = {
       components: [{ id: 'snowball', label: 'Snowball Barrage', type: 'magic', amount: 'calc.TotalSnowballDamage', hits: 3, maxHits: 3, interval: 'dv.DelayBetweenSnowballs', delay: 0.1 }],
     },
     R: {
-      // Channels before detonating.
-      castTime: 'dv.ChannelDuration',
-      cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      notes: ['Default: full 3 s channel (maximum damage). Variant "early": released after ~1.5 s for the game\'s MinDamage (50%).'],
-      variants: {
-        early: {
-          label: 'early',
-          castTime: 1.5,
-          components: [{ id: 'blast', label: 'Absolute Zero', type: 'magic', amount: 'calc.MinDamage', aoe: true }],
-        },
-      },
-      components: [{ id: 'blast', label: 'Absolute Zero', type: 'magic', amount: 'calc.MaximumDamage', aoe: true }],
+      // Channels before detonating; the damage and the slow's duration grow with the channel (wiki:
+      // 1% of the maximum damage every 0.03s, the slow lasting the seconds channelled).
+      charge: { default: 'dv.ChannelDuration' },
+      castTime: 'charge',
+      cc: [{ kind: 'slow', duration: 'min(charge, dv.SlowDuration)' }],
+      notes: ['Default: the full 3s channel (maximum damage). Set the seconds to release it early (R{1.5s}): damage grows linearly with the channel.'],
+      components: [{ id: 'blast', label: 'Absolute Zero', type: 'magic', amount: 'calc.MaximumDamage * min(1, charge / dv.ChannelDuration)', aoe: true }],
     },
   },
   hooks: {

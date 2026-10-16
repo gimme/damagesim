@@ -72,10 +72,14 @@ export interface Scenario {
   settings?: SimSettings;
 }
 
-/** How long a cast whose duration the player chooses lasts by default and at most, in seconds from its cast time's end. */
+/**
+ * How long a cast whose duration the player chooses lasts by default and at most: seconds after its
+ * cast time (AbilitySpec.variableDuration), or `held` to charge (AbilitySpec.charge).
+ */
 export interface CastDuration {
   seconds: number;
   maxSeconds: number;
+  held: boolean;
 }
 
 /** How many hits, `first` seconds in and `interval` apart, land within `seconds` (at most `maxHits`). */
@@ -705,6 +709,8 @@ export class Sim {
       }
       case 'recast':
         return ctx.recast ?? 1;
+      case 'charge':
+        return this.chargeHeld.get(ctx.slot) ?? this.defaultCharge(ctx.slot);
       case 'hit':
         return ctx.hit ?? 0;
       case 'hits':
@@ -1407,9 +1413,21 @@ export class Sim {
     return Math.max(0, ctExpr !== undefined ? this.evalExpr(ctExpr, ctx) : (ctx.spell.castTime ?? 0));
   }
 
-  /** How long a cast step lasts by default and at most, when the player chooses it (see AbilitySpec.variableDuration). */
+  /** Seconds the slot's last cast was held to charge (expressions' `charge`). */
+  private chargeHeld = new Map<Slot, number>();
+
+  private defaultCharge(slot: Slot): number {
+    const c = this.abilitySpec(slot).charge;
+    return c ? this.evalExpr(c.default, { slot }) : 0;
+  }
+
+  /** How long a cast step lasts by default and at most, when the player chooses it (see AbilitySpec.variableDuration and charge). */
   castDuration(step: Pick<Extract<ComboStep, { type: 'ability' }>, 'slot' | 'variant' | 'enable'>): CastDuration | null {
     const spec = this.abilitySpec(step.slot);
+    if (spec.charge) {
+      const held = this.defaultCharge(step.slot);
+      return { seconds: held, maxSeconds: Math.max(held, spec.charge.max !== undefined ? this.evalExpr(spec.charge.max, { slot: step.slot }) : held), held: true };
+    }
     const key = step.variant ?? spec.defaultVariant;
     const variant = key ? this.variantOf(spec, key) : undefined;
     const ctx = { slot: step.slot, spell: this.spellFor(step.slot, variant ?? spec), rank: this.abilityRank(step.slot) };
@@ -1429,11 +1447,11 @@ export class Sim {
     const max = spec.maxDuration !== undefined ? this.evalExpr(spec.maxDuration, ctx) : lockout !== undefined ? seconds : lastMax;
     // Up to the hundredth, so that typed back they still cover every hit.
     const up = (x: number) => Math.ceil(x * 100 - 1e-6) / 100;
-    return { seconds: up(seconds), maxSeconds: up(Math.max(seconds, max)) };
+    return { seconds: up(seconds), maxSeconds: up(Math.max(seconds, max)), held: false };
   }
 
   /** A cast's repeating hits (components with an interval): by default and at most, when the first
-   *  lands after the cast time, and how far apart. */
+   *  is fired after the cast time (lands, less its travel), and how far apart. */
   private repeating(comps: ComponentSpec[], enable: string[] | undefined, ctx: CastCtx) {
     const out: { id: string; hits: number; maxHits: number; first: number; interval: number }[] = [];
     for (const c of comps) {
@@ -1441,9 +1459,14 @@ export class Sim {
       const interval = this.evalExpr(c.interval, ctx);
       const hits = Math.max(0, Math.round(this.evalExpr(c.hits ?? 1, ctx)));
       const maxHits = c.maxHits !== undefined ? Math.max(0, Math.round(this.evalExpr(c.maxHits, ctx))) : hits;
-      if (interval > 0 && maxHits > 0) out.push({ id: c.id, hits, maxHits, first: c.delay !== undefined ? this.evalExpr(c.delay, ctx) : 0, interval });
+      if (interval > 0 && maxHits > 0) out.push({ id: c.id, hits, maxHits, first: this.firedAt(c, ctx), interval });
     }
     return out;
+  }
+
+  /** Seconds after the cast time a component's first hit is fired: its delay, less its travel. */
+  private firedAt(c: ComponentSpec, ctx: CastCtx) {
+    return (c.delay !== undefined ? this.evalExpr(c.delay, ctx) : 0) - (c.travel !== undefined ? this.evalExpr(c.travel, ctx) : 0);
   }
 
   castAbility(step: Extract<ComboStep, { type: 'ability' }>, timeline: SimResult['timeline']) {
@@ -1511,6 +1534,11 @@ export class Sim {
       ammo.state.charges = Math.max(0, ammo.state.charges - 1);
       if (!Number.isFinite(ammo.state.nextAt)) ammo.state.nextAt = start + ammo.recharge;
     }
+    // A charged cast: held for the step's seconds (at most the longest hold), else its default.
+    if (spec.charge) {
+      const range = this.castDuration(step)!;
+      this.chargeHeld.set(slot, Math.max(0, Math.min(step.duration ?? range.seconds, range.maxSeconds)));
+    }
     const castTime = this.castTimeOf(spec, variant, { slot, spell, rank });
     const castId = this.newCastId();
     this.action = castId;
@@ -1554,7 +1582,7 @@ export class Sim {
     // left on): its repeating hits land within them, and its lockout ends with them.
     const comps = variant?.components ?? spec.components ?? [];
     const range = step.duration !== undefined ? this.durationOf(spec, variant, step.enable, ectx, castTime) : null;
-    if (step.duration !== undefined && !range) this.warn(`${label} can't be ended early or kept on: ${formatCombo([step])} casts it in full`);
+    if (step.duration !== undefined && !range && !spec.charge) this.warn(`${label} can't be ended early, kept on or charged: ${formatCombo([step])} casts it in full`);
     const span = range ? Math.min(step.duration!, range.maxSeconds) : undefined;
     const repeating = span !== undefined ? this.repeating(comps, step.enable, ectx) : [];
 
@@ -1588,8 +1616,12 @@ export class Sim {
       hits = Math.max(0, Math.round(hits));
       const delay = comp.delay !== undefined ? this.evalExpr(comp.delay, ectx) : 0;
       const interval = comp.interval !== undefined ? this.evalExpr(comp.interval, ectx) : 0;
+      // Ended early: the repeating hits fired by then land, and a hit at its end (Fiddlesticks W's last tick) doesn't.
       const r = repeating.find((x) => x.id === comp.id);
-      if (span !== undefined && r && step.hits?.[comp.id] === undefined) hits = hitsWithin(r.first, r.interval, r.maxHits, span);
+      if (span !== undefined && step.hits?.[comp.id] === undefined) {
+        if (r) hits = hitsWithin(r.first, r.interval, r.maxHits, span);
+        else if (interval <= 0 && this.firedAt(comp, ectx) > span + 1e-6) hits = 0;
+      }
       for (let h = 0; h < hits; h++) {
         const at = end + delay + interval * h;
         const hitIdx = h;

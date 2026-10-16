@@ -767,7 +767,8 @@ type AbilityStep = Extract<ComboStep, { type: 'ability' }>;
 
 /**
  * How many seconds a cast lasts, where the player chooses it (Smolder E's flight, Karthus E's
- * toggle), typed in its step. The default shows faded, and emptying the field brings it back.
+ * toggle), or is held to charge (Sion Q), typed in its step. The default shows faded, and emptying
+ * the field brings it back.
  */
 function DurationField({ step, range, onChange }: { step: AbilityStep; range: CastDuration; onChange: (s: AbilityStep) => void }) {
   const [text, setText] = useState<string | null>(null);
@@ -776,7 +777,7 @@ function DurationField({ step, range, onChange }: { step: AbilityStep; range: Ca
     onChange(duration === undefined ? rest : { ...rest, duration });
   };
   return (
-    <span className="duration" title={`How long it lasts, in seconds (default ${fmt(range.seconds, 2)}, at most ${fmt(range.maxSeconds, 2)})`}>
+    <span className="duration" title={`${range.held ? 'How long it charges' : 'How long it lasts'}, in seconds (default ${fmt(range.seconds, 2)}, at most ${fmt(range.maxSeconds, 2)})`}>
       <input
         type="number"
         aria-label={`${step.slot} seconds`}

@@ -26,20 +26,13 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       dash: true,
-      // Damage, range and speed max out after 1.25s of charging (wiki).
-      castTime: 1.25,
-      notes: ['Default: fully charged (1.25s). "Q:quick" = released immediately (minimum damage).'],
+      // Charged for up to 4s; damage, range and speed grow over the first 1.25s, the damage by 15%
+      // per 0.125s (wiki).
+      charge: { default: 1.25, max: 4 },
+      castTime: 'charge',
+      notes: ['Default: fully charged (1.25s). Set the seconds held (Q{0.5s}): the damage grows from min to max over the first 1.25s.'],
       cc: [{ kind: 'immobilize', duration: 'dv.KnockbackDuration' }],
-      components: [{ id: 'punch', label: 'Vault Breaker (charged)', type: 'physical', amount: 'calc.MaxDamageTooltip', aoe: true, delay: 0.2 }],
-      variants: {
-        quick: {
-          label: 'quick',
-          castTime: 0,
-          dash: true,
-          cc: [{ kind: 'immobilize', duration: 'dv.KnockbackDuration' }],
-          components: [{ id: 'punch', label: 'Vault Breaker', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 0.2 }],
-        },
-      },
+      components: [{ id: 'punch', label: 'Vault Breaker', type: 'physical', amount: 'lerp(calc.TotalDamage, calc.MaxDamageTooltip, min(1, floor(charge * 8) / 10))', aoe: true, delay: 0.2 }],
     },
     W: { noTarget: true, components: [] },
     E: {

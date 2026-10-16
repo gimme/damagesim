@@ -16,6 +16,7 @@
 //   buff.name       1 if the caster has that buff, else 0;  debuff.name likewise on the target
 //   hit             0-based index of the hit within a multi-hit component; hits = total
 //   recast          1-based index of the cast within a recast chain (Riven Q1/Q2/Q3)
+//   charge          seconds the slot's cast was held to charge (AbilitySpec.charge; its default before a cast)
 
 import type { DamageType } from './damage.ts';
 import type { StatMods } from './stats.ts';
@@ -36,6 +37,8 @@ export interface ComponentSpec {
   interval?: Expr;
   /** Seconds after the cast completes before the first hit. */
   delay?: Expr;
+  /** Seconds of the delay a hit is in flight (Xerath R's shots): a cast ended early still lands the hits fired before it ends. */
+  travel?: Expr;
   /** Area damage (some items/runes treat AoE differently). */
   aoe?: boolean;
   /** Damage over time (periodic). */
@@ -247,6 +250,12 @@ export interface AbilitySpec {
   variableDuration?: boolean;
   /** The most seconds a variableDuration cast lasts after its cast time (default: its lockout, else as long as its hits' maxHits take). */
   maxDuration?: Expr;
+  /**
+   * Held to charge (Sion Q, Varus Q): a combo step sets the seconds held (`Q{0.5s}`), which
+   * expressions read as `charge` (castTime, amounts, cc). `default`: the hold when the step doesn't
+   * say (usually the full charge); `max`: the longest hold (default `default`).
+   */
+  charge?: { default: Expr; max?: Expr };
   /** Base cooldown (before haste) when the data's cooldown is missing or wrong, e.g. 'calc.CD'. */
   cooldown?: Expr;
   /** This slot isn't an ultimate (Udyr R): no ultimate haste, items don't treat it as one. */

@@ -15,6 +15,8 @@ const mark: DebuffSpec = {
   },
 };
 const wDamage = 'dv.BaseDamage + calc.TotalMaxHealthDamage * target.maxHp';
+/** Path Maker's charge, from the minimum to the full charge. */
+const W_POWER = 'clamp((charge - dv.MinChargeTime) / (dv.TimeToFullCharge - dv.MinChargeTime), 0, 1)';
 
 const kit: ChampionKit = {
   id: 'KSante',
@@ -22,7 +24,7 @@ const kit: ChampionKit = {
   notes: [
     'All Out (R, 15s): +attack speed, bonus armor penetration, and every physical attack/ability/passive hit is increased by P.calc.MaxHealthDamagePercent of the target\'s max health (same instance, hook).',
     'All Out\'s health/resistance loss is not modelled: it comes out of base resistances and does not change K\'Sante\'s damage scalings. Omnivamp and shields are ignored.',
-    'W charge: default minimum (0.4s); W:charged = full charge. While All Out use W:allout / W:alloutcharged (bonus true damage, no stun). Casting R refreshes W\'s cooldown (hook); All Out\'s Q/E cooldown reductions are not modelled.',
+    'W charge: default minimum (0.4s); set the seconds held (W{0.9s} for the full charge). While All Out use W:allout (bonus true damage, no stun). Casting R refreshes W\'s cooldown (hook); All Out\'s Q/E cooldown reductions are not modelled.',
   ],
   abilities: {
     Q: {
@@ -46,39 +48,21 @@ const kit: ChampionKit = {
     },
     W: {
       dash: true,
-      castTime: 'dv.MinChargeTime',
+      // Charged for MinChargeTime to MaxDuration; stun and All Out's true damage grow until TimeToFullCharge.
+      charge: { default: 'dv.MinChargeTime', max: 'dv.MaxDuration' },
+      castTime: 'max(dv.MinChargeTime, charge)',
       debuff: mark,
-      cc: [{ kind: 'immobilize', duration: 'dv.MinKnockbackDuration' }],
+      cc: [{ kind: 'immobilize', duration: `lerp(dv.MinKnockbackDuration, dv.MaxKnockbackDuration, ${W_POWER})` }],
       components: [{ id: 'ram', label: 'Path Maker', type: 'physical', amount: wDamage, aoe: true }],
       variants: {
-        charged: {
-          label: 'full charge',
-          dash: true,
-          castTime: 0.9, // dv.TimeToFullCharge
-          debuff: mark,
-          cc: [{ kind: 'immobilize', duration: 'dv.MaxKnockbackDuration' }],
-          components: [{ id: 'ram', label: 'Path Maker (charged)', type: 'physical', amount: wDamage, aoe: true }],
-        },
         allout: {
           label: 'All Out',
           dash: true,
-          castTime: 0.4,
           debuff: mark,
           cc: [],
           components: [
             { id: 'ram', label: 'Path Maker', type: 'physical', amount: wDamage, aoe: true },
-            { id: 'true', label: 'Path Maker (All Out)', type: 'true', amount: `(${wDamage}) * dv.RDamageIncreaseMin`, aoe: true },
-          ],
-        },
-        alloutcharged: {
-          label: 'All Out, full charge',
-          dash: true,
-          castTime: 0.9,
-          debuff: mark,
-          cc: [],
-          components: [
-            { id: 'ram', label: 'Path Maker', type: 'physical', amount: wDamage, aoe: true },
-            { id: 'true', label: 'Path Maker (All Out)', type: 'true', amount: `(${wDamage}) * dv.RDamageIncreaseMax`, aoe: true },
+            { id: 'true', label: 'Path Maker (All Out)', type: 'true', amount: `(${wDamage}) * lerp(dv.RDamageIncreaseMin, dv.RDamageIncreaseMax, ${W_POWER})`, aoe: true },
           ],
         },
       },

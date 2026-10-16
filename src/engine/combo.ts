@@ -11,7 +11,7 @@ export type ComboStep =
       variant?: string;
       /** Override hit counts per component id (0 disables a component). */
       hits?: Record<string, number>;
-      /** Seconds the cast lasts, where the player chooses it (Smolder E's flight, Karthus E's toggle). */
+      /** Seconds the cast lasts, where the player chooses it (Smolder E's flight, Karthus E's toggle), or is held to charge (Sion Q). */
       duration?: number;
       /** Enable optional components by id. */
       enable?: string[];
@@ -168,7 +168,7 @@ export function fitCombo(steps: ComboStep[], kit: ChampionKit): ComboStep[] {
     const fitted: ComboStep = {
       ...rest,
       ...(variant ? { variant } : {}),
-      ...(duration !== undefined && spec?.variableDuration ? { duration } : {}),
+      ...(duration !== undefined && (spec?.variableDuration || spec?.charge) ? { duration } : {}),
       ...(kept.length ? { hits: Object.fromEntries(kept) } : {}),
       ...(keep(enable, (id) => ids.has(id)) ? { enable: keep(enable, (id) => ids.has(id)) } : {}),
     };
