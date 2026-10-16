@@ -9,7 +9,7 @@ import { effectiveResist, resistMultiplier } from '../src/engine/damage.ts';
 import { computeStats, emptyMods, levelStats } from '../src/engine/stats.ts';
 import { statProgression, evalPart } from '../src/engine/calc.ts';
 import { compile } from '../src/engine/expr.ts';
-import { critMarking, fitCombo, formatCombo, markCrit, parseCombo, rollsCrits } from '../src/engine/combo.ts';
+import { clampCombo, critMarking, fitCombo, formatCombo, markCrit, parseCombo, rollsCrits } from '../src/engine/combo.ts';
 import { getKit } from '../src/kits/index.ts';
 import { combineAmps } from '../src/engine/sim.ts';
 import { rankItems } from '../src/engine/analysis.ts';
@@ -111,6 +111,14 @@ test("a champion switch drops the other champion's variants, durations, hit coun
   assert.equal(formatCombo(fitCombo(parseCombo('Q:tap{tick:3}! E{0.5s} W+bonus AA!+bounce R:Q2{3} ignite wait'), ahri)), 'Q E W AA! R ignite wait');
   const smolder = getKit(data.champions.Smolder);
   assert.equal(formatCombo(fitCombo(parseCombo('E{0.5s} R:Center Q{burn:1}'), smolder)), 'E{0.5s} R:center Q{burn:1}');
+});
+
+test("a step's number is clamped to what its cast allows at the build's ranks", () => {
+  const steps = parseCombo('R{5} Q');
+  const at = (r: number) => new Sim(data, { champion: 'Xerath', level: 18, ranks: { Q: 5, W: 5, E: 5, R: r }, combo: [] });
+  assert.equal(formatCombo(clampCombo(steps, (st) => at(1).castSetting(st))), 'R{4} Q');
+  const kept = clampCombo(steps, (st) => at(3).castSetting(st));
+  assert.ok(kept.every((st, i) => st === steps[i]), 'unchanged steps stay the same objects');
 });
 
 test('crit marks: the steps that roll crits, marked all at once', () => {

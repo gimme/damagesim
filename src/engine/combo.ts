@@ -186,6 +186,22 @@ export function fitCombo(steps: ComboStep[], kit: ChampionKit): ComboStep[] {
   });
 }
 
+/**
+ * The steps with each number they set kept within what its cast allows now (`range`, a CastSetting):
+ * after a lower rank, Xerath's R{5} fires 4 shots and says so.
+ */
+export function clampCombo(steps: ComboStep[], range: (step: Extract<ComboStep, { type: 'ability' }>) => { kind: string; min: number; max: number } | null): ComboStep[] {
+  return steps.map((step) => {
+    if (step.type !== 'ability') return step;
+    const r = range(step);
+    const key = r?.kind === 'count' ? 'count' : 'duration';
+    const v = step[key];
+    if (!r || v === undefined) return step;
+    const c = Math.max(r.min, Math.min(key === 'count' ? Math.round(v) : v, r.max));
+    return c === v ? step : { ...step, [key]: c };
+  });
+}
+
 /** How crits resolve: their expected value, or every crit-capable hit crits or doesn't. */
 export type CritMode = 'expected' | 'always' | 'never';
 

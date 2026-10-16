@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { DATA, loadBundledIcons } from './data.ts';
 import { DEFAULT_STATE, decodeState, encodeState, loadSavedState, saveState, toScenario, type UIState } from './state.ts';
 import { simulate, Sim, type SimResult } from '../engine/sim.ts';
+import { clampCombo, formatCombo, parseCombo } from '../engine/combo.ts';
 import { AttackerPanel, ComboBuilder, ItemsPanel, RunesPanel, SettingsPanel, TargetPanel } from './components/panels.tsx';
 import { Details, Summary } from './components/results.tsx';
 import { ItemValueCard } from './components/item-value.tsx';
@@ -26,6 +27,17 @@ function useTheme() {
   }, [theme]);
   const dark = theme ? theme === 'dark' : typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches;
   return { dark, toggle: () => setTheme(dark ? 'light' : 'dark') };
+}
+
+/** The combo with its numbers within what `sim`'s build allows (see clampCombo); unchanged, as typed, when they are. */
+function clampShorthand(combo: string, sim: Sim): string {
+  try {
+    const steps = parseCombo(combo);
+    const clamped = clampCombo(steps, (st) => sim.castSetting(st));
+    return clamped.some((st, i) => st !== steps[i]) ? formatCombo(clamped) : combo;
+  } catch {
+    return combo;
+  }
 }
 
 export function App() {
@@ -65,14 +77,20 @@ export function App() {
   }, [state]);
 
   const scenario = useMemo(() => toScenario(state), [state]);
-  const { result, sim, error } = useMemo(() => {
+  const { result, sim, combo, error } = useMemo(() => {
     try {
       const sim = new Sim(DATA, { ...scenario, combo: [] });
-      return { result: simulate(DATA, scenario) as SimResult, sim, error: null as string | null };
+      const combo = clampShorthand(state.combo, sim);
+      return { result: simulate(DATA, { ...scenario, combo }) as SimResult, sim, combo, error: null as string | null };
     } catch (e) {
-      return { result: null, sim: null, error: (e as Error).message };
+      return { result: null, sim: null, combo: state.combo, error: (e as Error).message };
     }
   }, [scenario]);
+  // A number set in the combo that the build no longer allows (5 shots after Xerath's R rank drops)
+  // becomes what is simulated.
+  useEffect(() => {
+    if (combo !== state.combo) setState((s) => ({ ...s, combo }));
+  }, [combo, state.combo]);
 
   const pin = () => {
     const items = state.items.filter((x) => x != null).map((id) => DATA.items[id!]?.name);
