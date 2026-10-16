@@ -32,6 +32,10 @@
   --hp-track: #2c2c2a;
   --hp-stripe: #4d4c48;
   --hp-left-text: #c3c2b7;
+  /* An item far ahead of the rest in the item value ranking: a star, a ring, a glow. */
+  --gold: #e3a008;
+  --gold-wash: rgba(250, 178, 25, 0.22);
+  --gold-glow: rgba(250, 178, 25, 0.6);
   --good: #006300;
   --warning: #fab219;
   --critical: #d03b3b;
@@ -64,6 +68,9 @@
     --magic-text: #00b0f0;
     --physical-text: #ff8c34;
     --true-text: #ffffff;
+    --gold: #ffc53d;
+    --gold-wash: rgba(255, 197, 61, 0.14);
+    --gold-glow: rgba(255, 197, 61, 0.55);
     --good: #0ca30c;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
   }
@@ -91,6 +98,9 @@
   --magic-text: #00b0f0;
   --physical-text: #ff8c34;
   --true-text: #ffffff;
+  --gold: #ffc53d;
+  --gold-wash: rgba(255, 197, 61, 0.14);
+  --gold-glow: rgba(255, 197, 61, 0.55);
   --good: #0ca30c;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
 }
@@ -195,11 +205,20 @@ a {
   align-items: center;
   gap: 8px;
 }
-.card h2 .right {
-  margin-left: auto;
+.card h2 .right,
+.card h2 .h2-control {
   text-transform: none;
   letter-spacing: 0;
   font-weight: 500;
+}
+.card h2 .right {
+  margin-left: auto;
+}
+/* Text with an explanation on hover */
+.hint {
+  text-decoration: underline dotted var(--text-muted);
+  text-underline-offset: 3px;
+  cursor: help;
 }
 .row {
   display: flex;
@@ -496,6 +515,7 @@ label.field {
   border-color: var(--accent);
 }
 .combo-seq {
+  position: relative;
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
@@ -506,16 +526,49 @@ label.field {
   background: var(--surface-2);
   border: 1px solid var(--border);
 }
+/* A step is dragged to reorder it; a finger's drag on it doesn't scroll the page. */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 4px 3px 8px;
+  padding: 3px 4px 3px 5px;
   border-radius: 6px;
   background: var(--surface);
   border: 1px solid var(--border-strong);
   font-weight: 600;
   font-size: 13px;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.chip.dragging {
+  position: relative;
+  z-index: 2;
+  cursor: grabbing;
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+  opacity: 0.9;
+}
+.chip select,
+.chip button {
+  cursor: pointer;
+}
+/* Where a dragged step will land: over the dragged step too, which can cover it, and past its line */
+.drop-marker {
+  position: absolute;
+  z-index: 3;
+  width: 3px;
+  margin: -4px 0 0 -0.5px;
+  padding-bottom: 8px;
+  box-sizing: content-box;
+  border-radius: 2px;
+  background: var(--accent);
+  pointer-events: none;
 }
 .chip button {
   border: 0;
@@ -532,9 +585,6 @@ label.field {
 }
 .chip button:hover {
   color: var(--text-primary);
-}
-.chip .arrow {
-  color: var(--text-muted);
 }
 
 /* Results */
@@ -622,7 +672,7 @@ label.field {
 .chart-wrap {
   position: relative;
 }
-.chart-wrap svg {
+.chart-wrap > svg {
   display: block;
   width: 100%;
   height: auto;
@@ -706,7 +756,7 @@ table.data .source-name {
   }
 }
 /* A finger slid sideways over a chart moves its tooltip along; up and down still scroll the page. */
-.chart-wrap svg {
+.chart-wrap > svg {
   touch-action: pan-y pinch-zoom;
 }
 .item-tip {
@@ -762,21 +812,82 @@ table.data .source-name {
   border-top: 1px solid var(--grid);
 }
 
-/* Item value ranking. The bar is what the list is read by, so it takes 3 parts of the room the
-   numbers leave to the item's 2, and the item's cost (in its card) and then the number not ranked
-   by give way as the list narrows, so names stay readable. */
+/* Item value: the slot being ranked, picked from the build's six slots. */
+.iv-for {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-bottom: 10px;
+}
+.iv-slots {
+  display: inline-flex;
+  gap: 4px;
+}
+.iv-slot {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 7px;
+  border: 1px dashed var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.iv-slot.filled {
+  border-style: solid;
+}
+.iv-slot .icon {
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+}
+/* The other items are dimmed, so the one being reconsidered stands out */
+.iv-slot.filled[aria-pressed='false'] .icon {
+  opacity: 0.55;
+}
+.iv-slot:not(:disabled):hover .icon {
+  opacity: 1;
+}
+.iv-slot:not(:disabled):hover {
+  border-color: var(--accent);
+}
+.iv-slot[aria-pressed='true'] {
+  border: 1px solid var(--accent);
+  background: var(--accent-wash);
+  color: var(--accent-text);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.iv-slot:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* The ranking. One grid for every row, so the item column fits the longest name shown and the bars
+   start right after it; the bar takes the rest of the room. The cost, then the number not ranked by
+   give way as the list narrows. */
 .iv-list {
   container-type: inline-size;
 }
-.iv-row {
+.iv-grid {
   display: grid;
-  grid-template-columns: minmax(170px, 2fr) minmax(40px, 3fr) 72px 64px 52px;
-  grid-template-areas: 'item track pg dmg act';
+  grid-template-columns: fit-content(40%) minmax(40px, 1fr) 52px 72px 64px;
+  column-gap: 12px;
+}
+.iv-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
   align-items: center;
-  column-gap: 10px;
   padding: 3px 6px;
   border-radius: 6px;
   min-height: 32px;
+  cursor: pointer;
 }
 .iv-row:not(.iv-head):hover {
   background: var(--surface-2);
@@ -784,6 +895,7 @@ table.data .source-name {
 .iv-row.current,
 .iv-row.current:hover {
   background: var(--accent-wash);
+  cursor: default;
 }
 .iv-head {
   white-space: nowrap;
@@ -791,35 +903,62 @@ table.data .source-name {
   color: var(--text-muted);
   min-height: 0;
   padding-bottom: 2px;
+  cursor: default;
 }
 .iv-item {
-  grid-area: item;
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
   white-space: nowrap;
 }
+/* The item's button, for the keyboard: a click anywhere on the row buys */
+.iv-buy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: inherit;
+}
+.iv-icon {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
 .iv-name {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.iv-tag {
+  font-size: 11px;
+  color: var(--accent-text);
+}
 .iv-track {
-  grid-area: track;
   height: 14px;
   display: flex;
+}
+.iv-bars {
+  position: relative;
+  display: flex;
   gap: 2px;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 0 4px 4px 0;
+  overflow: hidden;
 }
 .iv-bar {
-  height: 100%;
+  flex: 1 1 0;
   min-width: 2px;
   background: var(--accent);
 }
 .iv-bar.fx {
   background: var(--accent-2);
-}
-.iv-bar:last-child {
-  border-radius: 0 4px 4px 0;
 }
 .iv-head .iv-track {
   height: auto;
@@ -830,67 +969,246 @@ table.data .source-name {
 .iv-head .swatch {
   margin-right: 5px;
 }
+.iv-cost,
 .iv-pg,
-.iv-dmg {
+.iv-dmg,
+.iv-swap {
   text-align: right;
   color: var(--text-secondary);
 }
-.iv-pg {
-  grid-area: pg;
+.iv-cost {
+  color: var(--text-muted);
 }
-.iv-dmg {
-  grid-area: dmg;
+.iv-head .iv-cost {
+  color: inherit;
 }
 .iv-pg.on,
 .iv-dmg.on {
   color: var(--text-primary);
   font-weight: 650;
 }
-.iv-act {
-  grid-area: act;
-  text-align: right;
+/* A number's heading sorts by it */
+.iv-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.iv-sort:hover {
+  color: var(--text-primary);
+}
+.iv-head .on .iv-sort {
+  color: var(--text-primary);
+  font-weight: 650;
+}
+.chevron {
+  width: 10px;
+  height: 10px;
+  flex: none;
+}
+/* Where only one number fits, its heading switches between them */
+.iv-swap {
+  display: none;
 }
 .iv-tapped .tooltip {
   pointer-events: auto;
   cursor: pointer;
 }
+.tooltip .tt-foot {
+  margin-top: 6px;
+  color: var(--text-muted);
+}
+.iv-tip-buy {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* An item far more gold-efficient than the rest: a twinkling star on its icon, a sheen sweeping its
+   bar, and a gold flash on the row when it first stands out. */
+.iv-spark {
+  position: absolute;
+  top: -8px;
+  right: -9px;
+  width: 17px;
+  height: 17px;
+  color: var(--gold);
+  filter: drop-shadow(0 0 1.5px var(--surface)) drop-shadow(0 0 3px var(--gold-glow));
+  animation: iv-twinkle 2.4s ease-in-out infinite;
+}
+.iv-row.standout {
+  animation: iv-flash 1.4s ease-out;
+}
+.iv-row.standout .iv-bars {
+  box-shadow: 0 0 8px var(--gold-glow);
+}
+.iv-row.standout .iv-bars::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 25%, rgba(255, 255, 255, 0.6) 50%, transparent 75%);
+  transform: translateX(-100%);
+  animation: iv-sheen 3s ease-in-out infinite;
+}
+.iv-lead {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  color: var(--text-primary);
+}
+.iv-lead svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  color: var(--gold);
+}
+@keyframes iv-twinkle {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(0.7) rotate(45deg);
+  }
+}
+@keyframes iv-sheen {
+  0% {
+    transform: translateX(-100%);
+  }
+  40%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+@keyframes iv-flash {
+  from {
+    background-color: var(--gold-wash);
+  }
+}
+.gs-halo {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: gs-halo 2.2s ease-out infinite;
+}
+@keyframes gs-halo {
+  from {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .iv-spark,
+  .iv-row.standout,
+  .gs-halo {
+    animation: none;
+  }
+  .iv-row.standout .iv-bars::after {
+    display: none;
+  }
+}
+
+/* Show all / Show less, centered on a line under the list */
+.iv-more {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+.iv-more::before,
+.iv-more::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--grid);
+}
+.iv-more span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 12px 3px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+}
+.iv-more:hover span {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  color: var(--accent-text);
+}
+.iv-more:focus-visible {
+  outline: none;
+}
+.iv-more:focus-visible span {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.iv-more .chevron {
+  transition: transform 0.2s;
+}
+.iv-more[aria-expanded='true'] .chevron {
+  transform: rotate(180deg);
+}
+
 @container (max-width: 860px) {
-  .iv-gold {
+  .iv-grid {
+    grid-template-columns: fit-content(40%) minmax(40px, 1fr) 72px 64px;
+  }
+  .iv-cost {
     display: none;
   }
 }
 @container (max-width: 640px) {
-  .iv-row {
-    grid-template-columns: minmax(170px, 2fr) minmax(40px, 3fr) 72px 52px;
-    grid-template-areas: 'item track num act';
-  }
-  .iv-pg,
-  .iv-dmg {
-    grid-area: num;
+  .iv-grid {
+    grid-template-columns: fit-content(45%) minmax(40px, 1fr) 72px;
   }
   .iv-pg:not(.on),
-  .iv-dmg:not(.on) {
+  .iv-dmg:not(.on),
+  .iv-head .iv-pg,
+  .iv-head .iv-dmg {
     display: none;
+  }
+  .iv-head .iv-swap {
+    display: block;
   }
 }
 /* Phones: one line per item, with only the icon (a tap shows its name, cost and details) and the
-   number being ranked by; the legend gets its own line above the column names. */
+   number being ranked by. */
 @media (max-width: 600px) {
+  .iv-grid {
+    grid-template-columns: auto minmax(0, 1fr) 72px;
+    column-gap: 10px;
+  }
   .iv-row {
-    grid-template-columns: 22px minmax(0, 1fr) 48px 44px;
-    column-gap: 8px;
     padding-inline: 4px;
   }
-  .iv-name {
+  .iv-name,
+  .iv-tag,
+  .iv-head .iv-item {
     display: none;
   }
-  .iv-head {
-    grid-template-areas: 'track track track track' 'item item num act';
-    row-gap: 4px;
-  }
-  .iv-head .iv-pg,
-  .iv-head .iv-dmg {
-    justify-self: end;
+  .iv-head .iv-track {
+    grid-column: 2;
   }
 }
 

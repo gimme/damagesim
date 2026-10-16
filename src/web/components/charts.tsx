@@ -702,6 +702,8 @@ export interface GoldPoint {
   perGold: number;
   /** Drawn as a ring (the item currently in the slot being ranked). */
   highlight?: boolean;
+  /** Far more gold-efficient than the rest: ringed in gold, with a pulse and a star by its name. */
+  standout?: boolean;
 }
 
 export function GoldScatter({ points, labelTop = 6, tip, onPick }: { points: GoldPoint[]; labelTop?: number; tip: (p: GoldPoint, touch: boolean) => ReactNode; onPick?: (p: GoldPoint) => void }) {
@@ -755,7 +757,7 @@ export function GoldScatter({ points, labelTop = 6, tip, onPick }: { points: Gol
   const byGain = [...points].sort((a, b) => b.gain - a.gain);
   for (const p of [...points.filter((q) => q.highlight), ...byEff.slice(0, labelTop), ...byGain.slice(0, 2)]) {
     if (labels.has(p.id)) continue;
-    const w = p.label.length * 6.4 + 4;
+    const w = p.label.length * 6.4 + 4 + (p.standout ? 14 : 0);
     const y = sy(p.gain) - 7;
     const free = (x: number) =>
       x >= m.l &&
@@ -815,20 +817,31 @@ export function GoldScatter({ points, labelTop = 6, tip, onPick }: { points: Gol
             {fmt(r.k)} per 1000g
           </text>
         ))}
+        {points.map(
+          (p) =>
+            p.standout && (
+              <g key={p.id} transform={`translate(${sx(p.gold)} ${sy(p.gain)})`} style={{ pointerEvents: 'none' }}>
+                <circle className="gs-halo" r={6} />
+              </g>
+            ),
+        )}
         {points.map((p) =>
           p.highlight ? (
-            <circle key={p.id} cx={sx(p.gold)} cy={sy(p.gain)} r={5} fill="var(--surface)" stroke="var(--text-primary)" strokeWidth={2} />
+            <circle key={p.id} cx={sx(p.gold)} cy={sy(p.gain)} r={5} fill="var(--surface)" stroke={p.standout ? 'var(--gold)' : 'var(--text-primary)'} strokeWidth={2} />
           ) : (
-            <circle key={p.id} cx={sx(p.gold)} cy={sy(p.gain)} r={5} fill="var(--accent)" stroke="var(--surface)" strokeWidth={2} />
+            <circle key={p.id} cx={sx(p.gold)} cy={sy(p.gain)} r={p.standout ? 6 : 5} fill="var(--accent)" stroke={p.standout ? 'var(--gold)' : 'var(--surface)'} strokeWidth={2} />
           ),
         )}
         {points.map((p) => {
           const b = labels.get(p.id);
           return (
             b && (
-              <text key={p.id} x={b.x} y={b.y + 11} fontSize={11.5} fill="var(--text-secondary)" fontWeight={p.highlight ? 650 : 400} style={{ pointerEvents: 'none' }}>
-                {p.label}
-              </text>
+              <g key={p.id} style={{ pointerEvents: 'none' }}>
+                {p.standout && <path transform={`translate(${b.x} ${b.y + 2}) scale(0.45)`} d="M12 0C12.9 6.6 17.4 11.1 24 12C17.4 12.9 12.9 17.4 12 24C11.1 17.4 6.6 12.9 0 12C6.6 11.1 11.1 6.6 12 0Z" fill="var(--gold)" />}
+                <text x={b.x + (p.standout ? 14 : 0)} y={b.y + 11} fontSize={11.5} fill={p.standout ? 'var(--text-primary)' : 'var(--text-secondary)'} fontWeight={p.highlight || p.standout ? 650 : 400}>
+                  {p.label}
+                </text>
+              </g>
             )
           );
         })}

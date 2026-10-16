@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { DATA, abilityIcon, championIcon } from '../data.ts';
-import { Card, ChampIcon, ChampionPicker, Icon, ItemIcon, ItemPicker, ItemTip, NumberField, RuneIcon, RuneTip, fmt, sourceMark, useHoverCard } from './common.tsx';
+import { Card, ChampIcon, ChampionPicker, Icon, ItemIcon, ItemPicker, ItemTip, Markup, NumberField, RuneIcon, RuneTip, fmt, sourceMark, useHoverCard } from './common.tsx';
 import { SHARD_ROWS, type UIState, type TargetState } from '../state.ts';
 import { TARGET_PRESETS, type TargetPreset } from '../../engine/presets.ts';
 import { maxRanks, resolveRanks, type Sim, type SimResult } from '../../engine/sim.ts';
-import { runeText } from '../../engine/tooltip.ts';
+import { renderTooltip, runeText } from '../../engine/tooltip.ts';
+import { describeChampion } from '../../engine/describe.ts';
 import { NOT_LIVE_RUNES, bonusSkillPoints } from '../../engine/runes.ts';
 import { critMarking, formatCombo, markCrit, parseCombo, type ComboStep, type CritMode } from '../../engine/combo.ts';
 import { conflicts } from '../../engine/analysis.ts';
@@ -28,6 +29,8 @@ export function AttackerPanel({ state, set, sim }: { state: UIState; set: Set; s
   })();
   const totalPoints = ranks.Q + ranks.W + ranks.E + ranks.R;
   const setRank = (k: 'Q' | 'W' | 'E' | 'R', v: number) => set((s) => ({ ...s, ranks: { ...ranks, [k]: Math.max(0, Math.min(max[k], v)) } }));
+  const hover = useHoverCard();
+  const described = useMemo(() => (sim ? describeChampion(sim).abilities : null), [sim]);
   return (
     <Card title="Champion">
       <div className="stack" style={{ gap: 12 }}>
@@ -44,7 +47,8 @@ export function AttackerPanel({ state, set, sim }: { state: UIState; set: Set; s
         <div className="row" style={{ gap: 6 }}>
           {(['Q', 'W', 'E', 'R'] as const).map((k) => (
             <label key={k} className="field" style={{ alignItems: 'center' }}>
-              <span className="row" style={{ gap: 4 }} title={champ.abilities.find((a) => a.slot === k)?.spells[0]?.name}>
+              {/* The ability's card on hover: its name, cooldown and cost, and its tooltip at its rank */}
+              <span className="row" style={{ gap: 4 }} tabIndex={0} aria-label={champ.abilities.find((a) => a.slot === k)?.spells[0]?.name ?? k} {...(sim && described ? hover.bind(<AbilityTip sim={sim} ability={described.find((a) => a.slot === k)!} />) : {})}>
                 <Icon src={abilityIcon(state.champion, k)} label={k} size="xs" />
                 <span className="kbd">{k}</span>
               </span>
@@ -70,7 +74,46 @@ export function AttackerPanel({ state, set, sim }: { state: UIState; set: Set; s
         )}
         <OptionsEditor state={state} set={set} sim={sim} />
       </div>
+      {hover.node}
     </Card>
+  );
+}
+
+/** An ability's hover card: its name, rank, cooldown and cost there, and its tooltip with the numbers
+ *  for your rank, level and stats (rank 1's while it has no points). */
+function AbilityTip({ sim, ability: a }: { sim: Sim; ability: ReturnType<typeof describeChampion>['abilities'][number] }) {
+  const slot = a.slot as 'Q' | 'W' | 'E' | 'R';
+  const rank = Math.max(1, a.rank);
+  const cooldown = a.cooldown?.[rank - 1];
+  const cost = a.cost?.[rank - 1];
+  // Other resources' costs in the data aren't costs to cast (Zac's health, Sett's Grit, Yasuo's Flow).
+  const resource = sim.champ.partype === 'Mana' || sim.champ.partype === 'Energy' ? sim.champ.partype.toLowerCase() : null;
+  const text = renderTooltip(sim, slot, sim.spellFor(slot), rank, { html: true })
+    .replace(/<li>/gi, '<br>• ')
+    .replace(/\{\{[^}]*\}\}|%i:\w+%/g, '')
+    .replace(/^(\s|<br\s*\/?>)+|(\s|<br\s*\/?>)+$/gi, '');
+  return (
+    <div className="item-tip">
+      <div className="it-head">
+        <Icon src={abilityIcon(sim.champ.id, slot)} label={a.name} size="sm" />
+        <strong>{a.name}</strong>
+        <span className="kbd">{slot}</span>
+      </div>
+      <div className="secondary">
+        {[
+          a.rank ? `Rank ${a.rank}/${a.maxRank}` : 'No points: rank 1 shown',
+          cooldown ? `${fmt(cooldown, 2)}s cooldown` : '',
+          cost && resource ? `${fmt(cost)} ${resource}` : '',
+        ]
+          .filter(Boolean)
+          .join(' · ')}
+      </div>
+      {text && (
+        <div className="it-body">
+          <Markup text={text} />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -422,42 +465,81 @@ function TargetItems({ items, onChange }: { items: number[]; onChange: (i: numbe
 // -----------------------------------------------------------------------------
 
 export function SettingsPanel({ state, set }: { state: UIState; set: Set }) {
+  const hover = useHoverCard();
   const st = state.settings;
   const upd = (p: Partial<UIState['settings']>) => set((s) => ({ ...s, settings: { ...s.settings, ...p } }));
   return (
     <Card title="Settings">
       <div className="stack">
         <div className="row" style={{ justifyContent: 'space-between' }}>
-          <span className="small" title="Since patch 26.9 damage-dealt amplifiers add together; before, they multiplied.">
-            Damage amplifiers
+          <span
+            className="small hint"
+            tabIndex={0}
+            {...hover.bind(
+              <div className="item-tip">
+                <strong>Seconds already in combat</strong>
+                <div className="secondary">
+                  Starts the combo as if you had been fighting the target this long, so what builds up over a fight starts partway: the damage bonus of Liandry's Torment, Riftmaker and Haunting Guise, and
+                  Grasp of the Undying's charge when it isn't charged at the start. None takes more than 4 seconds.
+                </div>
+              </div>,
+            )}
+          >
+            Seconds already in combat
           </span>
-          <div className="segmented">
-            {(['additive', 'multiplicative'] as const).map((c) => (
-              <button key={c} aria-pressed={st.ampStacking === c} onClick={() => upd({ ampStacking: c })}>
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="row" style={{ justifyContent: 'space-between' }}>
-          <span className="small">Seconds already in combat</span>
           {/* Nothing ramps longer: Riftmaker and Grasp take 4s, Liandry's and Haunting Guise 3s. */}
-          <input type="number" min={0} max={4} step={1} style={{ width: 80 }} value={st.priorCombatTime} onChange={(e) => upd({ priorCombatTime: Number(e.target.value) })} />
+          <input type="number" min={0} max={4} step={1} style={{ width: 80 }} aria-label="Seconds already in combat" value={st.priorCombatTime} onChange={(e) => upd({ priorCombatTime: Number(e.target.value) })} />
         </div>
         <label className="row small" style={{ justifyContent: 'space-between' }}>
           Let burns and bleeds finish after the combo
           <input type="checkbox" checked={st.finishDots} onChange={(e) => upd({ finishDots: e.target.checked })} />
         </label>
       </div>
+      {hover.node}
     </Card>
   );
 }
 
 // -----------------------------------------------------------------------------
 
+/** Moves step `from` to index `to` of the steps that remain without it. */
+const moveStep = (steps: ComboStep[], from: number, to: number) => {
+  const next = steps.filter((_, j) => j !== from);
+  next.splice(to, 0, steps[from]);
+  return next;
+};
+
+// Whether the combo shows as steps or as its shorthand, remembered in this browser.
+type ComboView = 'steps' | 'text';
+const COMBO_VIEW_KEY = 'lolsim:comboView';
+const savedComboView = (): ComboView => {
+  try {
+    return localStorage.getItem(COMBO_VIEW_KEY) === 'text' ? 'text' : 'steps';
+  } catch {
+    return 'steps';
+  }
+};
+
 export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; sim: Sim | null }) {
   const [text, setText] = useState(state.combo);
   const [editing, setEditing] = useState(false);
+  const [view, setView] = useState<ComboView>(savedComboView);
+  const input = useRef<HTMLInputElement>(null);
+  const focusInput = useRef(false);
+  const pickView = (v: ComboView) => {
+    setView(v);
+    focusInput.current = v === 'text';
+    try {
+      localStorage.setItem(COMBO_VIEW_KEY, v);
+    } catch {
+      // storage unavailable
+    }
+  };
+  // Switching to the text opens it for typing.
+  useEffect(() => {
+    if (view === 'text' && focusInput.current) input.current?.focus();
+    focusInput.current = false;
+  }, [view]);
   const parsed = useMemo(() => {
     try {
       return { steps: parseCombo(state.combo), error: null as string | null };
@@ -511,9 +593,54 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
     }
     return null;
   };
+  // A step is dragged to its new place (a pointer that moves a few pixels from where it went down on
+  // the step, not on its buttons); a marker shows where it will land. The pointer is captured, so a
+  // finger's drag doesn't scroll the page (styles.css) and the step follows it outside the box.
+  const seq = useRef<HTMLDivElement>(null);
+  const chips = useRef<(HTMLElement | null)[]>([]);
+  const grab = useRef<{ from: number; x: number; y: number; to: number | null } | null>(null);
+  const [drag, setDrag] = useState<{ from: number; dx: number; dy: number; marker: { left: number; top: number; height: number } | null } | null>(null);
+  /** Where step `from` would drop with the pointer at (x, y): before the first other step the pointer
+   *  is before in reading order (above its line, or on it and left of its middle). */
+  const dropAt = (from: number, x: number, y: number) => {
+    const box = seq.current!.getBoundingClientRect();
+    const rects = steps.flatMap((_, j) => (j !== from && chips.current[j] ? [chips.current[j]!.getBoundingClientRect()] : []));
+    let to = rects.findIndex((r) => y < r.top || (y <= r.bottom && x < r.left + r.width / 2));
+    if (to < 0) to = rects.length;
+    const [prev, next] = [rects[to - 1], rects[to]];
+    // At the end of a line, the marker goes after its last step rather than before the next line's first.
+    const after = prev && (!next || (next.top >= prev.bottom && y <= prev.bottom));
+    const at = after ? { left: prev.right + 1, r: prev } : next ? { left: next.left - 3, r: next } : null;
+    return { to, marker: at && to !== from ? { left: at.left - box.left, top: at.r.top - box.top, height: at.r.height } : null };
+  };
+  const endDrag = () => {
+    grab.current = null;
+    setDrag(null);
+  };
+  // Arrow keys move a focused step, Delete removes it; focus stays on it, or on the next one.
+  const refocus = useRef<number | null>(null);
+  useEffect(() => {
+    if (refocus.current != null) chips.current[refocus.current]?.focus();
+    refocus.current = null;
+  }, [state.combo]);
+
   return (
     <Card
-      title="Combo"
+      title={
+        <>
+          Combo
+          <span className="h2-control">
+            <span className="segmented small" role="group" aria-label="Show the combo as">
+              <button aria-pressed={view === 'steps'} onClick={() => pickView('steps')}>
+                Steps
+              </button>
+              <button aria-pressed={view === 'text'} onClick={() => pickView('text')}>
+                Text
+              </button>
+            </span>
+          </span>
+        </>
+      }
       right={
         <div className="row" style={{ gap: 6 }}>
           <span className="small secondary">Crits</span>
@@ -561,45 +688,88 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
           +1s
         </button>
       </div>
-      <div className="combo-seq" style={{ marginTop: 10 }} aria-label="Combo sequence">
-        {!steps.length && <span className="muted small">Click abilities above to build a combo.</span>}
-        {steps.map((st, i) => {
-          const variants = st.type === 'ability' ? Object.entries(kit.abilities[st.slot]?.variants ?? {}) : [];
-          return (
-            <span key={i} className="chip">
-              {i > 0 && <span className="arrow">›</span>}
-              {stepIcon(st)}
-              {variants.length > 0 && st.type === 'ability' ? (
-                <select
-                  aria-label={`${st.slot} variant`}
-                  value={st.variant ?? ''}
-                  onChange={(e) => commit(steps.map((x, j) => (j === i ? follow({ ...st, variant: e.target.value || undefined }) : x)))}
-                  style={{ padding: '1px 2px', fontWeight: 600, background: 'transparent', border: 0 }}
-                >
-                  <option value="">{label({ ...st, variant: undefined })}</option>
-                  {variants.map(([k, v]) => (
-                    <option key={k} value={k}>
-                      {label({ ...st, variant: undefined })}: {v.label}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <span title={st.type === 'ability' ? spellName(st.slot) : undefined}>{label(st)}</span>
-              )}
-              {i > 0 && (
-                <button aria-label="Move left" onClick={() => commit(steps.map((x, j) => (j === i - 1 ? steps[i] : j === i ? steps[i - 1] : x)))}>
-                  ‹
+      {view === 'steps' ? (
+        <div className="combo-seq" ref={seq} style={{ marginTop: 10 }} role="list" aria-label="Combo sequence">
+          {!steps.length && <span className="muted small">Click abilities above to build a combo.</span>}
+          {steps.map((st, i) => {
+            const variants = st.type === 'ability' ? Object.entries(kit.abilities[st.slot]?.variants ?? {}) : [];
+            const dragging = drag?.from === i;
+            return (
+              <span
+                key={i}
+                ref={(el) => {
+                  chips.current[i] = el;
+                }}
+                className={`chip ${dragging ? 'dragging' : ''}`}
+                role="listitem"
+                tabIndex={0}
+                aria-label={`Step ${i + 1} of ${steps.length}: ${label(st)}. Arrow keys move it, Delete removes it.`}
+                style={dragging ? { transform: `translate(${drag.dx}px, ${drag.dy}px)` } : undefined}
+                onPointerDown={(e) => {
+                  if (e.button !== 0 || (e.target as Element).closest('button, select')) return;
+                  grab.current = { from: i, x: e.clientX, y: e.clientY, to: null };
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                }}
+                onPointerMove={(e) => {
+                  const g = grab.current;
+                  if (!g || g.from !== i) return;
+                  const [dx, dy] = [e.clientX - g.x, e.clientY - g.y];
+                  if (g.to == null && dx * dx + dy * dy < 16) return;
+                  const { to, marker } = dropAt(i, e.clientX, e.clientY);
+                  g.to = to;
+                  setDrag({ from: i, dx, dy, marker });
+                }}
+                onPointerUp={() => {
+                  const g = grab.current;
+                  endDrag();
+                  if (g?.to != null && g.to !== g.from) commit(moveStep(steps, g.from, g.to));
+                }}
+                onPointerCancel={endDrag}
+                // The icon is an image, which the browser would drag itself (and cancel the pointer).
+                onDragStart={(e) => e.preventDefault()}
+                onKeyDown={(e) => {
+                  if (e.target !== e.currentTarget) return;
+                  const to = e.key === 'ArrowLeft' ? i - 1 : e.key === 'ArrowRight' ? i + 1 : null;
+                  if (to != null && to >= 0 && to < steps.length) {
+                    e.preventDefault();
+                    refocus.current = to;
+                    commit(moveStep(steps, i, to));
+                  } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                    e.preventDefault();
+                    refocus.current = Math.min(i, steps.length - 2);
+                    commit(steps.filter((_, j) => j !== i));
+                  }
+                }}
+              >
+                {stepIcon(st)}
+                {variants.length > 0 && st.type === 'ability' ? (
+                  <select
+                    aria-label={`${st.slot} variant`}
+                    value={st.variant ?? ''}
+                    onChange={(e) => commit(steps.map((x, j) => (j === i ? follow({ ...st, variant: e.target.value || undefined }) : x)))}
+                    style={{ padding: '1px 2px', fontWeight: 600, background: 'transparent', border: 0 }}
+                  >
+                    <option value="">{label({ ...st, variant: undefined })}</option>
+                    {variants.map(([k, v]) => (
+                      <option key={k} value={k}>
+                        {label({ ...st, variant: undefined })}: {v.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span title={st.type === 'ability' ? spellName(st.slot) : undefined}>{label(st)}</span>
+                )}
+                <button aria-label="Remove step" tabIndex={-1} onClick={() => commit(steps.filter((_, j) => j !== i))}>
+                  ✕
                 </button>
-              )}
-              <button aria-label="Remove step" onClick={() => commit(steps.filter((_, j) => j !== i))}>
-                ✕
-              </button>
-            </span>
-          );
-        })}
-      </div>
-      <div className="row" style={{ marginTop: 8 }}>
+              </span>
+            );
+          })}
+          {drag?.marker && <span className="drop-marker" style={drag.marker} aria-hidden />}
+        </div>
+      ) : (
         <input
+          ref={input}
           type="text"
           aria-label="Combo shorthand"
           value={editing ? text : state.combo}
@@ -617,10 +787,10 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
               // keep editing
             }
           }}
-          style={{ flex: 1, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
+          style={{ marginTop: 10, width: '100%', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
         />
-      </div>
-      {editing && textError && (
+      )}
+      {view === 'text' && editing && textError && (
         <div className="small" style={{ marginTop: 4, color: 'var(--critical)' }}>
           {textError}
         </div>
