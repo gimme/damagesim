@@ -25,6 +25,7 @@ export function loadGameData(patch?: string): GameData {
     champions,
     items: read('items.json'),
     runes: read('runes.json'),
+    runePage: read('rune-page.json'),
     summoners: read('summoners.json'),
   };
   return cached;

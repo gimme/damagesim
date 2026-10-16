@@ -1534,31 +1534,188 @@ details summary {
   -webkit-user-select: none;
   user-select: none;
 }
-.rune-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+/* Rune trees in the client's colors (Precision gold, Domination red, Sorcery blue, Resolve green,
+   Inspiration teal), darker on a light page for its name (>= 4.5:1 on --surface). */
+:root {
+  --tree-precision: #8a6d2c;
+  --tree-domination: #c03535;
+  --tree-sorcery: #5561d0;
+  --tree-resolve: #3f7d2a;
+  --tree-inspiration: #237886;
 }
-.rune-btn {
-  display: inline-flex;
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --tree-precision: #c8aa6e;
+    --tree-domination: #e05656;
+    --tree-sorcery: #9faafc;
+    --tree-resolve: #a1d586;
+    --tree-inspiration: #49aab9;
+  }
+}
+:root[data-theme='dark'] {
+  --tree-precision: #c8aa6e;
+  --tree-domination: #e05656;
+  --tree-sorcery: #9faafc;
+  --tree-resolve: #a1d586;
+  --tree-inspiration: #49aab9;
+}
+
+/* A rune page as in the client: the primary tree beside the secondary one, each a column of rows
+   whose picks are in color and the rest grey. */
+.rune-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+.rune-tree {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 10px;
+  padding: 8px 6px 12px;
+  border-radius: 8px;
   border: 1px solid var(--border);
-  background: var(--surface-2);
-  border-radius: 999px;
-  padding: 2px 8px 2px 3px;
-  font-size: 12px;
+  background: linear-gradient(color-mix(in srgb, var(--tree) 14%, transparent), transparent 45%);
+}
+.tree-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.tree-name {
+  color: var(--tree);
+}
+.tree-picker {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+}
+.tree-btn,
+.rune-pick,
+.shard-pick {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 50%;
   cursor: pointer;
 }
-.rune-btn[aria-pressed='true'] {
-  background: var(--accent-wash);
-  border-color: var(--accent);
-  color: var(--accent-text);
-  font-weight: 600;
+.tree-btn {
+  flex: 0 1 26px;
+  aspect-ratio: 1;
 }
-.rune-btn img {
-  width: 20px;
-  height: 20px;
+.tree-btn .icon,
+.rune-pick .icon,
+.shard-pick .icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+.tree-btn img.icon,
+.rune-pick img.icon {
+  background: none;
+}
+/* Not picked: grey and faint; brighter under the pointer. */
+.tree-btn img,
+.rune-pick img,
+.shard-pick img {
+  filter: grayscale(1);
+  opacity: 0.45;
+  transition:
+    opacity 0.12s,
+    filter 0.12s;
+}
+.tree-btn:hover img,
+.rune-pick:hover img,
+.shard-pick:hover img {
+  filter: grayscale(0.3);
+  opacity: 0.85;
+}
+.tree-btn[aria-pressed='true'] img,
+.rune-pick[aria-pressed='true'] img,
+.shard-pick[aria-pressed='true'] img {
+  filter: none;
+  opacity: 1;
+}
+.tree-btn[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--tree) 22%, transparent);
+  box-shadow: 0 0 0 1.5px var(--tree);
+}
+.rune-row {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+.rune-pick {
+  flex: 0 1 30px;
+  aspect-ratio: 1;
+}
+.rune-pick[aria-pressed='true'] {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 3.5px var(--tree);
+}
+/* A keystone is art, not a disc: a pick glows in its tree's color. */
+.rune-row.keystones {
+  min-height: 40px;
+  align-items: center;
+}
+.keystones .rune-pick {
+  flex-basis: 40px;
+}
+.keystones .rune-pick[aria-pressed='true'] {
+  box-shadow: none;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--tree) 45%, transparent), transparent);
+}
+.rune-row.hint {
+  text-align: center;
+  line-height: 1.3;
+  padding-inline: 4px;
+}
+/* The pick a rune under the pointer would take the place of. */
+.rune-pick.replaced {
+  box-shadow: none;
+  outline: 1.5px dashed var(--tree);
+  outline-offset: 2px;
+}
+.rune-pick.replaced img {
+  opacity: 0.45;
+}
+
+.shard-rows {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 12px;
+}
+.shard-row {
+  display: contents;
+}
+.shard-pick {
+  width: 24px;
+  height: 24px;
+}
+/* Shard icons are light marks, drawn on a dark disc as in the client. */
+.shard-pick .icon {
+  background: var(--hp-track);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.shard-pick img {
+  opacity: 0.6;
+}
+.shard-pick[aria-pressed='true'] {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 3.5px var(--accent);
+}
+.shard-text {
+  line-height: 1.25;
 }
 @media (max-width: 520px) {
   .hero .value {

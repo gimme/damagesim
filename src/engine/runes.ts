@@ -795,8 +795,6 @@ export const NOT_LIVE_RUNES = new Set([8124, 8134, 8136, 8120, 8138, 8359, 8339,
 
 export function createRuneEffects(runes: RuneData[], setup: SetupCtx, sim: Sim): Effect[] {
   const out: Effect[] = [];
-  const keystones = runes.filter((r) => r.row === 0);
-  if (keystones.length > 1) sim.warn(`more than one keystone selected (${keystones.map((k) => k.name).join(', ')})`);
   let shardIndex = 0;
   for (const r of runes) {
     if (NOT_LIVE_RUNES.has(r.id)) sim.warn(`${r.name} is not available on Summoner's Rift in this patch`);

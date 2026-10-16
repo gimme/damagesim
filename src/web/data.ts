@@ -6,6 +6,7 @@ import meta from '@data/meta.json';
 import championIndex from '@data/champions.json';
 import items from '@data/items.json';
 import runes from '@data/runes.json';
+import runePage from '@data/rune-page.json';
 import summoners from '@data/summoners.json';
 
 const champFiles = import.meta.glob('@data/champions/*.json', { eager: true, import: 'default' }) as Record<string, ChampionData>;
@@ -19,6 +20,7 @@ export const DATA: GameData = {
   champions,
   items: items as unknown as GameData['items'],
   runes: runes as unknown as GameData['runes'],
+  runePage,
   summoners: summoners as unknown as GameData['summoners'],
 };
 
@@ -40,7 +42,9 @@ const bundledOr = (key: string, url: string) => (BUNDLED ? (BUNDLED[key] ?? '') 
 
 export const championIcon = (id: string) => bundledOr(`champion/${id}`, `${DD}champion/${DATA.champions[id]?.icon.replace(/^champion\//, '') ?? id + '.png'}`);
 export const itemIcon = (id: number) => bundledOr(`item/${id}`, `${DD}item/${id}.png`);
-export const runeIcon = (icon: string) => (icon.startsWith('perk-images') ? bundledOr(`rune/${icon}`, `https://ddragon.leagueoflegends.com/cdn/img/${icon}`) : '');
+// Trees and runes are on Data Dragon; stat shards only in the game files.
+export const runeIcon = (icon: string) =>
+  icon.startsWith('perk-images') ? bundledOr(`rune/${icon}`, `https://ddragon.leagueoflegends.com/cdn/img/${icon}`) : icon.startsWith('assets/') ? bundledOr(`rune/${icon}`, `https://raw.communitydragon.org/${DATA.meta.patch}/game/${icon}`) : '';
 export const abilityIcon = (champion: string, slot: 'P' | 'Q' | 'W' | 'E' | 'R') => {
   const path = DATA.champions[champion]?.abilityIcons[slot];
   return path ? bundledOr(`ability/${champion}/${slot}`, `https://raw.communitydragon.org/${DATA.meta.patch}/game/${path}`) : '';

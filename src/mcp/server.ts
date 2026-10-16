@@ -59,7 +59,7 @@ const scenarioShape = {
   ranks: z.object({ Q: z.number().optional(), W: z.number().optional(), E: z.number().optional(), R: z.number().optional() }).optional().describe('Ability ranks (default: standard leveling)'),
   skillOrder: z.string().optional().describe('Max order for default ranks, e.g. "QEW"'),
   items: z.array(idOrName).optional().describe('Item names/aliases/ids, e.g. ["Luden\'s Echo", "sorcs", 3089]'),
-  runes: z.array(idOrName).optional().describe('Keystone, minor runes and shards (names or ids; shards e.g. 5008 adaptive)'),
+  runes: z.array(idOrName).optional().describe('A rune page, names or ids: a keystone and one rune from each row of its tree, two runes from different rows of another tree, and one shard from each shard row (e.g. 5008 adaptive). Warnings name runes no page holds together.'),
   options: z.record(z.string(), z.number()).optional().describe('Champion/item/rune parameters (see get_champion options and scenario_help)'),
   combo: z.union([z.string(), z.array(comboStep)]).optional().describe('Combo shorthand like "E Q W R AA ignite" or steps array. Default "Q W E R AA"'),
   target: target.optional(),
@@ -179,7 +179,7 @@ server.registerTool(
 
 server.registerTool('get_item', { description: 'Item details: stats, passive text with numbers, data values, build path.', inputSchema: { item: idOrName } }, safe(({ item }: { item: string | number }) => describeItem(data, item)));
 
-server.registerTool('list_runes', { description: 'Live runes (keystones, minors, shards) and whether they are modeled.', inputSchema: {} }, safe(() => listRunes(data)));
+server.registerTool('list_runes', { description: 'Live runes by tree and row (keystone, row 1-3; shards by the rows that offer them) and whether they are modeled.', inputSchema: {} }, safe(() => listRunes(data)));
 
 server.registerTool(
   'simulate',

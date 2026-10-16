@@ -30,6 +30,8 @@ for (const c of data.championIndex) wanted.push([`champion/${c.id}`, `${dd}${c.i
 for (const c of Object.values(data.champions)) for (const [slot, path] of Object.entries(c.abilityIcons)) wanted.push([`ability/${c.id}/${slot}`, `https://raw.communitydragon.org/${data.meta.patch}/game/${path}`, 48]);
 for (const it of Object.values(data.items)) if ((it.inStore || [3040, 3042, 3121].includes(it.id)) && it.gold.total > 0) wanted.push([`item/${it.id}`, `${dd}item/${it.id}.png`]);
 for (const r of data.runes) if (r.icon.startsWith('perk-images')) wanted.push([`rune/${r.icon}`, `https://ddragon.leagueoflegends.com/cdn/img/${r.icon}`]);
+for (const t of data.runePage.trees) wanted.push([`rune/${t.icon}`, `https://ddragon.leagueoflegends.com/cdn/img/${t.icon}`, 48]);
+for (const r of data.runes) if (r.icon.startsWith('assets/')) wanted.push([`rune/${r.icon}`, `https://raw.communitydragon.org/${data.meta.patch}/game/${r.icon}`, 48]);
 for (const key of Object.keys(data.summoners)) wanted.push([`summoner/${key}`, `${dd}spell/${key}.png`, 48]);
 wanted.push(['ui/autoattack', `https://raw.communitydragon.org/${data.meta.patch}/game/assets/ux/deathrecap/autoattack.png`, 32]);
 

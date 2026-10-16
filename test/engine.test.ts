@@ -15,6 +15,7 @@ import { combineAmps } from '../src/engine/sim.ts';
 import { rankItems } from '../src/engine/analysis.ts';
 import { formatNumber, itemText, renderTooltip, runeText } from '../src/engine/tooltip.ts';
 import { NOT_LIVE_RUNES } from '../src/engine/runes.ts';
+import { choosePrimary, chooseSecondary, pageRunes, pickRune, remember, replacedBy, treePicks, type RunePage } from '../src/engine/rune-page.ts';
 
 const data = loadGameData('16.20');
 await loadAllKits();
@@ -345,6 +346,55 @@ test('rune hover text: the in-game tooltip with numbers for the attacker, else t
       assert.ok(t.body && !/%i:|\{\{|@|…|^<br>|<br>$|\(\s*\)|\[|\|\|/.test(t.body), `${r.name}: ${t.body}`);
     }
   }
+});
+
+test('rune pages: a pick takes its row; the secondary tree gives two, the older going first', () => {
+  const id = (name: string) => data.runes.find((r) => r.name === name)!.id;
+  const ids = (...names: string[]) => names.map(id);
+  const ahri: RunePage = { primary: 'Domination', secondary: 'Sorcery', picks: ids('Electrocute', 'Cheap Shot', 'Grisly Mementos', 'Ultimate Hunter', 'Absolute Focus', 'Scorch'), shards: [5008, 5008, 5001] };
+  // A keystone or a primary rune takes the place of the one in its row.
+  assert.deepEqual(pickRune(data, ahri, id('Dark Harvest')).picks, ids('Cheap Shot', 'Grisly Mementos', 'Ultimate Hunter', 'Absolute Focus', 'Scorch', 'Dark Harvest'));
+  assert.equal(replacedBy(data, ahri, id('Sudden Impact')), id('Cheap Shot'));
+  // A secondary rune in its picks' rows replaces that one; in the third row the older pick.
+  assert.equal(replacedBy(data, ahri, id('Celerity')), id('Absolute Focus'));
+  assert.equal(replacedBy(data, ahri, id('Manaflow Band')), id('Absolute Focus'));
+  assert.deepEqual(treePicks(data, pickRune(data, ahri, id('Manaflow Band')), 'Sorcery'), ids('Scorch', 'Manaflow Band'));
+  // No keystone in the secondary tree, nothing from a third tree; picking a pick unpicks it.
+  assert.equal(replacedBy(data, ahri, id('Arcane Comet')), undefined);
+  assert.equal(pickRune(data, ahri, id('Conqueror')), ahri);
+  assert.deepEqual(pickRune(data, ahri, id('Scorch')).picks, ids('Electrocute', 'Cheap Shot', 'Grisly Mementos', 'Ultimate Hunter', 'Absolute Focus'));
+  // As a scenario: keystone, primary rows, secondary rows, shards, whatever the order picked.
+  assert.deepEqual(pageRunes(data, pickRune(data, pickRune(data, ahri, id('Cheap Shot')), id('Cheap Shot'))), [...ids('Electrocute', 'Cheap Shot', 'Grisly Mementos', 'Ultimate Hunter', 'Absolute Focus', 'Scorch'), 5008, 5008, 5001]);
+
+  // Taking the secondary tree as primary swaps the two; the old primary keeps its newest two minors.
+  const swapped = choosePrimary(data, ahri, 'Sorcery');
+  assert.deepEqual([swapped.primary, swapped.secondary], ['Sorcery', 'Domination']);
+  assert.deepEqual(swapped.picks, ids('Absolute Focus', 'Scorch', 'Grisly Mementos', 'Ultimate Hunter'));
+  // Each tree gets back what it had in its place before.
+  let memory = remember(data, {}, ahri);
+  const comet = pickRune(data, choosePrimary(data, ahri, 'Sorcery', memory), id('Arcane Comet'));
+  memory = remember(data, memory, comet);
+  assert.deepEqual(choosePrimary(data, comet, 'Domination', memory), ahri);
+  // A new primary tree starts empty; a new secondary tree with the two the client puts in.
+  assert.deepEqual(choosePrimary(data, ahri, 'Precision').picks, ids('Absolute Focus', 'Scorch'));
+  assert.deepEqual(treePicks(data, chooseSecondary(data, ahri, 'Precision'), 'Precision'), ids('Triumph', 'Coup de Grace'));
+  assert.deepEqual(chooseSecondary(data, ahri, 'Domination'), swapped);
+});
+
+test('rune pages: the simulator warns about runes no page holds together', () => {
+  const warnings = (runes: (string | number)[]) => simulate(data, { champion: 'Ahri', level: 11, runes, combo: 'Q', target: dummy }).warnings;
+  assert.deepEqual(warnings(['Electrocute', 'Cheap Shot', 'Grisly Mementos', 'Ultimate Hunter', 'Absolute Focus', 'Scorch', 5008, 5008, 5001]), []);
+  assert.deepEqual(warnings(['Electrocute', 'Cheap Shot', 'Sudden Impact']), ['Cheap Shot and Sudden Impact share a row of Domination: a rune page takes one']);
+  assert.deepEqual(warnings(['Electrocute', 'Arcane Comet']), ['more than one keystone (Electrocute and Arcane Comet): a rune page has one']);
+  assert.match(warnings(['Electrocute', 'Manaflow Band', 'Transcendence', 'Scorch'])[0], /^3 runes from Sorcery, the secondary tree/);
+  assert.match(warnings(['Electrocute', 'Triumph', 'Scorch'])[0], /^runes from 3 trees/);
+  // Without a keystone, either tree can be the primary one.
+  assert.deepEqual(warnings(['Absolute Focus', 'Scorch', 'Cheap Shot', 'Grisly Mementos', 'Ultimate Hunter']), []);
+  // Shards: one from each row, in any order. Adaptive Force is offense or flex, not defense.
+  assert.deepEqual(warnings([5011, 5008, 5001]), []);
+  assert.match(warnings([5008, 5008, 5008])[0], /^no rune page has the shards Adaptive Force, Adaptive Force and Adaptive Force/);
+  assert.equal(warnings([5005, 5008, 5005]).length, 1);
+  assert.match(warnings([5008, 5008, 5001, 5011])[0], /^4 shards/);
 });
 
 test('a modified calculation shows in the format of the one it modifies', () => {

@@ -7,7 +7,9 @@ export const SCENARIO_HELP = `Scenario JSON (all fields except champion and comb
   "ranks": { "Q": 5, "W": 2, "E": 1, "R": 2 },   // default: R at 6/11/16, maxed in skillOrder
   "skillOrder": "QWE",
   "items": ["Luden's Echo", "Sorcerer's Shoes", 3089],   // names, aliases (dcap, botrk, ie…) or ids
-  "runes": ["Electrocute", "Cheap Shot", 5008, 5008, 5001],  // keystone, minors and shards (ids or names)
+  "runes": ["Electrocute", "Cheap Shot", 5008, 5008, 5001],  // ids or names; a rune page (warnings name what isn't):
+                                      // a keystone and a rune per row of its tree, two runes from different rows
+                                      // of another tree, and a shard per shard row (list_runes / damagesim runes)
   "options": { "darkHarvest.souls": 10, "self.hpPercent": 50 },  // champion/item/rune parameters
   "combo": "E Q W R AA ignite",       // or an array of steps (below)
   "target": {                         // either a preset…

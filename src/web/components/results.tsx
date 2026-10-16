@@ -7,6 +7,7 @@ import type { Scenario, SimResult, Sim } from '../../engine/sim.ts';
 import { resistSweep, optimizeCombo, compare } from '../../engine/analysis.ts';
 import { describeChampion } from '../../engine/describe.ts';
 import type { UIState } from '../state.ts';
+import { pageRunes } from '../../engine/rune-page.ts';
 
 export function Summary({ r }: { r: SimResult }) {
   const [by, setBy] = useState<'time' | 'size'>('time');
@@ -336,7 +337,7 @@ function PinnedBars({ r, pinned, onUnpin, scenario }: { r: SimResult; pinned: { 
               ranks: s.ranks ?? undefined,
               skillOrder: s.skillOrder,
               items: s.items.filter((x): x is number => x != null),
-              runes: [...(s.keystone ? [s.keystone] : []), ...s.minors, ...s.shards],
+              runes: pageRunes(DATA, s.runes),
               options: s.options,
               combo: s.combo,
             },

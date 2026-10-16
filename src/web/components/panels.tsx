@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
-import { DATA, abilityIcon, championIcon } from '../data.ts';
-import { Card, ChampIcon, ChampionPicker, Icon, ItemIcon, ItemPicker, ItemTip, Markup, NumberField, RuneIcon, RuneTip, fmt, mergeProps, sourceMark, useDragOrder, useHistory, useHoverCard } from './common.tsx';
-import { SHARD_ROWS, TARGET_MODES, type UIState, type TargetMode, type TargetState, type TargetStats } from '../state.ts';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { DATA, abilityIcon, championIcon, runeIcon } from '../data.ts';
+import { Card, ChampIcon, ChampionPicker, Icon, ItemIcon, ItemPicker, ItemTip, Markup, NumberField, RuneTip, fmt, mergeProps, sourceMark, useDragOrder, useHistory, useHoverCard } from './common.tsx';
+import { TARGET_MODES, type UIState, type TargetMode, type TargetState, type TargetStats } from '../state.ts';
 import { ITEMS_BY_LEVEL_RULE, TARGET_PRESETS, isTargetPreset, itemsAtLevel, levelForItems, presetShardHp, type TargetPreset } from '../../engine/presets.ts';
 import { maxRanks, resolveRanks, type Sim, type SimResult } from '../../engine/sim.ts';
 import { renderTooltip, runeText } from '../../engine/tooltip.ts';
 import { describeChampion } from '../../engine/describe.ts';
-import { NOT_LIVE_RUNES, bonusSkillPoints } from '../../engine/runes.ts';
+import { bonusSkillPoints } from '../../engine/runes.ts';
+import { choosePrimary, chooseSecondary, pickRune, remember, replacedBy, type PickMemory, type RunePage } from '../../engine/rune-page.ts';
+import type { RuneData, RuneTreeData } from '../../engine/data-types.ts';
 import { critMarking, formatCombo, markCrit, parseCombo, type ComboStep, type CritMode } from '../../engine/combo.ts';
 import { conflicts } from '../../engine/analysis.ts';
 import { findItem } from '../../engine/gamedata.ts';
@@ -353,79 +355,116 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
 
 // -----------------------------------------------------------------------------
 
-const LIVE_RUNES = DATA.runes.filter((r) => !NOT_LIVE_RUNES.has(r.id));
-const TREES = ['Precision', 'Domination', 'Sorcery', 'Resolve', 'Inspiration'];
+const TREES = DATA.runePage.trees;
+const treeRow = (tree: string, row: number) => DATA.runes.filter((r) => r.tree === tree && r.row === row);
+/** Sets --tree to a tree's color, for what's inside. */
+const treeColor = (tree: string) => ({ '--tree': `var(--tree-${tree.toLowerCase()})` }) as CSSProperties;
 
 export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim: Sim | null }) {
-  const [tree, setTree] = useState(() => DATA.runes.find((r) => r.id === state.keystone)?.tree ?? 'Precision');
+  const page = state.runes;
   const hover = useHoverCard();
-  const keystones = LIVE_RUNES.filter((r) => r.row === 0 && r.tree === tree);
-  const minors = LIVE_RUNES.filter((r) => r.row > 0);
-  const toggleMinor = (id: number) =>
-    set((s) => ({ ...s, minors: s.minors.includes(id) ? s.minors.filter((x) => x !== id) : s.minors.length >= 5 ? [...s.minors.slice(1), id] : [...s.minors, id] }));
-  // A shard's whole text is one line, so the options show it, with numbers at your level.
-  const shardLabel = (id: number) => {
+  // The picks each tree had in each place, so a tree chosen again gets them back.
+  const memory = useRef<PickMemory>({});
+  // The rune under the pointer or focus, to show the pick it would take the place of.
+  const [hovered, setHovered] = useState<number | null>(null);
+  const replaced = hovered === null ? null : replacedBy(DATA, page, hovered);
+  const change = (fn: (p: RunePage, memory: PickMemory) => RunePage) =>
+    set((s) => {
+      memory.current = remember(DATA, memory.current, s.runes);
+      return { ...s, runes: fn(s.runes, memory.current) };
+    });
+  const pick = (r: RuneData) => {
+    const picked = page.picks.includes(r.id);
+    const tip = <RuneTip id={r.id} sim={sim} />;
+    return (
+      <button
+        key={r.id}
+        className={`rune-pick${replaced === r.id && hovered !== r.id ? ' replaced' : ''}`}
+        aria-pressed={picked}
+        aria-label={r.name}
+        onClick={() => change((p) => pickRune(DATA, p, r.id))}
+        {...mergeProps(hover.bind(tip), { onPointerEnter: () => setHovered(r.id), onPointerLeave: () => setHovered(null), onFocus: () => setHovered(r.id), onBlur: () => setHovered(null) })}
+      >
+        <Icon src={runeIcon(r.icon)} label={r.name} />
+      </button>
+    );
+  };
+  // A shard's whole text is one line, so the rows show it, with numbers at your level.
+  const shardText = (id: number) => {
     const rune = DATA.runes.find((r) => r.id === id);
     if (!rune) return String(id);
     return runeText(rune, sim).body.replace(/<[^>]+>/g, '') || rune.name;
   };
   return (
     <Card title="Runes">
-      <div className="stack">
-        <div className="row" style={{ gap: 4 }}>
-          {TREES.map((t) => (
-            <button key={t} className="btn small" aria-pressed={t === tree} onClick={() => setTree(t)}>
-              {t}
-            </button>
-          ))}
-        </div>
-        <div className="rune-grid" aria-label="Keystone">
-          {keystones.map((r) => (
-            <button key={r.id} className="rune-btn" aria-pressed={state.keystone === r.id} onClick={() => set((s) => ({ ...s, keystone: s.keystone === r.id ? null : r.id }))} {...hover.bind(<RuneTip id={r.id} sim={sim} />)}>
-              <RuneIcon id={r.id} />
-              {r.name}
-            </button>
-          ))}
-        </div>
-        <details>
-          <summary>
-            Minor runes ({state.minors.length}/5): {state.minors.map((id) => DATA.runes.find((r) => r.id === id)?.name).join(', ') || 'none'}
-          </summary>
-          {TREES.map((t) => (
-            <div key={t} style={{ marginTop: 8 }}>
-              <div className="muted small" style={{ marginBottom: 4 }}>
-                {t}
-              </div>
-              <div className="rune-grid">
-                {minors
-                  .filter((r) => r.tree === t)
-                  .map((r) => (
-                    <button key={r.id} className="rune-btn" aria-pressed={state.minors.includes(r.id)} onClick={() => toggleMinor(r.id)} {...hover.bind(<RuneTip id={r.id} sim={sim} />)}>
-                      <RuneIcon id={r.id} />
-                      {r.name}
-                    </button>
-                  ))}
-              </div>
+      <div className="rune-page">
+        <div className="rune-tree" style={treeColor(page.primary)}>
+          <TreePicker label="Primary" value={page.primary} trees={TREES} onPick={(t) => change((p, m) => choosePrimary(DATA, p, t, m))} />
+          <div className="rune-row keystones" role="group" aria-label="Keystone">
+            {treeRow(page.primary, 0).map(pick)}
+          </div>
+          {[1, 2, 3].map((row) => (
+            <div key={row} className="rune-row" role="group" aria-label={`${page.primary} row ${row}`}>
+              {treeRow(page.primary, row).map(pick)}
             </div>
           ))}
-        </details>
-        <div className="stack" style={{ gap: 6 }}>
-          {SHARD_ROWS.map((row, i) => (
-            <label key={row.label} className="row small secondary" style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-              <span style={{ whiteSpace: 'nowrap', minWidth: '7.5em' }}>{row.label} shard</span>
-              <select id={`shard-${i}`} style={{ flex: '1 1 0', maxWidth: 250, minWidth: 0 }} value={state.shards[i]} onChange={(e) => set((s) => ({ ...s, shards: s.shards.map((x, j) => (j === i ? Number(e.target.value) : x)) }))}>
-                {row.options.map((o) => (
-                  <option key={o} value={o}>
-                    {shardLabel(o)}
-                  </option>
-                ))}
-              </select>
-            </label>
+        </div>
+        <div className="rune-tree" style={treeColor(page.secondary)}>
+          <TreePicker label="Secondary" value={page.secondary} trees={TREES.filter((t) => t.key !== page.primary)} onPick={(t) => change((p, m) => chooseSecondary(DATA, p, t, m))} />
+          <div className="rune-row keystones hint small muted">Two, from different rows</div>
+          {[1, 2, 3].map((row) => (
+            <div key={row} className="rune-row" role="group" aria-label={`${page.secondary} row ${row}`}>
+              {treeRow(page.secondary, row).map(pick)}
+            </div>
           ))}
         </div>
       </div>
+      <div className="shard-rows">
+        {DATA.runePage.shards.map((row, i) => (
+          <div key={row.label} className="shard-row" role="group" aria-label={`${row.label} shard`}>
+            <span className="small secondary">{row.label}</span>
+            <div className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
+              {row.options.map((id) => {
+                const r = DATA.runes.find((x) => x.id === id)!;
+                return (
+                  <button
+                    key={id}
+                    className="shard-pick"
+                    aria-pressed={page.shards[i] === id}
+                    aria-label={r.name}
+                    onClick={() => change((p) => ({ ...p, shards: p.shards.map((x, j) => (j === i ? id : x)) }))}
+                    {...hover.bind(<RuneTip id={id} sim={sim} />)}
+                  >
+                    <Icon src={runeIcon(r.icon)} label={r.name} />
+                  </button>
+                );
+              })}
+            </div>
+            <span className="small shard-text">{shardText(page.shards[i])}</span>
+          </div>
+        ))}
+      </div>
       {hover.node}
     </Card>
+  );
+}
+
+/** A rune page's tree: its name in its color and the trees to choose from. */
+function TreePicker({ label, value, trees, onPick }: { label: string; value: string; trees: RuneTreeData[]; onPick: (tree: string) => void }) {
+  const tree = TREES.find((t) => t.key === value);
+  return (
+    <div className="tree-head">
+      <div className="small">
+        <span className="secondary">{label}</span> <strong className="tree-name">{tree?.name ?? value}</strong>
+      </div>
+      <div className="tree-picker" role="group" aria-label={`${label} tree`}>
+        {trees.map((t) => (
+          <button key={t.key} className="tree-btn" style={treeColor(t.key)} aria-pressed={t.key === value} aria-label={t.name} title={`${t.name}: ${t.description}`} onClick={() => onPick(t.key)}>
+            <Icon src={runeIcon(t.icon)} label={t.name} />
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

@@ -11,8 +11,9 @@ the combo out on a timeline and reports every damage instance.
   other damage, the damage it deals itself and the hits it adds, like Electrocute it procs)
   or a gold-vs-damage map; one click buys it. Hovering
   an item shows its cost, stats, passives and actives, with the numbers for your champion's level and
-  stats, melee or ranged; hovering a rune shows its tooltip the same way, and whether its adaptive damage is physical or
-  magic for you. State lives in the URL, so links are shareable.
+  stats, melee or ranged. Runes go on a rune page laid out as in the client, which keeps to the game's rules (a rune per
+  row, two from the secondary tree, a shard per row); hovering a rune shows its tooltip like an item's, and whether its
+  adaptive damage is physical or magic for you. State lives in the URL, so links are shareable.
 * **AI agents:** an MCP server (simulate, compare, rank items, optimize builds and combo order) and a
   CLI with `--json` output.
 * **Accuracy:** every number comes from Riot's own game files for the patch (via CommunityDragon),
@@ -179,7 +180,8 @@ scripts/        fetch-data, build-data, update-data, inspect-champion, check-kit
                 fetch-wiki + audit-wiki, audit-items (kit, item and rune behaviour vs the wiki)
 data/generated/ processed game data per patch (committed); data/raw is the download cache (game files, wiki)
 src/engine/     calc (formula interpreter), expr, stats, damage, sim (timeline), items, runes,
-                summoners, autokit, analysis (compare/rank/optimize), describe, tooltip
+                rune-page (what a page holds), summoners, autokit, analysis (compare/rank/optimize),
+                describe, tooltip
 src/kits/       champion kits (curated) + registry
 src/cli/        damagesim CLI
 src/mcp/        MCP server

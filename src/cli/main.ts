@@ -276,7 +276,7 @@ async function main() {
     case 'runes': {
       const runes = listRunes(data);
       return out(runes, () => {
-        for (const r of runes) console.log(`${pad(r.id, 6)}${pad(r.name, 26)}${pad(r.tree, 12)}${pad(r.slot, 10)}${r.modeled ? 'modeled' : ''}`);
+        for (const r of runes) console.log(`${pad(r.id, 6)}${pad(r.name, 26)}${pad(r.tree, 12)}${pad(r.slot, 22)}${r.modeled ? 'modeled' : ''}`);
       });
     }
     case 'scenario':

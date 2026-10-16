@@ -13,6 +13,7 @@ import { parseCombo, formatCombo, type ComboStep, type CritMode } from './combo.
 import { getKit } from '../kits/index.ts';
 import { createItemEffect, ITEM_GROUPS } from './items.ts';
 import { bonusSkillPoints, createRuneEffects } from './runes.ts';
+import { runePageProblems } from './rune-page.ts';
 import { createSummonerEffect } from './summoners.ts';
 import { resolvePreset, type TargetPreset } from './presets.ts';
 
@@ -239,6 +240,7 @@ export class Sim {
       waitForCooldowns: scenario.settings?.waitForCooldowns ?? true,
     };
     this.runes = (scenario.runes ?? []).map((q) => findRune(data, q));
+    for (const p of runePageProblems(data, this.runes)) this.warn(p);
     this.ranks = resolveRanks(this.champ, this.level, scenario.ranks, scenario.skillOrder, bonusSkillPoints(this.runes, this.level));
 
     // Options: kit defaults, then effect defaults, then user values.

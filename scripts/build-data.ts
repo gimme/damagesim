@@ -5,12 +5,13 @@
 //   data/generated/<patch>/champions/<id>.json   (stats + every ability's values, formulas and tooltip)
 //   data/generated/<patch>/items.json
 //   data/generated/<patch>/runes.json
+//   data/generated/<patch>/rune-page.json      (rune trees and stat shard rows)
 //
 // Usage: node scripts/build-data.ts [patch]   (default: newest folder in data/raw)
 
 import { readFile, writeFile, mkdir, readdir, rm, rename } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { CalcNode, CalcPart, ChampionData, ChampionIndexEntry, ItemData, RuneData, SpellData, AbilityData } from '../src/engine/data-types.ts';
+import type { CalcNode, CalcPart, ChampionData, ChampionIndexEntry, ItemData, RuneData, RunePageData, SpellData, AbilityData } from '../src/engine/data-types.ts';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 
@@ -592,6 +593,25 @@ function buildRunes(ddRunes: any, bin: any): RuneData[] {
   return out;
 }
 
+/** The client's order of the trees: Precision, Domination, Sorcery, Resolve, Inspiration. */
+const TREE_ORDER = [8000, 8100, 8200, 8400, 8300];
+
+function buildRunePage(ddRunes: any, bin: any): RunePageData {
+  const idOf = new Map<string, number>();
+  for (const [k, v] of Object.entries(bin) as [string, any][]) if (v?.__type === 'Perk' && v.mPerkId) idOf.set(k, v.mPerkId);
+  const ids = (keys: string[] = []) => keys.map((k) => idOf.get(k)!).filter((x) => x !== undefined);
+  const styles = (Object.values(bin) as any[]).filter((v) => v?.__type === 'PerkStyle');
+  const trees = ddRunes
+    .map((tree: any) => {
+      const style = styles.find((s) => s.mPerkStyleId === tree.id);
+      return { id: tree.id, key: tree.key, name: tree.name, description: str(style?.mTooltipNameLocalizationKey).trim(), icon: tree.icon, splash: ids(style?.mDefaultPerksWhenSplashed) };
+    })
+    .sort((a: any, b: any) => TREE_ORDER.indexOf(a.id) - TREE_ORDER.indexOf(b.id));
+  // Every tree links the same three shard rows.
+  const shards = (styles[0]?.mSlotlinks ?? []).map((k: string) => ({ label: str(bin[k]?.mSlotLabelKey), options: ids(bin[k]?.mPerks) }));
+  return { trees, shards };
+}
+
 // ---------------------------------------------------------------------------
 
 async function main() {
@@ -629,6 +649,7 @@ async function main() {
 
   const runes = buildRunes(await readJson(join(raw, 'dd_runes.json')), await readJson(join(raw, 'perks.bin.json')));
   await writeFile(join(outDir, 'runes.json'), JSON.stringify(runes));
+  await writeFile(join(outDir, 'rune-page.json'), JSON.stringify(buildRunePage(await readJson(join(raw, 'dd_runes.json')), await readJson(join(raw, 'perks.bin.json'))), null, 2));
 
   // Summoner spells (Ignite) live in the shared bin.
   const shared = await readJson(join(raw, 'shared.bin.json'));

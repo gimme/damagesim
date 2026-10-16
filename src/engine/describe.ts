@@ -186,6 +186,13 @@ export function describeItem(data: GameData, query: string | number) {
   };
 }
 
+/** The shard rows that offer a shard: "offense, flex". */
+const shardRows = (data: GameData, id: number) =>
+  data.runePage.shards
+    .filter((row) => row.options.includes(id))
+    .map((row) => row.label.toLowerCase())
+    .join(', ');
+
 export function listRunes(data: GameData) {
   return data.runes
     .filter((r) => !NOT_LIVE_RUNES.has(r.id))
@@ -193,7 +200,7 @@ export function listRunes(data: GameData) {
       id: r.id,
       name: r.name,
       tree: r.tree,
-      slot: r.row === 0 ? 'keystone' : r.row === -1 ? 'shard' : `row ${r.row}`,
+      slot: r.row === 0 ? 'keystone' : r.row === -1 ? `shard: ${shardRows(data, r.id)}` : `row ${r.row}`,
       modeled: hasRuneModel(r.id),
       description: r.description.replace(/<[^>]+>/g, '').replace(/@[^@]+@/g, '…').slice(0, 300),
     }));

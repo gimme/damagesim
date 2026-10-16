@@ -1,6 +1,6 @@
 // In-memory game data container + name lookups. Loaders: src/node/load.ts (fs) and the web app (bundled JSON).
 
-import type { ChampionData, ChampionIndexEntry, DataMeta, ItemData, RuneData, SpellData } from './data-types.ts';
+import type { ChampionData, ChampionIndexEntry, DataMeta, ItemData, RuneData, RunePageData, SpellData } from './data-types.ts';
 
 export interface GameData {
   meta: DataMeta;
@@ -8,6 +8,7 @@ export interface GameData {
   champions: Record<string, ChampionData>;
   items: Record<string, ItemData>;
   runes: RuneData[];
+  runePage: RunePageData;
   summoners: Record<string, SpellData>;
 }
 

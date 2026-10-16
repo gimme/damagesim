@@ -3,12 +3,8 @@
 
 import type { Scenario, SimSettings, TargetSpec } from '../engine/sim.ts';
 import type { TargetPreset } from '../engine/presets.ts';
-
-export const SHARD_ROWS: { label: string; options: number[] }[] = [
-  { label: 'Offense', options: [5008, 5005, 5007] },
-  { label: 'Flex', options: [5008, 5010, 5001] },
-  { label: 'Defense', options: [5011, 5013, 5001] },
-];
+import { pageRunes, type RunePage } from '../engine/rune-page.ts';
+import { DATA } from './data.ts';
 
 /** Health, armor and magic resist. */
 export interface TargetStats {
@@ -48,9 +44,7 @@ export interface UIState {
   ranks: { Q: number; W: number; E: number; R: number } | null;
   skillOrder: string;
   items: (number | null)[];
-  keystone: number | null;
-  minors: number[];
-  shards: number[];
+  runes: RunePage;
   options: Record<string, number>;
   combo: string;
   target: TargetState;
@@ -63,9 +57,8 @@ export const DEFAULT_STATE: UIState = {
   ranks: null,
   skillOrder: 'QWE',
   items: [6655, 3020, null, null, null, null],
-  keystone: 8112,
-  minors: [8126, 8143, 8233, 8237],
-  shards: [5008, 5008, 5001],
+  // Electrocute, Cheap Shot, Grisly Mementos, Ultimate Hunter; Absolute Focus, Scorch.
+  runes: { primary: 'Domination', secondary: 'Sorcery', picks: [8112, 8126, 8140, 8106, 8233, 8237], shards: [5008, 5008, 5001] },
   options: {},
   combo: 'E Q W R AA R',
   target: {
@@ -89,7 +82,7 @@ export function toScenario(s: UIState): Scenario {
     ...(s.ranks ? { ranks: s.ranks } : {}),
     skillOrder: s.skillOrder,
     items: s.items.filter((x): x is number => x != null),
-    runes: [...(s.keystone ? [s.keystone] : []), ...s.minors, ...s.shards],
+    runes: pageRunes(DATA, s.runes),
     options: s.options,
     combo: s.combo,
     target: toTargetSpec(s.target),
@@ -125,11 +118,15 @@ export function decodeState(hash: string): UIState | null {
     if (!b64) return null;
     const parsed = JSON.parse(decodeURIComponent(escape(atob(b64))));
     const target: TargetState = TARGET_MODES.includes(parsed.target?.mode) ? { ...DEFAULT_STATE.target, ...parsed.target } : DEFAULT_STATE.target;
-    return { ...DEFAULT_STATE, ...parsed, target, settings: { ...DEFAULT_STATE.settings, ...parsed.settings } };
+    const runes: RunePage = isRunePage(parsed.runes) ? parsed.runes : DEFAULT_STATE.runes;
+    return { ...DEFAULT_STATE, ...parsed, runes, target, settings: { ...DEFAULT_STATE.settings, ...parsed.settings } };
   } catch {
     return null;
   }
 }
+
+const isRunePage = (p: any): p is RunePage =>
+  typeof p?.primary === 'string' && typeof p.secondary === 'string' && [p.picks, p.shards].every((xs) => Array.isArray(xs) && xs.every((x: unknown) => typeof x === 'number'));
 
 const STORAGE_KEY = 'damagesim:state';
 
