@@ -212,24 +212,17 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
     put(picking ?? 0, id);
     setPicking(null);
   };
-  // An item is dragged to another slot: into an empty one, or onto an item, which shifts along toward
-  // the slot it left, as do the items after it up to the first empty slot. The others slide to make
-  // room as it's dragged. Arrow keys move a focused item past its neighbour, Delete removes it. The
-  // picker stays with what it was opened for.
-  const shift = (from: number, to: number) => {
+  // An item is dragged to another slot, whose outline shows where it will land; nothing else moves
+  // meanwhile. Dropped on an item, the two swap; on an empty slot, it moves there. Arrow keys swap a
+  // focused item with its neighbour, Delete removes it. The picker stays with what it was opened for.
+  const swap = (from: number, to: number) => {
     const next = items.map((_, j) => j);
-    const d = Math.sign(from - to);
-    let carry = from;
-    for (let k = to; k !== from; k += d) {
-      [next[k], carry] = [carry, next[k]];
-      if (!items[carry]) break;
-    }
-    next[from] = carry;
+    [next[from], next[to]] = [next[to], next[from]];
     return next;
   };
   const order = useDragOrder({
     count: items.length,
-    arrange: shift,
+    arrange: swap,
     // The slot its middle is nearest, within a slot's size; farther away, it goes back.
     landAt: (x, y, cells, _at, from) => {
       const d = cells.map((c) => Math.hypot((x - c.x) / c.w - 0.5, (y - c.y) / c.h - 0.5));
@@ -237,24 +230,26 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
       return d[k] < 1 ? k : from;
     },
     move: (from, to) => {
-      const next = shift(from, to);
-      set((s) => ({ ...s, items: next.map((j) => s.items[j]) }));
-      setPicking((p) => (p == null ? p : next.indexOf(p)));
+      set((s) => ({ ...s, items: swap(from, to).map((j) => s.items[j]) }));
+      setPicking((p) => (p === from ? to : p === to ? from : p));
     },
+    makeWay: false,
+    movable: (i) => !!items[i],
     onPick: hover.hide,
   });
+  const landing = order.drag && order.drag.to !== order.drag.from ? order.drag.to : null;
   return (
     <Card title="Items" right={<span className="num secondary">{fmt(gold)}g</span>}>
       <div className="slots" ref={order.box}>
         {items.map((id, i) => (
           <div
             key={i}
-            className={`slot ${id ? 'filled' : ''} ${order.drag?.from === i ? 'dragging' : ''}`}
+            className={`slot ${id ? 'filled' : ''} ${order.drag?.from === i ? 'dragging' : ''} ${landing === i ? 'landing' : ''}`}
             role="button"
             tabIndex={0}
             aria-label={id ? `Item slot ${i + 1}: ${DATA.items[id]?.name}. Arrow keys move it, Delete removes it.` : `Empty item slot ${i + 1}`}
             title={id ? undefined : 'Add item'}
-            {...mergeProps(id ? hover.bind(<ItemTip id={id} sim={sim} />) : {}, order.item(i, !!id), {
+            {...mergeProps(id ? hover.bind(<ItemTip id={id} sim={sim} />) : {}, order.item(i), {
               onClick: () => setPicking(i),
               onKeyDown: (e: KeyboardEvent) => {
                 if (e.target !== e.currentTarget) return;
@@ -282,6 +277,11 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
             )}
           </div>
         ))}
+        {order.drag && (
+          <div className="slot vacated" aria-hidden style={{ gridColumn: `${order.drag.from + 1} / span 1` }}>
+            +
+          </div>
+        )}
       </div>
       {hover.node}
       {picking !== null && <ItemPicker onPick={pick} onClose={() => setPicking(null)} sim={sim} />}

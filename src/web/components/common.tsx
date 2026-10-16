@@ -405,30 +405,36 @@ type Grab = { from: number; x: number; y: number; px: number; py: number; ox: nu
 /**
  * The first `count` children of a box, dragged to new places with a mouse or a finger: a pointer that
  * moves a few pixels from where it went down on one (not on its buttons) picks it up. It follows the
- * pointer by its transform, set on each move without rendering; the others slide to where they'd be
- * if it landed there, and on release it glides into its place. While dragging, the children are laid
- * out by flex or grid `order` rather than moved in the DOM, so the dragged one keeps the pointer
- * captured: a finger's drag doesn't scroll the page (with touch-action: none) and it follows the
- * pointer outside the box. Escape, a cancelled touch or a lost pointer capture puts it back. Arrow
- * keys move a focused child, and focus follows it.
+ * pointer by its transform, set on each move without rendering; with `makeWay`, the others slide to
+ * where they'd be if it landed there. On release it glides into its place, and the others it moved
+ * glide into theirs. While dragging, the children are laid out by flex or grid `order` rather than
+ * moved in the DOM, so the dragged one keeps the pointer captured: a finger's drag doesn't scroll the
+ * page (with touch-action: none) and it follows the pointer outside the box. Escape, a cancelled
+ * touch or a lost pointer capture puts it back. Arrow keys move a focused child, and focus follows it.
  *
  * - `arrange(from, to)`: the children's indices in their new order, with `from` moved to `to`.
  * - `landAt(x, y, cells, at, from)`: where the dragged child lands with its middle at (x, y) in the
  *   box, from the places of the children in their order as laid out; it is at `at` among them.
  * - `move(from, to)`: makes the move.
+ * - `movable(i)`: whether child i is dragged and glides; one that isn't (an empty slot) just moves.
  * - `onPick(i)`: when child i is picked up.
+ * - `drag`, returned: the child being dragged and where it would land.
  */
 export function useDragOrder({
   count,
   arrange,
   landAt,
   move,
+  makeWay = true,
+  movable = () => true,
   onPick,
 }: {
   count: number;
   arrange: (from: number, to: number) => number[];
   landAt: (x: number, y: number, cells: Place[], at: number, from: number) => number;
   move: (from: number, to: number) => void;
+  makeWay?: boolean;
+  movable?: (i: number) => boolean;
   onPick?: (i: number) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -444,8 +450,10 @@ export function useDragOrder({
   /** Where each child is on screen before a change that moves them, by its index after it; the
    *  change's render slides them from there. `settle`: a dropped child, which also loses its lift. */
   const glide = useRef<{ from: (DOMRect | undefined)[]; settle?: { at: number; lift: Keyframe } } | null>(null);
-  const onScreen = (order: number[], skip?: number) => order.map((j) => (j === skip ? undefined : child(j)?.getBoundingClientRect()));
+  const onScreen = (order: number[], skip?: number) => order.map((j) => (j === skip || !movable(j) ? undefined : child(j)?.getBoundingClientRect()));
   const indices = () => Array.from({ length: count }, (_, j) => j);
+  /** The children's order as laid out while child `from` is dragged to `to`. */
+  const laidOut = (from: number, to: number) => (makeWay ? arrange(from, to) : indices());
   /** How a dragged child looks, to fade from as it lands; over the others meanwhile. */
   const lift = (el: Element): Keyframe => {
     const c = getComputedStyle(el);
@@ -460,7 +468,7 @@ export function useDragOrder({
     const [x, y] = [g.px - g.ox - b.left, g.py - g.oy - b.top];
     [g.tx, g.ty] = [x - home.x, y - home.y];
     el.style.transform = `translate(${g.tx}px, ${g.ty}px)`;
-    const to = landAt(x + g.w / 2, y + g.h / 2, arrange(g.from, g.to).map((j) => homes.current[j]), g.to, g.from);
+    const to = landAt(x + g.w / 2, y + g.h / 2, laidOut(g.from, g.to).map((j) => homes.current[j]), makeWay ? g.to : g.from, g.from);
     if (to !== g.to) reorder(to);
   };
   const reorder = (to: number) => {
@@ -517,13 +525,13 @@ export function useDragOrder({
     refocus.current = null;
   });
 
-  const placed = drag && arrange(drag.from, drag.to);
-  /** Props for child i; one that can't be `movable` still makes way for the others. */
-  const item = (i: number, movable = true) => ({
+  const placed = drag && makeWay ? arrange(drag.from, drag.to) : null;
+  /** Props for child i. */
+  const item = (i: number) => ({
     style: placed ? { order: placed.indexOf(i) } : undefined,
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
       moved.current = false;
-      if (!movable || e.button !== 0 || (e.target as Element).closest('button, select')) return;
+      if (!movable(i) || e.button !== 0 || (e.target as Element).closest('button, select')) return;
       const r = e.currentTarget.getBoundingClientRect();
       grab.current = { from: i, x: e.clientX, y: e.clientY, px: e.clientX, py: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, w: r.width, h: r.height, tx: 0, ty: 0, to: null };
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -554,7 +562,7 @@ export function useDragOrder({
     },
     onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
       if (e.key === 'Escape' && grab.current?.to != null) return drop(false);
-      if (!movable || e.target !== e.currentTarget) return;
+      if (!movable(i) || e.target !== e.currentTarget) return;
       const to = e.key === 'ArrowLeft' ? i - 1 : e.key === 'ArrowRight' ? i + 1 : null;
       if (to == null || to < 0 || to >= count) return;
       e.preventDefault();

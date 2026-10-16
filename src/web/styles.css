@@ -401,6 +401,7 @@ label.field {
 
 /* Item slots */
 .slots {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 6px;
@@ -463,6 +464,18 @@ label.field {
 }
 .slot.dragging .remove {
   display: none;
+}
+/* The slot a dragged item will land in: outlined around it, so the item over it doesn't hide it */
+.slot.landing {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* While an item is dragged, the slot it left shows as empty */
+.slot.vacated {
+  position: absolute;
+  grid-row: 1 / span 1;
+  inset: 0;
+  pointer-events: none;
 }
 .item-grid {
   display: grid;
