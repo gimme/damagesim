@@ -184,8 +184,6 @@ export interface RuneTreeData {
   /** What the tree is for ("Burst damage and target access"). */
   description: string;
   icon: string;
-  /** The two runes the game puts in when the tree is taken as the secondary one. */
-  splash: number[];
 }
 
 /** What a rune page is made of: the trees, in the client's order, and the three rows of stat shards. */

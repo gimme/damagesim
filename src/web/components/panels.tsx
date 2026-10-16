@@ -7,7 +7,7 @@ import { maxRanks, resolveRanks, type Sim, type SimResult } from '../../engine/s
 import { renderTooltip, runeText } from '../../engine/tooltip.ts';
 import { describeChampion } from '../../engine/describe.ts';
 import { bonusSkillPoints } from '../../engine/runes.ts';
-import { choosePrimary, chooseSecondary, pickRune, remember, replacedBy, type PickMemory, type RunePage } from '../../engine/rune-page.ts';
+import { choosePrimary, chooseSecondary, pickRune, remember, type PickMemory, type RunePage } from '../../engine/rune-page.ts';
 import type { RuneData, RuneTreeData } from '../../engine/data-types.ts';
 import { critMarking, formatCombo, markCrit, parseCombo, type ComboStep, type CritMode } from '../../engine/combo.ts';
 import { conflicts } from '../../engine/analysis.ts';
@@ -363,32 +363,18 @@ const treeColor = (tree: string) => ({ '--tree': `var(--tree-${tree.toLowerCase(
 export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim: Sim | null }) {
   const page = state.runes;
   const hover = useHoverCard();
-  // The picks each tree had in each place, so a tree chosen again gets them back.
+  // The picks of the trees that were on the page, so one chosen again gets them back.
   const memory = useRef<PickMemory>({});
-  // The rune under the pointer or focus, to show the pick it would take the place of.
-  const [hovered, setHovered] = useState<number | null>(null);
-  const replaced = hovered === null ? null : replacedBy(DATA, page, hovered);
   const change = (fn: (p: RunePage, memory: PickMemory) => RunePage) =>
     set((s) => {
       memory.current = remember(DATA, memory.current, s.runes);
       return { ...s, runes: fn(s.runes, memory.current) };
     });
-  const pick = (r: RuneData) => {
-    const picked = page.picks.includes(r.id);
-    const tip = <RuneTip id={r.id} sim={sim} />;
-    return (
-      <button
-        key={r.id}
-        className={`rune-pick${replaced === r.id && hovered !== r.id ? ' replaced' : ''}`}
-        aria-pressed={picked}
-        aria-label={r.name}
-        onClick={() => change((p) => pickRune(DATA, p, r.id))}
-        {...mergeProps(hover.bind(tip), { onPointerEnter: () => setHovered(r.id), onPointerLeave: () => setHovered(null), onFocus: () => setHovered(r.id), onBlur: () => setHovered(null) })}
-      >
-        <Icon src={runeIcon(r.icon)} label={r.name} />
-      </button>
-    );
-  };
+  const pick = (r: RuneData) => (
+    <button key={r.id} className="rune-pick" aria-pressed={page.picks.includes(r.id)} aria-label={r.name} onClick={() => change((p) => pickRune(DATA, p, r.id))} {...hover.bind(<RuneTip id={r.id} sim={sim} />)}>
+      <Icon src={runeIcon(r.icon)} label={r.name} />
+    </button>
+  );
   // A shard's whole text is one line, so the rows show it, with numbers at your level.
   const shardText = (id: number) => {
     const rune = DATA.runes.find((r) => r.id === id);

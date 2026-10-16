@@ -604,7 +604,7 @@ function buildRunePage(ddRunes: any, bin: any): RunePageData {
   const trees = ddRunes
     .map((tree: any) => {
       const style = styles.find((s) => s.mPerkStyleId === tree.id);
-      return { id: tree.id, key: tree.key, name: tree.name, description: str(style?.mTooltipNameLocalizationKey).trim(), icon: tree.icon, splash: ids(style?.mDefaultPerksWhenSplashed) };
+      return { id: tree.id, key: tree.key, name: tree.name, description: str(style?.mTooltipNameLocalizationKey).trim(), icon: tree.icon };
     })
     .sort((a: any, b: any) => TREE_ORDER.indexOf(a.id) - TREE_ORDER.indexOf(b.id));
   // Every tree links the same three shard rows.

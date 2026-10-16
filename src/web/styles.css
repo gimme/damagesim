@@ -1677,15 +1677,6 @@ details summary {
   line-height: 1.3;
   padding-inline: 4px;
 }
-/* The pick a rune under the pointer would take the place of. */
-.rune-pick.replaced {
-  box-shadow: none;
-  outline: 1.5px dashed var(--tree);
-  outline-offset: 2px;
-}
-.rune-pick.replaced img {
-  opacity: 0.45;
-}
 
 .shard-rows {
   display: grid;

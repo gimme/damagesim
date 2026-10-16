@@ -5,55 +5,35 @@
       "key": "Precision",
       "name": "Precision",
       "description": "Improved attacks and sustained damage",
-      "icon": "perk-images/Styles/7201_Precision.png",
-      "splash": [
-        9111,
-        8014
-      ]
+      "icon": "perk-images/Styles/7201_Precision.png"
     },
     {
       "id": 8100,
       "key": "Domination",
       "name": "Domination",
       "description": "Burst damage and target access",
-      "icon": "perk-images/Styles/7200_Domination.png",
-      "splash": [
-        8139,
-        8105
-      ]
+      "icon": "perk-images/Styles/7200_Domination.png"
     },
     {
       "id": 8200,
       "key": "Sorcery",
       "name": "Sorcery",
       "description": "Empowered abilities and resource manipulation",
-      "icon": "perk-images/Styles/7202_Sorcery.png",
-      "splash": [
-        8233,
-        8236
-      ]
+      "icon": "perk-images/Styles/7202_Sorcery.png"
     },
     {
       "id": 8400,
       "key": "Resolve",
       "name": "Resolve",
       "description": "Durability and crowd control",
-      "icon": "perk-images/Styles/7204_Resolve.png",
-      "splash": [
-        8444,
-        8446
-      ]
+      "icon": "perk-images/Styles/7204_Resolve.png"
     },
     {
       "id": 8300,
       "key": "Inspiration",
       "name": "Inspiration",
       "description": "Creative tools and rule bending",
-      "icon": "perk-images/Styles/7203_Whimsy.png",
-      "splash": [
-        8321,
-        8347
-      ]
+      "icon": "perk-images/Styles/7203_Whimsy.png"
     }
   ],
   "shards": [

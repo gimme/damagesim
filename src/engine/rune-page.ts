@@ -3,7 +3,8 @@
 // A page has a primary tree (a keystone and one rune from each of its three rows), a secondary tree
 // (two runes from different rows, no keystone) and a stat shard from each of three rows. Picking
 // keeps a page whole the way the client does: a rune takes the place of the one in its row, and a
-// secondary rune in a third row takes the place of the older of the two.
+// secondary rune in a third row takes the place of the older of the two. A tree keeps its picks
+// when it changes place, as many as fit there.
 
 import type { RuneData } from './data-types.ts';
 import type { GameData } from './gamedata.ts';
@@ -41,7 +42,7 @@ export function pageRunes(data: GameData, page: RunePage): number[] {
  * older of two; null if none; undefined if `id` can't go on the page (another tree's, or a keystone
  * in the secondary tree).
  */
-export function replacedBy(data: GameData, page: RunePage, id: number): number | null | undefined {
+function replacedBy(data: GameData, page: RunePage, id: number): number | null | undefined {
   const r = runeById(data, id);
   if (!r || (r.tree !== page.primary && r.tree !== page.secondary) || (r.tree === page.secondary && r.row === 0)) return undefined;
   const same = treePicks(data, page, r.tree).map((x) => runeById(data, x)!);
@@ -59,38 +60,39 @@ export function pickRune(data: GameData, page: RunePage, id: number): RunePage {
   return { ...page, picks: [...page.picks.filter((x) => x !== out), id] };
 }
 
-/** The picks a tree had when it last held a place on the page, by "primary:Tree" and "secondary:Tree". */
+/** The picks each tree had when it was last on the page. */
 export type PickMemory = Record<string, number[]>;
 
 /** `memory` with the page's picks in both its trees. */
 export function remember(data: GameData, memory: PickMemory, page: RunePage): PickMemory {
-  return { ...memory, [`primary:${page.primary}`]: treePicks(data, page, page.primary), [`secondary:${page.secondary}`]: treePicks(data, page, page.secondary) };
+  return { ...memory, [page.primary]: treePicks(data, page, page.primary), [page.secondary]: treePicks(data, page, page.secondary) };
 }
 
+/** A tree's picks as many as fit the secondary tree: no keystone, the newest two. */
+const asSecondary = (data: GameData, picks: number[]) => picks.filter((id) => runeById(data, id)!.row > 0).slice(-2);
+
 /**
- * The page with `tree` as its primary tree; if that was the secondary tree, the old primary takes
- * its place. A tree gets back the picks it had there last time (`memory`); else the swapped trees
- * keep what they can (the secondary the newest two), and a new primary tree starts empty.
+ * The page with `tree` as its primary tree; if that was the secondary tree, the two swap, keeping
+ * their picks (the new secondary its newest two). A tree coming back onto the page gets the picks it
+ * had there (`memory`); a new one starts empty.
  */
 export function choosePrimary(data: GameData, page: RunePage, tree: string, memory: PickMemory = {}): RunePage {
   if (tree === page.primary) return page;
   const swap = tree === page.secondary;
   const secondary = swap ? page.primary : page.secondary;
-  const primaryPicks = memory[`primary:${tree}`] ?? (swap ? treePicks(data, page, tree) : []);
-  const keptMinors = () => treePicks(data, page, secondary).filter((id) => runeById(data, id)!.row > 0).slice(-2);
-  const secondaryPicks = swap ? (memory[`secondary:${secondary}`] ?? keptMinors()) : treePicks(data, page, secondary);
+  const primaryPicks = swap ? treePicks(data, page, tree) : (memory[tree] ?? []);
+  const secondaryPicks = swap ? asSecondary(data, treePicks(data, page, secondary)) : treePicks(data, page, secondary);
   return { ...page, primary: tree, secondary, picks: [...primaryPicks, ...secondaryPicks] };
 }
 
 /**
- * The page with `tree` as its secondary tree (the primary tree swaps with it). It gets back the
- * picks it had there last time (`memory`), else the two the client puts in.
+ * The page with `tree` as its secondary tree (the primary tree swaps with it). A tree coming back
+ * onto the page gets the picks it had there (`memory`) that fit; a new one starts empty.
  */
 export function chooseSecondary(data: GameData, page: RunePage, tree: string, memory: PickMemory = {}): RunePage {
   if (tree === page.secondary) return page;
   if (tree === page.primary) return choosePrimary(data, page, page.secondary, memory);
-  const splash = data.runePage.trees.find((t) => t.key === tree)?.splash ?? [];
-  return { ...page, secondary: tree, picks: [...treePicks(data, page, page.primary), ...(memory[`secondary:${tree}`] ?? splash)] };
+  return { ...page, secondary: tree, picks: [...treePicks(data, page, page.primary), ...asSecondary(data, memory[tree] ?? [])] };
 }
 
 /** Whether each shard can take its own row, among rows offering it. */
