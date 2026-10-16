@@ -256,6 +256,8 @@ other on-hit effects apply, but Guinsoo's/Lethal Tempo/Energize charges don't st
   `variableDuration: true` when the player can end it early (see Components).
 * `cooldown`: base cooldown expression when the data's is missing/wrong; `notUltimate: true` for an R that isn't one (Udyr).
 * `buff` may be an array (several buffs per cast).
+* `followUpCrits: true`: the cast sets off a hit that can crit outside its components (a hook's;
+  Viego R's second strike), so crit marks (`R!`, the web's crit buttons) apply to it.
 * `empowerAttacks.cc`: CC when the empowered attack lands (TF Gold Card); empowered components honour `delay`/`interval`.
 * `onHitEffectiveness` on attack/onHit components scales item on-hit damage (Azir soldiers 0.5).
 * `source` on a component sets the displayed source name (e.g. Varus W on-hit "Blighted Quiver").

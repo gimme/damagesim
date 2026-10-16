@@ -227,19 +227,20 @@ test("A number, hit or optional hit a cast doesn't take is warned about", () => 
   assert.deepEqual(warnings('Ahri', 'Q! Q?'), ["Q! can't crit, so it runs as Q"]);
 });
 
-test("Viego R's second hit on a marked target is part of the strike: on-hit, no crit, same cast", () => {
-  const viego = (combo: string) => simulate(data, { champion: 'Viego', level: 16, items: ['Infinity Edge'], combo, target: dummy });
-  const r = viego('W R');
-  const strike = r.events.find((e) => e.label === 'Heartbreaker')!;
-  const second = r.events.find((e) => e.label === 'Second strike')!;
-  assert.equal(second.source, 'R');
-  assert.equal(second.castId, strike.castId, 'not a separate hit for Electrocute and the like');
-  assert.equal(r.events.filter((e) => e.label === 'Blade of the Ruined King' && e.castId === strike.castId).length, 2, "Viego's on-hit on both hits");
-  const noCrit = new Sim(data, { champion: 'Viego', level: 16, items: ['Infinity Edge'], combo: [] }).evalExpr('Q.calc.SecondAttackDamage', { slot: 'Q' });
-  assert.ok(Math.abs(second.raw - noCrit) < 1e-6, "can't crit");
-  assert.equal(viego('W R!').events.find((e) => e.label === 'Second strike')!.raw, second.raw);
-  // After a basic attack it's still an attack hit that can crit.
-  assert.ok(viego('Q AA').events.find((e) => e.label === 'Second strike')!.raw > noCrit);
+test("Viego's second hit on a marked target, after an attack or R (checked in game)", () => {
+  const viego = (combo: string, items: string[] = [], runes: string[] = []) => simulate(data, { champion: 'Viego', level: 16, items, runes, combo, target: dummy });
+  const labels = (r: ReturnType<typeof simulate>) => r.events.map((e) => e.label);
+  // After an attack, it counts as one for on-attack effects: Kraken Slayer's 3rd attack is the next.
+  assert.ok(viego('Q AA AA', ['Kraken Slayer']).events.some((e) => e.source === 'item:6672'));
+  // A separate hit: Q, then the attack or R and its second hit, set off Electrocute.
+  assert.ok(viego('Q AA', [], ['Electrocute']).events.some((e) => e.source === 'rune:8112'));
+  assert.ok(viego('Q R', [], ['Electrocute']).events.some((e) => e.source === 'rune:8112'));
+  // On-hit effects apply to R's strike and its second hit.
+  assert.equal(labels(viego('W R', ["Nashor's Tooth"])).filter((l) => l === 'Icathian Bite').length, 2);
+  // It can crit after R, so R! and R? mark it.
+  const second = (combo: string) => viego(combo, ['Infinity Edge']).events.find((e) => e.label === 'Second strike')!.raw;
+  assert.ok(second('W R!') > second('W R') && second('W R') > second('W R?'));
+  assert.deepEqual(viego('W R!').warnings, []);
 });
 
 test('On-hit-only abilities (Fizz Q) consume Spellblade but do not trigger on-attack effects', () => {

@@ -285,6 +285,8 @@ export interface AbilitySpec {
   recastWindowFrom?: 'first' | 'previous';
   /** Doesn't hit the target (self buff) — still counts as an ability cast for Sheen etc. */
   noTarget?: boolean;
+  /** Sets off a hit that can crit outside its components (Viego R's second strike), so a crit mark (R!) applies to it. */
+  followUpCrits?: boolean;
   notes?: string[];
 }
 

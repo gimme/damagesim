@@ -237,7 +237,7 @@ export function rollsCrits(step: ComboStep, kit: ChampionKit): boolean {
   const spec = kit.abilities[step.slot];
   const key = step.variant ?? spec?.defaultVariant;
   const variant = key ? findVariant(spec, key)?.[1] : undefined;
-  return (variant?.components ?? spec?.components ?? []).some((c) => c.canCrit || (c.attack && c.canCrit !== false && attacksCrit));
+  return !!spec?.followUpCrits || (variant?.components ?? spec?.components ?? []).some((c) => c.canCrit || (c.attack && c.canCrit !== false && attacksCrit));
 }
 
 /** A step with the crit mark for `mode` (none for expected), if it rolls crits. */
