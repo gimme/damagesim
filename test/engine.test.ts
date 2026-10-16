@@ -255,6 +255,16 @@ test('Collector executes below 5% health', () => {
   assert.ok(r.events.some((e) => e.label === 'Execute'));
 });
 
+test("Collector's execute counts 5% of max health once, also when the hit that took the target there killed", () => {
+  const target = { maxHp: 1000, armor: 0, mr: 0 };
+  const run = (hpPercent: number) => simulate(data, { champion: 'Jinx', level: 18, items: ['The Collector'], combo: 'AA? AA?', target: { ...target, hpPercent } });
+  for (const hpPercent of [8, 30]) {
+    const execs = run(hpPercent).events.filter((e) => e.label === 'Execute');
+    assert.equal(execs.length, 1, `${hpPercent}%`);
+    near(execs[0].final!, 50, 0.01);
+  }
+});
+
 test('rank items per gold: sorted by damage gained per 1000 gold of the item', () => {
   const base = { champion: 'Ahri', level: 11, items: ["Luden's Echo", "Sorcerer's Shoes"], combo: 'E Q W R AA R', target: { preset: 'squishy' as const } };
   const res = rankItems(data, base, { metric: 'damagePerGold', limit: 200 });

@@ -830,15 +830,23 @@ const ITEMS: Record<number, Factory> = {
         if (sim.time <= timerEnd(sim, `mandate:${item.id}`)) inst.amps.push({ id: `item:${item.id}`, source: item.name, value: dv(item, 'DamageAmp'), kind: 'taken' });
       },
     }),
-  6676: (item) =>
-    effect(item, {
+  // The damage counted past the kill stands for a target with more health, which the same hits
+  // would leave below 5% too: the execute is worth its 5% whenever the target gets there, not only
+  // the health a hit happens to leave, or nothing when a hit takes it past 0.
+  6676: (item) => {
+    let done = false;
+    return effect(item, {
       description: 'Your damage executes champions below 5% health.',
-      afterDamage(sim, inst) {
+      limitations: ['The execute counts as 5% of the target\'s max health the first time it falls below 5%, also when the hit that took it there killed: what the rest of a bigger health bar would no longer need.'],
+      afterDamage(sim) {
         const t = sim.target;
-        if (t.hp <= 0 || t.hp / t.maxHp >= dv(item, 'ExecuteThreshold')) return;
-        sim.deal(hit(item, 'Execute', 'true', t.hp, { unamplified: true }));
+        const line = dv(item, 'ExecuteThreshold') * t.maxHp;
+        if (done || t.hp >= line) return;
+        done = true;
+        sim.deal(hit(item, 'Execute', 'true', line, { unamplified: true }));
       },
-    }),
+    });
+  },
   3168: (item) =>
     effect(item, {
       description: 'Deal 4% increased damage while above half health.',
