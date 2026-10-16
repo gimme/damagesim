@@ -501,8 +501,9 @@ type Grab = { el: HTMLElement; from: number; x: number; y: number; px: number; p
  * the box, out of the flow while the pointer is away from the box; over it, it lands among the others.
  *
  * - `arrange(from, to)`: the children's indices in their new order, with `from` moved to `to`.
- * - `landAt(x, y, cells, at, from)`: where the dragged child lands with its middle at (x, y) in the
- *   box, from the places of the children in their order as laid out; it is at `at` among them.
+ * - `landAt(x, y, cells, at, from)`: where the dragged child lands with its middle (or, `byPointer`,
+ *   the pointer) at (x, y) in the box, from the places of the children in their order as laid out;
+ *   it is at `at` among them.
  * - `move(from, to)`: makes the move; for a child brought in, `from` is its index as the last one.
  * - `movable(i)`: whether child i is dragged and glides; one that isn't (an empty slot) just moves.
  * - `onPick(i)`: when child i is picked up.
@@ -515,6 +516,7 @@ export function useDragOrder({
   landAt,
   move,
   makeWay = true,
+  byPointer = false,
   movable = () => true,
   onPick,
 }: {
@@ -523,6 +525,7 @@ export function useDragOrder({
   landAt: (x: number, y: number, cells: Place[], at: number, from: number) => number;
   move: (from: number, to: number) => void;
   makeWay?: boolean;
+  byPointer?: boolean;
   movable?: (i: number) => boolean;
   onPick?: (i: number) => void;
 }) {
@@ -560,7 +563,8 @@ export function useDragOrder({
     // A brought child lands only over the box. Coming over it, it first joins the others, last, to
     // land from where it's laid out among them.
     const away = !!g.bring && !(g.px >= b.left && g.px < b.right && g.py >= b.top && g.py < b.bottom);
-    const to = away || g.away ? g.from : landAt(x + home.w / 2, y + home.h / 2, laidOut(g.from, g.to).map((j) => homes.current[j]), makeWay ? g.to : g.from, g.from);
+    const [lx, ly] = byPointer ? [g.px - b.left, g.py - b.top] : [x + home.w / 2, y + home.h / 2];
+    const to = away || g.away ? g.from : landAt(lx, ly, laidOut(g.from, g.to).map((j) => homes.current[j]), makeWay ? g.to : g.from, g.from);
     if (to !== g.to || away !== !!g.away) reorder(to, away);
   };
   const reorder = (to: number, away = false) => {
@@ -721,7 +725,8 @@ export function useItemSlots(items: Slots, change: (fn: (items: Slots) => Slots)
   const order = useDragOrder({
     count: items.length,
     arrange: swap,
-    // The slot its middle is nearest, within a slot's size; farther away, it goes back.
+    // The slot the pointer is nearest, within a slot's size; farther away, it goes back. By the
+    // pointer, not the item's middle, as the item is held wherever it was grabbed.
     landAt: (x, y, cells, _at, from) => {
       const d = cells.map((c) => Math.hypot((x - c.x) / c.w - 0.5, (y - c.y) / c.h - 0.5));
       const k = d.indexOf(Math.min(...d));
@@ -732,6 +737,7 @@ export function useItemSlots(items: Slots, change: (fn: (items: Slots) => Slots)
       onMove?.(from, to);
     },
     makeWay: false,
+    byPointer: true,
     movable: (i) => items[i] != null,
     onPick,
   });
