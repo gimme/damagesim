@@ -1067,8 +1067,8 @@ table.data .source-name {
   flex: 1 1 0;
   min-width: 2px;
 }
-/* An item's bar and its legend: stats, effect, and what its hits proc as effect, striped */
-.iv-stats {
+/* An item's bar and its legend: boost, effect, and what it procs as effect, striped */
+.iv-boost {
   background: var(--accent);
 }
 .iv-effect {
