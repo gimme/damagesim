@@ -434,9 +434,10 @@ function nearestColumn(e: PointerEvent<HTMLElement>): string {
 }
 
 /** A row's card shows what its view doesn't: in the list, which already has the numbers, how the bar
- *  splits between stats, effect and procs damage; on the map, whose dots only have positions, the
- *  numbers. Both name what the item's hits proc. */
+ *  splits between stats, effect (by the item's hits' names) and procs damage, the parts it has; on
+ *  the map, whose dots only have positions, the numbers. Both show what the item procs. */
 function RowTip({ row: r, current, champion, view, action }: { row: Row; current: number | null; champion: string; view: 'list' | 'map'; action?: ReactNode }) {
+  const stats = r.gain - r.itemDamage - r.procDamage;
   return (
     <>
       <div className="tt-title">
@@ -444,20 +445,25 @@ function RowTip({ row: r, current, champion, view, action }: { row: Row; current
       </div>
       {view === 'list' ? (
         <>
-          <div className="tt-row">
-            <span>
-              <Swatch part="stats" gap />
-              Stats
-            </span>
-            <strong>{signed(r.gain - r.itemDamage - r.procDamage)}</strong>
-          </div>
-          <div className="tt-row">
-            <span>
-              <Swatch part="effect" gap />
-              Effect
-            </span>
-            <strong>{signed(r.itemDamage)}</strong>
-          </div>
+          {Math.abs(stats) >= 0.5 && (
+            <div className="tt-row">
+              <span>
+                <Swatch part="stats" gap />
+                Stats
+              </span>
+              <strong>{signed(stats)}</strong>
+            </div>
+          )}
+          {r.itemHits.length > 0 && (
+            <div className="tt-row">
+              <span>
+                <Swatch part="effect" gap />
+                {/* Its hits by name: Squall, Spellblade; Luden's Echo and its repeats as one */}
+                {[...new Set(r.itemHits.map((h) => h.label.replace(/ \(.*\)$/, '')))].join(', ')}
+              </span>
+              <strong>{signed(r.itemDamage)}</strong>
+            </div>
+          )}
           <Procs row={r} champion={champion} />
         </>
       ) : (

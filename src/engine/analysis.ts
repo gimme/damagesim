@@ -123,6 +123,8 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
       gainPerGold: round(perGold, 2),
       /** Part of the gain dealt by the item itself (its procs, burns, actives). */
       itemDamage: round(own.reduce((sum, s) => sum + s.damage, 0)),
+      /** The itemDamage by hit (Squall, Spellblade, Echo…), largest first. */
+      itemHits: ownHits(r, source),
       /** Part of the gain dealt by hits of your other damage that land only with the item (Electrocute it procs, an execute it brings the target into range of); the rest is its stats and amplifiers raising your other damage. */
       procDamage: round(procs.reduce((sum, p) => sum + p.damage, 0)),
       /** The procDamage by source, largest first. */
@@ -143,6 +145,16 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
     items: rows.slice(0, opts.limit ?? 25),
     note: 'gainPerGold is damage gained per 1000 gold of the item. itemDamage is the part of the gain the item deals itself; procDamage the part dealt by hits of your other damage that land only with the item (procs lists it by source, e.g. Electrocute).',
   };
+}
+
+/** The damage of an item's own hits by their label, largest first. */
+function ownHits(r: SimResult, item: string) {
+  const hits = new Map<string, number>();
+  for (const e of r.events) if (e.source === item) hits.set(e.label, (hits.get(e.label) ?? 0) + (e.final ?? 0));
+  return [...hits]
+    .filter(([, damage]) => damage >= 0.5)
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, damage]) => ({ label, damage: round(damage) }));
 }
 
 /** How many hits a build lands, by source, and by kind (Smolder's Q hit, its execute) for the
