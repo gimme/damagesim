@@ -20,16 +20,20 @@ const SHOWN = 8;
 const STANDOUT = 1.15;
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${fmt(Math.abs(v))}`;
 
-/** The parts of an item's bar: the scaling it adds to your other damage (its stats, Rabadon's-style
- *  multipliers), the damage it deals itself (its procs, burns) and the hits of your other damage that
- *  land only with it (Electrocute it procs, an execute it brings the target into range of). */
-const PARTS = ['scaling', 'effect', 'procs'] as const;
+/** The parts of an item's bar: base, what it adds to your other damage (its stats, Rabadon's-style
+ *  multipliers); effect, the damage it deals itself (its procs, burns); procs, the hits of your other
+ *  damage that land only with it (Electrocute it procs, an execute it brings the target into range of). */
+const PARTS = ['base', 'effect', 'procs'] as const;
 type Part = (typeof PARTS)[number];
 
-/** A row's parts; a negative or negligible one is left out of the bar. */
-function split(r: Row): Record<Part, number> {
-  const v = { scaling: r.gain - r.itemDamage - r.procDamage, effect: r.itemDamage, procs: r.procDamage };
-  return { scaling: v.scaling > 0.5 ? v.scaling : 0, effect: v.effect > 0.5 ? v.effect : 0, procs: v.procs > 0.5 ? v.procs : 0 };
+/** A row's bar: a segment per entry of its card, the base, each of the item's hits and each proc,
+ *  largest first within each part; a negative or negligible one is left out. */
+function segments(r: Row): { part: Part; key: string; damage: number }[] {
+  return [
+    { part: 'base' as const, key: 'base', damage: r.gain - r.itemDamage - r.procDamage },
+    ...r.itemHits.map((h) => ({ part: 'effect' as const, key: `effect|${h.name}`, damage: h.damage })),
+    ...r.procs.map((p) => ({ part: 'procs' as const, key: `procs|${p.source}|${p.name}`, damage: p.damage })),
+  ].filter((s) => s.damage > 0.5);
 }
 
 const Swatch = ({ part, gap }: { part: Part; gap?: boolean }) => <span className={`swatch iv-${part}`} style={gap ? { marginRight: 6 } : undefined} />;
@@ -224,7 +228,7 @@ function RankList({
   const top = all.slice(0, shown);
   const rest = expanded ? all.slice(shown) : rank > shown ? [all[rank - 1]] : [];
   // The legend has the parts the bars listed have.
-  const drawn = PARTS.filter((p) => [...top, ...rest].some((r) => split(r)[p] > 0));
+  const drawn = PARTS.filter((p) => [...top, ...rest].some((r) => segments(r).some((s) => s.part === p)));
   const hidden = all.length - shown - (rank > shown ? 1 : 0);
   const max = Math.max(1e-9, ...all.map((r) => (by === 'perGold' ? r.gainPerGold : r.gain)));
   // A click on a row buys its item. The item shows its details, the rest of the row where its damage
@@ -296,7 +300,6 @@ function RankList({
   const row = (r: Row) => {
     const v = by === 'perGold' ? r.gainPerGold : r.gain;
     const isCurrent = r.id === current;
-    const parts = split(r);
     const width = (Math.max(0, v) / max) * 100;
     const ahead = lead.has(r.id);
     const item = (
@@ -350,7 +353,9 @@ function RankList({
         </span>
         <span role="cell" className="iv-track" aria-hidden>
           <span className="iv-bars" style={{ width: `${width}%` }}>
-            {PARTS.map((p) => parts[p] > 0 && <span key={p} className={`iv-bar iv-${p}`} style={{ flexGrow: parts[p] }} />)}
+            {segments(r).map((s) => (
+              <span key={s.key} className={`iv-bar iv-${s.part}`} style={{ flexGrow: s.damage }} />
+            ))}
           </span>
         </span>
         <span role="cell" className={`iv-pg num ${by === 'perGold' ? 'on' : ''}`}>
@@ -434,10 +439,10 @@ function nearestColumn(e: PointerEvent<HTMLElement>): string {
 }
 
 /** A row's card shows what its view doesn't: in the list, which already has the numbers, how the bar
- *  splits between scaling, effect and procs damage, the parts it has, the hits by name; on the map,
+ *  splits between base, effect and procs damage, the parts it has, the hits by name; on the map,
  *  whose dots only have positions, the numbers. Both name what the item procs. */
 function RowTip({ row: r, current, champion, view, action }: { row: Row; current: number | null; champion: string; view: 'list' | 'map'; action?: ReactNode }) {
-  const scaling = r.gain - r.itemDamage - r.procDamage;
+  const base = r.gain - r.itemDamage - r.procDamage;
   const procs = r.procs.map((p) => <SourceRow key={`${p.source}|${p.name}`} part="procs" {...p} champion={champion} />);
   return (
     <>
@@ -446,13 +451,13 @@ function RowTip({ row: r, current, champion, view, action }: { row: Row; current
       </div>
       {view === 'list' ? (
         <>
-          {Math.abs(scaling) >= 0.5 && (
+          {Math.abs(base) >= 0.5 && (
             <div className="tt-row">
               <span>
-                <Swatch part="scaling" gap />
-                Scaling
+                <Swatch part="base" gap />
+                Base
               </span>
-              <strong>{signed(scaling)}</strong>
+              <strong>{signed(base)}</strong>
             </div>
           )}
           {r.itemHits.map((h) => (

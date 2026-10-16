@@ -1067,8 +1067,8 @@ table.data .source-name {
   flex: 1 1 0;
   min-width: 2px;
 }
-/* An item's bar and its legend: scaling, effect, and what it procs as effect, striped */
-.iv-scaling {
+/* An item's bar and its legend: base, effect, and what it procs as effect, striped */
+.iv-base {
   background: var(--accent);
 }
 .iv-effect {
