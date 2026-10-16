@@ -288,52 +288,55 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
         </div>
       }
     >
-      <div className="slots" ref={order.box}>
-        {items.map((id, i) => (
-          <div
-            key={i}
-            className={`slot ${id ? 'filled' : ''} ${order.drag?.from === i ? 'dragging' : ''} ${landing === i ? 'landing' : ''}`}
-            role="button"
-            tabIndex={0}
-            aria-label={id ? `Item slot ${i + 1}: ${DATA.items[id]?.name}. Arrow keys move it, Delete removes it.` : `Empty item slot ${i + 1}`}
-            title={id ? undefined : 'Add item'}
-            {...mergeProps(id ? hover.bind(<ItemTip id={id} sim={sim} />) : {}, order.item(i), {
-              onClick: () => setPicking(i),
-              onKeyDown: (e: KeyboardEvent) => {
-                if (e.target !== e.currentTarget) return;
-                if (e.key === 'Enter') setPicking(i);
-                else if (id && (e.key === 'Delete' || e.key === 'Backspace')) {
-                  e.preventDefault();
-                  hover.hide();
-                  put(i, null);
-                }
-              },
-            })}
-          >
-            {id ? <ItemIcon id={id} /> : '+'}
-            {id && (
-              <button
-                className="remove"
-                aria-label={`Remove ${DATA.items[id]?.name}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  put(i, null);
-                }}
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        ))}
-        {order.drag && (
-          <div className="slot vacated" aria-hidden style={{ gridColumn: `${order.drag.from + 1} / span 1` }}>
-            +
-          </div>
-        )}
+      <div className="picker-host">
+        <div className="slots" ref={order.box}>
+          {items.map((id, i) => (
+            <div
+              key={i}
+              className={`slot ${id ? 'filled' : ''} ${order.drag?.from === i ? 'dragging' : ''} ${landing === i ? 'landing' : ''} ${picking === i ? 'picking' : ''}`}
+              role="button"
+              tabIndex={0}
+              aria-expanded={picking === i}
+              aria-label={id ? `Item slot ${i + 1}: ${DATA.items[id]?.name}. Arrow keys move it, Delete removes it.` : `Empty item slot ${i + 1}`}
+              title={id ? undefined : 'Add item'}
+              {...mergeProps(id ? hover.bind(<ItemTip id={id} sim={sim} />) : {}, order.item(i), {
+                onClick: () => setPicking((p) => (p === i ? null : i)),
+                onKeyDown: (e: KeyboardEvent) => {
+                  if (e.target !== e.currentTarget) return;
+                  if (e.key === 'Enter') setPicking(i);
+                  else if (id && (e.key === 'Delete' || e.key === 'Backspace')) {
+                    e.preventDefault();
+                    hover.hide();
+                    put(i, null);
+                  }
+                },
+              })}
+            >
+              {id ? <ItemIcon id={id} /> : '+'}
+              {id && (
+                <button
+                  className="remove"
+                  aria-label={`Remove ${DATA.items[id]?.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    put(i, null);
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+          {order.drag && (
+            <div className="slot vacated" aria-hidden style={{ gridColumn: `${order.drag.from + 1} / span 1` }}>
+              +
+            </div>
+          )}
+        </div>
+        {picking !== null && <ItemPicker onPick={pick} onClose={() => setPicking(null)} sim={sim} />}
       </div>
       {hover.node}
-      {picking !== null && <ItemPicker onPick={pick} onClose={() => setPicking(null)} sim={sim} />}
-      {!!build.length && picking === null && (
+      {!!build.length && (
         <div className="small secondary" style={{ marginTop: 8 }}>
           {build.map((b) => b.name).join(' · ')}
         </div>
@@ -574,7 +577,7 @@ function TargetItems({ slots, later = [], onChange }: { slots: (number | null)[]
       <ItemTip id={id} foot={`Only its stats count on a target. ${action}`} />
     );
   return (
-    <div>
+    <div className="picker-host">
       <div className="row" style={{ gap: 4 }}>
         {slots.map((id, i) => (
           <button
@@ -608,7 +611,7 @@ function TargetItems({ slots, later = [], onChange }: { slots: (number | null)[]
         ))}
         {hover.node}
         {slots.length < 6 && (
-          <button className="btn small" onClick={() => setOpen(true)}>
+          <button className="btn small" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
             + item
           </button>
         )}

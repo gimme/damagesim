@@ -213,8 +213,18 @@ export function ItemPicker({ onPick, onClose, sim }: { onPick: (id: number) => v
   );
   // Enter buys the top match, marked while there's a search.
   const top = q.trim() ? list[0]?.id : undefined;
+  // It drops down over what's below its parent, which holds what opens it; a click outside that,
+  // or Escape, closes it.
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const close = (e: globalThis.MouseEvent) => {
+      if (!ref.current?.parentElement?.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [onClose]);
   return (
-    <div className="card" style={{ marginTop: 8, boxShadow: 'none', background: 'var(--surface-2)' }}>
+    <div className="item-picker" ref={ref} onKeyDown={(e) => e.key === 'Escape' && onClose()}>
       <div className="row">
         <input
           type="search"
@@ -223,23 +233,22 @@ export function ItemPicker({ onPick, onClose, sim }: { onPick: (id: number) => v
           aria-label="Search items"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          style={{ flex: 1 }}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') onClose();
-            else if (e.key === 'Enter' && top !== undefined) onPick(top);
-          }}
+          style={{ flex: '1 1 140px' }}
+          onKeyDown={(e) => e.key === 'Enter' && top !== undefined && onPick(top)}
         />
-        <div className="segmented">
-          <button aria-pressed={tier === 'legendary'} onClick={() => setTier('legendary')}>
-            Completed
-          </button>
-          <button aria-pressed={tier === 'all'} onClick={() => setTier('all')}>
-            All
+        <div className="row" style={{ gap: 4, flexWrap: 'nowrap', marginLeft: 'auto' }}>
+          <div className="segmented">
+            <button aria-pressed={tier === 'legendary'} onClick={() => setTier('legendary')}>
+              Completed
+            </button>
+            <button aria-pressed={tier === 'all'} onClick={() => setTier('all')}>
+              All
+            </button>
+          </div>
+          <button className="btn ghost small" onClick={onClose} aria-label="Close item picker">
+            ✕
           </button>
         </div>
-        <button className="btn ghost small" onClick={onClose} aria-label="Close item picker">
-          ✕
-        </button>
       </div>
       <div className="row" style={{ marginTop: 6, gap: 4 }}>
         {ITEM_FILTERS.map((f, i) => (
