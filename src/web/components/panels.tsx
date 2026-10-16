@@ -945,7 +945,7 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
             {e.active!.label}
           </button>
         ))}
-        <button className="combo-key" title="Wait, 1 second unless you set it" onClick={() => add({ type: 'wait', seconds: 1 })}>
+        <button className="combo-key" title="Wait, 1 second unless you set it" onClick={() => add({ type: 'wait' })}>
           Wait
         </button>
       </div>
@@ -997,13 +997,13 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
                 {st.type === 'ability' && setting && <CastSettingField step={st} setting={setting} onChange={replace} />}
                 {st.type === 'wait' && (
                   <StepNumber
-                    value={st.seconds === 1 ? undefined : st.seconds}
+                    value={st.seconds}
                     placeholder={1}
                     step={0.25}
                     unit="s"
                     label="Seconds to wait"
                     title="Seconds to wait (default 1)"
-                    onChange={(v) => replace({ ...st, seconds: v ?? 1 })}
+                    onChange={(v) => replace(v === undefined ? { type: 'wait' } : { ...st, seconds: v })}
                   />
                 )}
                 <button aria-label="Remove step" tabIndex={-1} onClick={() => commit(steps.filter((_, j) => j !== i))}>

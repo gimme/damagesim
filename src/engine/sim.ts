@@ -1829,7 +1829,7 @@ export class Sim {
           break;
         case 'wait': {
           const start = Math.max(this.time, this.freeAt);
-          this.processUntil(start + step.seconds);
+          this.processUntil(start + (step.seconds ?? 1));
           this.freeAt = this.time;
           timeline.push({ step: formatCombo([step]), start, end: this.time });
           break;

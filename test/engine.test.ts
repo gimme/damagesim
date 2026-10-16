@@ -91,10 +91,10 @@ test('expression language', () => {
 });
 
 test('combo shorthand round-trips', () => {
-  const steps = parseCombo('E > Q, W R:dash AA*3 AA! ignite item:Hextech_Rocketbelt wait{1.5s} wait Q{out:1,back:0} Q+bonus');
+  const steps = parseCombo('E > Q, W R:dash AA*3 AA! ignite item:Hextech_Rocketbelt wait{1.5s} wait wait{1s} Q{out:1,back:0} Q+bonus');
   assert.equal(steps.filter((s) => s.type === 'attack').length, 2);
-  assert.equal(formatCombo(steps), 'E Q W R:dash AA*3 AA! ignite item:Hextech_Rocketbelt wait{1.5s} wait Q{out:1,back:0} Q+bonus');
-  assert.deepEqual(steps.filter((s) => s.type === 'wait'), [{ type: 'wait', seconds: 1.5 }, { type: 'wait', seconds: 1 }]);
+  assert.equal(formatCombo(steps), 'E Q W R:dash AA*3 AA! ignite item:Hextech_Rocketbelt wait{1.5s} wait wait{1s} Q{out:1,back:0} Q+bonus');
+  assert.deepEqual(steps.filter((s) => s.type === 'wait'), [{ type: 'wait', seconds: 1.5 }, { type: 'wait' }, { type: 'wait', seconds: 1 }]);
   assert.throws(() => parseCombo('Q X'));
   assert.equal(formatCombo(parseCombo('Q! E? Q:tornado{a:1}!+bonus*2 AA*3?')), 'Q! E? Q:tornado{a:1}!+bonus Q:tornado{a:1}!+bonus AA*3?');
   assert.deepEqual(parseCombo('E{0.5s} R{1.5s,zone:10}'), [

@@ -35,7 +35,7 @@ const comboStep = z.union([
   z.object({ type: z.literal('attack'), count: z.number().optional(), crit: z.boolean().optional() }),
   z.object({ type: z.literal('item'), item: idOrName }),
   z.object({ type: z.literal('summoner'), spell: z.literal('ignite') }),
-  z.object({ type: z.literal('wait'), seconds: z.number() }),
+  z.object({ type: z.literal('wait'), seconds: z.number().optional().describe('Default 1') }),
 ]);
 
 const target = z

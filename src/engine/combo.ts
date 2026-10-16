@@ -35,7 +35,11 @@ export type ComboStep =
     }
   | { type: 'item'; item: number | string }
   | { type: 'summoner'; spell: 'ignite' }
-  | { type: 'wait'; seconds: number };
+  | {
+      type: 'wait';
+      /** Default 1. */
+      seconds?: number;
+    };
 
 const SLOTS = new Set(['P', 'Q', 'W', 'E', 'R']);
 
@@ -69,7 +73,7 @@ export function parseCombo(src: string): ComboStep[] {
       continue;
     }
     if ((m = /^wait(?:\{(\d*\.?\d+)s?\})?$/i.exec(tok))) {
-      steps.push({ type: 'wait', seconds: m[1] !== undefined ? Number(m[1]) : 1 });
+      steps.push(m[1] !== undefined ? { type: 'wait', seconds: Number(m[1]) } : { type: 'wait' });
       continue;
     }
     if (/^(ignite|ign|dot)$/i.test(tok)) {
@@ -133,7 +137,7 @@ export function formatCombo(steps: ComboStep[]): string {
         case 'summoner':
           return 'ignite';
         case 'wait':
-          return s.seconds === 1 ? 'wait' : `wait{${s.seconds}s}`;
+          return s.seconds === undefined ? 'wait' : `wait{${s.seconds}s}`;
       }
     })
     .join(' ');
