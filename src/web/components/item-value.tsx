@@ -1,7 +1,7 @@
 // Item value: what each legendary or pair of boots would add to the current build, ranked by damage
 // per gold or total damage, as a list or a gold-vs-damage map. Recomputed live as the build changes.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { DATA } from '../data.ts';
 import { Card, ItemIcon, ItemTip, fmt } from './common.tsx';
 import { GoldScatter, useTooltip, type GoldPoint } from './charts.tsx';
@@ -74,9 +74,6 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
     return useful;
   }, [ranking, by, current]);
   const lead = useMemo(() => standouts(rows), [rows]);
-  // The current item stays listed below the top rows, so it isn't one of those left to show.
-  const currentRank = rows.findIndex((r) => r.id === current) + 1;
-  const more = rows.length - SHOWN - (currentRank > SHOWN ? 1 : 0);
 
   const pick = (id: number | null) => {
     set((s) => {
@@ -86,24 +83,6 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
     });
     setChosen(null);
   };
-
-  // Show all / Show less stays where it was on screen, so it can be clicked again at once: expanded,
-  // it floats there over the list (sticky) until the list's end comes up to it; collapsing scrolls the
-  // page so the shorter list ends there again.
-  const toggle = useRef<HTMLButtonElement>(null);
-  const anchor = useRef<number | null>(null);
-  const [stick, setStick] = useState(8);
-  const toggleAll = () => {
-    const r = toggle.current!.getBoundingClientRect();
-    anchor.current = r.top;
-    setStick(Math.max(8, window.innerHeight - r.bottom));
-    setShowAll(!showAll);
-  };
-  useLayoutEffect(() => {
-    if (anchor.current == null || !toggle.current) return;
-    window.scrollBy(0, toggle.current.getBoundingClientRect().top - anchor.current);
-    anchor.current = null;
-  }, [showAll]);
 
   const slotLabel = current != null ? `in place of ${DATA.items[current]?.name}` : `in slot ${slot + 1}`;
 
@@ -158,17 +137,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
           {!rows.length ? (
             <div className="muted small">No legendary item or pair of boots adds damage to this combo.</div>
           ) : view === 'list' ? (
-            <>
-              <RankList rows={rows} limit={showAll ? Infinity : SHOWN} by={by} setBy={setBy} current={current} lead={lead} slotLabel={slotLabel} onPick={pick} sim={sim} />
-              {(more > 0 || showAll) && (
-                <button ref={toggle} className="iv-more" aria-expanded={showAll} style={showAll ? { bottom: stick } : undefined} onClick={toggleAll}>
-                  <span>
-                    <Chevron />
-                    {showAll ? 'Show less' : 'Show all'}
-                  </span>
-                </button>
-              )}
-            </>
+            <RankList rows={rows} shown={SHOWN} expanded={showAll} onExpand={setShowAll} by={by} setBy={setBy} current={current} lead={lead} slotLabel={slotLabel} onPick={pick} sim={sim} />
           ) : (
             <GoldScatter
               points={rows.map((r): GoldPoint => ({ id: r.id, label: r.item, gold: r.gold, gain: r.gain, perGold: r.gainPerGold, highlight: r.id === current, standout: lead.has(r.id) }))}
@@ -182,9 +151,26 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   );
 }
 
+/** Sizes the item column for every item that can be ranked, listed or not, so the bars stay put as the
+ *  list expands and collapses and as the slot or build changes. */
+const SIZER = (
+  <div className="iv-row iv-sizer" aria-hidden>
+    <span className="iv-item">
+      {DEFAULT_IDS.map((id) => (
+        <span key={id}>
+          <span className="icon sm" />
+          <span className="iv-name">{DATA.items[id].name}</span>
+        </span>
+      ))}
+    </span>
+  </div>
+);
+
 function RankList({
   rows: all,
-  limit,
+  shown,
+  expanded,
+  onExpand,
   by,
   setBy,
   current,
@@ -194,7 +180,9 @@ function RankList({
   sim,
 }: {
   rows: Row[];
-  limit: number;
+  shown: number;
+  expanded: boolean;
+  onExpand: (expanded: boolean) => void;
   by: By;
   setBy: (by: By) => void;
   current: number | null;
@@ -204,9 +192,12 @@ function RankList({
   sim: Sim | null;
 }) {
   const tt = useTooltip();
-  // The current item stays listed even when it isn't in the top rows.
+  // Under the top rows, a line with Show all / Show less, then the rest: collapsed, only the current
+  // item, when it isn't in the top rows. Rows come and go only under the line, so it stays in place.
   const rank = all.findIndex((r) => r.id === current) + 1;
-  const rows = rank > limit ? [...all.slice(0, limit), all[rank - 1]] : all.slice(0, limit);
+  const top = all.slice(0, shown);
+  const rest = expanded ? all.slice(shown) : rank > shown ? [all[rank - 1]] : [];
+  const hidden = all.length - shown - (rank > shown ? 1 : 0);
   const max = Math.max(1e-9, ...all.map((r) => (by === 'perGold' ? r.gainPerGold : r.gain)));
   // A click on a row buys its item. The item shows its details, the rest of the row where its damage
   // comes from; a card from hovering says a click buys, one from a tap has the Buy button.
@@ -274,6 +265,79 @@ function RankList({
       {label}
     </button>
   );
+  const row = (r: Row) => {
+    const v = by === 'perGold' ? r.gainPerGold : r.gain;
+    const isCurrent = r.id === current;
+    // Bar split: what the item adds to your other damage (its stats, Rabadon's-style multipliers)
+    // and the damage it deals itself (procs, burns); a negative part is left out of the bar.
+    const stats = Math.max(0, r.gain - r.itemDamage);
+    const fx = Math.max(0, r.itemDamage);
+    const width = (Math.max(0, v) / max) * 100;
+    const ahead = lead.has(r.id);
+    const item = (
+      <>
+        <span className="iv-icon">
+          <ItemIcon id={r.id} size="sm" />
+          {ahead && <Sparkle className="iv-spark" />}
+        </span>
+        <span className="iv-name">{r.item}</span>
+        {isCurrent && !expanded && rank > shown && <span className="iv-tag">#{rank}</span>}
+      </>
+    );
+    return (
+      <div
+        key={r.id}
+        role="row"
+        aria-current={isCurrent || undefined}
+        className={`iv-row ${isCurrent ? 'current' : ''} ${ahead ? 'standout' : ''}`}
+        onPointerDown={(e) => {
+          pointer.current = e.pointerType;
+          if (e.pointerType !== 'touch') return;
+          const at = { clientX: e.clientX, clientY: e.clientY, pointerType: e.pointerType };
+          const col = nearestColumn(e);
+          clearTimeout(hold.current.timer);
+          hold.current.timer = setTimeout(() => {
+            hold.current.on = true;
+            setTapped(null);
+            show(at, r, col, 'hold');
+          }, 200);
+        }}
+        onPointerMove={(e) => {
+          if (e.pointerType !== 'touch') {
+            setTapped(null);
+            show(e, r, nearestColumn(e), 'hover');
+          } else if (hold.current.on) show(e, r, nearestColumn(e), 'hold');
+        }}
+        onPointerLeave={(e) => e.pointerType !== 'touch' && tt.hide()}
+        onPointerUp={(e) => e.pointerType === 'touch' && !hold.current.on && tap(e, r)}
+        // A keyboard's click (detail 0) on the item's button buys too.
+        onClick={(e) => !isCurrent && (e.detail === 0 || pointer.current !== 'touch') && onPick(r.id)}
+      >
+        <span role="cell" className="iv-item">
+          {isCurrent ? (
+            item
+          ) : (
+            // For the keyboard; its click reaches the row, which buys.
+            <button type="button" className="iv-buy" aria-label={`Buy ${r.item} ${slotLabel}${ahead ? ', far more damage per gold than the rest' : ''}`}>
+              {item}
+            </button>
+          )}
+        </span>
+        <span role="cell" className="iv-track" aria-hidden>
+          <span className="iv-bars" style={{ width: `${width}%` }}>
+            {stats > 0.5 && <span className="iv-bar" style={{ flexGrow: stats }} />}
+            {fx > 0.5 && <span className="iv-bar fx" style={{ flexGrow: fx }} />}
+          </span>
+        </span>
+        <span role="cell" className={`iv-pg num ${by === 'perGold' ? 'on' : ''}`}>
+          {fmt(r.gainPerGold)}
+        </span>
+        <span role="cell" className={`iv-dmg num ${by === 'damage' ? 'on' : ''}`}>
+          {signed(r.gain)}
+        </span>
+      </div>
+    );
+  };
   return (
     <div className="chart-wrap" ref={tt.ref}>
       <div className="iv-list">
@@ -292,9 +356,6 @@ function RankList({
                 effect
               </span>
             </span>
-            <span role="columnheader" className="iv-cost">
-              cost
-            </span>
             {/* The numbers' headings sort by them; where only one number fits, its heading switches it */}
             <span role="columnheader" className={`iv-pg ${by === 'perGold' ? 'on' : ''}`} aria-sort={by === 'perGold' ? 'descending' : undefined}>
               {sortBy('perGold', 'per 1000g')}
@@ -309,81 +370,21 @@ function RankList({
               </button>
             </span>
           </div>
-          {rows.map((r) => {
-            const v = by === 'perGold' ? r.gainPerGold : r.gain;
-            const isCurrent = r.id === current;
-            // Bar split: what the item adds to your other damage (its stats, Rabadon's-style multipliers)
-            // and the damage it deals itself (procs, burns); a negative part is left out of the bar.
-            const stats = Math.max(0, r.gain - r.itemDamage);
-            const fx = Math.max(0, r.itemDamage);
-            const width = (Math.max(0, v) / max) * 100;
-            const ahead = lead.has(r.id);
-            const item = (
-              <>
-                <span className="iv-icon">
-                  <ItemIcon id={r.id} size="sm" />
-                  {ahead && <Sparkle className="iv-spark" />}
-                </span>
-                <span className="iv-name">{r.item}</span>
-                {isCurrent && <span className="iv-tag">current{rank > limit ? ` · #${rank}` : ''}</span>}
-              </>
-            );
-            return (
-              <div
-                key={r.id}
-                role="row"
-                className={`iv-row ${isCurrent ? 'current' : ''} ${ahead ? 'standout' : ''}`}
-                onPointerDown={(e) => {
-                  pointer.current = e.pointerType;
-                  if (e.pointerType !== 'touch') return;
-                  const at = { clientX: e.clientX, clientY: e.clientY, pointerType: e.pointerType };
-                  const col = nearestColumn(e);
-                  clearTimeout(hold.current.timer);
-                  hold.current.timer = setTimeout(() => {
-                    hold.current.on = true;
-                    setTapped(null);
-                    show(at, r, col, 'hold');
-                  }, 200);
-                }}
-                onPointerMove={(e) => {
-                  if (e.pointerType !== 'touch') {
-                    setTapped(null);
-                    show(e, r, nearestColumn(e), 'hover');
-                  } else if (hold.current.on) show(e, r, nearestColumn(e), 'hold');
-                }}
-                onPointerLeave={(e) => e.pointerType !== 'touch' && tt.hide()}
-                onPointerUp={(e) => e.pointerType === 'touch' && !hold.current.on && tap(e, r)}
-                // A keyboard's click (detail 0) on the item's button buys too.
-                onClick={(e) => !isCurrent && (e.detail === 0 || pointer.current !== 'touch') && onPick(r.id)}
-              >
-                <span role="cell" className="iv-item">
-                  {isCurrent ? (
-                    item
-                  ) : (
-                    // For the keyboard; its click reaches the row, which buys.
-                    <button type="button" className="iv-buy" aria-label={`Buy ${r.item} ${slotLabel}${ahead ? ', far more damage per gold than the rest' : ''}`}>
-                      {item}
-                    </button>
-                  )}
-                </span>
-                <span role="cell" className="iv-track" aria-hidden>
-                  <span className="iv-bars" style={{ width: `${width}%` }}>
-                    {stats > 0.5 && <span className="iv-bar" style={{ flexGrow: stats }} />}
-                    {fx > 0.5 && <span className="iv-bar fx" style={{ flexGrow: fx }} />}
+          {SIZER}
+          {top.map(row)}
+          {hidden > 0 && (
+            <div role="row" className="iv-more-row">
+              <div role="cell">
+                <button className="iv-more" aria-expanded={expanded} onClick={() => onExpand(!expanded)}>
+                  <span>
+                    <Chevron />
+                    {expanded ? 'Show less' : 'Show all'}
                   </span>
-                </span>
-                <span role="cell" className="iv-cost num">
-                  {fmt(r.gold)}g
-                </span>
-                <span role="cell" className={`iv-pg num ${by === 'perGold' ? 'on' : ''}`}>
-                  {fmt(r.gainPerGold)}
-                </span>
-                <span role="cell" className={`iv-dmg num ${by === 'damage' ? 'on' : ''}`}>
-                  {signed(r.gain)}
-                </span>
+                </button>
               </div>
-            );
-          })}
+            </div>
+          )}
+          {rest.map(row)}
         </div>
       </div>
       {/* A tapped card takes taps itself, so a tap on it closes it instead of reaching the row under

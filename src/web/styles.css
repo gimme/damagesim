@@ -895,15 +895,15 @@ table.data .source-name {
   opacity: 0.5;
 }
 
-/* The ranking. One grid for every row, so the item column fits the longest name shown and the bars
-   start right after it; the bar takes the rest of the room. The cost, then the number not ranked by
-   give way as the list narrows. */
+/* The ranking. One grid for every row, so the item column fits the longest name and the bars start
+   right after it; the bar takes the rest of the room. The number not ranked by gives way as the list
+   narrows. */
 .iv-list {
   container-type: inline-size;
 }
 .iv-grid {
   display: grid;
-  grid-template-columns: fit-content(40%) minmax(40px, 1fr) 52px 72px 64px;
+  grid-template-columns: fit-content(40%) minmax(40px, 1fr) 72px 64px;
   column-gap: 12px;
 }
 .iv-row {
@@ -923,6 +923,27 @@ table.data .source-name {
 .iv-row.current:hover {
   background: var(--accent-wash);
   cursor: default;
+}
+/* Only the sizer sizes the item column: a row's item fits in it, its name cut short if need be */
+.iv-row:not(.iv-sizer) > .iv-item {
+  contain: inline-size;
+}
+/* Every item's name, stacked in one line's room and out of sight: only its width counts */
+.iv-sizer {
+  height: 0;
+  min-height: 0;
+  padding-block: 0;
+  overflow: clip;
+  visibility: hidden;
+}
+.iv-sizer .iv-item {
+  display: grid;
+}
+.iv-sizer .iv-item > span {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .iv-head {
   white-space: nowrap;
@@ -996,18 +1017,11 @@ table.data .source-name {
 .iv-head .swatch {
   margin-right: 5px;
 }
-.iv-cost,
 .iv-pg,
 .iv-dmg,
 .iv-swap {
   text-align: right;
   color: var(--text-secondary);
-}
-.iv-cost {
-  color: var(--text-muted);
-}
-.iv-head .iv-cost {
-  color: inherit;
 }
 .iv-pg.on,
 .iv-dmg.on {
@@ -1135,15 +1149,16 @@ table.data .source-name {
   }
 }
 
-/* Show all / Show less, centered on a line under the list. Expanded, it floats where it was over
-   the list (its bottom offset is set where it's clicked): only the pill takes clicks then, and the
-   line is left out, as it would cross the rows. */
+/* Show all / Show less, centered on a line under the top rows, with the rest of the list under it */
+.iv-more-row {
+  grid-column: 1 / -1;
+  margin-block: 4px;
+}
 .iv-more {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
-  margin-top: 6px;
   padding: 2px 0;
   border: 0;
   background: none;
@@ -1157,19 +1172,6 @@ table.data .source-name {
   flex: 1;
   height: 1px;
   background: var(--grid);
-}
-.iv-more[aria-expanded='true'] {
-  position: sticky;
-  z-index: 4;
-  pointer-events: none;
-}
-.iv-more[aria-expanded='true']::before,
-.iv-more[aria-expanded='true']::after {
-  visibility: hidden;
-}
-.iv-more[aria-expanded='true'] span {
-  pointer-events: auto;
-  box-shadow: var(--shadow);
 }
 .iv-more span {
   display: inline-flex;
@@ -1199,14 +1201,6 @@ table.data .source-name {
   transform: rotate(180deg);
 }
 
-@container (max-width: 860px) {
-  .iv-grid {
-    grid-template-columns: fit-content(40%) minmax(40px, 1fr) 72px 64px;
-  }
-  .iv-cost {
-    display: none;
-  }
-}
 @container (max-width: 640px) {
   .iv-grid {
     grid-template-columns: fit-content(45%) minmax(40px, 1fr) 72px;
