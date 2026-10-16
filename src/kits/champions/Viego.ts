@@ -3,7 +3,9 @@ import type { ChampionKit, ComponentSpec, DebuffSpec } from '../../engine/kit-ty
 // Viego — patch 16.20.
 // Blade of the Ruined King (passive): attacks deal % current health physical on-hit. Abilities mark
 // the target; Viego's next attack strikes a second time (a hook replays an attack hit dealing
-// SecondAttackDamage, which applies on-hit effects and can crit — wiki).
+// SecondAttackDamage, which applies on-hit effects and can crit — wiki). Heartbreaker's strike
+// consumes the mark too, and its second hit is part of the strike, not an attack: like the strike,
+// it applies on-hit effects and can't crit (R's damage scales with crits instead).
 const BLADE_ON_HIT: ComponentSpec = {
   id: 'blade',
   label: 'Blade of the Ruined King',
@@ -15,6 +17,15 @@ const BLADE_ON_HIT: ComponentSpec = {
   proc: true,
 };
 const MARK: DebuffSpec = { id: 'viegoMark', label: 'Blade of the Ruined King (mark)', duration: 'Q.dv.MarkDuration' };
+const HEARTBREAKER: ComponentSpec = {
+  id: 'strike',
+  label: 'Heartbreaker',
+  type: 'physical',
+  amount: 'calc.TotalDamage + calc.TotalPercentHealth / 100 * target.missingHp',
+  attack: true,
+  canCrit: false,
+  delay: 0.5,
+};
 
 const kit: ChampionKit = {
   id: 'Viego',
@@ -51,35 +62,25 @@ const kit: ChampionKit = {
         'Strike on arrival (≈0.5s, approximation): an attack that applies on-hit effects (incl. the Q passive), cannot crit (crit chance is in the formula) and consumes the Q mark.',
       ],
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      components: [
-        {
-          id: 'strike',
-          label: 'Heartbreaker',
-          type: 'physical',
-          amount: 'calc.TotalDamage + calc.TotalPercentHealth / 100 * target.missingHp',
-          attack: true,
-          canCrit: false,
-          delay: 0.5,
-        },
-        { ...BLADE_ON_HIT, delay: 0.5 },
-      ],
+      components: [HEARTBREAKER, { ...BLADE_ON_HIT, delay: 0.5 }],
     },
   },
   hooks: {
     afterDamage(sim, inst) {
-      const strike = inst.flags.attack || (inst.flags.slot === 'R' && inst.label === 'Heartbreaker');
-      if (!strike || inst.fromMark) return;
+      const heartbreaker = inst.flags.slot === 'R' && inst.label === HEARTBREAKER.label;
+      if (!(inst.flags.attack || heartbreaker) || inst.fromMark) return;
       const mark = sim.getDebuff(MARK.id);
       if (!mark || mark.castId === inst.castId) return;
       sim.removeDebuff(MARK.id);
-      sim.schedule(0.1, () =>
-        sim.performAttackHit({
-          castId: sim.newCastId(),
-          amount: sim.evalExpr('Q.calc.SecondAttackDamage', { slot: 'Q' }),
-          label: 'Second strike',
-          sourceLabel: 'Blade of the Ruined King',
-        }),
-      );
+      sim.schedule(0.1, () => {
+        const second = { amount: sim.evalExpr('Q.calc.SecondAttackDamage', { slot: 'Q' }), label: 'Second strike', sourceLabel: 'Blade of the Ruined King' };
+        if (!heartbreaker) return sim.performAttackHit({ ...second, castId: sim.newCastId() });
+        // After Heartbreaker, a second hit of R's strike rather than an attack: like the strike, it
+        // applies on-hit effects, Viego's own included, and can't crit.
+        sim.performAttackHit({ ...second, castId: inst.castId, comp: HEARTBREAKER, fromAbility: 'R' });
+        const amount = sim.evalExpr(BLADE_ON_HIT.amount, { slot: 'R' });
+        sim.deal({ source: 'R', sourceLabel: BLADE_ON_HIT.source!, label: BLADE_ON_HIT.label, type: 'physical', amount, castId: inst.castId, flags: { kind: 'ability', slot: 'R', ability: true } });
+      });
     },
   },
 };

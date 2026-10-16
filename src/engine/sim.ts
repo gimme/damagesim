@@ -9,7 +9,7 @@ import { computeStats, emptyMods, hasteCooldown, itemStatsToMods, mergeMods, typ
 import { effectiveResist, resistMultiplier, type DamageType } from './damage.ts';
 import type { AbilitySpec, BuffSpec, ChampionKit, ComponentSpec, DebuffSpec, Expr, MarkSpec, VariantSpec } from './kit-types.ts';
 import { addOnHitRepeat, IN_COMBAT, selfHp, type AttackInfo, type CastInfo, type DamageFlags, type DamageInstance, type DamageRequest, type Effect, type SetupCtx, type Slot } from './effects.ts';
-import { attackOptions, findVariant, parseCombo, formatCombo, type AbilityStep, type ComboStep, type CritMode } from './combo.ts';
+import { attackOptions, findVariant, parseCombo, formatCombo, rollsCrits, type AbilityStep, type ComboStep, type CritMode } from './combo.ts';
 import { getKit } from '../kits/index.ts';
 import { createItemEffect, ITEM_GROUPS } from './items.ts';
 import { bonusSkillPoints, createRuneEffects } from './runes.ts';
@@ -1849,7 +1849,11 @@ export class Sim {
     const initialRed = this.targetReductions();
 
     for (const step of steps) {
-      this.setStepCrit(step.type === 'ability' || step.type === 'attack' ? step.crit : undefined);
+      // A crit mark holds only on a step that can crit (Q! on a cast without a crit-capable hit runs as Q).
+      const marked = (step.type === 'ability' || step.type === 'attack') && step.crit !== undefined;
+      const crits = marked && rollsCrits(step, this.kit);
+      if (marked && !crits && step.crit) this.warn(`${formatCombo([step])} can't crit, so it runs as ${formatCombo([{ ...step, crit: undefined }])}`);
+      this.setStepCrit(crits ? step.crit : undefined);
       switch (step.type) {
         case 'ability':
           this.castAbility(step, timeline);

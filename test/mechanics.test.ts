@@ -223,6 +223,23 @@ test("A number, hit or optional hit a cast doesn't take is warned about", () => 
     'Attacks have no optional hit "baz" (available: none)',
   ]);
   assert.deepEqual(warnings('Swain', 'R+endFlare'), []);
+  // A crit mark on a step that can't crit is ignored; "no crit" asks for what it gets.
+  assert.deepEqual(warnings('Ahri', 'Q! Q?'), ["Q! can't crit, so it runs as Q"]);
+});
+
+test("Viego R's second hit on a marked target is part of the strike: on-hit, no crit, same cast", () => {
+  const viego = (combo: string) => simulate(data, { champion: 'Viego', level: 16, items: ['Infinity Edge'], combo, target: dummy });
+  const r = viego('W R');
+  const strike = r.events.find((e) => e.label === 'Heartbreaker')!;
+  const second = r.events.find((e) => e.label === 'Second strike')!;
+  assert.equal(second.source, 'R');
+  assert.equal(second.castId, strike.castId, 'not a separate hit for Electrocute and the like');
+  assert.equal(r.events.filter((e) => e.label === 'Blade of the Ruined King' && e.castId === strike.castId).length, 2, "Viego's on-hit on both hits");
+  const noCrit = new Sim(data, { champion: 'Viego', level: 16, items: ['Infinity Edge'], combo: [] }).evalExpr('Q.calc.SecondAttackDamage', { slot: 'Q' });
+  assert.ok(Math.abs(second.raw - noCrit) < 1e-6, "can't crit");
+  assert.equal(viego('W R!').events.find((e) => e.label === 'Second strike')!.raw, second.raw);
+  // After a basic attack it's still an attack hit that can crit.
+  assert.ok(viego('Q AA').events.find((e) => e.label === 'Second strike')!.raw > noCrit);
 });
 
 test('On-hit-only abilities (Fizz Q) consume Spellblade but do not trigger on-attack effects', () => {
