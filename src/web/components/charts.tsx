@@ -427,7 +427,7 @@ export function Timeline({ events, startHp, maxHp, timeline, champion }: { event
         {near.slice(0, 8).map((ev) => (
           <div className="tt-row" key={ev.id}>
             <SourceName source={ev.source} label={ev.sourceLabel} champion={champion}>
-              {ev.sourceLabel === ev.label ? ev.label : `${ev.sourceLabel}: ${ev.label}`}
+              {ev.label.includes(ev.sourceLabel) ? ev.label : `${ev.sourceLabel}: ${ev.label}`}
             </SourceName>
             <strong style={{ color: TYPE_TEXT[ev.type] }}>{fmt(ev.final ?? 0)}</strong>
           </div>
