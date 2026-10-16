@@ -18,7 +18,8 @@ const kit: ChampionKit = {
     P: {
       name: 'Soul-Marked',
       notes: ['Sentinel passive: Kalista and her Oathsworn both hit the target → W.dv.MaxHealthDamage of its max health as magic damage.'],
-      components: [{ id: 'soulmark', label: 'Soul-Marked', type: 'magic', amount: 'W.dv.MaxHealthDamage * target.maxHp' }],
+      // Dealt with her attack, like its own damage: no spell effects.
+      components: [{ id: 'soulmark', label: 'Soul-Marked', type: 'magic', amount: 'W.dv.MaxHealthDamage * target.maxHp', noProc: true }],
     },
     Q: {
       components: [{ id: 'pierce', label: 'Pierce', type: 'physical', amount: 'calc.TotalDamage', delay: 0.25 }],

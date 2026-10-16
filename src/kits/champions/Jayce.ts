@@ -67,8 +67,8 @@ const kit: ChampionKit = {
               count: "spell['JayceHyperCharge'].dv.NumAttacks",
               replaceBase: true,
               resetsAttack: true,
-              // The wiki tags Hyper Charge proc (no spell effects), but its damage is the basic attack's,
-              // which still triggers runes: so not ability damage, and not proc.
+              // The wiki tags Hyper Charge proc, but the attacks work like regular attacks: no spell
+              // effects, and they trigger runes.
               components: [{ id: 'charged', label: 'Hyper Charge', type: 'physical', amount: "spell['JayceHyperCharge'].calc.ActualDamage", canCrit: true, noProc: true }],
             },
           },

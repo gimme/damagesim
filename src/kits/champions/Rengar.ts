@@ -23,6 +23,8 @@ const savagery = (emp: boolean): BuffSpec => ({
         type: 'physical',
         amount: emp ? 'Q.calc.EmpoweredQTotalDamage' : 'Q.calc.QTotalDamage',
         canCrit: true,
+        // Works like a regular attack: no spell effects.
+        noProc: true,
       },
     ],
   },

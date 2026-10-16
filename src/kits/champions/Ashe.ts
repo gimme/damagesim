@@ -28,7 +28,8 @@ const kit: ChampionKit = {
           count: 99,
           replaceBase: true,
           components: [
-            { id: 'arrow', label: "Ranger's Focus", type: 'physical', amount: 'Q.calc.EmpoweredDamage * P.calc.DamageBonus / Q.dv.ShotsPerStrike' },
+            // Works like a regular attack: no spell effects.
+            { id: 'arrow', label: "Ranger's Focus", type: 'physical', amount: 'Q.calc.EmpoweredDamage * P.calc.DamageBonus / Q.dv.ShotsPerStrike', noProc: true },
             {
               id: 'flurry',
               label: "Ranger's Focus (flurry)",

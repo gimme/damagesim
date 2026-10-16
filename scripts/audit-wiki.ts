@@ -47,8 +47,7 @@ const REVIEWED: Record<string, string> = {
 
 /** Damage category differences checked by hand. Key: "<champion id> <damage label>". */
 const REVIEWED_TAGS: Record<string, string> = {
-  'Darius Bleed': 'the wiki doubts its proc tag ("used to say default"): default damage, which stacks Conqueror',
-  'Diana Moonsilver Blade': "spell damage, but the engine never counts a passive's attack components as ability damage",
+  'Diana Moonsilver Blade': 'part of her attack, which works like a regular one',
   'Ornn Brittle': "Living Forge's damage (Temper), tagged proc",
   'Vex Gloom': "Doom 'n Gloom's damage, tagged proc",
 };

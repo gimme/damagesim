@@ -201,12 +201,14 @@ function maxAdaptive(champion: string, combo: string, before = Infinity) {
 }
 
 test('Damage over time shares the cast instance that started it: no Electrocute from one hit, Conqueror once per 4s', () => {
-  for (const [champion, combo] of [['Brand', 'Q'], ['Darius', 'AA'], ['Teemo', 'AA'], ['Twitch', 'AA']])
+  for (const [champion, combo] of [['Brand', 'Q'], ['Morgana', 'W'], ['Teemo', 'AA'], ['Twitch', 'AA']])
     assert.equal(bySource(simulate(data, { champion, level: 18, runes: ['Electrocute'], combo, target: dummy }), 'rune:8112').length, 0, champion);
-  // Darius attack (2 stacks) + bleed ticks within 4s of it (no more): 2 × 4 adaptive at level 18;
-  // a tick 4s or more after the attack stacks again.
-  assert.equal(maxAdaptive('Darius', 'AA', 4), 8);
-  assert.equal(maxAdaptive('Darius', 'AA'), 16);
+  // Tormented Shadow's first tick (2 stacks) + ticks within 4s of it (no more): 2 × 4 adaptive at
+  // level 18; a tick 4s or more after the first stacks again.
+  assert.equal(maxAdaptive('Morgana', 'W', 4), 8);
+  assert.equal(maxAdaptive('Morgana', 'W'), 16);
+  // Darius's bleed is proc damage: his attack's 2 stacks only.
+  assert.equal(maxAdaptive('Darius', 'AA'), 8);
 });
 
 test('Conqueror: an empowered attack stacks once (Jax W)', () => {
