@@ -45,7 +45,7 @@ export function Summary({ r }: { r: SimResult }) {
             Chronological
           </button>
           <button aria-pressed={by === 'size'} onClick={() => setBy('size')}>
-            Grouped
+            By source
           </button>
         </div>
       </div>
