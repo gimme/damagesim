@@ -86,8 +86,6 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
     });
     setChosen(null);
   };
-  // Selling the item being reconsidered loses what it adds, the same gain its row shows.
-  const worth = rows.find((r) => r.id === current)?.gain;
 
   // Show all / Show less stays where it was on screen, so it can be clicked again at once: expanded,
   // it floats there over the list (sticky) until the list's end comes up to it; collapsing scrolls the
@@ -136,20 +134,22 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
             );
           })}
         </div>
-        <span className="small secondary">
-          {current != null ? (
-            <>
-              In place of <strong>{DATA.items[current]?.name}</strong>
-            </>
-          ) : (
-            'Next item'
+        <div className="iv-caption small">
+          <span className="secondary">
+            {current != null ? (
+              <>
+                In place of <strong>{DATA.items[current]?.name}</strong>
+              </>
+            ) : (
+              'Next item'
+            )}
+          </span>
+          {current != null && (
+            <button className="btn small" aria-label={`Sell ${DATA.items[current]?.name}`} onClick={() => pick(null)}>
+              Sell
+            </button>
           )}
-        </span>
-        {current != null && (
-          <button className="btn small" aria-label={`Sell ${DATA.items[current]?.name}`} onClick={() => pick(null)}>
-            Sell{worth != null && <span className="secondary"> · {signed(-worth)} damage</span>}
-          </button>
-        )}
+        </div>
       </div>
       {res?.error && <div className="notice warn small">{res.error}</div>}
       {!res && <div className="muted small">Simulating…</div>}

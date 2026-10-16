@@ -843,6 +843,23 @@ table.data .source-name {
   display: inline-flex;
   gap: 4px;
 }
+/* The caption and Sell share the slots' line only where the card leaves them this much room beside
+   the slots, so how long the item's name is never moves them; a name too long for it is cut short. */
+.iv-caption {
+  flex: 1 1 240px;
+  min-width: 0;
+  /* Sell's height, so the line keeps it on an empty slot */
+  min-height: 25px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.iv-caption > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .iv-slot {
   width: 30px;
   height: 30px;
