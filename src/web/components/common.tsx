@@ -65,12 +65,25 @@ export function KitBadge({ id }: { id: string }) {
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
+/** Whether `q`'s letters all appear in `s` in order, with any letters between: "rfc" is in "rapidfirecannon". */
+const hasInOrder = (s: string, q: string) => {
+  let i = 0;
+  for (const c of s) if (c === q[i]) i++;
+  return i === q.length;
+};
+
+/** How closely a name matches a search it holds in order: unbroken first, then starting with the same letter, as an abbreviation does. */
+const matchRank = (name: string, q: string) => (name.includes(q) ? 2 : name[0] === q[0] ? 1 : 0);
+
 export function ChampionPicker({ value, onChange, label = 'Champion' }: { value: string; onChange: (id: string) => void; label?: string }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
-  const list = useMemo(() => DATA.championIndex.filter((c) => !q || norm(c.name).includes(norm(q)) || norm(c.id).includes(norm(q))), [q]);
+  const list = useMemo(() => {
+    const query = norm(q);
+    return DATA.championIndex.filter((c) => hasInOrder(norm(c.name), query)).sort((a, b) => matchRank(norm(b.name), query) - matchRank(norm(a.name), query));
+  }, [q]);
   useEffect(() => {
     const close = (e: globalThis.MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
@@ -156,7 +169,10 @@ export function ItemPicker({ onPick, onClose, sim }: { onPick: (id: number) => v
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState(0);
   const [tier, setTier] = useState<'legendary' | 'all'>('legendary');
-  const list = SHOP_ITEMS.filter((i) => (tier === 'all' || i.depth >= 3 || i.tags.includes('Boots') || i.gold.total >= 2200) && ITEM_FILTERS[filter].test(i) && (!q || norm(i.name).includes(norm(q))));
+  const query = norm(q);
+  const list = SHOP_ITEMS.filter((i) => (tier === 'all' || i.depth >= 3 || i.tags.includes('Boots') || i.gold.total >= 2200) && ITEM_FILTERS[filter].test(i) && hasInOrder(norm(i.name), query)).sort(
+    (a, b) => matchRank(norm(b.name), query) - matchRank(norm(a.name), query),
+  );
   return (
     <div className="card" style={{ marginTop: 8, boxShadow: 'none', background: 'var(--surface-2)' }}>
       <div className="row">
