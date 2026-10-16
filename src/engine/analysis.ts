@@ -107,9 +107,23 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
   const rows = [];
   for (const it of candidates) {
     if (baseItems.some((b) => b.id === it.id) || conflicts(baseItems, it)) continue;
-    const r = simulate(data, { ...base, items: [...(base.items ?? []), it.id] });
+    const sc = { ...base, items: [...(base.items ?? []), it.id] };
+    const r = simulate(data, sc);
     const gain = r.totalDamage - baseRes.totalDamage;
     const perGold = it.gold.total > 0 ? (gain / it.gold.total) * 1000 : 0;
+    const source = `item:${it.id}`;
+    const own = r.bySource.filter((s) => s.source === source).reduce((sum, s) => sum + s.damage, 0);
+    // What the item's hits set off (Electrocute counting them, Luden's Echo, burns): each other
+    // source's damage, less what it deals when the item's hits set nothing off.
+    const procs: { source: string; label: string; damage: number }[] = [];
+    if (r.events.some((e) => e.source === source)) {
+      const others = (x: SimResult) => new Map(x.bySource.filter((s) => s.source !== source).map((s) => [`${s.source}|${s.label}`, s]));
+      const [full, quiet] = [others(r), others(simulate(data, sc, { quietItem: it.id }))];
+      for (const key of new Set([...full.keys(), ...quiet.keys()])) {
+        const s = (full.get(key) ?? quiet.get(key))!;
+        procs.push({ source: s.source, label: s.label, damage: (full.get(key)?.damage ?? 0) - (quiet.get(key)?.damage ?? 0) });
+      }
+    }
     rows.push({
       item: it.name,
       id: it.id,
@@ -117,8 +131,15 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
       totalDamage: round(r.totalDamage),
       gain: round(gain),
       gainPerGold: round(perGold, 2),
-      /** Part of the gain dealt by the item itself (procs, burns, actives); the rest is its stats and amplifiers raising your other damage. */
-      itemDamage: round(r.bySource.find((s) => s.source === `item:${it.id}`)?.damage ?? 0),
+      /** Part of the gain dealt by the item itself (its procs, burns, actives). */
+      itemDamage: round(own),
+      /** Part of the gain dealt by your other damage the item's hits set off (Electrocute, Luden's Echo…); the rest is its stats and amplifiers raising your other damage. */
+      procDamage: round(procs.reduce((sum, p) => sum + p.damage, 0)),
+      /** The procDamage by source, largest first. */
+      procs: procs
+        .filter((p) => Math.abs(p.damage) >= 0.5)
+        .sort((a, b) => b.damage - a.damage)
+        .map((p) => ({ ...p, damage: round(p.damage) })),
       killed: r.killed,
       ...(r.killTime !== undefined ? { killTime: round(r.killTime, 2) } : {}),
       // Per gold ranks the item's own efficiency (gain ÷ its cost), not the whole build's damage per gold.
@@ -130,7 +151,7 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
     metric,
     base: summarize(baseRes, 'current build'),
     items: rows.slice(0, opts.limit ?? 25),
-    note: 'gainPerGold is damage gained per 1000 gold of the item. itemDamage is the part of the gain the item deals itself.',
+    note: 'gainPerGold is damage gained per 1000 gold of the item. itemDamage is the part of the gain the item deals itself; procDamage the part dealt by your other damage its hits set off (procs lists it by source, e.g. Electrocute).',
   };
 }
 

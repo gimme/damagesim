@@ -213,7 +213,11 @@ async function main() {
       const res = rankItems(data, buildScenario(), { metric, limit: Number(o.top ?? 25), candidates: list(o.pool) });
       return out(res, () => {
         console.log(`Base: ${num(res.base.totalDamage)} dmg with ${res.base.items.join(', ') || 'no items'}. Adding one item (ranked by ${metric}):`);
-        res.items.forEach((x, i) => console.log(`${pad(i + 1 + '.', 4)}${pad(x.item, 28)}+${pad(num(x.gain), 8)} (${num(x.totalDamage)} total, ${x.gold}g, ${x.gainPerGold}/1000g)`));
+        res.items.forEach((x, i) =>
+          console.log(
+            `${pad(i + 1 + '.', 4)}${pad(x.item, 28)}+${pad(num(x.gain), 8)} (${num(x.totalDamage)} total, ${x.gold}g, ${x.gainPerGold}/1000g)${x.procs.length ? `  procs ${x.procs.map((p) => `${p.label} ${p.damage >= 0 ? '+' : ''}${num(p.damage)}`).join(', ')}` : ''}`,
+          ),
+        );
       });
     }
     case 'optimize': {

@@ -7,8 +7,9 @@ the combo out on a timeline and reports every damage instance.
 
 * **Humans:** a web UI with HP bar, timeline, breakdown, build comparison and a resist sweep, plus a
   live **item value** ranking: which item adds the most damage (per gold or in total) to your next
-  slot or in place of an item you own, as a list (each bar split into the damage the item deals
-  itself and what it adds to your other damage) or a gold-vs-damage map; one click buys it. Hovering
+  slot or in place of an item you own, as a list (each bar split into what the item adds to your
+  other damage, the damage it deals itself and the damage of what its hits proc, like Electrocute)
+  or a gold-vs-damage map; one click buys it. Hovering
   an item shows its cost, stats, passives and actives, with the numbers for your champion's level and
   stats, melee or ranged; hovering a rune shows its tooltip the same way, and whether its adaptive damage is physical or
   magic for you. State lives in the URL, so links are shareable.
@@ -52,7 +53,7 @@ Tools:
 | `get_champion` | Abilities at a level: rendered tooltips, cooldowns, each damage component with its value and formula, variants, kit notes, options |
 | `simulate` | Run a scenario; totals, by source/type, kill time, effective resists, warnings, model notes (`includeEvents` for every hit) |
 | `compare_builds` | Same scenario, several variants (items/runes/combo/level/options), ranked |
-| `rank_items` | Marginal damage of adding each legendary/boots to the current build, per 1000 gold of the item (`metric: damagePerGold` ranks by it) and the part the item deals itself |
+| `rank_items` | Marginal damage of adding each legendary/boots to the current build, per 1000 gold of the item (`metric: damagePerGold` ranks by it), the part the item deals itself and the part its hits proc |
 | `optimize_build` | Best *n* items from a pool; respects item groups (one Spellblade, Hydra, Fatality…) |
 | `optimize_combo` | Best ordering of the combo steps |
 | `resist_sweep` | Damage as target armor or MR varies |

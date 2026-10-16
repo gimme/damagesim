@@ -239,6 +239,22 @@ test('rank items per gold: sorted by damage gained per 1000 gold of the item', (
   assert.equal(res.items.find((x) => x.item === "Rabadon's Deathcap")!.itemDamage, 0);
 });
 
+test("rank items: what an item's hits proc is split from its own damage and its stats", () => {
+  // W Q is two hits; Stormsurge's Squall is the third, so Electrocute strikes only with it.
+  const base = { champion: 'Smolder', level: 11, items: ['Essence Reaver', 'Ionian Boots of Lucidity'], runes: ['Electrocute'], combo: 'W Q', target: { preset: 'squishy' as const } };
+  assert.ok(!simulate(data, base).bySource.some((s) => s.label === 'Electrocute'));
+  const electrocute = simulate(data, { ...base, items: [...base.items, 'Stormsurge'] }).bySource.find((s) => s.label === 'Electrocute')!.damage;
+  const res = rankItems(data, base, { candidates: ['Stormsurge', "Rabadon's Deathcap"] });
+  const storm = res.items.find((x) => x.item === 'Stormsurge')!;
+  assert.deepEqual(storm.procs.map((p) => p.label), ['Electrocute']);
+  near(storm.procDamage, electrocute, 0.1);
+  // The rest of the gain beyond Squall itself is its AP raising W and Q.
+  assert.ok(storm.itemDamage > 0 && storm.gain - storm.itemDamage - storm.procDamage > 0);
+  const cap = res.items.find((x) => x.item === "Rabadon's Deathcap")!;
+  assert.equal(cap.procDamage, 0);
+  assert.deepEqual(cap.procs, []);
+});
+
 test('item hover text: numbers for the attacker from the template the shop text is generated from', () => {
   const sim = new Sim(data, { champion: 'Ahri', level: 11, items: ["Luden's Echo"], combo: [] });
   const luden = data.items[6655];

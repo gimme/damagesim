@@ -183,6 +183,10 @@ export class Sim {
   readonly items: ItemData[];
   readonly runes: RuneData[];
   readonly effects: Effect[] = [];
+  /** The effect of each of the build's items that has one, by item id. */
+  private readonly itemEffects = new Map<number, Effect>();
+  /** A source whose damage sets nothing else off (see quietItem). */
+  private quiet?: { source: string; effect?: Effect };
   readonly warnings: string[] = [];
   readonly notes = new Set<string>();
 
@@ -265,6 +269,7 @@ export class Sim {
       if (seenUnique.has(eff.id)) continue;
       seenUnique.add(eff.id);
       this.effects.push(eff);
+      this.itemEffects.set(item.id, eff);
     }
     this.effects.push(...createRuneEffects(this.runes, setup, this));
     this.effects.push(createSummonerEffect('ignite', setup));
@@ -904,6 +909,16 @@ export class Sim {
     }
   }
 
+  /**
+   * The item's damage sets nothing else off: only the item's own effect sees it, not the other
+   * effects' afterDamage hooks (Electrocute's hit count, Luden's Echo, burns), kit marks or damage
+   * a debuff stores to detonate with. Compared with a normal run, it tells what the item's hits
+   * proc (rankItems).
+   */
+  quietItem(id: number) {
+    this.quiet = { source: `item:${id}`, effect: this.itemEffects.get(id) };
+  }
+
   // ---------------------------------------------------------------------------
   // Damage
 
@@ -978,10 +993,11 @@ export class Sim {
     if (this.target.hp <= 0 && this.target.killTime === undefined) this.target.killTime = this.time;
     if (!inst.flags.aura) this.lastCombatTime = this.time;
     this.events.push(inst);
-    for (const d of this.debuffs.values()) if (d.spec?.detonate && d.expires >= this.time && !inst.fromMark) d.stored = (d.stored ?? 0) + final;
+    const quiet = inst.source === this.quiet?.source;
+    for (const d of this.debuffs.values()) if (d.spec?.detonate && d.expires >= this.time && !inst.fromMark && !quiet) d.stored = (d.stored ?? 0) + final;
 
-    for (const e of this.effects) e.afterDamage?.(this, inst);
-    if (!inst.fromMark) {
+    for (const e of this.effects) if (!quiet || e === this.quiet!.effect) e.afterDamage?.(this, inst);
+    if (!inst.fromMark && !quiet) {
       this.processConsumes(inst);
       this.processMarks(inst);
     }
@@ -1985,8 +2001,10 @@ function resolveTarget(data: GameData, spec: TargetSpec, attackerLevel: number):
   };
 }
 
-export function simulate(data: GameData, scenario: Scenario): SimResult {
+/** `quietItem`: that item's damage sets nothing else off (see Sim.quietItem). */
+export function simulate(data: GameData, scenario: Scenario, opts: { quietItem?: number } = {}): SimResult {
   const sim = new Sim(data, scenario);
+  if (opts.quietItem !== undefined) sim.quietItem(opts.quietItem);
   const steps = typeof scenario.combo === 'string' ? parseCombo(scenario.combo) : scenario.combo;
   return sim.run(steps);
 }

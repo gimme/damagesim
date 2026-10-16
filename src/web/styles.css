@@ -12,11 +12,13 @@
   --border: rgba(11, 11, 11, 0.1);
   --border-strong: rgba(11, 11, 11, 0.18);
   /* Accents, kept clear of the damage types' colors: violet for controls and for data that isn't a
-     damage type (item stats, a single series), pink beside it (item effect damage). */
+     damage type (item stats, a single series), pink beside it (item effect damage), green beside
+     that (what an item's hits proc). */
   --accent: #6250d6;
   --accent-wash: rgba(98, 80, 214, 0.1);
   --accent-text: #5641c6;
   --accent-2: #d55181;
+  --accent-3: #008300;
   /* Damage types in the game's colors (its floating combat text, ux/fonts.bin: magic #00b0f0,
      physical #ff8c34, true #ffffff). White can't show on a light page, so true damage is a light
      silver here. */
@@ -62,6 +64,7 @@
     --accent-wash: rgba(114, 98, 228, 0.18);
     --accent-text: #b1a8f4;
     --accent-2: #d55181;
+    --accent-3: #008300;
     --magic: #00b0f0;
     --physical: #ff8c34;
     --true: #ffffff;
@@ -92,6 +95,7 @@
   --accent-wash: rgba(114, 98, 228, 0.18);
   --accent-text: #b1a8f4;
   --accent-2: #d55181;
+  --accent-3: #008300;
   --magic: #00b0f0;
   --physical: #ff8c34;
   --true: #ffffff;
@@ -777,6 +781,10 @@ input.combo-text {
 .tooltip .tt-row strong {
   font-variant-numeric: tabular-nums;
 }
+.tooltip .tt-sub {
+  padding-left: 16px;
+  color: var(--text-secondary);
+}
 .tooltip .tt-total {
   border-top: 1px solid var(--border);
   margin-top: 4px;
@@ -1070,6 +1078,9 @@ table.data .source-name {
 }
 .iv-bar.fx {
   background: var(--accent-2);
+}
+.iv-bar.proc {
+  background: var(--accent-3);
 }
 .iv-head .iv-track {
   height: auto;

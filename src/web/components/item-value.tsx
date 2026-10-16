@@ -278,10 +278,12 @@ function RankList({
   const row = (r: Row) => {
     const v = by === 'perGold' ? r.gainPerGold : r.gain;
     const isCurrent = r.id === current;
-    // Bar split: what the item adds to your other damage (its stats, Rabadon's-style multipliers)
-    // and the damage it deals itself (procs, burns); a negative part is left out of the bar.
-    const stats = Math.max(0, r.gain - r.itemDamage);
+    // Bar split: what the item adds to your other damage (its stats, Rabadon's-style multipliers),
+    // the damage it deals itself (its procs, burns) and the damage of what its hits set off
+    // (Electrocute, Luden's Echo); a negative part is left out of the bar.
+    const stats = Math.max(0, r.gain - r.itemDamage - r.procDamage);
     const fx = Math.max(0, r.itemDamage);
+    const procs = Math.max(0, r.procDamage);
     const width = (Math.max(0, v) / max) * 100;
     const ahead = lead.has(r.id);
     const item = (
@@ -337,6 +339,7 @@ function RankList({
           <span className="iv-bars" style={{ width: `${width}%` }}>
             {stats > 0.5 && <span className="iv-bar" style={{ flexGrow: stats }} />}
             {fx > 0.5 && <span className="iv-bar fx" style={{ flexGrow: fx }} />}
+            {procs > 0.5 && <span className="iv-bar proc" style={{ flexGrow: procs }} />}
           </span>
         </span>
         <span role="cell" className={`iv-pg num ${by === 'perGold' ? 'on' : ''}`}>
@@ -364,6 +367,10 @@ function RankList({
               <span>
                 <span className="swatch" style={{ background: 'var(--accent-2)' }} />
                 effect
+              </span>
+              <span>
+                <span className="swatch" style={{ background: 'var(--accent-3)' }} />
+                procs
               </span>
             </span>
             {/* The numbers' headings sort by them; where only one number fits, its heading switches it */}
@@ -422,7 +429,8 @@ function nearestColumn(e: PointerEvent<HTMLElement>): string {
 }
 
 /** A row's card shows what its view doesn't: in the list, which already has the numbers, how the bar
- *  splits between stats and effect damage; on the map, whose dots only have positions, the numbers. */
+ *  splits between stats, effect and procs damage; on the map, whose dots only have positions, the
+ *  numbers. Both name what the item's hits proc. */
 function RowTip({ row: r, current, view, action }: { row: Row; current: number | null; view: 'list' | 'map'; action?: ReactNode }) {
   return (
     <>
@@ -436,7 +444,7 @@ function RowTip({ row: r, current, view, action }: { row: Row; current: number |
               <span className="swatch" style={{ background: 'var(--accent)', marginRight: 6 }} />
               Stats
             </span>
-            <strong>{signed(r.gain - r.itemDamage)}</strong>
+            <strong>{signed(r.gain - r.itemDamage - r.procDamage)}</strong>
           </div>
           <div className="tt-row">
             <span>
@@ -445,6 +453,7 @@ function RowTip({ row: r, current, view, action }: { row: Row; current: number |
             </span>
             <strong>{signed(r.itemDamage)}</strong>
           </div>
+          <Procs row={r} swatch />
         </>
       ) : (
         <>
@@ -456,9 +465,43 @@ function RowTip({ row: r, current, view, action }: { row: Row; current: number |
             <span>Per 1000 gold</span>
             <strong>{fmt(r.gainPerGold, 1)}</strong>
           </div>
+          <Procs row={r} />
         </>
       )}
       {action && <div className="tt-foot">{action}</div>}
+    </>
+  );
+}
+
+/** The damage of what the item's hits set off: one proc on a line of its own, several under a total. */
+function Procs({ row: r, swatch }: { row: Row; swatch?: boolean }) {
+  if (!r.procs.length) return null;
+  const key = swatch && <span className="swatch" style={{ background: 'var(--accent-3)', marginRight: 6 }} />;
+  if (r.procs.length === 1)
+    return (
+      <div className="tt-row">
+        <span>
+          {key}
+          Procs {r.procs[0].label}
+        </span>
+        <strong>{signed(r.procDamage)}</strong>
+      </div>
+    );
+  return (
+    <>
+      <div className="tt-row">
+        <span>
+          {key}
+          Procs
+        </span>
+        <strong>{signed(r.procDamage)}</strong>
+      </div>
+      {r.procs.map((p) => (
+        <div key={`${p.source}|${p.label}`} className="tt-row tt-sub">
+          <span>{p.label}</span>
+          <span className="num">{signed(p.damage)}</span>
+        </div>
+      ))}
     </>
   );
 }
