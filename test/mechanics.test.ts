@@ -398,6 +398,7 @@ test("Kalista's Soul-Marked: ability damage, dealt as her next attack goes off a
   const i = r.events.findIndex((e) => e.label === 'Soul-Marked');
   const attacks = bySource(r, 'AA');
   assert.ok(r.events[i].flags.ability);
+  assert.equal(r.events[i].source, 'W'); // Sentinel's passive, shown under W
   assert.equal(r.events[i + 1], attacks[1]);
   assert.equal(r.events[i].time, attacks[1].time);
 });

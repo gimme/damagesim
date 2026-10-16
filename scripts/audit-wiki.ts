@@ -48,6 +48,7 @@ const REVIEWED: Record<string, string> = {
 /** Damage category differences checked by hand. Key: "<champion id> <damage label>". */
 const REVIEWED_TAGS: Record<string, string> = {
   'Diana Moonsilver Blade': 'part of her attack, which works like a regular one',
+  'Kalista Soul-Marked': 'tagged proc, but a note says it benefits from her spell effects',
   'Ornn Brittle': "Living Forge's damage (Temper), tagged proc",
   'Vex Gloom': "Doom 'n Gloom's damage, tagged proc",
 };
