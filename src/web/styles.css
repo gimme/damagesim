@@ -458,6 +458,7 @@ label.field {
   height: 100%;
   border-radius: 7px;
 }
+/* Sells the slot's item: a ✕ in its corner, drawn so it sits in the middle of its circle */
 .slot .remove {
   position: absolute;
   top: -6px;
@@ -467,15 +468,27 @@ label.field {
   border-radius: 50%;
   border: 1px solid var(--border-strong);
   background: var(--surface);
-  font-size: 11px;
-  line-height: 1;
+  color: var(--text-secondary);
   display: none;
+  place-items: center;
   cursor: pointer;
   padding: 0;
 }
+.slot .remove svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+.slot .remove:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
 .slot:hover .remove,
 .slot:focus-within .remove {
-  display: block;
+  display: grid;
 }
 .slot.dragging .remove {
   display: none;
@@ -988,7 +1001,7 @@ table.data .source-name {
   border-top: 1px solid var(--grid);
 }
 
-/* Item value: the slot being ranked, picked from the build's six slots. */
+/* Item value: the slot being ranked, picked from the build's six slots, which work as in Items. */
 .iv-for {
   display: flex;
   align-items: center;
@@ -996,69 +1009,54 @@ table.data .source-name {
   gap: 6px 10px;
   margin-bottom: 10px;
 }
-.iv-slots {
-  display: inline-flex;
-  gap: 4px;
+.slots.compact {
+  display: inline-grid;
+  grid-template-columns: repeat(6, 30px);
+  gap: 5px;
 }
-/* The caption and Sell share the slots' line only where the card leaves them this much room beside
-   the slots, so how long the item's name is never moves them; a name too long for it is cut short. */
-.iv-caption {
-  flex: 1 1 240px;
-  min-width: 0;
-  /* Sell's height, so the line keeps it on an empty slot */
-  min-height: 25px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.iv-caption > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.iv-slot {
-  width: 30px;
-  height: 30px;
-  padding: 0;
+.slots.compact .slot {
   border-radius: 7px;
-  border: 1px dashed var(--border-strong);
-  background: var(--surface-2);
-  color: var(--text-muted);
   font-size: 16px;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
 }
-.iv-slot.filled {
-  border-style: solid;
-}
-.iv-slot .icon {
-  width: 100%;
-  height: 100%;
+.slots.compact .slot img,
+.slots.compact .slot .icon {
   border-radius: 6px;
 }
+.slots.compact .slot .remove {
+  top: -5px;
+  right: -5px;
+  width: 15px;
+  height: 15px;
+}
+.slots.compact .slot .remove svg {
+  width: 8px;
+  height: 8px;
+}
 /* The other items are dimmed, so the one being reconsidered stands out */
-.iv-slot.filled[aria-pressed='false'] .icon {
+.slot.filled[aria-pressed='false'] .icon {
   opacity: 0.55;
 }
-.iv-slot:not(:disabled):hover .icon {
+.slot[aria-pressed='false']:hover .icon,
+.slot.dragging .icon {
   opacity: 1;
 }
-.iv-slot:not(:disabled):hover {
+.slot[aria-pressed='false']:hover {
   border-color: var(--accent);
 }
-.iv-slot[aria-pressed='true'] {
+.slot[aria-pressed='true'] {
   border: 1px solid var(--accent);
   background: var(--accent-wash);
   color: var(--accent-text);
   box-shadow: 0 0 0 1px var(--accent);
 }
-.iv-slot:disabled {
-  cursor: default;
-  opacity: 0.5;
+/* The caption shares the slots' line only where the card leaves it this much room beside them, so
+   how long the item's name is never moves them; a name too long for it is cut short. */
+.iv-caption {
+  flex: 1 1 240px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* The ranking. One grid for every row, so the item column fits the longest name and the bars start

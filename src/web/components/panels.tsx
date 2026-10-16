@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { DATA, abilityIcon, championIcon, runeIcon } from '../data.ts';
-import { Card, ChampIcon, ChampionPicker, Icon, ItemIcon, ItemPicker, ItemTip, Markup, NumberField, RuneTip, fmt, mergeProps, sourceMark, useDragOrder, useHistory, useHoverCard } from './common.tsx';
+import { Card, ChampIcon, ChampionPicker, Icon, ItemIcon, ItemPicker, ItemTip, Markup, NumberField, RuneTip, fmt, mergeProps, sourceMark, useDragOrder, useHistory, useHoverCard, useItemSlots } from './common.tsx';
 import { TARGET_MODES, type UIState, type TargetMode, type TargetState, type TargetStats } from '../state.ts';
 import { ITEMS_BY_LEVEL_RULE, TARGET_PRESETS, isTargetPreset, itemsAtLevel, levelForItems, presetShardHp, type TargetPreset } from '../../engine/presets.ts';
 import { maxRanks, resolveRanks, type CastSetting, type Sim, type SimResult } from '../../engine/sim.ts';
@@ -223,32 +223,13 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
     put(picking ?? 0, id);
     setPicking(null);
   };
-  // An item is dragged to another slot, whose outline shows where it will land; nothing else moves
-  // meanwhile. Dropped on an item, the two swap; on an empty slot, it moves there. Arrow keys swap a
-  // focused item with its neighbour, Delete removes it. The picker stays with what it was opened for.
-  const swap = (from: number, to: number) => {
-    const next = items.map((_, j) => j);
-    [next[from], next[to]] = [next[to], next[from]];
-    return next;
-  };
-  const order = useDragOrder({
-    count: items.length,
-    arrange: swap,
-    // The slot its middle is nearest, within a slot's size; farther away, it goes back.
-    landAt: (x, y, cells, _at, from) => {
-      const d = cells.map((c) => Math.hypot((x - c.x) / c.w - 0.5, (y - c.y) / c.h - 0.5));
-      const k = d.indexOf(Math.min(...d));
-      return d[k] < 1 ? k : from;
-    },
-    move: (from, to) => {
-      set((s) => ({ ...s, items: swap(from, to).map((j) => s.items[j]) }));
-      setPicking((p) => (p === from ? to : p === to ? from : p));
-    },
-    makeWay: false,
-    movable: (i) => !!items[i],
+  // Items are dragged between the slots and sold as in Item value's; the picker stays with what it
+  // was opened for.
+  const slots = useItemSlots(items, (fn) => set((s) => ({ ...s, items: fn(s.items) })), {
     onPick: hover.hide,
+    onMove: (from, to) => setPicking((p) => (p === from ? to : p === to ? from : p)),
+    onSell: hover.hide,
   });
-  const landing = order.drag && order.drag.to !== order.drag.from ? order.drag.to : null;
   // Every change to the items, from here or elsewhere (a buy in Item value, Reset), can be undone.
   const past = useHistory(
     items,
@@ -264,7 +245,7 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
       const k = e.key.toLowerCase();
       if (!(e.ctrlKey || e.metaKey) || e.altKey || (k !== 'z' && k !== 'y')) return;
       const el = e.target as HTMLElement;
-      if (el !== document.body && !order.box.current?.closest('.card')?.contains(el)) return;
+      if (el !== document.body && !slots.box.current?.closest('.card')?.contains(el)) return;
       if (el.matches('input, textarea, select, [contenteditable]')) return;
       e.preventDefault();
       if (k === 'z' && !e.shiftKey) past.undo();
@@ -300,49 +281,25 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
       }
     >
       <div className="picker-host">
-        <div className="slots" ref={order.box}>
+        <div className="slots" ref={slots.box}>
           {items.map((id, i) => (
             <div
               key={i}
-              className={`slot ${id ? 'filled' : ''} ${order.drag?.from === i ? 'dragging' : ''} ${landing === i ? 'landing' : ''} ${picking === i ? 'picking' : ''}`}
-              role="button"
-              tabIndex={0}
               aria-expanded={picking === i}
-              aria-label={id ? `Item slot ${i + 1}: ${DATA.items[id]?.name}. Arrow keys move it, Delete removes it.` : `Empty item slot ${i + 1}`}
+              aria-label={id ? `Item slot ${i + 1}: ${DATA.items[id]?.name}. Arrow keys move it, Delete sells it.` : `Empty item slot ${i + 1}`}
               title={id ? undefined : 'Add item'}
-              {...mergeProps(id ? hover.bind(<ItemTip id={id} sim={sim} />) : {}, order.item(i), {
+              {...slots.slot(i, {
+                className: picking === i ? 'picking' : '',
+                ...(id ? hover.bind(<ItemTip id={id} sim={sim} />) : {}),
                 onClick: () => setPicking((p) => (p === i ? null : i)),
-                onKeyDown: (e: KeyboardEvent) => {
-                  if (e.target !== e.currentTarget) return;
-                  if (e.key === 'Enter') setPicking(i);
-                  else if (id && (e.key === 'Delete' || e.key === 'Backspace')) {
-                    e.preventDefault();
-                    hover.hide();
-                    put(i, null);
-                  }
-                },
+                onKeyDown: (e: KeyboardEvent) => e.target === e.currentTarget && e.key === 'Enter' && setPicking(i),
               })}
             >
               {id ? <ItemIcon id={id} /> : '+'}
-              {id && (
-                <button
-                  className="remove"
-                  aria-label={`Remove ${DATA.items[id]?.name}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    put(i, null);
-                  }}
-                >
-                  ✕
-                </button>
-              )}
+              {slots.remove(i)}
             </div>
           ))}
-          {order.drag && (
-            <div className="slot vacated" aria-hidden style={{ gridColumn: `${order.drag.from + 1} / span 1` }}>
-              +
-            </div>
-          )}
+          {slots.vacated}
         </div>
         {picking !== null && <ItemPicker onPick={pick} onClose={() => setPicking(null)} sim={sim} />}
       </div>

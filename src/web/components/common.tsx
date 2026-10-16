@@ -699,6 +699,90 @@ export function useDragOrder({
   return { box, drag, item, source, focusLater };
 }
 
+type Slots = (number | null)[];
+
+/**
+ * A build's item slots, as in the client's inventory (the Items card, Item value's slots): an item is
+ * dragged to another slot, whose outline shows where it will land; nothing else moves meanwhile.
+ * Dropped on an item, the two swap; on an empty slot, it moves there. Arrow keys swap a focused item
+ * with its neighbour; its ✕ in the corner, or Delete, sells it.
+ *
+ * - `slot(i, own)`: props for slot i, the box's child i, with the panel's own merged in.
+ * - `remove(i)`: slot i's ✕, when it has an item.
+ * - `vacated`: while an item is dragged, the empty slot it left, to render after the slots.
+ * - `onMove(from, to)`, `onSell(i)`: after a move, before a sale, for what goes with the slots.
+ */
+export function useItemSlots(items: Slots, change: (fn: (items: Slots) => Slots) => void, { onPick, onMove, onSell }: { onPick?: () => void; onMove?: (from: number, to: number) => void; onSell?: (i: number) => void } = {}) {
+  const swap = (from: number, to: number) => {
+    const next = items.map((_, j) => j);
+    [next[from], next[to]] = [next[to], next[from]];
+    return next;
+  };
+  const order = useDragOrder({
+    count: items.length,
+    arrange: swap,
+    // The slot its middle is nearest, within a slot's size; farther away, it goes back.
+    landAt: (x, y, cells, _at, from) => {
+      const d = cells.map((c) => Math.hypot((x - c.x) / c.w - 0.5, (y - c.y) / c.h - 0.5));
+      const k = d.indexOf(Math.min(...d));
+      return d[k] < 1 ? k : from;
+    },
+    move: (from, to) => {
+      change((xs) => swap(from, to).map((j) => xs[j]));
+      onMove?.(from, to);
+    },
+    makeWay: false,
+    movable: (i) => items[i] != null,
+    onPick,
+  });
+  const landing = order.drag && order.drag.to !== order.drag.from ? order.drag.to : null;
+  const sell = (i: number) => {
+    onSell?.(i);
+    change((xs) => xs.map((x, j) => (j === i ? null : x)));
+  };
+  const slot = (i: number, { className = '', ...own }: { className?: string } & Record<string, unknown> = {}) => ({
+    ...mergeProps(
+      order.item(i),
+      {
+        onKeyDown: (e: KeyboardEvent) => {
+          if (e.target !== e.currentTarget || items[i] == null || (e.key !== 'Delete' && e.key !== 'Backspace')) return;
+          e.preventDefault();
+          sell(i);
+        },
+      },
+      own,
+    ),
+    className: `slot ${items[i] != null ? 'filled' : ''} ${order.drag?.from === i ? 'dragging' : ''} ${landing === i ? 'landing' : ''} ${className}`,
+    role: 'button',
+    tabIndex: 0,
+  });
+  const remove = (i: number) => {
+    const id = items[i];
+    if (id == null) return null;
+    return (
+      <button
+        className="remove"
+        aria-label={`Sell ${DATA.items[id]?.name}`}
+        title="Sell"
+        onClick={(e) => {
+          e.stopPropagation();
+          sell(i);
+        }}
+      >
+        <svg viewBox="0 0 10 10" aria-hidden>
+          <path d="M3 3 7 7M7 3 3 7" />
+        </svg>
+      </button>
+    );
+  };
+  const vacated = order.drag && (
+    <div className="slot vacated" aria-hidden style={{ gridColumn: `${order.drag.from + 1} / span 1` }}>
+      +
+    </div>
+  );
+  return { box: order.box, drag: order.drag, slot, remove, vacated };
+}
+
 // Riot tooltip markup (from itemText: tags, <br>, no icons or {{keys}}) as React elements. Unknown
 // tags keep their text; nothing is injected as HTML.
 const EMPHASIS: Record<string, string> = {

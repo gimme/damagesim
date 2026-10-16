@@ -1,9 +1,9 @@
 // Item value: what each legendary or pair of boots would add to the current build, ranked by damage
 // per gold or total damage, as a list or a gold-vs-damage map. Recomputed live as the build changes.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { DATA } from '../data.ts';
-import { Card, Icon, ItemIcon, ItemTip, fmt, sourceMark } from './common.tsx';
+import { Card, Icon, ItemIcon, ItemTip, fmt, sourceMark, useHoverCard, useItemSlots } from './common.tsx';
 import { GoldScatter, useTooltip, type GoldPoint } from './charts.tsx';
 import { rankItems, defaultCandidates } from '../../engine/analysis.ts';
 import type { Scenario, Sim } from '../../engine/sim.ts';
@@ -55,20 +55,20 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   const [by, setBy] = useState<By>('perGold');
   const [view, setView] = useState<'list' | 'map'>('list');
   const [showAll, setShowAll] = useState(false);
-  // The slot being ranked: the first empty one, or a filled one whose item is being reconsidered.
+  // The slot being ranked: the first empty one, or the one picked, empty or with an item to reconsider.
   const [chosen, setChosen] = useState<number | null>(null);
-  // It follows its item when the build's items are moved.
+  // It follows its item when the build's items are moved, here or in Items, and an empty one follows
+  // the gap the item it swapped with left. When its item is sold it stays, ranking what to buy there.
   const seen = useRef(state.items);
   useLayoutEffect(() => {
     const [was, now] = [seen.current, state.items];
     seen.current = now;
-    const id = chosen != null ? was[chosen] : null;
-    if (id == null || now[chosen!] === id) return;
-    const to = now.findIndex((x, k) => x === id && was[k] !== id);
+    if (chosen == null || now[chosen] === was[chosen]) return;
+    const to = now.findIndex((x, k) => x === was[chosen] && was[k] !== x);
     if (to >= 0) setChosen(to);
   }, [state.items]);
   const firstEmpty = state.items.findIndex((x) => x == null);
-  const slot = chosen != null && (state.items[chosen] != null || chosen === firstEmpty) ? chosen : firstEmpty >= 0 ? firstEmpty : state.items.length - 1;
+  const slot = chosen ?? (firstEmpty >= 0 ? firstEmpty : state.items.length - 1);
   const current = state.items[slot];
 
   const job = useMemo(() => {
@@ -103,7 +103,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   }, [ranking, by, current]);
   const lead = useMemo(() => standouts(rows), [rows]);
 
-  const pick = (id: number | null) => {
+  const pick = (id: number) => {
     set((s) => {
       const items = [...s.items];
       items[slot] = id;
@@ -111,6 +111,9 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
     });
     setChosen(null);
   };
+
+  const hover = useHoverCard();
+  const slots = useItemSlots(state.items, (fn) => set((s) => ({ ...s, items: fn(s.items) })), { onPick: hover.hide, onSell: hover.hide });
 
   const slotLabel = current != null ? `in place of ${DATA.items[current]?.name}` : `in slot ${slot + 1}`;
 
@@ -128,36 +131,47 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
         </div>
       }
     >
-      {/* The slot being ranked, picked from the build's slots: the next empty one or an item's */}
+      {/* The slot being ranked, picked from the build's slots, which are also the build's inventory:
+          an item is dragged to another slot, and sold with its ✕ */}
       <div className="iv-for">
-        <div className="iv-slots" role="group" aria-label="Slot to rank items for">
+        <div className="slots compact" ref={slots.box} role="group" aria-label="Slot to rank items for">
           {state.items.map((id, i) => {
             const name = id != null ? DATA.items[id]?.name : null;
-            const label = name ? `In place of ${name}` : i === firstEmpty ? 'Next item' : `Slot ${i + 1} (fill the slots before it first)`;
+            const foot = i === slot ? undefined : 'Click to rank what could take its place.';
             return (
-              <button key={i} className={`iv-slot ${id != null ? 'filled' : ''}`} aria-pressed={i === slot} disabled={id == null && i !== firstEmpty} aria-label={label} title={label} onClick={() => setChosen(i)}>
-                {id != null ? <ItemIcon id={id} size="sm" /> : i === firstEmpty ? '+' : null}
-              </button>
+              <div
+                key={i}
+                aria-pressed={i === slot}
+                aria-label={name ? `In place of ${name}. Arrow keys move it, Delete sells it.` : `Next item, in slot ${i + 1}`}
+                title={id == null && i !== slot ? 'Rank items for this slot' : undefined}
+                {...slots.slot(i, {
+                  ...(id != null ? hover.bind(<ItemTip id={id} sim={sim} foot={foot} />) : {}),
+                  onClick: () => setChosen(i),
+                  onKeyDown: (e: KeyboardEvent) => {
+                    if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+                    e.preventDefault();
+                    setChosen(i);
+                  },
+                })}
+              >
+                {id != null ? <ItemIcon id={id} /> : '+'}
+                {slots.remove(i)}
+              </div>
             );
           })}
+          {slots.vacated}
         </div>
-        <div className="iv-caption small">
-          <span className="secondary">
-            {current != null ? (
-              <>
-                In place of <strong>{DATA.items[current]?.name}</strong>
-              </>
-            ) : (
-              'Next item'
-            )}
-          </span>
-          {current != null && (
-            <button className="btn small" aria-label={`Sell ${DATA.items[current]?.name}`} onClick={() => pick(null)}>
-              Sell
-            </button>
+        <div className="iv-caption small secondary">
+          {current != null ? (
+            <>
+              In place of <strong>{DATA.items[current]?.name}</strong>
+            </>
+          ) : (
+            'Next item'
           )}
         </div>
       </div>
+      {hover.node}
       {res?.error && <div className="notice warn small">{res.error}</div>}
       {!res && <div className="muted small">Simulating…</div>}
       {ranking && (
