@@ -369,6 +369,7 @@ function buildChampion(dd: any, bin: any): ChampionData {
     attackWindupOffset: rec.basicAttack?.mAttackDelayCastOffsetPercent ?? 0,
     ...(rec.basicAttack?.mAttackCastTime ? { attackCastTime: rec.basicAttack.mAttackCastTime, attackTotalTime: rec.basicAttack.mAttackTotalTime } : {}),
   };
+  const identities: string[] = (rec.purchaseIdentities ?? []).filter((x: string) => x === 'Melee' || x === 'Ranged');
   const missile = attackMissile(rec, bin);
   if (missile) stats.attackMissile = missile;
 
@@ -434,7 +435,8 @@ function buildChampion(dd: any, bin: any): ChampionData {
     tags: dd.tags,
     partype: dd.partype,
     icon: `champion/${dd.image.full}`,
-    attackType: stats.range >= 300 ? 'ranged' : 'melee',
+    // The game's own: Lillia (325) and Rakan (300) are melee; champions with both forms by their range.
+    attackType: identities.length === 1 ? (identities[0] === 'Melee' ? 'melee' : 'ranged') : stats.range >= 300 ? 'ranged' : 'melee',
     adaptive: (rec.mAdaptiveForceToAbilityPowerWeight ?? 0) >= 0.5 ? 'magic' : 'physical',
     stats,
     passive: { name: passiveName, description: passiveText },
