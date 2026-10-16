@@ -20,6 +20,20 @@ const SHOWN = 8;
 const STANDOUT = 1.15;
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${fmt(Math.abs(v))}`;
 
+/** The parts of an item's bar: what it adds to your other damage (its stats, Rabadon's-style
+ *  multipliers), the damage it deals itself (its procs, burns) and the damage of what its hits set
+ *  off (Electrocute, Luden's Echo). */
+const PARTS = ['stats', 'effect', 'procs'] as const;
+type Part = (typeof PARTS)[number];
+
+/** A row's parts; a negative or negligible one is left out of the bar. */
+function split(r: Row): Record<Part, number> {
+  const v = { stats: r.gain - r.itemDamage - r.procDamage, effect: r.itemDamage, procs: r.procDamage };
+  return { stats: v.stats > 0.5 ? v.stats : 0, effect: v.effect > 0.5 ? v.effect : 0, procs: v.procs > 0.5 ? v.procs : 0 };
+}
+
+const Swatch = ({ part, gap }: { part: Part; gap?: boolean }) => <span className={`swatch iv-${part}`} style={gap ? { marginRight: 6 } : undefined} />;
+
 /**
  * The items far more gold-efficient than the rest: the best one, or the best two, when they're 15%
  * or more ahead of the next best per gold. About 2 rankings in 5 have one.
@@ -207,6 +221,8 @@ function RankList({
   const rank = all.findIndex((r) => r.id === current) + 1;
   const top = all.slice(0, shown);
   const rest = expanded ? all.slice(shown) : rank > shown ? [all[rank - 1]] : [];
+  // The legend has the parts the bars listed have.
+  const drawn = PARTS.filter((p) => [...top, ...rest].some((r) => split(r)[p] > 0));
   const hidden = all.length - shown - (rank > shown ? 1 : 0);
   const max = Math.max(1e-9, ...all.map((r) => (by === 'perGold' ? r.gainPerGold : r.gain)));
   // A click on a row buys its item. The item shows its details, the rest of the row where its damage
@@ -278,12 +294,7 @@ function RankList({
   const row = (r: Row) => {
     const v = by === 'perGold' ? r.gainPerGold : r.gain;
     const isCurrent = r.id === current;
-    // Bar split: what the item adds to your other damage (its stats, Rabadon's-style multipliers),
-    // the damage it deals itself (its procs, burns) and the damage of what its hits set off
-    // (Electrocute, Luden's Echo); a negative part is left out of the bar.
-    const stats = Math.max(0, r.gain - r.itemDamage - r.procDamage);
-    const fx = Math.max(0, r.itemDamage);
-    const procs = Math.max(0, r.procDamage);
+    const parts = split(r);
     const width = (Math.max(0, v) / max) * 100;
     const ahead = lead.has(r.id);
     const item = (
@@ -337,9 +348,7 @@ function RankList({
         </span>
         <span role="cell" className="iv-track" aria-hidden>
           <span className="iv-bars" style={{ width: `${width}%` }}>
-            {stats > 0.5 && <span className="iv-bar" style={{ flexGrow: stats }} />}
-            {fx > 0.5 && <span className="iv-bar fx" style={{ flexGrow: fx }} />}
-            {procs > 0.5 && <span className="iv-bar proc" style={{ flexGrow: procs }} />}
+            {PARTS.map((p) => parts[p] > 0 && <span key={p} className={`iv-bar iv-${p}`} style={{ flexGrow: parts[p] }} />)}
           </span>
         </span>
         <span role="cell" className={`iv-pg num ${by === 'perGold' ? 'on' : ''}`}>
@@ -360,18 +369,12 @@ function RankList({
               Item
             </span>
             <span role="columnheader" className="iv-track">
-              <span>
-                <span className="swatch" style={{ background: 'var(--accent)' }} />
-                stats
-              </span>
-              <span>
-                <span className="swatch" style={{ background: 'var(--accent-2)' }} />
-                effect
-              </span>
-              <span>
-                <span className="swatch" style={{ background: 'var(--accent-3)' }} />
-                procs
-              </span>
+              {drawn.map((p) => (
+                <span key={p}>
+                  <Swatch part={p} />
+                  {p}
+                </span>
+              ))}
             </span>
             {/* The numbers' headings sort by them; where only one number fits, its heading switches it */}
             <span role="columnheader" className={`iv-pg ${by === 'perGold' ? 'on' : ''}`} aria-sort={by === 'perGold' ? 'descending' : undefined}>
@@ -441,14 +444,14 @@ function RowTip({ row: r, current, view, action }: { row: Row; current: number |
         <>
           <div className="tt-row">
             <span>
-              <span className="swatch" style={{ background: 'var(--accent)', marginRight: 6 }} />
+              <Swatch part="stats" gap />
               Stats
             </span>
             <strong>{signed(r.gain - r.itemDamage - r.procDamage)}</strong>
           </div>
           <div className="tt-row">
             <span>
-              <span className="swatch" style={{ background: 'var(--accent-2)', marginRight: 6 }} />
+              <Swatch part="effect" gap />
               Effect
             </span>
             <strong>{signed(r.itemDamage)}</strong>
@@ -476,7 +479,7 @@ function RowTip({ row: r, current, view, action }: { row: Row; current: number |
 /** The damage of what the item's hits set off: one proc on a line of its own, several under a total. */
 function Procs({ row: r, swatch }: { row: Row; swatch?: boolean }) {
   if (!r.procs.length) return null;
-  const key = swatch && <span className="swatch" style={{ background: 'var(--accent-3)', marginRight: 6 }} />;
+  const key = swatch && <Swatch part="procs" gap />;
   if (r.procs.length === 1)
     return (
       <div className="tt-row">

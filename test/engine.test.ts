@@ -253,6 +253,12 @@ test("rank items: what an item's hits proc is split from its own damage and its 
   const cap = res.items.find((x) => x.item === "Rabadon's Deathcap")!;
   assert.equal(cap.procDamage, 0);
   assert.deepEqual(cap.procs, []);
+  // With an attack after it, Electrocute would strike without Squall: Squall striking it isn't a proc.
+  const later = { ...base, combo: 'W Q wait:2 AA' };
+  const sim = simulate(data, { ...later, items: [...later.items, 'Stormsurge'] });
+  const squall = sim.events.find((e) => e.label === 'Squall')!;
+  assert.equal(sim.events.find((e) => e.sourceLabel === 'Electrocute')!.cause, squall.id);
+  assert.equal(rankItems(data, later, { candidates: ['Stormsurge'] }).items[0].procDamage, 0);
 });
 
 test('item hover text: numbers for the attacker from the template the shop text is generated from', () => {

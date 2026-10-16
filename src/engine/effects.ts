@@ -44,6 +44,13 @@ export interface DamageInstance {
    * action triggered (procs, DoTs). Unset for damage no action set off (an aura from the start).
    */
   action?: number;
+  /**
+   * The id of the damage instance that set this off: one whose hooks dealt it or scheduled it
+   * (Electrocute's strike by the third hit, Luden's Echo, a burn's ticks, a mark's detonation).
+   * Unset for damage an action dealt itself, and for damage no one hit did (a burn's tick that
+   * several hits kept going).
+   */
+  cause?: number;
   source: string;
   sourceLabel: string;
   label: string;
@@ -85,6 +92,9 @@ export interface DamageRequest {
   markSource?: string;
   /** Extra percent armor/MR penetration for this hit only (Gangplank barrels ignore 40% armor). */
   penPercent?: number;
+  /** The damage instance that set this off, in place of the one being resolved; null for none (see
+   *  DamageInstance.cause). */
+  cause?: number | null;
 }
 
 export interface AttackInfo {

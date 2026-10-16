@@ -137,6 +137,8 @@ interface ScheduledEvent {
   crit?: boolean;
   /** The combo action that scheduled it. */
   action?: number;
+  /** The damage that set off what scheduled it. */
+  cause?: number;
 }
 
 interface ActiveBuff {
@@ -183,10 +185,6 @@ export class Sim {
   readonly items: ItemData[];
   readonly runes: RuneData[];
   readonly effects: Effect[] = [];
-  /** The effect of each of the build's items that has one, by item id. */
-  private readonly itemEffects = new Map<number, Effect>();
-  /** A source whose damage sets nothing else off (see quietItem). */
-  private quiet?: { source: string; effect?: Effect };
   readonly warnings: string[] = [];
   readonly notes = new Set<string>();
 
@@ -198,6 +196,9 @@ export class Sim {
   private stepCrit: boolean | undefined;
   /** The combo action being resolved (its castId): set like stepCrit, and dealt damage records it. */
   private action: number | undefined;
+  /** The damage instance whose hooks are being resolved (its id): set like action, and dealt damage
+   *  records it as what set it off. */
+  private cause: number | undefined;
   private nextCastId = 1;
   private nextInstId = 1;
   private staticMods: StatMods;
@@ -269,7 +270,6 @@ export class Sim {
       if (seenUnique.has(eff.id)) continue;
       seenUnique.add(eff.id);
       this.effects.push(eff);
-      this.itemEffects.set(item.id, eff);
     }
     this.effects.push(...createRuneEffects(this.runes, setup, this));
     this.effects.push(createSummonerEffect('ignite', setup));
@@ -870,22 +870,25 @@ export class Sim {
   }
 
   scheduleAt(time: number, run: () => void) {
-    this.queue.push({ time: Math.max(this.time, time), seq: this.seq++, run, crit: this.stepCrit, action: this.action });
+    this.queue.push({ time: Math.max(this.time, time), seq: this.seq++, run, crit: this.stepCrit, action: this.action, cause: this.cause });
     this.queue.sort((a, b) => a.time - b.time || a.seq - b.seq);
   }
 
   processUntil(t: number) {
     const own = this.stepCrit;
     const ownAction = this.action;
+    const ownCause = this.cause;
     while (this.queue.length && this.queue[0].time <= t + 1e-9) {
       const ev = this.queue.shift()!;
       this.advanceTo(ev.time);
       this.setStepCrit(ev.crit);
       this.action = ev.action;
+      this.cause = ev.cause;
       ev.run();
     }
     this.setStepCrit(own);
     this.action = ownAction;
+    this.cause = ownCause;
     this.advanceTo(t);
   }
 
@@ -907,16 +910,6 @@ export class Sim {
       this.time = t;
       this.invalidateStats();
     }
-  }
-
-  /**
-   * The item's damage sets nothing else off: only the item's own effect sees it, not the other
-   * effects' afterDamage hooks (Electrocute's hit count, Luden's Echo, burns), kit marks or damage
-   * a debuff stores to detonate with. Compared with a normal run, it tells what the item's hits
-   * proc (rankItems).
-   */
-  quietItem(id: number) {
-    this.quiet = { source: `item:${id}`, effect: this.itemEffects.get(id) };
   }
 
   // ---------------------------------------------------------------------------
@@ -953,6 +946,8 @@ export class Sim {
       ...(req.markSource ? { fromMark: req.markSource } : {}),
       ...(this.action !== undefined ? { action: this.action } : {}),
     };
+    const cause = req.cause === undefined ? this.cause : req.cause;
+    if (cause != null) inst.cause = cause;
 
     for (const e of this.effects) e.beforeDamage?.(this, inst);
     for (const b of this.buffs.values()) if (b.expires >= this.time && b.amp) inst.amps.push({ id: b.slot, source: b.label, value: b.amp, kind: 'dealt' });
@@ -993,14 +988,17 @@ export class Sim {
     if (this.target.hp <= 0 && this.target.killTime === undefined) this.target.killTime = this.time;
     if (!inst.flags.aura) this.lastCombatTime = this.time;
     this.events.push(inst);
-    const quiet = inst.source === this.quiet?.source;
-    for (const d of this.debuffs.values()) if (d.spec?.detonate && d.expires >= this.time && !inst.fromMark && !quiet) d.stored = (d.stored ?? 0) + final;
+    for (const d of this.debuffs.values()) if (d.spec?.detonate && d.expires >= this.time && !inst.fromMark) d.stored = (d.stored ?? 0) + final;
 
-    for (const e of this.effects) if (!quiet || e === this.quiet!.effect) e.afterDamage?.(this, inst);
-    if (!inst.fromMark && !quiet) {
+    // What the hooks deal, now or by scheduling it, was set off by this damage.
+    const outer = this.cause;
+    this.cause = inst.id;
+    for (const e of this.effects) e.afterDamage?.(this, inst);
+    if (!inst.fromMark) {
       this.processConsumes(inst);
       this.processMarks(inst);
     }
+    this.cause = outer;
     return inst;
   }
 
@@ -2001,10 +1999,8 @@ function resolveTarget(data: GameData, spec: TargetSpec, attackerLevel: number):
   };
 }
 
-/** `quietItem`: that item's damage sets nothing else off (see Sim.quietItem). */
-export function simulate(data: GameData, scenario: Scenario, opts: { quietItem?: number } = {}): SimResult {
+export function simulate(data: GameData, scenario: Scenario): SimResult {
   const sim = new Sim(data, scenario);
-  if (opts.quietItem !== undefined) sim.quietItem(opts.quietItem);
   const steps = typeof scenario.combo === 'string' ? parseCombo(scenario.combo) : scenario.combo;
   return sim.run(steps);
 }

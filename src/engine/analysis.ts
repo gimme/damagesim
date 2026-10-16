@@ -102,28 +102,18 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
   const metric = opts.metric ?? 'damage';
   const baseRes = simulate(data, base);
   const baseScore = metricValue(baseRes, metric);
+  const baseBySource = bySource(baseRes);
   const baseItems = (base.items ?? []).map((q) => findItem(data, q));
   const candidates = opts.candidates?.length ? opts.candidates.map((q) => findItem(data, q)) : defaultCandidates(data, base);
   const rows = [];
   for (const it of candidates) {
     if (baseItems.some((b) => b.id === it.id) || conflicts(baseItems, it)) continue;
-    const sc = { ...base, items: [...(base.items ?? []), it.id] };
-    const r = simulate(data, sc);
+    const r = simulate(data, { ...base, items: [...(base.items ?? []), it.id] });
     const gain = r.totalDamage - baseRes.totalDamage;
     const perGold = it.gold.total > 0 ? (gain / it.gold.total) * 1000 : 0;
     const source = `item:${it.id}`;
-    const own = r.bySource.filter((s) => s.source === source).reduce((sum, s) => sum + s.damage, 0);
-    // What the item's hits set off (Electrocute counting them, Luden's Echo, burns): each other
-    // source's damage, less what it deals when the item's hits set nothing off.
-    const procs: { source: string; label: string; damage: number }[] = [];
-    if (r.events.some((e) => e.source === source)) {
-      const others = (x: SimResult) => new Map(x.bySource.filter((s) => s.source !== source).map((s) => [`${s.source}|${s.label}`, s]));
-      const [full, quiet] = [others(r), others(simulate(data, sc, { quietItem: it.id }))];
-      for (const key of new Set([...full.keys(), ...quiet.keys()])) {
-        const s = (full.get(key) ?? quiet.get(key))!;
-        procs.push({ source: s.source, label: s.label, damage: (full.get(key)?.damage ?? 0) - (quiet.get(key)?.damage ?? 0) });
-      }
-    }
+    const own = r.bySource.filter((s) => s.source === source);
+    const procs = own.length ? itemProcs(r, source, baseBySource) : [];
     rows.push({
       item: it.name,
       id: it.id,
@@ -132,12 +122,12 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
       gain: round(gain),
       gainPerGold: round(perGold, 2),
       /** Part of the gain dealt by the item itself (its procs, burns, actives). */
-      itemDamage: round(own),
+      itemDamage: round(own.reduce((sum, s) => sum + s.damage, 0)),
       /** Part of the gain dealt by your other damage the item's hits set off (Electrocute, Luden's Echo…); the rest is its stats and amplifiers raising your other damage. */
       procDamage: round(procs.reduce((sum, p) => sum + p.damage, 0)),
       /** The procDamage by source, largest first. */
       procs: procs
-        .filter((p) => Math.abs(p.damage) >= 0.5)
+        .filter((p) => p.damage >= 0.5)
         .sort((a, b) => b.damage - a.damage)
         .map((p) => ({ ...p, damage: round(p.damage) })),
       killed: r.killed,
@@ -153,6 +143,36 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
     items: rows.slice(0, opts.limit ?? 25),
     note: 'gainPerGold is damage gained per 1000 gold of the item. itemDamage is the part of the gain the item deals itself; procDamage the part dealt by your other damage its hits set off (procs lists it by source, e.g. Electrocute).',
   };
+}
+
+/** Damage by source and label. */
+const bySource = (r: SimResult) => new Map(r.bySource.map((s) => [`${s.source}|${s.label}`, s]));
+
+/**
+ * Damage of your other sources an item's hits set off, directly or down a chain (Squall →
+ * Electrocute → …), for as many hits as each source gained over the build without the item: one it
+ * would have dealt anyway (Electrocute striking on Squall instead of a later hit) isn't the item's
+ * doing.
+ */
+function itemProcs(r: SimResult, source: string, base: ReturnType<typeof bySource>) {
+  const fromItem = new Set<number>();
+  const setOff = new Map<string, { source: string; label: string; damage: number; hits: number }>();
+  for (const e of r.events) {
+    if (e.source === source) fromItem.add(e.id);
+    else if (e.cause !== undefined && fromItem.has(e.cause)) {
+      fromItem.add(e.id);
+      const key = `${e.source}|${e.sourceLabel}`;
+      if (!setOff.has(key)) setOff.set(key, { source: e.source, label: e.sourceLabel, damage: 0, hits: 0 });
+      const p = setOff.get(key)!;
+      p.damage += e.final ?? 0;
+      p.hits++;
+    }
+  }
+  const withItem = bySource(r);
+  return [...setOff].map(([key, { hits, ...p }]) => {
+    const gained = Math.max(0, (withItem.get(key)?.hits ?? 0) - (base.get(key)?.hits ?? 0));
+    return { ...p, damage: p.damage * Math.min(1, gained / hits) };
+  });
 }
 
 /** Legendary items + boots on Summoner's Rift (excluding champion-specific ones). */

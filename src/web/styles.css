@@ -12,13 +12,11 @@
   --border: rgba(11, 11, 11, 0.1);
   --border-strong: rgba(11, 11, 11, 0.18);
   /* Accents, kept clear of the damage types' colors: violet for controls and for data that isn't a
-     damage type (item stats, a single series), pink beside it (item effect damage), green beside
-     that (what an item's hits proc). */
+     damage type (item stats, a single series), pink beside it (item effect damage). */
   --accent: #6250d6;
   --accent-wash: rgba(98, 80, 214, 0.1);
   --accent-text: #5641c6;
   --accent-2: #d55181;
-  --accent-3: #008300;
   /* Damage types in the game's colors (its floating combat text, ux/fonts.bin: magic #00b0f0,
      physical #ff8c34, true #ffffff). White can't show on a light page, so true damage is a light
      silver here. */
@@ -64,7 +62,6 @@
     --accent-wash: rgba(114, 98, 228, 0.18);
     --accent-text: #b1a8f4;
     --accent-2: #d55181;
-    --accent-3: #008300;
     --magic: #00b0f0;
     --physical: #ff8c34;
     --true: #ffffff;
@@ -95,7 +92,6 @@
   --accent-wash: rgba(114, 98, 228, 0.18);
   --accent-text: #b1a8f4;
   --accent-2: #d55181;
-  --accent-3: #008300;
   --magic: #00b0f0;
   --physical: #ff8c34;
   --true: #ffffff;
@@ -1074,13 +1070,16 @@ table.data .source-name {
 .iv-bar {
   flex: 1 1 0;
   min-width: 2px;
+}
+/* An item's bar and its legend: stats, effect, and what its hits proc as effect, striped */
+.iv-stats {
   background: var(--accent);
 }
-.iv-bar.fx {
+.iv-effect {
   background: var(--accent-2);
 }
-.iv-bar.proc {
-  background: var(--accent-3);
+.iv-procs {
+  background: repeating-linear-gradient(-45deg, var(--accent-2) 0 3px, color-mix(in srgb, var(--accent-2) 40%, var(--surface)) 3px 6px);
 }
 .iv-head .iv-track {
   height: auto;

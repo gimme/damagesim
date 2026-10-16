@@ -177,25 +177,46 @@ function energized(item: ItemData, sim: Sim, proc: (sim: Sim, push: (r: DamageRe
 // Ticks that only aura damage (Unending Despair) sustained don't keep you in combat, so an aura and
 // a burn can't keep each other going after the fight.
 
-function burn(item: ItemData, sim: Sim, trigger: DamageInstance, label: string, perSecond: (sim: Sim) => number, duration: number, tick = 0.5) {
+/** Starts or refreshes the item's burn on `trigger`. */
+function burner(item: ItemData, label: string, perSecond: (sim: Sim) => number, duration: number, tick = 0.5) {
   const key = `burn:${item.id}`;
   const endKey = `${key}:end`;
   const combatKey = `${key}:combatEnd`;
-  const active = sim.counter(key) === 1;
-  sim.setCounter(endKey, sim.time + duration);
-  if (!trigger.flags.aura) sim.setCounter(combatKey, sim.time + duration);
-  if (active) return;
-  sim.setCounter(key, 1);
-  const step = () => {
-    if (sim.time > sim.counter(endKey) + 1e-9) {
-      sim.setCounter(key, 0);
-      sim.invalidateStats();
+  // The hits that started and refreshed it, latest last: a tick was set off by the one hit whose
+  // duration covers it, if just one does (DamageInstance.cause).
+  let hits: { time: number; id: number }[] = [];
+  const cause = (t: number) => {
+    let id: number | null = null;
+    for (let i = hits.length - 1; i >= 0 && t <= hits[i].time + duration + 1e-9; i--) {
+      if (hits[i].time >= t) continue;
+      if (id !== null) return null;
+      id = hits[i].id;
+    }
+    return id;
+  };
+  return (sim: Sim, trigger: DamageInstance) => {
+    const active = sim.counter(key) === 1;
+    sim.setCounter(endKey, sim.time + duration);
+    if (!trigger.flags.aura) sim.setCounter(combatKey, sim.time + duration);
+    if (active) {
+      hits.push({ time: sim.time, id: trigger.id });
       return;
     }
-    sim.deal(hit(item, label, 'magic', perSecond(sim) * tick, { dot: true, ...(sim.time > timerEnd(sim, combatKey) + 1e-9 ? { aura: true } : {}) }));
+    sim.setCounter(key, 1);
+    hits = [{ time: sim.time, id: trigger.id }];
+    const step = () => {
+      if (sim.time > sim.counter(endKey) + 1e-9) {
+        sim.setCounter(key, 0);
+        sim.invalidateStats();
+        return;
+      }
+      const req = hit(item, label, 'magic', perSecond(sim) * tick, { dot: true, ...(sim.time > timerEnd(sim, combatKey) + 1e-9 ? { aura: true } : {}) });
+      req.cause = cause(sim.time);
+      sim.deal(req);
+      sim.schedule(tick, step);
+    };
     sim.schedule(tick, step);
   };
-  sim.schedule(tick, step);
 }
 
 // -----------------------------------------------------------------------------
@@ -547,13 +568,14 @@ const ITEMS: Record<number, Factory> = {
   // ------------------------------------------------------------ Ability-damage procs
   6653: (item) => {
     const combat = combatTimer(dv(item, 'BuffCounterDuration'));
+    const torment = burner(item, 'Torment', (sim) => dv(item, 'BurnPercentHealthDamage') * sim.target.maxHp, dv(item, 'BurnDuration'), dv(item, 'TickFrequency'));
     return effect(item, {
       description: 'Ability damage burns for 2% max health per second for 3s; +2% damage per second in combat (max 6%).',
       options: [IN_COMBAT],
       afterDamage(sim, inst) {
         combat.hit(sim, inst);
         if (!isAbilityDamage(inst)) return;
-        burn(item, sim, inst, 'Torment', () => dv(item, 'BurnPercentHealthDamage') * sim.target.maxHp, dv(item, 'BurnDuration'), dv(item, 'TickFrequency'));
+        torment(sim, inst);
       },
       beforeDamage(sim, inst) {
         if (inst.flags.unamplified) return;
@@ -562,8 +584,9 @@ const ITEMS: Record<number, Factory> = {
       },
     });
   },
-  2503: (item) =>
-    effect(item, {
+  2503: (item) => {
+    const blaze = burner(item, 'Baleful Blaze', (sim) => calc(sim, item, 'BurnDamagePerSecondCalc'), dv(item, 'BurnDuration'), dv(item, 'TickFrequency'));
+    return effect(item, {
       description: 'Ability damage burns for magic damage over 3s; +4% AP while the target burns.',
       dynamicStats(sim) {
         if (sim.counter(`burn:${item.id}`) === 1) return { apMult: [1 + dv(item, 'APPerStack')] };
@@ -571,18 +594,21 @@ const ITEMS: Record<number, Factory> = {
       afterDamage(sim, inst) {
         if (!isAbilityDamage(inst)) return;
         const was = sim.counter(`burn:${item.id}`) === 1;
-        burn(item, sim, inst, 'Baleful Blaze', () => calc(sim, item, 'BurnDamagePerSecondCalc'), dv(item, 'BurnDuration'), dv(item, 'TickFrequency'));
+        blaze(sim, inst);
         if (!was) sim.invalidateStats();
       },
-    }),
-  2508: (item) =>
-    effect(item, {
+    });
+  },
+  2508: (item) => {
+    const inflame = burner(item, 'Inflame', () => dv(item, 'BurnFlatDamagePerSecond'), dv(item, 'BurnDuration'), dv(item, 'TickFrequency'));
+    return effect(item, {
       description: 'Ability damage deals bonus magic damage over 3s.',
       afterDamage(sim, inst) {
         if (!isAbilityDamage(inst)) return;
-        burn(item, sim, inst, 'Inflame', () => dv(item, 'BurnFlatDamagePerSecond'), dv(item, 'BurnDuration'), dv(item, 'TickFrequency'));
+        inflame(sim, inst);
       },
-    }),
+    });
+  },
   3147: (item) => {
     const combat = combatTimer(dv(item, 'BuffCounterDuration'));
     return effect(item, {
