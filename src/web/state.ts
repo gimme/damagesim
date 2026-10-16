@@ -58,7 +58,7 @@ export const DEFAULT_STATE: UIState = {
   skillOrder: 'QWE',
   items: [6655, 3020, null, null, null, null],
   // Electrocute, Cheap Shot, Grisly Mementos, Ultimate Hunter; Absolute Focus, Scorch.
-  runes: { primary: 'Domination', secondary: 'Sorcery', picks: [8112, 8126, 8140, 8106, 8233, 8237], shards: [5008, 5008, 5001] },
+  runes: { primary: 'Domination', secondary: 'Sorcery', picks: [8112, 8126, 8140, 8106, 8233, 8237], held: [], shards: [5008, 5008, 5001] },
   options: {},
   combo: 'E Q W R AA R',
   target: {
@@ -126,7 +126,7 @@ export function decodeState(hash: string): UIState | null {
 }
 
 const isRunePage = (p: any): p is RunePage =>
-  typeof p?.primary === 'string' && typeof p.secondary === 'string' && [p.picks, p.shards].every((xs) => Array.isArray(xs) && xs.every((x: unknown) => typeof x === 'number'));
+  typeof p?.primary === 'string' && typeof p.secondary === 'string' && [p.picks, p.held, p.shards].every((xs) => Array.isArray(xs) && xs.every((x: unknown) => typeof x === 'number'));
 
 const STORAGE_KEY = 'damagesim:state';
 

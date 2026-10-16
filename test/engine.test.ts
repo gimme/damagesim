@@ -15,7 +15,7 @@ import { combineAmps } from '../src/engine/sim.ts';
 import { rankItems } from '../src/engine/analysis.ts';
 import { formatNumber, itemText, renderTooltip, runeText } from '../src/engine/tooltip.ts';
 import { NOT_LIVE_RUNES } from '../src/engine/runes.ts';
-import { choosePrimary, chooseSecondary, pageRunes, pickRune, remember, treePicks, type RunePage } from '../src/engine/rune-page.ts';
+import { choosePrimary, chooseSecondary, pageRunes, pickRune, treePicks, type RunePage } from '../src/engine/rune-page.ts';
 
 const data = loadGameData('16.20');
 await loadAllKits();
@@ -351,7 +351,7 @@ test('rune hover text: the in-game tooltip with numbers for the attacker, else t
 test('rune pages: a pick takes its row; the secondary tree gives two, the older going first', () => {
   const id = (name: string) => data.runes.find((r) => r.name === name)!.id;
   const ids = (...names: string[]) => names.map(id);
-  const ahri: RunePage = { primary: 'Domination', secondary: 'Sorcery', picks: ids('Electrocute', 'Cheap Shot', 'Grisly Mementos', 'Ultimate Hunter', 'Absolute Focus', 'Scorch'), shards: [5008, 5008, 5001] };
+  const ahri: RunePage = { primary: 'Domination', secondary: 'Sorcery', picks: ids('Electrocute', 'Cheap Shot', 'Grisly Mementos', 'Ultimate Hunter', 'Absolute Focus', 'Scorch'), held: [], shards: [5008, 5008, 5001] };
   // A keystone or a primary rune takes the place of the one in its row.
   assert.deepEqual(pickRune(data, ahri, id('Dark Harvest')).picks, ids('Cheap Shot', 'Grisly Mementos', 'Ultimate Hunter', 'Absolute Focus', 'Scorch', 'Dark Harvest'));
   assert.deepEqual(treePicks(data, pickRune(data, ahri, id('Sudden Impact')), 'Domination'), ids('Electrocute', 'Grisly Mementos', 'Ultimate Hunter', 'Sudden Impact'));
@@ -364,23 +364,40 @@ test('rune pages: a pick takes its row; the secondary tree gives two, the older 
   assert.deepEqual(pickRune(data, ahri, id('Scorch')).picks, ids('Electrocute', 'Cheap Shot', 'Grisly Mementos', 'Ultimate Hunter', 'Absolute Focus'));
   // As a scenario: keystone, primary rows, secondary rows, shards, whatever the order picked.
   assert.deepEqual(pageRunes(data, pickRune(data, pickRune(data, ahri, id('Cheap Shot')), id('Cheap Shot'))), [...ids('Electrocute', 'Cheap Shot', 'Grisly Mementos', 'Ultimate Hunter', 'Absolute Focus', 'Scorch'), 5008, 5008, 5001]);
+});
 
-  // Taking the secondary tree as primary swaps the two, keeping their picks: the new secondary its
-  // newest two minors. Whatever was remembered of either tree doesn't count.
-  let memory = remember(data, {}, { ...ahri, picks: ids('Arcane Comet', 'Manaflow Band', 'Celerity', 'Gathering Storm') });
-  const swapped = choosePrimary(data, ahri, 'Sorcery', memory);
+test('rune pages: a tree remembers a rune per row and shows what fits its place', () => {
+  const id = (name: string) => data.runes.find((r) => r.name === name)!.id;
+  const ids = (...names: string[]) => names.map(id);
+  const ahri: RunePage = { primary: 'Domination', secondary: 'Sorcery', picks: ids('Electrocute', 'Cheap Shot', 'Grisly Mementos', 'Ultimate Hunter', 'Absolute Focus', 'Scorch'), held: [], shards: [5008, 5008, 5001] };
+  const shown = (page: RunePage, tree: string) => treePicks(data, page, tree);
+  // Taking the secondary tree as primary swaps the two: the new secondary shows its newest two
+  // minors and holds the keystone and the other one; swapping back shows them again.
+  const swapped = choosePrimary(data, ahri, 'Sorcery');
   assert.deepEqual([swapped.primary, swapped.secondary], ['Sorcery', 'Domination']);
   assert.deepEqual(swapped.picks, ids('Absolute Focus', 'Scorch', 'Grisly Mementos', 'Ultimate Hunter'));
-  assert.deepEqual(chooseSecondary(data, ahri, 'Domination', memory), swapped);
-  const comet = pickRune(data, swapped, id('Arcane Comet'));
-  assert.deepEqual(choosePrimary(data, comet, 'Domination', memory).picks, ids('Grisly Mementos', 'Ultimate Hunter', 'Absolute Focus', 'Scorch'));
-  // A tree coming back onto the page gets the picks it had there, as many as fit its place.
-  memory = remember(data, {}, ahri);
-  const precision = choosePrimary(data, ahri, 'Precision', memory);
-  assert.deepEqual(precision.picks, ids('Absolute Focus', 'Scorch'));
-  assert.deepEqual(choosePrimary(data, precision, 'Domination', memory), ahri);
-  assert.deepEqual(treePicks(data, chooseSecondary(data, precision, 'Domination', memory), 'Domination'), ids('Grisly Mementos', 'Ultimate Hunter'));
-  // A new secondary tree starts empty.
+  assert.deepEqual(swapped.held, ids('Electrocute', 'Cheap Shot'));
+  assert.deepEqual(chooseSecondary(data, ahri, 'Domination'), swapped);
+  assert.deepEqual(choosePrimary(data, swapped, 'Domination'), ahri);
+  // A keystone picked meanwhile is held in turn, and comes back with the next swap.
+  const comet = choosePrimary(data, pickRune(data, swapped, id('Arcane Comet')), 'Domination');
+  assert.deepEqual([comet.picks, comet.held], [ahri.picks, ids('Arcane Comet')]);
+  assert.deepEqual(shown(choosePrimary(data, comet, 'Sorcery'), 'Sorcery'), ids('Arcane Comet', 'Absolute Focus', 'Scorch'));
+  // Unpicking forgets: a rune removed from the secondary tree doesn't come back.
+  assert.deepEqual(shown(choosePrimary(data, pickRune(data, swapped, id('Ultimate Hunter')), 'Domination'), 'Domination'), ids('Electrocute', 'Cheap Shot', 'Grisly Mementos'));
+  // Picking in a row replaces what the tree remembers for it; a rune pushed out by a third row is held.
+  const tasted = pickRune(data, swapped, id('Taste of Blood'));
+  assert.deepEqual([shown(tasted, 'Domination'), tasted.held], [ids('Ultimate Hunter', 'Taste of Blood'), ids('Electrocute', 'Grisly Mementos')]);
+  assert.deepEqual(shown(choosePrimary(data, tasted, 'Domination'), 'Domination'), ids('Electrocute', 'Grisly Mementos', 'Ultimate Hunter', 'Taste of Blood'));
+  assert.deepEqual(shown(choosePrimary(data, pickRune(data, ahri, id('Manaflow Band')), 'Sorcery'), 'Sorcery'), ids('Absolute Focus', 'Scorch', 'Manaflow Band'));
+  // A tree that keeps its place is left alone; it doesn't show what it holds when it gets room.
+  const unpicked = pickRune(data, tasted, id('Taste of Blood'));
+  assert.deepEqual(shown(choosePrimary(data, unpicked, 'Precision'), 'Domination'), ids('Ultimate Hunter'));
+  // A tree taken off the page holds its runes; back on it shows what fits. A new tree starts empty.
+  const precision = choosePrimary(data, ahri, 'Precision');
+  assert.deepEqual([precision.picks, precision.held], [ids('Absolute Focus', 'Scorch'), ids('Electrocute', 'Cheap Shot', 'Grisly Mementos', 'Ultimate Hunter')]);
+  assert.deepEqual(choosePrimary(data, precision, 'Domination'), ahri);
+  assert.deepEqual(shown(chooseSecondary(data, precision, 'Domination'), 'Domination'), ids('Grisly Mementos', 'Ultimate Hunter'));
   assert.deepEqual(chooseSecondary(data, ahri, 'Precision').picks, ids('Electrocute', 'Cheap Shot', 'Grisly Mementos', 'Ultimate Hunter'));
 });
 

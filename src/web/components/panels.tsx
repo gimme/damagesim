@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { DATA, abilityIcon, championIcon, runeIcon } from '../data.ts';
 import { Card, ChampIcon, ChampionPicker, Icon, ItemIcon, ItemPicker, ItemTip, Markup, NumberField, RuneTip, fmt, mergeProps, sourceMark, useDragOrder, useHistory, useHoverCard } from './common.tsx';
 import { TARGET_MODES, type UIState, type TargetMode, type TargetState, type TargetStats } from '../state.ts';
@@ -7,7 +7,7 @@ import { maxRanks, resolveRanks, type Sim, type SimResult } from '../../engine/s
 import { renderTooltip, runeText } from '../../engine/tooltip.ts';
 import { describeChampion } from '../../engine/describe.ts';
 import { bonusSkillPoints } from '../../engine/runes.ts';
-import { choosePrimary, chooseSecondary, pickRune, remember, type PickMemory, type RunePage } from '../../engine/rune-page.ts';
+import { choosePrimary, chooseSecondary, pickRune, type RunePage } from '../../engine/rune-page.ts';
 import type { RuneData, RuneTreeData } from '../../engine/data-types.ts';
 import { critMarking, formatCombo, markCrit, parseCombo, type ComboStep, type CritMode } from '../../engine/combo.ts';
 import { conflicts } from '../../engine/analysis.ts';
@@ -363,13 +363,7 @@ const treeColor = (tree: string) => ({ '--tree': `var(--tree-${tree.toLowerCase(
 export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim: Sim | null }) {
   const page = state.runes;
   const hover = useHoverCard();
-  // The picks of the trees that were on the page, so one chosen again gets them back.
-  const memory = useRef<PickMemory>({});
-  const change = (fn: (p: RunePage, memory: PickMemory) => RunePage) =>
-    set((s) => {
-      memory.current = remember(DATA, memory.current, s.runes);
-      return { ...s, runes: fn(s.runes, memory.current) };
-    });
+  const change = (fn: (p: RunePage) => RunePage) => set((s) => ({ ...s, runes: fn(s.runes) }));
   const pick = (r: RuneData) => (
     <button key={r.id} className="rune-pick" aria-pressed={page.picks.includes(r.id)} aria-label={r.name} onClick={() => change((p) => pickRune(DATA, p, r.id))} {...hover.bind(<RuneTip id={r.id} sim={sim} />)}>
       <Icon src={runeIcon(r.icon)} label={r.name} />
@@ -385,7 +379,7 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
     <Card title="Runes">
       <div className="rune-page">
         <div className="rune-tree" style={treeColor(page.primary)}>
-          <TreePicker label="Primary" value={page.primary} trees={TREES} onPick={(t) => change((p, m) => choosePrimary(DATA, p, t, m))} />
+          <TreePicker label="Primary" value={page.primary} trees={TREES} onPick={(t) => change((p) => choosePrimary(DATA, p, t))} />
           <div className="rune-row keystones" role="group" aria-label="Keystone">
             {treeRow(page.primary, 0).map(pick)}
           </div>
@@ -396,7 +390,7 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
           ))}
         </div>
         <div className="rune-tree" style={treeColor(page.secondary)}>
-          <TreePicker label="Secondary" value={page.secondary} trees={TREES.filter((t) => t.key !== page.primary)} onPick={(t) => change((p, m) => chooseSecondary(DATA, p, t, m))} />
+          <TreePicker label="Secondary" value={page.secondary} trees={TREES.filter((t) => t.key !== page.primary)} onPick={(t) => change((p) => chooseSecondary(DATA, p, t))} />
           <div className="rune-row keystones hint small muted">Two, from different rows</div>
           {[1, 2, 3].map((row) => (
             <div key={row} className="rune-row" role="group" aria-label={`${page.secondary} row ${row}`}>
