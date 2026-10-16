@@ -13,19 +13,15 @@ const kit: ChampionKit = {
   },
   abilities: {
     Q: {
+      // The seconds the tornado grows before Janna sends it (she acts meanwhile): the damage and
+      // knock-up grow by the second (dv.BonusDamage, dv.ChargeKnockup) for up to MaxDuration.
+      charge: { default: 0, max: 'dv.MaxDuration' },
       notes: [
-        'Default: sent immediately (minimum damage and knock-up). Q:charged = fully grown for dv.MaxDuration s (maximum damage and knock-up).',
+        'Default: sent immediately (minimum damage and knock-up). Set the seconds it grows first (Q{3s} for the maximum damage and knock-up).',
         'Travel time to the target assumed ≈0.5s.',
       ],
-      cc: [{ kind: 'immobilize', duration: 'dv.BaseKnockup' }],
-      components: [{ id: 'gale', label: 'Howling Gale', type: 'magic', amount: 'calc.MinimumDamage', aoe: true, delay: 0.5 }],
-      variants: {
-        charged: {
-          label: 'charged',
-          cc: [{ kind: 'immobilize', duration: 'calc.MaxKnockup' }],
-          components: [{ id: 'gale', label: 'Howling Gale (charged)', type: 'magic', amount: 'calc.MaxDamage', aoe: true, delay: 'dv.MaxDuration + 0.5' }],
-        },
-      },
+      cc: [{ kind: 'immobilize', duration: 'lerp(dv.BaseKnockup, calc.MaxKnockup, min(1, charge / dv.MaxDuration))' }],
+      components: [{ id: 'gale', label: 'Howling Gale', type: 'magic', amount: 'lerp(calc.MinimumDamage, calc.MaxDamage, min(1, charge / dv.MaxDuration))', aoe: true, delay: '0.5 + charge' }],
     },
     W: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],

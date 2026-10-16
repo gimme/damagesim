@@ -134,12 +134,12 @@ test('Smolder E: a flight time lands the bolts fired before it ends, and frees S
   const long = simulate(data, { champion: 'Smolder', level: 11, combo: 'E{5s} Q', target: dummy });
   assert.equal(bolts(long).length, all.length);
   assert.equal(at(long, 'Q'), at(full, 'Q'));
-  assert.ok(long.warnings.some((w) => /lasts at most 1.25s/.test(w)));
+  assert.ok(long.warnings.some((w) => /lasts 0.1s to 1.25s, so E\{5s\} lasts 1.25s/.test(w)));
   // At least until the first bolt is fired.
   const none = simulate(data, { champion: 'Smolder', level: 11, combo: 'E{0s} Q', target: dummy });
   assert.equal(bolts(none).length, 1);
   assert.ok(Math.abs(at(none, 'Q') - 0.1) < 1e-6);
-  assert.ok(none.warnings.some((w) => /lasts at least 0.1s/.test(w)));
+  assert.ok(none.warnings.some((w) => /so E\{0s\} lasts 0.1s/.test(w)));
   assert.ok(new Sim(data, { champion: 'Smolder', level: 11, combo: [] }).castSetting({ slot: 'E' })!.value === 1.25);
 });
 
@@ -179,6 +179,15 @@ test('A charge held for a step\'s seconds: damage, crowd control and cast time f
   assert.ok(Math.abs(simulate(data, { champion: 'KSante', level: 11, combo: 'W{0s}', target: dummy }).timeline[0].end - 0.4) < 1e-6);
   // Viego W defaults to a quick release.
   assert.equal(simulate(data, { champion: 'Viego', level: 11, combo: 'W', target: dummy }).timeline[0].end, 0);
+  // Janna's tornado grows while she acts: it hits later, harder, and she isn't held up.
+  const janna = (combo: string) => simulate(data, { champion: 'Janna', level: 11, combo, target: dummy });
+  const gale = (r: ReturnType<typeof simulate>) => r.events.find((e) => e.source === 'Q')!;
+  const j = new Sim(data, { champion: 'Janna', level: 11, combo: [] });
+  const [jmin, jmax] = [j.evalExpr('calc.MinimumDamage', { slot: 'Q' }), j.evalExpr('calc.MaxDamage', { slot: 'Q' })];
+  assert.ok(Math.abs(gale(janna('Q')).raw - jmin) < 1e-6 && gale(janna('Q')).time === 0.5);
+  assert.ok(Math.abs(gale(janna('Q{1.5s}')).raw - (jmin + jmax) / 2) < 1e-6);
+  assert.ok(Math.abs(gale(janna('Q{3s}')).raw - jmax) < 1e-6 && gale(janna('Q{3s}')).time === 3.5);
+  assert.equal(janna('Q{3s} W').timeline[1].start, janna('Q W').timeline[1].start);
 });
 
 test('A channel ended early lands the hits fired by then, not the one at its end', () => {

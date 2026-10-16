@@ -130,19 +130,21 @@ Katarina R; a toggle: Karthus E), mark it `variableDuration: true`. A combo step
 seconds after its cast time (`E{0.5s}`, the web UI's field on the step): its repeating hits land
 within them and its lockout ends with them. It lasts its lockout by default, else as long as its
 hits take; give hits that can go on longer a `maxHits`, and a channel that can a `maxDuration`
-(Aurelion Sol Q). It lasts at least until its first hit is fired, or `minDuration` when it can only be
-ended later (a recast after 0.5s: Urgot W). Hits fired before it ends still land: give a missile's flight as `travel` (part of
-its delay, Xerath R), and a hit at the end of a full channel (Fiddlesticks W's last tick) doesn't. Don't
-mark what the player can't end (burns, fixed zones).
+(Aurelion Sol Q). It lasts at least until its first hit is fired, or `minDuration` when it can only
+be ended later (a recast after 0.5s: Urgot W). Hits fired before it ends still land: give a
+missile's flight as `travel` (part of its delay, Xerath R), and a hit at the end of a full channel
+(Fiddlesticks W's last tick) doesn't. Don't mark what the player can't end (burns, fixed zones).
 
 When the player chooses how many hits it fires rather than for how long (Xerath R's shots), mark it
-`variableCount: 'shots'` instead: a step sets the count (`R{3}`, at least 1) of its first repeating component,
-the others land for as long as those take, and its lockout ends when the last is fired.
+`variableCount: 'shots'` instead: a step sets the count (`R{3}`, at least 1) of its first repeating
+component, the others land for as long as those take, and its lockout ends when the last is fired.
 
-An ability held to charge (Sion Q, Varus Q) takes `charge: { default, max }`: the step's seconds are the
-hold (usually the full charge by default, from `min`, the earliest release, to `max`), which `castTime`, amounts and `cc` read as `charge`, e.g.
-`amount: 'lerp(calc.MinDamage, calc.MaxDamage, min(1, charge / 1.25))'`. Use it in place of
-quick/tap variants.
+An ability held to charge (Sion Q, Varus Q) takes `charge: { default, min, max }`: the step's seconds
+are the hold (usually the full charge by default; `min` is the earliest release, `max` the longest
+hold), which `castTime`, amounts and `cc` read as `charge`, e.g. `castTime: 'charge'` and
+`amount: 'lerp(calc.MinDamage, calc.MaxDamage, min(1, charge / 1.25))'`. When the champion acts while
+it grows (Gragas Q, Janna Q), leave the cast time and delay the hit instead (`delay: '0.5 + charge'`).
+Use it in place of quick/tap variants.
 
 ## Abilities
 

@@ -9,7 +9,7 @@ import { describeChampion } from '../../engine/describe.ts';
 import { bonusSkillPoints } from '../../engine/runes.ts';
 import { choosePrimary, chooseSecondary, pickRune, type RunePage } from '../../engine/rune-page.ts';
 import type { RuneData, RuneTreeData } from '../../engine/data-types.ts';
-import { critMarking, fitCombo, formatCombo, markCrit, parseCombo, type ComboStep, type CritMode } from '../../engine/combo.ts';
+import { critMarking, fitCombo, formatCombo, markCrit, parseCombo, type AbilityStep, type ComboStep, type CritMode } from '../../engine/combo.ts';
 import { conflicts } from '../../engine/analysis.ts';
 import { findItem } from '../../engine/gamedata.ts';
 import { getKit } from '../../kits/index.ts';
@@ -762,8 +762,6 @@ const moveStep = <T,>(steps: T[], from: number, to: number) => {
   next.splice(to, 0, steps[from]);
   return next;
 };
-
-type AbilityStep = Extract<ComboStep, { type: 'ability' }>;
 
 /**
  * A number a step sets (seconds a cast lasts or charges, the shots it fires, seconds to wait), typed
