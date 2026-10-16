@@ -479,28 +479,35 @@ export function useHistory<T>(value: T, set: (v: T) => void, same: (a: T, b: T) 
 
 export type Place = { x: number; y: number; w: number; h: number };
 
-/** A child being pressed, then dragged once the pointer moves: where the pointer went down (x, y) and
- *  is (px, py), its offset in the child (ox, oy), the child's size, its transform, and the index it
- *  would drop at (null until it moves). */
-type Grab = { from: number; x: number; y: number; px: number; py: number; ox: number; oy: number; w: number; h: number; tx: number; ty: number; to: number | null };
+/** A press on a child (or on a key that brings a new one in, with `bring`), then a drag once the
+ *  pointer moves: what was pressed, where the pointer went down (x, y) and is (px, py), where it holds
+ *  the child (fx, fy, fractions of its size), the child's transform, the index it would drop at (null
+ *  until it moves), and whether a brought child is away from the box, where it lands nowhere. */
+type Grab = { el: HTMLElement; from: number; x: number; y: number; px: number; py: number; fx: number; fy: number; tx: number; ty: number; to: number | null; bring?: (on: boolean) => void; away?: boolean };
 
 /**
  * The first `count` children of a box, dragged to new places with a mouse or a finger: a pointer that
- * moves a few pixels from where it went down on one (not on its buttons) picks it up. It follows the
- * pointer by its transform, set on each move without rendering; with `makeWay`, the others slide to
- * where they'd be if it landed there. On release it glides into its place, and the others it moved
- * glide into theirs. While dragging, the children are laid out by flex or grid `order` rather than
- * moved in the DOM, so the dragged one keeps the pointer captured: a finger's drag doesn't scroll the
- * page (with touch-action: none) and it follows the pointer outside the box. Escape, a cancelled
- * touch or a lost pointer capture puts it back. Arrow keys move a focused child, and focus follows it.
+ * moves a few pixels from where it went down on one (anywhere but in a field or a list) picks it up,
+ * and only then captures the pointer, so a press that doesn't move is a click on what's under it (a
+ * button in the child). It follows the pointer by its transform, set on each move without rendering; with
+ * `makeWay`, the others slide to where they'd be if it landed there. On release it glides into its
+ * place, and the others it moved glide into theirs. While dragging, the children are laid out by flex
+ * or grid `order` rather than moved in the DOM, so the dragged one keeps the pointer captured: a
+ * finger's drag doesn't scroll the page (with touch-action: none) and it follows the pointer outside
+ * the box. Escape, a cancelled touch or a lost pointer capture puts it back. Arrow keys move a focused
+ * child, and focus follows it.
+ *
+ * A key outside the box (`source`) drags a new child in the same way: picked up, it's rendered last in
+ * the box, out of the flow while the pointer is away from the box; over it, it lands among the others.
  *
  * - `arrange(from, to)`: the children's indices in their new order, with `from` moved to `to`.
  * - `landAt(x, y, cells, at, from)`: where the dragged child lands with its middle at (x, y) in the
  *   box, from the places of the children in their order as laid out; it is at `at` among them.
- * - `move(from, to)`: makes the move.
+ * - `move(from, to)`: makes the move; for a child brought in, `from` is its index as the last one.
  * - `movable(i)`: whether child i is dragged and glides; one that isn't (an empty slot) just moves.
  * - `onPick(i)`: when child i is picked up.
- * - `drag`, returned: the child being dragged and where it would land.
+ * - `drag`, returned: the child being dragged, where it would land, and whether it's brought in and
+ *   away from the box.
  */
 export function useDragOrder({
   count,
@@ -522,7 +529,7 @@ export function useDragOrder({
   const box = useRef<HTMLDivElement>(null);
   const child = (k: number) => box.current?.children[k] as HTMLElement | undefined;
   const grab = useRef<Grab | null>(null);
-  const [drag, setDrag] = useState<{ from: number; to: number } | null>(null);
+  const [drag, setDrag] = useState<{ from: number; to: number; away?: boolean } | null>(null);
   /** Whether the last press picked its child up: its click isn't one. */
   const moved = useRef(false);
   /** The child to focus after the next render. */
@@ -547,30 +554,49 @@ export function useDragOrder({
     const [el, home] = [g && child(g.from), g && homes.current[g.from]];
     if (!g || g.to == null || !el || !home) return;
     const b = box.current!.getBoundingClientRect();
-    const [x, y] = [g.px - g.ox - b.left, g.py - g.oy - b.top];
+    const [x, y] = [g.px - g.fx * home.w - b.left, g.py - g.fy * home.h - b.top];
     [g.tx, g.ty] = [x - home.x, y - home.y];
     el.style.transform = `translate(${g.tx}px, ${g.ty}px)`;
-    const to = landAt(x + g.w / 2, y + g.h / 2, laidOut(g.from, g.to).map((j) => homes.current[j]), makeWay ? g.to : g.from, g.from);
-    if (to !== g.to) reorder(to);
+    const away = !!g.bring && !(g.px >= b.left && g.px < b.right && g.py >= b.top && g.py < b.bottom);
+    const to = away ? g.from : landAt(x + home.w / 2, y + home.h / 2, laidOut(g.from, g.to).map((j) => homes.current[j]), makeWay ? g.to : g.from, g.from);
+    if (to !== g.to || away !== !!g.away) reorder(to, away);
   };
-  const reorder = (to: number) => {
+  const reorder = (to: number, away = false) => {
     const g = grab.current!;
-    g.to = to;
+    [g.to, g.away] = [to, away];
     glide.current = { from: onScreen(indices(), g.from) };
-    setDrag({ from: g.from, to });
+    setDrag({ from: g.from, to, away });
   };
-  /** Ends a drag: the child glides from where it was let go to its new place, or back on a cancel. */
+  /** Picks up what was pressed, which captures the pointer: a child, or the new one a key brings in. */
+  const pickUp = (e: PointerEvent<HTMLElement>) => {
+    const g = grab.current!;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    moved.current = true;
+    if (g.bring) {
+      g.from = count;
+      g.bring(true);
+      return reorder(count, true);
+    }
+    // Picked up mid-glide: from where it is on screen.
+    e.currentTarget.getAnimations().forEach((a) => a.cancel());
+    onPick?.(g.from);
+    reorder(g.from);
+  };
+  /** Ends a drag: the child glides from where it was let go to its new place, or back on a cancel. A
+   *  child brought in goes away instead, unless it's let go over the box. */
   const drop = (keep: boolean) => {
     const g = grab.current;
     grab.current = null;
-    const el = g && child(g.from);
-    if (g?.to == null || !el) return;
+    if (g?.to == null) return;
+    setDrag(null);
+    const el = child(g.from);
+    if (g.bring && (!keep || g.away || !el)) return g.bring(false);
+    if (!el) return;
     const to = keep ? g.to : g.from;
     glide.current = { from: onScreen(arrange(g.from, to)), settle: { at: to, lift: lift(el) } };
     el.style.transform = '';
-    setDrag(null);
-    if (to === g.from) return;
-    if (document.activeElement === el) refocus.current = to;
+    if (to === g.from && !g.bring) return;
+    if (el.contains(document.activeElement)) refocus.current = to;
     move(g.from, to);
   };
   /** Moves child `from` to `to` at once (the keyboard's way), focus following it. */
@@ -607,32 +633,33 @@ export function useDragOrder({
     refocus.current = null;
   });
 
-  const placed = drag && makeWay ? arrange(drag.from, drag.to) : null;
-  /** Props for child i. */
-  const item = (i: number) => ({
-    style: placed ? { order: placed.indexOf(i) } : undefined,
+  /** A press's handlers, on child `from` or on a key that brings a new child in. */
+  const press = (from: number, bring?: (on: boolean) => void) => ({
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
       moved.current = false;
-      if (!movable(i) || e.button !== 0 || (e.target as Element).closest('button, select, input')) return;
+      if (e.button !== 0 || !box.current || (!bring && !movable(from)) || (e.target as Element).closest('input, select, textarea, [role=listbox]')) return;
       const r = e.currentTarget.getBoundingClientRect();
-      grab.current = { from: i, x: e.clientX, y: e.clientY, px: e.clientX, py: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, w: r.width, h: r.height, tx: 0, ty: 0, to: null };
-      e.currentTarget.setPointerCapture(e.pointerId);
+      const [x, y] = [e.clientX, e.clientY];
+      grab.current = { el: e.currentTarget, from, x, y, px: x, py: y, fx: (x - r.left) / r.width, fy: (y - r.top) / r.height, tx: 0, ty: 0, to: null, bring };
     },
     onPointerMove: (e: PointerEvent<HTMLElement>) => {
       const g = grab.current;
-      if (!g || g.from !== i) return;
+      if (g?.el !== e.currentTarget) return;
       [g.px, g.py] = [e.clientX, e.clientY];
       if (g.to != null) return track();
-      if ((g.px - g.x) ** 2 + (g.py - g.y) ** 2 < 16) return;
-      // Picked up mid-glide: from where it is on screen.
-      e.currentTarget.getAnimations().forEach((a) => a.cancel());
-      moved.current = true;
-      onPick?.(i);
-      reorder(i);
+      if ((g.px - g.x) ** 2 + (g.py - g.y) ** 2 >= 16) pickUp(e);
     },
-    onPointerUp: () => drop(true),
-    onPointerCancel: () => drop(false),
-    onLostPointerCapture: () => drop(false),
+    // Off what it pressed before it moved far: picked up all the same (a fast flick), or let go unseen.
+    onPointerLeave: (e: PointerEvent<HTMLElement>) => {
+      const g = grab.current;
+      if (g?.el !== e.currentTarget || g.to != null) return;
+      if (e.buttons & 1) pickUp(e);
+      else grab.current = null;
+    },
+    onPointerUp: (e: PointerEvent<HTMLElement>) => grab.current?.el === e.currentTarget && drop(true),
+    onPointerCancel: (e: PointerEvent<HTMLElement>) => grab.current?.el === e.currentTarget && drop(false),
+    // Its own capture's (a touch's implicit capture by what it touched moves to it when picked up).
+    onLostPointerCapture: (e: PointerEvent<HTMLElement>) => e.target === e.currentTarget && grab.current?.el === e.currentTarget && drop(false),
     // An icon is an image, which the browser would drag itself (and cancel the pointer).
     onDragStart: (e: DragEvent<HTMLElement>) => e.preventDefault(),
     // A mouse's click after a drag isn't one (a keyboard's, detail 0, is).
@@ -642,20 +669,32 @@ export function useDragOrder({
       e.preventDefault();
       e.stopPropagation();
     },
+  });
+  const cancel = (e: KeyboardEvent<HTMLElement>) => e.key === 'Escape' && grab.current?.to != null && (drop(false), true);
+  const placed = drag && makeWay ? arrange(drag.from, drag.to) : null;
+  /** Props for child i. */
+  const item = (i: number) => ({
+    style: placed ? { order: placed.indexOf(i) } : undefined,
+    ...press(i),
     onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
-      if (e.key === 'Escape' && grab.current?.to != null) return drop(false);
-      if (!movable(i) || e.target !== e.currentTarget) return;
+      if (cancel(e) || !movable(i) || e.target !== e.currentTarget) return;
       const to = e.key === 'ArrowLeft' ? i - 1 : e.key === 'ArrowRight' ? i + 1 : null;
       if (to == null || to < 0 || to >= count) return;
       e.preventDefault();
       shift(i, to);
     },
   });
+  /**
+   * Props for a key outside the box whose drag brings a new child into it: when it's picked up,
+   * `bring(true)` must render that child last in the box (`count` counting it); let go over the box,
+   * it's placed by `move`, and otherwise (or cancelled) `bring(false)` takes it out.
+   */
+  const source = (bring: (on: boolean) => void) => ({ ...press(-1, bring), onKeyDown: cancel });
   /** Focuses child k after the next render. */
   const focusLater = (k: number) => {
     refocus.current = k;
   };
-  return { box, drag, item, focusLater };
+  return { box, drag, item, source, focusLater };
 }
 
 // Riot tooltip markup (from itemText: tags, <br>, no icons or {{keys}}) as React elements. Unknown
