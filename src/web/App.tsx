@@ -106,7 +106,7 @@ export function App() {
           <AttackerPanel state={state} set={setState} sim={sim} />
           <ItemsPanel state={state} set={setState} gold={result?.gold ?? 0} sim={sim} />
           <RunesPanel state={state} set={setState} sim={sim} />
-          <TargetPanel state={state} set={setState} resolved={result?.target} label={result ? `${result.target.label} · effective armor ${result.target.effectiveArmor.toFixed(0)}, MR ${result.target.effectiveMr.toFixed(0)}` : ''} />
+          <TargetPanel state={state} set={setState} resolved={result?.target} />
           <SettingsPanel state={state} set={setState} />
         </div>
         <div style={{ minWidth: 0 }}>

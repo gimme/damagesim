@@ -456,7 +456,8 @@ export function RuneTip({ id, sim }: { id: number; sim?: Sim | null }) {
 }
 
 /** An item's hover card: cost, stats and passive/active text; numbers for the attacker when `sim` is given. */
-export function ItemTip({ id, sim }: { id: number; sim?: Sim | null }) {
+/** An item's tooltip; `foot` replaces the note that its effects aren't simulated. */
+export function ItemTip({ id, sim, foot }: { id: number; sim?: Sim | null; foot?: ReactNode }) {
   const item = DATA.items[id];
   if (!item) return null;
   const text = itemText(item, sim);
@@ -481,7 +482,7 @@ export function ItemTip({ id, sim }: { id: number; sim?: Sim | null }) {
           <Markup text={text.body} />
         </div>
       )}
-      {effectsNotSimulated(item) && <div className="it-foot muted">Effects not simulated</div>}
+      {foot ? <div className="it-foot muted">{foot}</div> : effectsNotSimulated(item) && <div className="it-foot muted">Effects not simulated</div>}
     </div>
   );
 }

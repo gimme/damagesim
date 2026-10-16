@@ -79,12 +79,17 @@ counts), `Q+bonus` (enable an optional hit), `ignite`, `item:rocketbelt`, `wait:
 
 Targets:
 * `{ "preset": "squishy" | "bruiser" | "tank", "levelDiff": 0 }`: the average base stats of the
-  class (marksman/mage/assassin, fighter, tank) at the target's level, plus the defensive stats of a
-  typical build for that level and health shards. The item count follows the level: boots around 7,
-  first item around 9, six items at 18. Builds are listed in `src/engine/presets.ts`.
+  class (marksman/mage/assassin, fighter, tank) at the target's level, plus the stats of a typical
+  build for that level and health shards. The item count follows the level: boots around 7, first
+  item around 9, six items at 18. Builds are listed in `src/engine/presets.ts`; `items` replaces
+  the typical build.
 * `{ "champion": "Jinx", "levelDiff": -1, "items": ["Infinity Edge"] }`: a real champion.
-* `{ "maxHp": 2000, "armor": 80, "mr": 50 }`: raw numbers. These also override a preset's or
-  champion's numbers.
+* `{ "maxHp": 2000, "armor": 80, "mr": 50 }`: raw numbers, all base stats unless you give
+  `bonusHp`/`bonusArmor`/`bonusMr` (the bonus part of each total). On a preset or champion, a total
+  keeps its base and puts the rest in bonus, and a bonus is added to its base.
+
+Only the stats of a target's items count: it never fights back, so their passives and actives
+(Guardian Angel's revive, Banshee's Veil's spell shield) don't apply.
 
 `levelDiff` is the target's level minus yours; `level` sets an absolute level instead.
 

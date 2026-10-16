@@ -1,9 +1,9 @@
 // Target archetypes ("squishy", "bruiser", "tank") whose stats follow the target's level.
 //
 // A preset = the average base stats of its champion class (game data, Riot's primary class tag)
-// at the target level + the defensive stats of a typical build for that level (real items from the
-// game data, bought in order) + health rune shards. Offensive items don't change what the target
-// can take, so the squishy build lists only its defensive items.
+// at the target level + the items of a typical build for that level (real items from the game
+// data, bought in order, or the items the scenario gives instead) + health rune shards. Only the
+// items' stats count: the target never fights back, so their passives and actives don't apply.
 
 import type { ChampionBaseStats, ItemData } from './data-types.ts';
 import { findItem, type GameData } from './gamedata.ts';
@@ -15,7 +15,7 @@ export interface PresetDef {
   label: string;
   /** Primary class tags whose base stats are averaged. */
   classes: string[];
-  /** Items in purchase order; null = an item without defensive stats. */
+  /** Six items in purchase order; null = an item without health or resists (damage items, boots without resists). */
   build: (string | null)[];
   /** Health shards: flat (+65) and/or scaling (+10–180 by level). */
   shards: { flat: boolean; scaling: boolean };
@@ -28,7 +28,7 @@ export const TARGET_PRESETS: Record<TargetPreset, PresetDef> = {
     classes: ['Marksman', 'Mage', 'Assassin'],
     build: [null, null, null, null, 'Guardian Angel', "Banshee's Veil"],
     shards: { flat: false, scaling: true },
-    description: "Average marksman/mage/assassin: boots and damage items, then Guardian Angel (5th item) and Banshee's Veil (6th).",
+    description: 'Average marksman, mage and assassin with a damage build.',
   },
   bruiser: {
     label: 'Bruiser',
@@ -52,12 +52,26 @@ export const TARGET_PRESETS: Record<TargetPreset, PresetDef> = {
  */
 const ITEMS_BY_LEVEL = [0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 3, 4, 4, 5, 5, 6, 6, 6];
 
+/** How {@link itemsAtLevel} picks the item count, for people reading it. */
+export const ITEMS_BY_LEVEL_RULE = 'boots around level 7, the first item around 9, then one every ~2 levels (6 items at 18)';
+
 export function itemsAtLevel(level: number): number {
   return ITEMS_BY_LEVEL[Math.max(1, Math.min(GAME.maxLevel, Math.round(level)))];
 }
 
+/** The level at which the typical build reaches `count` items (undefined beyond 6). */
+export function levelForItems(count: number): number | undefined {
+  const level = ITEMS_BY_LEVEL.findIndex((n, l) => l >= 1 && n >= count);
+  return level > 0 ? level : undefined;
+}
+
 export function isTargetPreset(s: unknown): s is TargetPreset {
   return typeof s === 'string' && s in TARGET_PRESETS;
+}
+
+/** The preset's typical items at a level, in purchase order; null = an item without health or resists. */
+export function typicalBuild(data: GameData, preset: TargetPreset, level: number): (ItemData | null)[] {
+  return TARGET_PRESETS[preset].build.slice(0, itemsAtLevel(level)).map((x) => (x === null ? null : findItem(data, x)));
 }
 
 const classCache = new WeakMap<GameData, Map<string, ChampionBaseStats>>();
@@ -80,38 +94,40 @@ export function classAverageStats(data: GameData, classes: string[]): ChampionBa
   return avg;
 }
 
+/** Health from the preset's rune shards at a level. */
+export function presetShardHp(data: GameData, preset: TargetPreset, level: number): number {
+  const def = TARGET_PRESETS[preset];
+  const scaling = data.runes.find((r) => r.id === 5001);
+  const flat = data.runes.find((r) => r.id === 5011);
+  let hp = 0;
+  if (def.shards.scaling && scaling) hp += scaling.values.StatGainMin + ((scaling.values.StatGainMax - scaling.values.StatGainMin) * (level - 1)) / 17;
+  if (def.shards.flat && flat) hp += flat.values.StatGain;
+  return hp;
+}
+
 export interface ResolvedPreset {
   preset: TargetPreset;
   level: number;
   base: ChampionBaseStats;
-  /** Defensive items owned at this level. */
+  /** Items whose stats count: the given ones, else the typical build's items with health or resists. */
   items: ItemData[];
-  /** Number of finished items assumed (including non-defensive ones). */
-  itemCount: number;
   /** Bonus health from rune shards. */
   shardHp: number;
   label: string;
 }
 
-export function resolvePreset(data: GameData, preset: TargetPreset, level: number): ResolvedPreset {
+/** A preset at a level, with `items` in place of its typical build when given. */
+export function resolvePreset(data: GameData, preset: TargetPreset, level: number, items?: ItemData[]): ResolvedPreset {
   const def = TARGET_PRESETS[preset];
-  const itemCount = itemsAtLevel(level);
-  const items = def.build
-    .slice(0, itemCount)
-    .filter((x): x is string => x !== null)
-    .map((x) => findItem(data, x));
-  const scaling = data.runes.find((r) => r.id === 5001);
-  const flat = data.runes.find((r) => r.id === 5011);
-  let shardHp = 0;
-  if (def.shards.scaling && scaling) shardHp += scaling.values.StatGainMin + ((scaling.values.StatGainMax - scaling.values.StatGainMin) * (level - 1)) / 17;
-  if (def.shards.flat && flat) shardHp += flat.values.StatGain;
+  const typical = items ? undefined : typicalBuild(data, preset, level);
+  const owned = items ?? typical!.filter((x): x is ItemData => x !== null);
+  const count = typical ? `, ${typical.length} item${typical.length === 1 ? '' : 's'}` : '';
   return {
     preset,
     level,
     base: classAverageStats(data, def.classes),
-    items,
-    itemCount,
-    shardHp,
-    label: `${def.label} lvl ${level}${itemCount ? `, ${itemCount} item${itemCount > 1 ? 's' : ''}${items.length ? ` (${items.map((i) => i.name).join(', ')})` : ''}` : ''}`,
+    items: owned,
+    shardHp: presetShardHp(data, preset, level),
+    label: `${def.label} lvl ${level}${count}${owned.length ? ` (${owned.map((i) => i.name).join(', ')})` : ''}`,
   };
 }

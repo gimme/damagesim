@@ -13,10 +13,13 @@ export const SCENARIO_HELP = `Scenario JSON (all fields except champion and comb
   "target": {                         // either a preset…
     "preset": "tank", "levelDiff": 0, "hpPercent": 100
     // squishy | bruiser | tank: class-average base stats + a typical build for the target's level
-    // (boots ~lvl 7, first item ~9, 6 items at 18) + health shards. levelDiff: target level minus yours.
+    // (boots ~lvl 7, first item ~9, 6 items at 18; "items" replaces it) + health shards.
+    // levelDiff: target level minus yours. Only the items' stats count, not their passives.
     // …or a champion: "champion": "Jinx", "levelDiff": -1, "items": ["Infinity Edge"]  ("level" = absolute)
     // …or raw stats: "maxHp": 2000, "armor": 80, "bonusArmor": 30, "mr": 50, "bonusMr": 10, "bonusHp": 600,
-    //   "damageReduction": 0. Raw fields also override a preset's or champion's numbers.
+    //   "damageReduction": 0. Totals (maxHp, armor, mr) include the bonus parts; raw numbers are all base
+    //   unless a bonus is given. On a preset or champion, a total keeps its base and puts the rest in
+    //   bonus, and a bonus is added to its base.
   },
   "settings": {
     "finishDots": true,               // keep simulating burns/bleeds after the last step (else they stop 3s after it)

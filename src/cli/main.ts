@@ -35,7 +35,7 @@ Scenario options (simulate / compare / rank-items / optimize / combo-order / swe
   --combo "<steps>"             combo shorthand: Q W E R P, AA, AA*3, AA!/Q! (crit), AA?/Q? (no crit), Q:variant, ignite, item:<name>, wait:1.5
   --target hp=2000,armor=80,mr=50[,bonusHp=..,bonusArmor=..,bonusMr=..,hpPercent=50,dr=0.1]
   --target squishy|bruiser|tank[,hpPercent=..]   archetype whose stats follow its level (typical build)
-  --target-champion <name> --target-items <a,b>
+  --target-champion <name>      --target-items <a,b>  the champion's items, or a preset's in place of its typical build
   --target-level-diff <n>       target level relative to yours (default 0)   --target-level <n> absolute
   --scenario <file.json|->      load a full scenario (JSON) instead; flags above override it
   --events                      print every damage instance
@@ -108,12 +108,10 @@ function buildScenario(): Scenario {
   if (o.runes !== undefined) sc.runes = list(o.runes);
   if (o.options) sc.options = { ...sc.options, ...kv(o.options) };
   if (o.combo) sc.combo = o.combo;
-  if (o.target || o['target-champion'] || o['target-level'] || o['target-level-diff']) {
+  if (o.target || o['target-champion'] || o['target-items'] || o['target-level'] || o['target-level-diff']) {
     const t: TargetSpec = { ...(sc.target ?? {}) };
-    if (o['target-champion']) {
-      t.champion = o['target-champion'];
-      if (o['target-items']) t.items = list(o['target-items']);
-    }
+    if (o['target-champion']) t.champion = o['target-champion'];
+    if (o['target-items'] !== undefined) t.items = list(o['target-items']);
     const preset = (o.target ?? '').split(',').map((x) => x.trim().toLowerCase()).find((x) => x && !x.includes('='));
     if (preset) {
       if (!isTargetPreset(preset)) throw new Error(`unknown target preset "${preset}" (squishy, bruiser, tank)`);
@@ -149,7 +147,9 @@ function printResult(r: SimResult, events: boolean) {
   if (r.runes.length) console.log(`Runes: ${r.runes.map((x) => x.name).join(', ')}`);
   console.log(`Stats: AD ${num(st.ad)} (bonus ${num(st.bonusAd)})  AP ${num(st.ap)}  AS ${st.attackSpeed.toFixed(3)}  crit ${num(st.critChance * 100)}%/${num(st.critDamage * 100)}%  HP ${num(st.maxHp)}  lethality ${num(st.lethality)}  armor pen ${num(st.armorPenPercent * 100)}%  magic pen ${num(st.magicPenFlat)} + ${num(st.magicPenPercent * 100)}%  AH ${num(st.abilityHaste)}`);
   const t = r.target;
-  console.log(`Target: ${t.label}  HP ${num(t.startHp)}/${num(t.maxHp)}  armor ${num(t.armor)} → ${num(t.effectiveArmor, 1)} effective (×${t.physicalMultiplier.toFixed(3)})  MR ${num(t.mr)} → ${num(t.effectiveMr, 1)} (×${t.magicMultiplier.toFixed(3)})`);
+  console.log(
+    `Target: ${t.label}  HP ${num(t.startHp)}/${num(t.maxHp)} (bonus ${num(t.bonusHp)})  armor ${num(t.armor)} (bonus ${num(t.bonusArmor)}) → ${num(t.effectiveArmor, 1)} after your penetration (×${t.physicalMultiplier.toFixed(3)})  MR ${num(t.mr)} (bonus ${num(t.bonusMr)}) → ${num(t.effectiveMr, 1)} (×${t.magicMultiplier.toFixed(3)})`,
+  );
   console.log(`Combo: ${r.combo}`);
   console.log('');
   if (events) {

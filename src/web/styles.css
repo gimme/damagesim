@@ -1338,6 +1338,123 @@ table.data th.r {
   color: var(--text-muted);
   margin-right: 4px;
 }
+/* A segmented control that fills its row, its buttons sharing the width. */
+.segmented.fill {
+  display: flex;
+}
+.segmented.fill button {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-inline: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Phones: small enough that five labels fit down to a 320px screen. */
+@media (max-width: 420px) {
+  .segmented.fill button {
+    font-size: 13px;
+  }
+}
+@media (max-width: 340px) {
+  .segmented.fill button {
+    padding-inline: 2px;
+    font-size: 12px;
+  }
+}
+
+/* Target: a labelled row (level, items), the item slots and the base + bonus = total table. */
+.target-field {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+}
+.target-field > span:first-child {
+  align-self: center;
+}
+.target-field:has(.stack) > span:first-child {
+  align-self: start;
+  padding-top: 5px;
+}
+.btn.target-item {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 2px;
+}
+.btn.target-item.later {
+  border-style: dashed;
+  background: transparent;
+}
+.btn.target-item.later > * {
+  opacity: 0.4;
+}
+.btn.target-item.later:hover:not(:disabled) > * {
+  opacity: 0.8;
+}
+.btn.target-item:disabled {
+  cursor: default;
+}
+.plain-slot {
+  border: 1px dashed var(--border-strong);
+  background: transparent;
+  color: var(--text-muted);
+}
+.btn.inline {
+  padding: 0;
+  border: 0;
+  color: var(--accent-text);
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.btn.inline:hover {
+  background: transparent;
+  text-decoration-thickness: 2px;
+}
+table.target-stats {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+table.target-stats th,
+table.target-stats td {
+  padding: 3px 0 3px 8px;
+  text-align: right;
+  white-space: nowrap;
+}
+table.target-stats th:first-child {
+  padding-left: 0;
+  text-align: left;
+}
+table.target-stats thead th {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--grid);
+}
+table.target-stats thead th[title] {
+  cursor: help;
+}
+table.target-stats tbody th {
+  font-weight: 500;
+}
+table.target-stats td:not(:last-child) {
+  color: var(--text-secondary);
+}
+table.target-stats.editable td {
+  width: 27%;
+}
+table.target-stats input[type='number'] {
+  width: 100%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+table.target-stats.editable td:last-child input {
+  font-weight: 650;
+}
+
 /* A summary is a toggle: like a button's, its text isn't selectable (a long press on a phone
    selected it, and the selection then misbehaved). */
 details summary {

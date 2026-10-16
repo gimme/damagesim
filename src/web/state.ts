@@ -1,8 +1,8 @@
 // UI state ⇄ engine Scenario, plus URL-hash persistence (shareable links) and the last state in
 // localStorage (reloads where the page can't write its URL, e.g. the artifact frame).
 
-import type { Scenario, SimSettings } from '../engine/sim.ts';
-import { isTargetPreset, type TargetPreset } from '../engine/presets.ts';
+import type { Scenario, SimSettings, TargetSpec } from '../engine/sim.ts';
+import type { TargetPreset } from '../engine/presets.ts';
 
 export const SHARD_ROWS: { label: string; options: number[] }[] = [
   { label: 'Offense', options: [5008, 5005, 5007] },
@@ -10,22 +10,35 @@ export const SHARD_ROWS: { label: string; options: number[] }[] = [
   { label: 'Defense', options: [5011, 5013, 5001] },
 ];
 
-export interface TargetState {
-  mode: 'stats' | 'champion';
-  /** Stats mode: an archetype whose stats follow its level, or null for the custom numbers below. */
-  preset: TargetPreset | null;
-  /** Target level minus your level (presets and champion targets). */
-  levelDiff: number;
-  maxHp: number;
+/** Health, armor and magic resist. */
+export interface TargetStats {
+  hp: number;
   armor: number;
   mr: number;
-  bonusHp: number;
-  bonusArmor: number;
-  bonusMr: number;
+}
+
+/** Who you hit: a preset whose stats follow its level, a champion with items, or custom numbers. */
+export type TargetMode = TargetPreset | 'champion' | 'custom';
+
+export const TARGET_MODES: TargetMode[] = ['squishy', 'bruiser', 'tank', 'champion', 'custom'];
+
+export interface TargetState {
+  mode: TargetMode;
+  /** Target level minus your level (presets and champions). */
+  levelDiff: number;
+  /**
+   * A preset's items in place of its typical build for the target's level, per preset (absent =
+   * the typical build). null = an item without health or resists, kept so the slots read as a build.
+   */
+  builds: Partial<Record<TargetPreset, (number | null)[]>>;
+  champion: string;
+  /** The champion's items. */
+  items: number[];
+  /** Custom numbers: total = base + bonus. */
+  base: TargetStats;
+  bonus: TargetStats;
   hpPercent: number;
   damageReduction: number;
-  champion: string;
-  items: number[];
 }
 
 export interface UIState {
@@ -56,25 +69,20 @@ export const DEFAULT_STATE: UIState = {
   options: {},
   combo: 'E Q W R AA R',
   target: {
-    mode: 'stats',
-    preset: 'squishy',
+    mode: 'squishy',
     levelDiff: 0,
-    maxHp: 1700,
-    armor: 62,
-    mr: 42,
-    bonusHp: 150,
-    bonusArmor: 0,
-    bonusMr: 0,
-    hpPercent: 100,
-    damageReduction: 0,
+    builds: {},
     champion: 'Jinx',
     items: [3031],
+    base: { hp: 1600, armor: 60, mr: 40 },
+    bonus: { hp: 400, armor: 20, mr: 10 },
+    hpPercent: 100,
+    damageReduction: 0,
   },
   settings: { finishDots: true },
 };
 
 export function toScenario(s: UIState): Scenario {
-  const t = s.target;
   return {
     champion: s.champion,
     level: s.level,
@@ -84,23 +92,26 @@ export function toScenario(s: UIState): Scenario {
     runes: [...(s.keystone ? [s.keystone] : []), ...s.minors, ...s.shards],
     options: s.options,
     combo: s.combo,
-    target:
-      t.mode === 'champion'
-        ? { champion: t.champion, levelDiff: t.levelDiff, items: t.items, hpPercent: t.hpPercent, damageReduction: t.damageReduction }
-        : t.preset
-          ? { preset: t.preset, levelDiff: t.levelDiff, hpPercent: t.hpPercent, damageReduction: t.damageReduction }
-          : {
-              maxHp: t.maxHp,
-              armor: t.armor,
-              mr: t.mr,
-              bonusHp: t.bonusHp,
-              bonusArmor: Math.min(t.bonusArmor, t.armor),
-              bonusMr: Math.min(t.bonusMr, t.mr),
-              hpPercent: t.hpPercent,
-              damageReduction: t.damageReduction,
-            },
+    target: toTargetSpec(s.target),
     settings: s.settings,
   };
+}
+
+export function toTargetSpec(t: TargetState): TargetSpec {
+  const hp = { hpPercent: t.hpPercent, damageReduction: t.damageReduction };
+  if (t.mode === 'champion') return { champion: t.champion, levelDiff: t.levelDiff, items: t.items, ...hp };
+  if (t.mode === 'custom')
+    return {
+      maxHp: t.base.hp + t.bonus.hp,
+      bonusHp: t.bonus.hp,
+      armor: t.base.armor + t.bonus.armor,
+      bonusArmor: t.bonus.armor,
+      mr: t.base.mr + t.bonus.mr,
+      bonusMr: t.bonus.mr,
+      ...hp,
+    };
+  const build = t.builds[t.mode];
+  return { preset: t.mode, levelDiff: t.levelDiff, ...(build ? { items: build.filter((x): x is number => x != null) } : {}), ...hp };
 }
 
 export function encodeState(s: UIState): string {
@@ -113,8 +124,7 @@ export function decodeState(hash: string): UIState | null {
     const b64 = hash.replace(/^#/, '').replace(/-/g, '+').replace(/_/g, '/');
     if (!b64) return null;
     const parsed = JSON.parse(decodeURIComponent(escape(atob(b64))));
-    const target: TargetState = { ...DEFAULT_STATE.target, ...parsed.target };
-    if (!isTargetPreset(target.preset)) target.preset = null;
+    const target: TargetState = TARGET_MODES.includes(parsed.target?.mode) ? { ...DEFAULT_STATE.target, ...parsed.target } : DEFAULT_STATE.target;
     return { ...DEFAULT_STATE, ...parsed, target, settings: { ...DEFAULT_STATE.settings, ...parsed.settings } };
   } catch {
     return null;

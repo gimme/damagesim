@@ -34,22 +34,24 @@ const target = z
     preset: z
       .enum(['squishy', 'bruiser', 'tank'])
       .optional()
-      .describe("Archetype whose stats follow the target level: class-average base stats + a typical build for that level + health shards. Explicit numbers override"),
+      .describe("Archetype whose stats follow the target level: class-average base stats + a typical build for that level (or `items`) + health shards. Explicit numbers override"),
     level: z.number().optional().describe('Absolute target level (default: your level + levelDiff)'),
     levelDiff: z.number().optional().describe('Target level relative to yours (default 0), e.g. -1 when you are a level ahead'),
-    items: z.array(idOrName).optional(),
-    maxHp: z.number().optional(),
-    hp: z.number().optional().describe('Current HP (absolute)'),
-    hpPercent: z.number().optional().describe('Current HP as a percentage of max (0-100)'),
-    bonusHp: z.number().optional(),
+    items: z.array(idOrName).optional().describe("The champion's items, or a preset's in place of its typical build. Only their stats count"),
+    maxHp: z.number().optional().describe('Total max health'),
+    bonusHp: z.number().optional().describe('Bonus part of max health (from items and runes)'),
     armor: z.number().optional().describe('Total armor'),
     bonusArmor: z.number().optional(),
     mr: z.number().optional().describe('Total magic resist'),
     bonusMr: z.number().optional(),
+    hp: z.number().optional().describe('Current HP (absolute)'),
+    hpPercent: z.number().optional().describe('Current HP as a percentage of max (0-100)'),
     damageReduction: z.number().optional().describe('Generic % damage reduction (fraction)'),
     label: z.string().optional(),
   })
-  .describe('The enemy champion being hit: a preset ({preset:"tank"}), a champion with items, or raw stats. Default: 2000 HP, 80 armor, 50 MR.');
+  .describe(
+    'The enemy champion being hit: a preset ({preset:"tank"}), a champion with items, or raw stats. A total (maxHp, armor, mr) keeps the champion\'s or preset\'s base and puts the rest in bonus; a bonus adds to that base; raw numbers are all base unless a bonus is given. Default: 2000 HP, 80 armor, 50 MR.',
+  );
 
 const scenarioShape = {
   champion: z.string().describe('Champion name or id, e.g. "Ahri", "Kai\'Sa", "wukong"'),

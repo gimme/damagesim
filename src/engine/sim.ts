@@ -21,27 +21,31 @@ export interface TargetSpec {
   champion?: string;
   /**
    * Archetype whose stats follow the target's level: class-average base stats + a typical build
-   * for that level + health shards (see presets.ts). Explicit numbers below override.
+   * for that level (or `items`) + health shards (see presets.ts). Explicit numbers below override.
    */
   preset?: TargetPreset;
   /** Absolute target level. Default: the attacker's level + levelDiff. */
   level?: number;
   /** Target level relative to the attacker's (used when `level` is not given). Default 0. */
   levelDiff?: number;
+  /** The champion's items, or a preset's in place of its typical build. Only their stats count. */
   items?: (number | string)[];
   label?: string;
+  /**
+   * Totals and bonus parts of health, armor and MR. A total keeps the champion's or preset's base
+   * (at most the total) and puts the rest in bonus; a bonus is added to that base. Raw numbers (no
+   * champion or preset) are all base unless a bonus is given. Default 2000 HP, 80 armor, 50 MR.
+   */
   maxHp?: number;
-  /** Current HP (absolute). */
-  hp?: number;
-  /** Current HP as a percentage of max (0-100). */
-  hpPercent?: number;
-  /** Portion of max HP that counts as bonus HP. */
   bonusHp?: number;
-  /** Total armor; base/bonus split given by bonusArmor. */
   armor?: number;
   bonusArmor?: number;
   mr?: number;
   bonusMr?: number;
+  /** Current HP (absolute). */
+  hp?: number;
+  /** Current HP as a percentage of max (0-100). */
+  hpPercent?: number;
   /** Generic damage reduction (fraction) applied to all incoming damage. */
   damageReduction?: number;
 }
@@ -1911,73 +1915,72 @@ export function resolveRanks(champ: ChampionData, level: number, given: Scenario
   return ranks;
 }
 
+interface BaseBonus {
+  base: number;
+  bonus: number;
+}
+
+/** A stat after the scenario's numbers (see TargetSpec): `hasBase` = from a champion or preset. */
+function overrideStat(cur: BaseBonus, hasBase: boolean, total?: number, bonus?: number): BaseBonus {
+  if (total !== undefined) {
+    if (bonus !== undefined) {
+      const b = Math.max(0, Math.min(bonus, total));
+      return { base: total - b, bonus: b };
+    }
+    const base = hasBase ? Math.min(cur.base, total) : total;
+    return { base, bonus: total - base };
+  }
+  return bonus !== undefined ? { base: cur.base, bonus } : cur;
+}
+
 function resolveTarget(data: GameData, spec: TargetSpec, attackerLevel: number): Sim['target'] {
-  let maxHp = 2000,
-    baseHp = 2000,
-    baseArmor = 80,
-    bonusArmor = 0,
-    baseMr = 50,
-    bonusMr = 0;
-  let label = spec.label ?? 'Target';
+  let hp: BaseBonus = { base: 2000, bonus: 0 };
+  let armor: BaseBonus = { base: 80, bonus: 0 };
+  let mr: BaseBonus = { base: 50, bonus: 0 };
+  let label = spec.label;
   const lvl = clampInt(spec.level ?? attackerLevel + (spec.levelDiff ?? 0), 1, GAME.maxLevel);
   let level: number | undefined;
-  if (spec.champion || spec.preset) {
+  const hasBase = !!(spec.champion || spec.preset);
+  if (hasBase) {
+    const items = spec.items?.map((q) => findItem(data, q));
     let st: Stats;
     if (spec.champion) {
       const c = findChampion(data, spec.champion);
-      const items = (spec.items ?? []).map((q) => findItem(data, q));
       const mods = emptyMods();
-      for (const it of items) mergeMods(mods, itemStatsToMods(it.stats));
+      for (const it of items ?? []) mergeMods(mods, itemStatsToMods(it.stats));
       st = computeStats({ base: c.stats, level: lvl, adaptiveDefault: c.adaptive, ranged: c.attackType === 'ranged' }, mods);
-      label = spec.label ?? `${c.name} lvl ${lvl}${items.length ? ` (${items.map((i) => i.name).join(', ')})` : ''}`;
+      label ??= `${c.name} lvl ${lvl}${items?.length ? ` (${items.map((i) => i.name).join(', ')})` : ''}`;
     } else {
-      const p = resolvePreset(data, spec.preset!, lvl);
+      const p = resolvePreset(data, spec.preset!, lvl, items);
       const mods = emptyMods();
       for (const it of p.items) mergeMods(mods, itemStatsToMods(it.stats));
       mods.hp += p.shardHp;
       st = computeStats({ base: p.base, level: lvl, adaptiveDefault: 'physical', ranged: false }, mods);
-      label = spec.label ?? p.label;
+      label ??= p.label;
     }
     level = lvl;
-    maxHp = st.maxHp;
-    baseHp = st.baseHp;
-    baseArmor = st.baseArmor;
-    bonusArmor = st.bonusArmor;
-    baseMr = st.baseMr;
-    bonusMr = st.bonusMr;
+    hp = { base: st.baseHp, bonus: st.maxHp - st.baseHp };
+    armor = { base: st.baseArmor, bonus: st.bonusArmor };
+    mr = { base: st.baseMr, bonus: st.bonusMr };
   }
-  if (spec.maxHp !== undefined) {
-    maxHp = spec.maxHp;
-    baseHp = spec.maxHp - (spec.bonusHp ?? 0);
-  } else if (spec.bonusHp !== undefined) baseHp = maxHp - spec.bonusHp;
-  if (spec.armor !== undefined) {
-    bonusArmor = spec.bonusArmor ?? 0;
-    baseArmor = spec.armor - bonusArmor;
-  } else if (spec.bonusArmor !== undefined) {
-    baseArmor = baseArmor + bonusArmor - spec.bonusArmor;
-    bonusArmor = spec.bonusArmor;
-  }
-  if (spec.mr !== undefined) {
-    bonusMr = spec.bonusMr ?? 0;
-    baseMr = spec.mr - bonusMr;
-  } else if (spec.bonusMr !== undefined) {
-    baseMr = baseMr + bonusMr - spec.bonusMr;
-    bonusMr = spec.bonusMr;
-  }
-  const hp = spec.hp ?? (maxHp * (spec.hpPercent ?? 100)) / 100;
-  if (!spec.champion && !spec.preset && !spec.label) label = `${Math.round(maxHp)} HP / ${Math.round(baseArmor + bonusArmor)} armor / ${Math.round(baseMr + bonusMr)} MR`;
+  hp = overrideStat(hp, hasBase, spec.maxHp, spec.bonusHp);
+  armor = overrideStat(armor, hasBase, spec.armor, spec.bonusArmor);
+  mr = overrideStat(mr, hasBase, spec.mr, spec.bonusMr);
+  const maxHp = hp.base + hp.bonus;
+  const current = spec.hp ?? (maxHp * (spec.hpPercent ?? 100)) / 100;
+  label ??= `${Math.round(maxHp)} HP / ${Math.round(armor.base + armor.bonus)} armor / ${Math.round(mr.base + mr.bonus)} MR`;
   return {
     label,
     ...(level !== undefined ? { level } : {}),
     maxHp,
-    hp,
-    startHp: hp,
-    baseHp,
-    bonusHp: maxHp - baseHp,
-    baseArmor,
-    bonusArmor,
-    baseMr,
-    bonusMr,
+    hp: current,
+    startHp: current,
+    baseHp: hp.base,
+    bonusHp: hp.bonus,
+    baseArmor: armor.base,
+    bonusArmor: armor.bonus,
+    baseMr: mr.base,
+    bonusMr: mr.bonus,
     damageReduction: spec.damageReduction ?? 0,
   };
 }

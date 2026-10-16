@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadGameData } from '../src/node/load.ts';
 import { loadAllKits } from '../src/node/kits.ts';
-import { Sim, simulate } from '../src/engine/sim.ts';
+import { Sim, simulate, type TargetSpec } from '../src/engine/sim.ts';
+import { findItem } from '../src/engine/gamedata.ts';
 import { parseCombo } from '../src/engine/combo.ts';
 
 const data = loadGameData('16.20');
@@ -151,6 +152,35 @@ test('Target presets follow the target level; levelDiff is relative to yours; nu
   assert.equal(over.mr, 30);
   const champ = simulate(data, { champion: 'Ahri', level: 11, combo: 'AA', target: { champion: 'Jinx', levelDiff: -2 } }).target;
   assert.equal(champ.level, 9);
+});
+
+test("A preset's items replace its typical build; only their stats count", () => {
+  const at = (target: TargetSpec) => simulate(data, { champion: 'Ahri', level: 16, combo: 'AA', target }).target;
+  const typical = at({ preset: 'squishy' });
+  assert.equal(typical.bonusArmor, findItem(data, 'Guardian Angel').stats.armor, 'Guardian Angel as the 5th item at 16');
+  const zhonya = at({ preset: 'squishy', items: ["Zhonya's Hourglass"] });
+  assert.equal(zhonya.bonusArmor, findItem(data, "Zhonya's Hourglass").stats.armor);
+  assert.ok(Math.abs(zhonya.armor - zhonya.bonusArmor - (typical.armor - typical.bonusArmor)) < 1e-9, 'same base');
+  const none = at({ preset: 'tank', items: [] });
+  assert.equal(none.bonusArmor, 0);
+  assert.ok(none.bonusHp > 0, 'health shards stay');
+});
+
+test('Target totals keep the base and set the bonus; a bonus adds to the base; raw numbers are base', () => {
+  const at = (target: TargetSpec) => simulate(data, { champion: 'Ahri', level: 11, combo: 'AA', target }).target;
+  const close = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-9, `${a} ≈ ${b}`);
+  const tank = at({ preset: 'tank' });
+  const base = tank.armor - tank.bonusArmor;
+  const more = at({ preset: 'tank', armor: 300 });
+  assert.equal(more.armor, 300);
+  close(more.armor - more.bonusArmor, base);
+  const below = at({ preset: 'tank', armor: 10 });
+  assert.deepEqual([below.armor, below.bonusArmor], [10, 0]);
+  const noItems = at({ preset: 'tank', bonusArmor: 0, bonusMr: 0 });
+  close(noItems.armor, base);
+  close(noItems.mr, tank.mr - tank.bonusMr);
+  const raw = at({ maxHp: 2500, armor: 100, mr: 60, bonusMr: 20 });
+  assert.deepEqual([raw.maxHp, raw.bonusHp, raw.armor, raw.bonusArmor, raw.mr, raw.bonusMr], [2500, 0, 100, 0, 60, 20]);
 });
 
 // -----------------------------------------------------------------------------

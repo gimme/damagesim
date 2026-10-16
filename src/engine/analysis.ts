@@ -3,7 +3,7 @@
 
 import type { GameData } from './gamedata.ts';
 import { findItem } from './gamedata.ts';
-import { simulate, isLegendary, type Scenario, type SimResult } from './sim.ts';
+import { simulate, isLegendary, Sim, type Scenario, type SimResult } from './sim.ts';
 import { parseCombo, formatCombo, type ComboStep } from './combo.ts';
 import { ITEM_GROUPS } from './items.ts';
 import type { ItemData } from './data-types.ts';
@@ -234,9 +234,12 @@ export function resistSweep(data: GameData, base: Scenario, opts: { stat: 'armor
   const from = opts.from ?? 0;
   const to = opts.to ?? 300;
   const step = opts.step ?? 10;
+  // The target keeps its base resist (lowered where the sweep goes below it); the rest is bonus.
+  const t = new Sim(data, base).target;
+  const baseResist = opts.stat === 'armor' ? t.baseArmor : t.baseMr;
   const points = [];
   for (let v = from; v <= to + 1e-9; v += step) {
-    const target = { ...(base.target ?? {}), [opts.stat]: v, ...(opts.stat === 'armor' ? { bonusArmor: Math.max(0, v - 50) } : { bonusMr: Math.max(0, v - 35) }) };
+    const target = { ...(base.target ?? {}), [opts.stat]: v, [opts.stat === 'armor' ? 'bonusArmor' : 'bonusMr']: Math.max(0, v - baseResist) };
     const r = simulate(data, { ...base, target });
     points.push({ [opts.stat]: v, totalDamage: round(r.totalDamage), physical: round(r.byType.physical), magic: round(r.byType.magic), true: round(r.byType.true) });
   }
