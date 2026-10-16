@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { DATA, championIcon } from '../data.ts';
+import { DATA, abilityIcon, championIcon } from '../data.ts';
 import { Card, ChampIcon, ChampionPicker, Icon, ItemIcon, ItemPicker, ItemTip, NumberField, RuneIcon, RuneTip, fmt, sourceMark, useHoverCard } from './common.tsx';
 import { SHARD_ROWS, type UIState, type TargetState } from '../state.ts';
 import { TARGET_PRESETS, type TargetPreset } from '../../engine/presets.ts';
@@ -8,6 +8,7 @@ import { runeText } from '../../engine/tooltip.ts';
 import { NOT_LIVE_RUNES, bonusSkillPoints } from '../../engine/runes.ts';
 import { critMarking, formatCombo, markCrit, parseCombo, type ComboStep, type CritMode } from '../../engine/combo.ts';
 import { conflicts } from '../../engine/analysis.ts';
+import { findItem } from '../../engine/gamedata.ts';
 import { getKit } from '../../kits/index.ts';
 import type { Effect, Slot } from '../../engine/effects.ts';
 import type { KitOption } from '../../engine/kit-types.ts';
@@ -43,7 +44,10 @@ export function AttackerPanel({ state, set, sim }: { state: UIState; set: Set; s
         <div className="row" style={{ gap: 6 }}>
           {(['Q', 'W', 'E', 'R'] as const).map((k) => (
             <label key={k} className="field" style={{ alignItems: 'center' }}>
-              <span className="kbd">{k}</span>
+              <span className="row" style={{ gap: 4 }} title={champ.abilities.find((a) => a.slot === k)?.spells[0]?.name}>
+                <Icon src={abilityIcon(state.champion, k)} label={k} size="xs" />
+                <span className="kbd">{k}</span>
+              </span>
               <input type="number" min={0} max={max[k]} value={ranks[k]} style={{ width: 52 }} aria-label={`${k} rank`} onChange={(e) => setRank(k, Number(e.target.value))} />
             </label>
           ))}
@@ -491,6 +495,22 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
   const follow = (st: ComboStep) => (crits === 'mixed' ? st : markCrit(st, kit, crits));
   const add = (st: ComboStep) => commit([...steps, follow(st)]);
   const label = (st: ComboStep) => formatCombo([st]);
+  // A step's icon, as its damage shows it in the results; none for a wait or an item not found.
+  const icon = (source: string, name: string, size: 'xs' | 'sm') => <Icon src={sourceMark(source, name, state.champion).icon} label={name} size={size} />;
+  const stepIcon = (st: ComboStep) => {
+    if (st.type === 'ability') return icon(st.slot, spellName(st.slot), 'xs');
+    if (st.type === 'attack') return icon('AA', 'Basic attack', 'xs');
+    if (st.type === 'summoner') return icon('summoner:ignite', 'Ignite', 'xs');
+    if (st.type === 'item') {
+      try {
+        const it = findItem(DATA, st.item);
+        return icon(`item:${it.id}`, it.name, 'xs');
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
   return (
     <Card
       title="Combo"
@@ -513,22 +533,27 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
       <div className="combo-palette">
         {(['Q', 'W', 'E', 'R'] as Slot[]).map((s) => (
           <button key={s} className="combo-key" title={spellName(s)} onClick={() => add({ type: 'ability', slot: s })}>
+            {icon(s, spellName(s), 'sm')}
             {s}
           </button>
         ))}
         {hasP && (
           <button className="combo-key" title={champ.passive.name} onClick={() => add({ type: 'ability', slot: 'P' })}>
+            {icon('P', champ.passive.name, 'sm')}
             P
           </button>
         )}
         <button className="combo-key" title="Basic attack" onClick={() => add({ type: 'attack' })}>
+          {icon('AA', 'Basic attack', 'sm')}
           AA
         </button>
         <button className="combo-key" title="Ignite" onClick={() => add({ type: 'summoner', spell: 'ignite' })}>
+          {icon('summoner:ignite', 'Ignite', 'sm')}
           Ignite
         </button>
         {actives.map((e) => (
           <button key={e.id} className="combo-key" title={`${e.label} active`} onClick={() => add({ type: 'item', item: e.label })}>
+            {icon(e.id, e.label, 'sm')}
             {e.active!.label}
           </button>
         ))}
@@ -543,6 +568,7 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
           return (
             <span key={i} className="chip">
               {i > 0 && <span className="arrow">›</span>}
+              {stepIcon(st)}
               {variants.length > 0 && st.type === 'ability' ? (
                 <select
                   aria-label={`${st.slot} variant`}

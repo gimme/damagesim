@@ -24,13 +24,13 @@ execFileSync(join(ROOT, 'node_modules/.bin/vite'), ['build'], { stdio: 'inherit'
 
 const data = loadGameData();
 const dd = `https://ddragon.leagueoflegends.com/cdn/${data.meta.ddragonVersion}/img/`;
-// [key, url, px]: ability icons only show small, in the HP bar.
+// [key, url, px]: ability, summoner spell and attack icons only show small (≤22 CSS px).
 const wanted: [string, string, number?][] = [];
 for (const c of data.championIndex) wanted.push([`champion/${c.id}`, `${dd}${c.icon}`]);
-for (const c of Object.values(data.champions)) for (const [slot, path] of Object.entries(c.abilityIcons)) wanted.push([`ability/${c.id}/${slot}`, `https://raw.communitydragon.org/${data.meta.patch}/game/${path}`, 40]);
+for (const c of Object.values(data.champions)) for (const [slot, path] of Object.entries(c.abilityIcons)) wanted.push([`ability/${c.id}/${slot}`, `https://raw.communitydragon.org/${data.meta.patch}/game/${path}`, 48]);
 for (const it of Object.values(data.items)) if ((it.inStore || [3040, 3042, 3121].includes(it.id)) && it.gold.total > 0) wanted.push([`item/${it.id}`, `${dd}item/${it.id}.png`]);
 for (const r of data.runes) if (r.icon.startsWith('perk-images')) wanted.push([`rune/${r.icon}`, `https://ddragon.leagueoflegends.com/cdn/img/${r.icon}`]);
-for (const key of Object.keys(data.summoners)) wanted.push([`summoner/${key}`, `${dd}spell/${key}.png`, 40]);
+for (const key of Object.keys(data.summoners)) wanted.push([`summoner/${key}`, `${dd}spell/${key}.png`, 48]);
 wanted.push(['ui/autoattack', `https://raw.communitydragon.org/${data.meta.patch}/game/assets/ux/deathrecap/autoattack.png`, 32]);
 
 const icons: Record<string, string> = {};

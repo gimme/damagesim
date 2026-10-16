@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { DATA } from '../data.ts';
+import { DATA, abilityIcon } from '../data.ts';
 import { Card, Icon, ItemIcon, ItemTip, fmt, sourceMark, useHoverCard } from './common.tsx';
 import { HpBar, LineChart, SimpleBars, SourceBars, SourceName, Timeline, TypeLegend, TYPE_COLOR, TYPE_LABEL, type DmgType } from './charts.tsx';
 import type { DamageInstance } from '../../engine/effects.ts';
@@ -240,6 +240,7 @@ function Abilities({ sim }: { sim: Sim }) {
       {d.abilities.map((a) => (
         <div key={a.slot} className="ability">
           <div className="row">
+            <Icon src={abilityIcon(sim.champ.id, a.slot)} label={a.name} size="sm" />
             <span className="kbd">{a.slot}</span>
             <strong>{a.name}</strong>
             {a.slot !== 'P' && (
