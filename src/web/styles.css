@@ -667,6 +667,17 @@ label.field {
 table.data .source-name {
   display: flex;
 }
+/* A damage event's modifiers: what they do together, then each by its icon */
+.amps {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.amps .total {
+  min-width: 4.4em;
+  margin-right: 3px;
+  font-variant-numeric: tabular-nums;
+}
 
 /* Item hover card */
 .tooltip.hovercard {

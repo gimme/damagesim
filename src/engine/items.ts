@@ -223,7 +223,7 @@ const ITEMS: Record<number, Factory> = {
       beforeDamage(sim, inst) {
         // The triggering attack already benefits (wiki).
         if (sim.time <= timerEnd(sim, `expose:${item.id}`) || (inst.label === 'Spellblade' && inst.source === `item:${item.id}`))
-          inst.amps.push({ source: `${item.name} (Expose Weakness)`, value: setup.ranged ? dv(item, 'RangedDamageAmp') : dv(item, 'MeleeDamageAmp'), kind: 'taken' });
+          inst.amps.push({ id: `item:${item.id}`, source: `${item.name} (Expose Weakness)`, value: setup.ranged ? dv(item, 'RangedDamageAmp') : dv(item, 'MeleeDamageAmp'), kind: 'taken' });
       },
     };
   },
@@ -496,7 +496,7 @@ const ITEMS: Record<number, Factory> = {
       beforeDamage(sim, inst) {
         if (!inst.flags.attack && !inst.flags.basic) return;
         const dist = sim.opt['distance'] ?? DISTANCE.default;
-        inst.amps.push({ source: item.name, value: dv(item, 'MaxDamageAmp') * Math.min(1, dist / dv(item, 'MaxRange')), kind: 'dealt' });
+        inst.amps.push({ id: `item:${item.id}`, source: item.name, value: dv(item, 'MaxDamageAmp') * Math.min(1, dist / dv(item, 'MaxRange')), kind: 'dealt' });
       },
     }),
   6675: (item) =>
@@ -557,7 +557,7 @@ const ITEMS: Record<number, Factory> = {
       beforeDamage(sim, inst) {
         if (inst.flags.unamplified) return;
         const amp = Math.min(dv(item, 'DamageIncreaseMax'), Math.floor(combat.seconds(sim) + 1e-9) * dv(item, 'DamageIncreasePerSecond'));
-        if (amp > 0) inst.amps.push({ source: `${item.name} (Suffering)`, value: amp, kind: 'dealt' });
+        if (amp > 0) inst.amps.push({ id: `item:${item.id}`, source: `${item.name} (Suffering)`, value: amp, kind: 'dealt' });
       },
     });
   },
@@ -590,7 +590,7 @@ const ITEMS: Record<number, Factory> = {
       beforeDamage(sim, inst) {
         if (inst.flags.unamplified) return;
         const amp = Math.min(dv(item, 'DamageIncreaseMax'), Math.floor(combat.seconds(sim) + 1e-9) * dv(item, 'DamageIncreasePerSecond'));
-        if (amp > 0) inst.amps.push({ source: item.name, value: amp, kind: 'dealt' });
+        if (amp > 0) inst.amps.push({ id: `item:${item.id}`, source: item.name, value: amp, kind: 'dealt' });
       },
     });
   },
@@ -603,7 +603,7 @@ const ITEMS: Record<number, Factory> = {
       beforeDamage(sim, inst) {
         if (inst.flags.unamplified) return;
         const amp = Math.min(dv(item, 'EternityDamageIncreaseMax'), Math.floor(combat.seconds(sim) + 1e-9) * dv(item, 'EternityDamageIncreasePerSecond'));
-        if (amp > 0) inst.amps.push({ source: item.name, value: amp, kind: 'dealt' });
+        if (amp > 0) inst.amps.push({ id: `item:${item.id}`, source: item.name, value: amp, kind: 'dealt' });
       },
     });
   },
@@ -670,7 +670,7 @@ const ITEMS: Record<number, Factory> = {
         // Ability damage that is also basic damage (Garen Q, Darius W) is amplified too.
         if (inst.flags.kind !== 'ability' || sim.time > until || !stacks || inst.flags.unamplified) return;
         const per = dv(item, 'SpellDamageIncrease') * (setup.ranged && sim.opt['shojin.rangedPenalty'] ? dv(item, 'RangedMod') : 1);
-        inst.amps.push({ source: item.name, value: per * stacks, kind: 'dealt' });
+        inst.amps.push({ id: `item:${item.id}`, source: item.name, value: per * stacks, kind: 'dealt' });
       },
       afterDamage(sim, inst) {
         if (!isChampionAbilityDamage(inst) || (inst.flags.slot === 'P' && !innateStacks)) return;
@@ -794,7 +794,7 @@ const ITEMS: Record<number, Factory> = {
     effect(item, {
       description: 'Nearby enemy champions take 12% more magic damage.',
       beforeDamage(sim, inst) {
-        if (inst.type === 'magic') inst.amps.push({ source: item.name, value: dv(item, 'DamageAmp'), kind: 'taken' });
+        if (inst.type === 'magic') inst.amps.push({ id: `item:${item.id}`, source: item.name, value: dv(item, 'DamageAmp'), kind: 'taken' });
       },
     }),
   4645: (item) =>
@@ -804,7 +804,7 @@ const ITEMS: Record<number, Factory> = {
         if (inst.type === 'physical' || inst.flags.kind === 'summoner') return;
         if (Math.max(0, sim.target.hp) / sim.target.maxHp >= dv(item, 'HealthThreshold')) return;
         const bonusCrit = sim.stats.critDamage - sim.champ.stats.critDamageMultiplier;
-        inst.amps.push({ source: item.name, value: dv(item, 'SpellItemDamageAmp') * (1 + Math.max(0, bonusCrit)), kind: 'multiplier' });
+        inst.amps.push({ id: `item:${item.id}`, source: item.name, value: dv(item, 'SpellItemDamageAmp') * (1 + Math.max(0, bonusCrit)), kind: 'multiplier' });
       },
     }),
   3036: (item) =>
@@ -813,7 +813,7 @@ const ITEMS: Record<number, Factory> = {
       beforeDamage(sim, inst) {
         if (inst.flags.unamplified) return;
         const amp = dv(item, 'MaxBonusDamagePercent') * Math.min(1, Math.max(0, sim.target.bonusHp) / dv(item, 'MaxBonusHealth'));
-        if (amp > 0) inst.amps.push({ source: item.name, value: amp, kind: 'dealt' });
+        if (amp > 0) inst.amps.push({ id: `item:${item.id}`, source: item.name, value: amp, kind: 'dealt' });
       },
     }),
   4005: (item) =>
@@ -823,7 +823,7 @@ const ITEMS: Record<number, Factory> = {
         if (cc.kind === 'immobilize') sim.setCounter(`mandate:${item.id}`, sim.time + dv(item, 'DamageAmpDuration'));
       },
       beforeDamage(sim, inst) {
-        if (sim.time <= timerEnd(sim, `mandate:${item.id}`)) inst.amps.push({ source: item.name, value: dv(item, 'DamageAmp'), kind: 'taken' });
+        if (sim.time <= timerEnd(sim, `mandate:${item.id}`)) inst.amps.push({ id: `item:${item.id}`, source: item.name, value: dv(item, 'DamageAmp'), kind: 'taken' });
       },
     }),
   6676: (item) =>
@@ -840,7 +840,7 @@ const ITEMS: Record<number, Factory> = {
       description: 'Deal 4% increased damage while above half health.',
       options: [SELF_HP],
       beforeDamage(sim, inst) {
-        if (selfHp(sim.opt) > 0.5 && !inst.flags.unamplified) inst.amps.push({ source: item.name, value: dv(item, 'DamageMod'), kind: 'dealt' });
+        if (selfHp(sim.opt) > 0.5 && !inst.flags.unamplified) inst.amps.push({ id: `item:${item.id}`, source: item.name, value: dv(item, 'DamageMod'), kind: 'dealt' });
       },
     }),
   2522: (item) => {
@@ -850,7 +850,7 @@ const ITEMS: Record<number, Factory> = {
       limitations: ['The doubled mana costs are not modeled.'],
       beforeDamage(sim, inst) {
         if (sim.time > until || inst.flags.kind !== 'ability' || inst.flags.attack || inst.flags.unamplified) return;
-        inst.amps.push({ source: item.name, value: calc(sim, item, 'ManaCalc'), kind: 'dealt' });
+        inst.amps.push({ id: `item:${item.id}`, source: item.name, value: calc(sim, item, 'ManaCalc'), kind: 'dealt' });
       },
       active: {
         label: 'Mana Made Real',
@@ -925,7 +925,7 @@ const ITEMS: Record<number, Factory> = {
       beforeDamage(sim, inst) {
         // The triggering ability also benefits.
         const marked = sim.time <= timerEnd(sim, `horizon:${item.id}`) || (isChampionAbilityDamage(inst) && (sim.opt['distance'] ?? DISTANCE.default) >= dv(item, 'SnipeRange'));
-        if (marked && !inst.flags.unamplified) inst.amps.push({ source: item.name, value: dv(item, 'DamageAmp'), kind: 'dealt' });
+        if (marked && !inst.flags.unamplified) inst.amps.push({ id: `item:${item.id}`, source: item.name, value: dv(item, 'DamageAmp'), kind: 'dealt' });
       },
     }),
   3871: (item) =>

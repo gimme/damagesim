@@ -68,7 +68,7 @@ const kit: ChampionKit = {
     },
     beforeDamage(sim, inst) {
       // The plague's own detonation is amplified (the debuff is removed just before it is dealt).
-      if (inst.fromMark === 'vladR') inst.amps.push({ source: 'Hemoplague', value: sim.evalExpr('R.dv.DamageAmp', { slot: 'R' }) / 100, kind: 'taken' });
+      if (inst.fromMark === 'vladR') inst.amps.push({ id: 'R', source: 'Hemoplague', value: sim.evalExpr('R.dv.DamageAmp', { slot: 'R' }) / 100, kind: 'taken' });
     },
   },
 };

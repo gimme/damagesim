@@ -54,12 +54,15 @@ export interface DamageInstance {
   /**
    * Damage modifiers (fractions). Since 26.9 "dealt" amplifiers (PTA, Coup de Grace, Liandry's…)
    * add together; "taken" modifiers (Abyssal Mask, damage reduction) and "crit"-like effects
-   * (Shadowflame) multiply.
+   * (Shadowflame) multiply. `id` is the source as a damage instance's `source` names it
+   * ('item:3165', 'rune:8005', 'R'); `source` is its name.
    */
-  amps: { source: string; value: number; kind?: 'dealt' | 'taken' | 'multiplier' }[];
+  amps: { id?: string; source: string; value: number; kind?: 'dealt' | 'taken' | 'multiplier' }[];
   /** Filled in when applied. */
   effectiveResist?: number;
   resistMult?: number;
+  /** The amps together, as they multiply the damage. */
+  ampMult?: number;
   final?: number;
   targetHpBefore?: number;
   targetHpAfter?: number;

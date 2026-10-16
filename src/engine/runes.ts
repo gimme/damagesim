@@ -143,7 +143,7 @@ const RUNES: Record<number, Factory> = {
           ampFrom = Infinity;
           return;
         }
-        if (!inst.flags.unamplified) inst.amps.push({ source: rune.name, value: v.BonusPercentDamage, kind: 'dealt' });
+        if (!inst.flags.unamplified) inst.amps.push({ id: `rune:${rune.id}`, source: rune.name, value: v.BonusPercentDamage, kind: 'dealt' });
       },
     });
   },
@@ -539,7 +539,7 @@ const RUNES: Record<number, Factory> = {
       beforeDamage(sim, inst) {
         if (inst.flags.unamplified) return;
         if (Math.max(0, sim.target.hp) / sim.target.maxHp < rune.values.EnemyHealthPercentageThreshold)
-          inst.amps.push({ source: rune.name, value: rune.values.BonusPercentDamage, kind: 'dealt' });
+          inst.amps.push({ id: `rune:${rune.id}`, source: rune.name, value: rune.values.BonusPercentDamage, kind: 'dealt' });
       },
     }),
   // Cut Down
@@ -549,7 +549,7 @@ const RUNES: Record<number, Factory> = {
       beforeDamage(sim, inst) {
         if (inst.flags.unamplified) return;
         if (Math.max(0, sim.target.hp) / sim.target.maxHp > rune.values.EnemyHealthPercentageThreshold)
-          inst.amps.push({ source: rune.name, value: rune.values.BonusPercentDamage, kind: 'dealt' });
+          inst.amps.push({ id: `rune:${rune.id}`, source: rune.name, value: rune.values.BonusPercentDamage, kind: 'dealt' });
       },
     }),
   // Last Stand (depends on your own health)
@@ -563,7 +563,7 @@ const RUNES: Record<number, Factory> = {
         const hp = selfHp(sim.opt);
         if (hp >= v.HealthThresholdStart) return;
         const t = Math.min(1, Math.max(0, (v.HealthThresholdStart - hp) / (v.HealthThresholdStart - v.HealthThresholdEnd)));
-        inst.amps.push({ source: rune.name, value: v.MinBonusDamagePercent + (v.MaxBonusDamagePercent - v.MinBonusDamagePercent) * t, kind: 'dealt' });
+        inst.amps.push({ id: `rune:${rune.id}`, source: rune.name, value: v.MinBonusDamagePercent + (v.MaxBonusDamagePercent - v.MinBonusDamagePercent) * t, kind: 'dealt' });
       },
     }),
   // Legend: Alacrity
@@ -657,7 +657,7 @@ const RUNES: Record<number, Factory> = {
       description: 'Ultimate damage +12% (+8% if the ultimate damage is area).',
       beforeDamage(sim, inst) {
         if (inst.flags.slot !== 'R' || inst.flags.kind !== 'ability' || inst.flags.unamplified) return;
-        inst.amps.push({ source: rune.name, value: inst.flags.aoe ? rune.values.AOEAmp : rune.values.DamageAmp, kind: 'dealt' });
+        inst.amps.push({ id: `rune:${rune.id}`, source: rune.name, value: inst.flags.aoe ? rune.values.AOEAmp : rune.values.DamageAmp, kind: 'dealt' });
       },
     }),
   // Scorch

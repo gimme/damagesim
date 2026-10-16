@@ -942,8 +942,8 @@ export class Sim {
     };
 
     for (const e of this.effects) e.beforeDamage?.(this, inst);
-    for (const b of this.buffs.values()) if (b.expires >= this.time && b.amp) inst.amps.push({ source: b.label, value: b.amp, kind: 'dealt' });
-    for (const d of this.debuffs.values()) if (d.expires >= this.time && d.amp) inst.amps.push({ source: d.label, value: d.amp, kind: 'taken' });
+    for (const b of this.buffs.values()) if (b.expires >= this.time && b.amp) inst.amps.push({ id: b.slot, source: b.label, value: b.amp, kind: 'dealt' });
+    for (const d of this.debuffs.values()) if (d.expires >= this.time && d.amp) inst.amps.push({ id: d.slot, source: d.label, value: d.amp, kind: 'taken' });
     if (inst.flags.unamplified) inst.amps = inst.amps.filter((a) => a.kind === 'taken');
     type = inst.type;
 
@@ -972,6 +972,7 @@ export class Sim {
     const final = inst.raw * resistMult * ampMult * (1 - this.target.damageReduction);
     inst.effectiveResist = eff;
     inst.resistMult = resistMult;
+    inst.ampMult = ampMult;
     inst.final = final;
     inst.targetHpBefore = this.target.hp;
     this.target.hp -= final;

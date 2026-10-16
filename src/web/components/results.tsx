@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { DATA } from '../data.ts';
-import { Card, ItemIcon, ItemTip, fmt, useHoverCard } from './common.tsx';
+import { Card, Icon, ItemIcon, ItemTip, fmt, sourceMark, useHoverCard } from './common.tsx';
 import { HpBar, LineChart, SimpleBars, SourceBars, SourceName, Timeline, TypeLegend, TYPE_COLOR, TYPE_LABEL, type DmgType } from './charts.tsx';
+import type { DamageInstance } from '../../engine/effects.ts';
 import type { Scenario, SimResult, Sim } from '../../engine/sim.ts';
 import { resistSweep, optimizeCombo, compare } from '../../engine/analysis.ts';
 import { describeChampion } from '../../engine/describe.ts';
@@ -148,7 +149,12 @@ export function Details({ r, scenario, sim, state, pinned, onPin, onUnpin }: { r
   );
 }
 
+/** A modifier's value: +10%, +7.5%. */
+const signedPct = (v: number) => `${v >= 0 ? '+' : ''}${+(v * 100).toFixed(1)}%`;
+
 function Events({ r }: { r: SimResult }) {
+  const hover = useHoverCard();
+  const champion = r.champion.id;
   return (
     <div className="table-scroll">
       <table className="data">
@@ -169,7 +175,9 @@ function Events({ r }: { r: SimResult }) {
           {r.events.map((e) => (
             <tr key={e.id}>
               <td className="r">{e.time.toFixed(2)}s</td>
-              <td>{e.sourceLabel}</td>
+              <td>
+                <SourceName source={e.source} label={e.sourceLabel} champion={champion} />
+              </td>
               <td>{e.label}</td>
               <td>
                 <span className="type-dot" style={{ background: TYPE_COLOR[e.type] }} />
@@ -179,12 +187,43 @@ function Events({ r }: { r: SimResult }) {
               <td className="r">{e.type === 'true' ? '–' : fmt(e.effectiveResist ?? 0, 1)}</td>
               <td className="r">{fmt(e.final ?? 0, 1)}</td>
               <td className="r">{fmt(Math.max(0, e.targetHpAfter ?? 0))}</td>
-              <td className="small secondary">{e.amps.map((a) => `${a.source} ${a.value >= 0 ? '+' : ''}${(a.value * 100).toFixed(1)}%`).join(', ')}</td>
+              <td className="small secondary">
+                {/* What the modifiers do together, and each by its icon; the card names them with their values */}
+                {e.amps.length > 0 && (
+                  <span className="amps" tabIndex={0} role="img" aria-label={`${signedPct((e.ampMult ?? 1) - 1)}: ${e.amps.map((a) => `${a.source} ${signedPct(a.value)}`).join(', ')}`} {...hover.bind(<AmpsTip e={e} champion={champion} />)}>
+                    <span className="total">{signedPct((e.ampMult ?? 1) - 1)}</span>
+                    {e.amps.map((a, i) => (
+                      <Icon key={i} src={sourceMark(a.id ?? '', a.source, champion).icon} label={a.source} size="xs" />
+                    ))}
+                  </span>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+      {hover.node}
     </div>
+  );
+}
+
+function AmpsTip({ e, champion }: { e: DamageInstance; champion: string }) {
+  return (
+    <>
+      {e.amps.map((a, i) => (
+        <div className="tt-row" key={i}>
+          <SourceName source={a.id ?? ''} label={a.source} champion={champion} />
+          <strong>{signedPct(a.value)}</strong>
+        </div>
+      ))}
+      {/* Not always their sum: damage-taken modifiers multiply the rest */}
+      {e.amps.length > 1 && (
+        <div className="tt-row tt-total">
+          <span className="muted">Together</span>
+          <strong>{signedPct((e.ampMult ?? 1) - 1)}</strong>
+        </div>
+      )}
+    </>
   );
 }
 
