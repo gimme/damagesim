@@ -219,7 +219,7 @@ function AmpsTip({ e, champion }: { e: DamageInstance; champion: string }) {
       {/* Not always their sum: damage-taken modifiers multiply the rest */}
       {e.amps.length > 1 && (
         <div className="tt-row tt-total">
-          <span className="muted">Together</span>
+          <span className="muted">Combined</span>
           <strong>{signedPct((e.ampMult ?? 1) - 1)}</strong>
         </div>
       )}

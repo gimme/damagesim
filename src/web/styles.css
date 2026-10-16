@@ -677,9 +677,11 @@ table.data .source-name {
   align-items: center;
   gap: 3px;
 }
+/* Right-aligned in a slot that fits +36.6%, so the icons line up close by */
 .amps .total {
-  min-width: 4.4em;
+  min-width: 4em;
   margin-right: 3px;
+  text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
