@@ -80,17 +80,16 @@ const kit: ChampionKit = {
     R: {
       // Channel: no attacks or Q/W while firing (Relentless Pursuit is usable but blocked here too).
       lockout: 'dv.Duration',
-      channel: true,
+      variableDuration: true,
       notes: [
         'Channelled for dv.Duration (blocks the next combo step). All calc.TotalNumShots shots (crit chance adds shots) are assumed to hit; shots can\'t crit or apply on-hit.',
-        'Set the shots or the seconds (R{10}, R{1s}) to cancel it early.',
+        'Set the seconds (R{1s}) to cancel it early.',
       ],
       components: [
         {
           id: 'shot',
           label: 'The Culling',
           type: 'physical',
-          unit: 'shots',
           amount: 'calc.DamagePerBullet',
           hits: 'calc.TotalNumShots',
           interval: 'dv.Duration / calc.TotalNumShots',

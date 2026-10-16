@@ -107,7 +107,7 @@ comparisons, `&& || !` and `cond ? a : b`. Names that aren't identifiers use bra
 | `type` | `physical`, `magic`, `true`, or `adaptive` |
 | `amount` | raw damage of **one** hit |
 | `hits`, `interval`, `delay` | number of hits in a default cast, seconds between hits, seconds after the cast time |
-| `maxHits`, `unit` | the most hits a combo step can set (default `hits`), and what they're called (`'bolts'`; default ticks for a DoT, else hits) |
+| `maxHits` | the most hits, for a step's per-component count or a longer duration (default `hits`) |
 | `optional: true` | off unless the combo enables it (`Q+bonus` / `enable: ['bonus']`) |
 | `aoe`, `dot`, `pet` | damage tags (affect items/runes: Deathfire Touch duration, Aery, etc.) |
 | `canCrit`, `critMultiplier` | can crit (expected-value in default mode); custom multiplier e.g. `'1 + 0.3 * (critDamage - 1)'` |
@@ -124,12 +124,12 @@ Hit counts default to 1. For "deals X per second for N seconds" use `hits: N`, `
 (or the real tick rate if known). If the number of hits depends on stats, use an expression
 (Garen E: `'dv.NumTicks + floor(bonusAs / dv.ASPerTick)'`).
 
-A combo step sets how many of a cast's repeating hits land, or for how long: `E{3}`, `E{0.5s}` (the
-web UI's field on the step). It counts the first component with an `interval`; the cast's other
-repeating components land for as long as those take. A burn's or zone's hits tick once per interval
-of the seconds; a `channel: true` ability's seconds run from its cast's start, its hits land while
-it lasts, and its lockout ends with them (Smolder E, Katarina R). Give toggles and zones that can
-last longer a `maxHits` (Karthus E) instead of an option for their duration.
+When the player chooses how long an ability lasts (a channel they can end early: Smolder E,
+Katarina R; a toggle: Karthus E), mark it `variableDuration: true`. A combo step then sets its
+seconds after its cast time (`E{0.5s}`, the web UI's field on the step): its repeating hits land
+within them and its lockout ends with them. It lasts its lockout by default, else as long as its
+hits take; give hits that can go on longer a `maxHits`, and a channel that can a `maxDuration`
+(Aurelion Sol Q). Don't mark what the player can't end (burns, fixed zones).
 
 ## Abilities
 
@@ -237,7 +237,7 @@ other on-hit effects apply, but Guinsoo's/Lethal Tempo/Energize charges don't st
 * `recast` in expressions = 1-based index within a recast chain (Riven Q1/Q2/Q3, Aatrox Q); `recastWindow` ends the chain (full cooldown from the first cast).
 * `onHitEffectiveness` also works on an empowered attack's components (Azir soldier stabs).
 * `lockout`: seconds the caster is busy from cast start (channels/dashes) without delaying damage;
-  `channel: true` when its repeating hits fill it and the player can end it early (see Components).
+  `variableDuration: true` when the player can end it early (see Components).
 * `cooldown`: base cooldown expression when the data's is missing/wrong; `notUltimate: true` for an R that isn't one (Udyr).
 * `buff` may be an array (several buffs per cast).
 * `empowerAttacks.cc`: CC when the empowered attack lands (TF Gold Card); empowered components honour `delay`/`interval`.

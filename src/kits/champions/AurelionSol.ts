@@ -17,7 +17,9 @@ const kit: ChampionKit = {
     Q: {
       // Busy for the default 2s channel (16 ticks × 0.125s).
       lockout: 2,
-      channel: true,
+      // Held as long as Aurelion Sol likes (mana permitting).
+      variableDuration: true,
+      maxDuration: 25,
       notes: [
         'Default 2s channel on the target (set the seconds, e.g. Q{4s}): damage ticks every 0.125s (per-second damage / 8) and a burst after each full second.',
         'During Astral Flight the per-second (non-burst) damage is increased by W.dv.TrueDamageBonus.',

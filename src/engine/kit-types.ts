@@ -30,10 +30,8 @@ export interface ComponentSpec {
   amount: Expr;
   /** Number of hits in a default cast (user can override per combo step). */
   hits?: Expr;
-  /** The most hits a combo step can set (default: `hits`). */
+  /** The most hits: a step's per-component count, or a longer duration (default: `hits`). */
   maxHits?: Expr;
-  /** What its hits are called where a step sets their count, plural ("bolts"; default "ticks" for a DoT, else "hits"). */
-  unit?: string;
   /** Seconds between hits. */
   interval?: Expr;
   /** Seconds after the cast completes before the first hit. */
@@ -241,10 +239,14 @@ export interface AbilitySpec {
    */
   lockout?: Expr;
   /**
-   * The lockout is a channel its repeating hits fill (Smolder E's flight): a step that lands fewer
-   * (`E{3}`, `E{0.5s}`) ends it as much sooner.
+   * The player chooses how long it lasts: ends the channel early (Smolder E: cast something, or fly
+   * out of range) or leaves the toggle on (Karthus E). A combo step sets its seconds after the cast
+   * time (`E{0.5s}`): its repeating hits land within them, up to their maxHits, and its lockout
+   * ends with them. By default it lasts its lockout, or as long as its hits take.
    */
-  channel?: boolean;
+  variableDuration?: boolean;
+  /** The most seconds a variableDuration cast lasts after its cast time (default: its lockout, else as long as its hits' maxHits take). */
+  maxDuration?: Expr;
   /** Base cooldown (before haste) when the data's cooldown is missing or wrong, e.g. 'calc.CD'. */
   cooldown?: Expr;
   /** This slot isn't an ultimate (Udyr R): no ultimate haste, items don't treat it as one. */

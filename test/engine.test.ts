@@ -96,13 +96,12 @@ test('combo shorthand round-trips', () => {
   assert.equal(formatCombo(steps), 'E Q W R:dash AA*3 AA! ignite item:Hextech_Rocketbelt wait:1.5 Q{out:1,back:0} Q+bonus');
   assert.throws(() => parseCombo('Q X'));
   assert.equal(formatCombo(parseCombo('Q! E? Q:tornado{a:1}!+bonus*2 AA*3?')), 'Q! E? Q:tornado{a:1}!+bonus Q:tornado{a:1}!+bonus AA*3?');
-  assert.deepEqual(parseCombo('E{3} E{0.5s} R{1.5s,zone:10}'), [
-    { type: 'ability', slot: 'E', count: 3 },
+  assert.deepEqual(parseCombo('E{0.5s} R{1.5s,zone:10}'), [
     { type: 'ability', slot: 'E', duration: 0.5 },
     { type: 'ability', slot: 'R', duration: 1.5, hits: { zone: 10 } },
   ]);
-  assert.equal(formatCombo(parseCombo('E{3} E{0.5s}! R{1.5s,zone:10}')), 'E{3} E{0.5s}! R{1.5s,zone:10}');
-  assert.throws(() => parseCombo('Q{a}'));
+  assert.equal(formatCombo(parseCombo('E{0.5s}! R{1.5s,zone:10}')), 'E{0.5s}! R{1.5s,zone:10}');
+  assert.throws(() => parseCombo('E{3}'));
 });
 
 test('crit marks: the steps that roll crits, marked all at once', () => {

@@ -121,35 +121,33 @@ test('Smolder E: the full flight, then the next cast; E is not a dash (no Sudden
   assert.equal(bySource(r, 'rune:8143').length, 0, 'Sudden Impact not armed');
 });
 
-test('Smolder E: a bolt count or a flight time lands that many bolts and ends the flight then', () => {
+test('Smolder E: a flight time lands the bolts fired before it ends, and frees Smolder then', () => {
   const at = (r: ReturnType<typeof simulate>, step: string) => r.timeline.find((s) => s.step === step)!.start;
   const bolts = (r: ReturnType<typeof simulate>) => r.events.filter((e) => e.label === 'Flap, Flap, Flap').map((e) => e.time);
   const full = simulate(data, { champion: 'Smolder', level: 11, combo: 'E Q', target: dummy });
   const all = bolts(full);
-  const three = simulate(data, { champion: 'Smolder', level: 11, combo: 'E{3} Q', target: dummy });
-  assert.deepEqual(bolts(three), all.slice(0, 3), 'the first three bolts, at their times');
-  assert.equal(three.events.filter((e) => e.label === 'Flap, Flap, Flap (Dragon Practice)').length, 3, 'Dragon Practice follows the bolts');
-  assert.ok(Math.abs(at(three, 'Q') - all[2]) < 1e-6, 'Q right after the third bolt');
-  // Seconds count the bolts fired before the flight ends.
   const half = simulate(data, { champion: 'Smolder', level: 11, combo: 'E{0.5s} Q', target: dummy });
-  assert.equal(bolts(half).length, all.filter((t) => t <= 0.5).length);
-  assert.ok(Math.abs(at(half, 'Q') - 0.5) < 1e-6);
-  // Never more than the full flight.
-  const long = simulate(data, { champion: 'Smolder', level: 11, combo: 'E{20} Q', target: dummy });
+  assert.deepEqual(bolts(half), all.filter((t) => t <= 0.5), 'the bolts fired in the first 0.5s, at their times');
+  assert.equal(half.events.filter((e) => e.label === 'Flap, Flap, Flap (Dragon Practice)').length, bolts(half).length, 'Dragon Practice follows the bolts');
+  assert.ok(Math.abs(at(half, 'Q') - 0.5) < 1e-6, 'Q as the flight ends');
+  // Never longer than the full flight.
+  const long = simulate(data, { champion: 'Smolder', level: 11, combo: 'E{5s} Q', target: dummy });
   assert.equal(bolts(long).length, all.length);
   assert.equal(at(long, 'Q'), at(full, 'Q'));
+  assert.ok(new Sim(data, { champion: 'Smolder', level: 11, combo: [] }).castDuration({ slot: 'E' })!.seconds === 1.25);
 });
 
-test('A burn or zone ticks once per interval of its seconds; a toggle can last longer than its default', () => {
-  const ticks = (combo: string) => simulate(data, { champion: 'Karthus', level: 11, combo, target: dummy }).events.filter((e) => e.label === 'Defile').length;
+test('A toggle left on longer ticks longer, without busying the caster; a burn can\'t be ended early', () => {
+  const karthus = (combo: string) => simulate(data, { champion: 'Karthus', level: 11, combo, target: dummy });
+  const ticks = (combo: string) => karthus(combo).events.filter((e) => e.label === 'Defile').length;
   assert.equal(ticks('E'), 16, '4s by default');
   assert.equal(ticks('E{1s}'), 4);
   assert.equal(ticks('E{8s}'), 32);
-  assert.equal(ticks('E{10}'), 10);
-  const r = simulate(data, { champion: 'Smolder', level: 11, options: { stacks: 250 }, combo: 'Q{2s}', target: dummy });
-  assert.equal(r.events.filter((e) => e.label === 'Super Scorcher Breath (burn)').length, 2);
-  const w = simulate(data, { champion: 'Smolder', level: 11, combo: 'W{2}', target: dummy });
-  assert.ok(w.warnings.some((m) => /no repeating hits/.test(m)), 'a cast without repeating hits warns');
+  assert.equal(karthus('E{8s} W').timeline[1].start, karthus('E W').timeline[1].start, 'Karthus acts while Defile is on');
+  const r = simulate(data, { champion: 'Smolder', level: 11, options: { stacks: 250 }, combo: 'Q{1s}', target: dummy });
+  assert.equal(r.events.filter((e) => e.label === 'Super Scorcher Breath (burn)').length, 3);
+  assert.ok(r.warnings.some((m) => /can't be ended early/.test(m)));
+  assert.equal(new Sim(data, { champion: 'Smolder', level: 11, combo: [] }).castDuration({ slot: 'Q' }), null);
 });
 
 test('On-hit-only abilities (Fizz Q) consume Spellblade but do not trigger on-attack effects', () => {

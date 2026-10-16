@@ -70,10 +70,10 @@ const kit: ChampionKit = {
     R: {
       // Busy for the 0.25s cast, 0.2s delay and 2.6s channel (wiki).
       lockout: 0.25 + 0.2 + 2.6,
-      channel: true,
+      variableDuration: true,
       cc: [{ kind: 'slow', duration: 2.6 }],
       notes: [
-        'Full channel: 13 ticks every 0.2s after a 0.2s delay (wiki); total = tooltip damage. Set the ticks or the seconds (R{6}, R{1.5s}) to end it early.',
+        'Full channel: 13 ticks every 0.2s after a 0.2s delay (wiki); total = tooltip damage. Set the seconds (R{1.5s}) to end it early.',
       ],
       components: [
         { id: 'beam', label: 'Disintegration Ray', type: 'magic', amount: 'calc.TotalDamage / 13', hits: 13, interval: 0.2, delay: 0.2, aoe: true, dot: true },

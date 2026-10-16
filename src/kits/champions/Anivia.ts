@@ -33,8 +33,9 @@ const kit: ChampionKit = {
       debuff: { ...chill('stormChill', '4 * dv.TickRate + dv.ChillDuration'), afterHits: 4 },
       notes: [
         'Ticks every 0.5s from the cast. Growing storm (first 1.5s): 3 ticks of half the per-second damage; fully formed: 300% damage.',
-        'Default: target stays 3s in the storm (3 growing + 4 formed ticks); R{formed:N} to change.',
+        'Default: target stays 3s in the storm (3 growing + 4 formed ticks); set the seconds Anivia keeps it on (R{6s}).',
       ],
+      variableDuration: true,
       components: [
         { id: 'growing', label: 'Glacial Storm', type: 'magic', amount: 'calc.TotalDamagePerSecond * dv.TickRate', hits: 'dv.GrowthTime / dv.TickRate', interval: 'dv.TickRate', aoe: true, dot: true },
         {

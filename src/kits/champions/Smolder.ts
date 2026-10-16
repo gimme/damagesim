@@ -47,15 +47,15 @@ const kit: ChampionKit = {
       // Not a dash: it doesn't arm Sudden Impact.
       notes: [
         'Bolts hit the lowest-health enemy (the target) evenly over the flight; they are ability damage, not attacks.',
-        'Full flight by default: Smolder is busy for 1.25s. Set the bolts or the seconds (E{3}, E{0.5s}) to end it early, as another cast does in the game.',
+        'Full flight by default: Smolder is busy for 1.25s. Set the seconds (E{0.5s}) to end it early, as another cast or flying out of range does in the game.',
       ],
       // Wiki: no cast time (data castTime is 0.25).
       castTime: 0,
       // In flight an attack command only moves Smolder, and a cast ends the flight.
       lockout: 'dv.Duration',
-      channel: true,
+      variableDuration: true,
       components: [
-        { id: 'bolt', label: 'Flap, Flap, Flap', type: 'physical', amount: 'calc.DamagePerHit', unit: 'bolts', hits: 'floor(calc.TotalNumberOfAttacks)', interval: 'dv.Duration / floor(calc.TotalNumberOfAttacks)', delay: 0.1 },
+        { id: 'bolt', label: 'Flap, Flap, Flap', type: 'physical', amount: 'calc.DamagePerHit', hits: 'floor(calc.TotalNumberOfAttacks)', interval: 'dv.Duration / floor(calc.TotalNumberOfAttacks)', delay: 0.1 },
         {
           id: 'practice',
           label: 'Flap, Flap, Flap (Dragon Practice)',

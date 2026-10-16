@@ -25,6 +25,7 @@ const kit: ChampionKit = {
     },
     E: {
       notes: ['Per tick: calc.TotalDPS / 4 (the game\'s own tick calc is TotalDPS × 0.25).'],
+      variableDuration: true,
       components: [
         { id: 'defile', label: 'Defile', type: 'magic', amount: 'calc.TotalDPS * 0.25', hits: 16, maxHits: 120, interval: 0.25, delay: 0.25, aoe: true, dot: true },
       ],

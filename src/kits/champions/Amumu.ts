@@ -23,7 +23,8 @@ const kit: ChampionKit = {
       components: [{ id: 'bandage', label: 'Bandage Toss', type: 'magic', amount: 'calc.TotalDamage', delay: 0.3 }],
     },
     W: {
-      notes: ['Toggle: ticks every 0.5s for half of the per-second damage; default 4s in range (8 ticks, W{tick:N}).'],
+      notes: ['Toggle: ticks every 0.5s for half of the per-second damage, the first at once; default 8 ticks in range (3.5s; set the seconds, e.g. W{6s}).'],
+      variableDuration: true,
       components: [
         { id: 'tick', label: 'Despair', type: 'magic', amount: "calc['{c8e45bc3}'] + calc['{8a96509c}'] * target.maxHp", hits: 8, maxHits: 40, interval: 0.5, aoe: true, dot: true },
       ],

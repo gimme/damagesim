@@ -3,7 +3,7 @@ import { DATA, abilityIcon, championIcon, runeIcon } from '../data.ts';
 import { Card, ChampIcon, ChampionPicker, Icon, ItemIcon, ItemPicker, ItemTip, Markup, NumberField, RuneTip, fmt, mergeProps, sourceMark, useDragOrder, useHistory, useHoverCard } from './common.tsx';
 import { TARGET_MODES, type UIState, type TargetMode, type TargetState, type TargetStats } from '../state.ts';
 import { ITEMS_BY_LEVEL_RULE, TARGET_PRESETS, isTargetPreset, itemsAtLevel, levelForItems, presetShardHp, type TargetPreset } from '../../engine/presets.ts';
-import { hitsWithin, maxRanks, resolveRanks, secondsFor, type RepeatingHits, type Sim, type SimResult } from '../../engine/sim.ts';
+import { maxRanks, resolveRanks, type CastDuration, type Sim, type SimResult } from '../../engine/sim.ts';
 import { renderTooltip, runeText } from '../../engine/tooltip.ts';
 import { describeChampion } from '../../engine/describe.ts';
 import { bonusSkillPoints } from '../../engine/runes.ts';
@@ -757,51 +757,37 @@ const moveStep = <T,>(steps: T[], from: number, to: number) => {
 type AbilityStep = Extract<ComboStep, { type: 'ability' }>;
 
 /**
- * How many of a cast's repeating hits land (Smolder E's bolts, a burn's ticks), or for how many
- * seconds, typed in its step; the unit switches between them, converting. The default shows faded,
- * and emptying the field brings it back.
+ * How many seconds a cast lasts, where the player chooses it (Smolder E's flight, Karthus E's
+ * toggle), typed in its step. The default shows faded, and emptying the field brings it back.
  */
-function RepeatField({ step, rep, onChange }: { step: AbilityStep; rep: RepeatingHits; onChange: (s: AbilityStep) => void }) {
+function DurationField({ step, range, onChange }: { step: AbilityStep; range: CastDuration; onChange: (s: AbilityStep) => void }) {
   const [text, setText] = useState<string | null>(null);
-  const seconds = step.duration !== undefined;
-  const set = (v: { count?: number; duration?: number }) => {
-    const { count: _c, duration: _d, ...rest } = step;
-    onChange({ ...rest, ...v });
+  const set = (duration?: number) => {
+    const { duration: _, ...rest } = step;
+    onChange(duration === undefined ? rest : { ...rest, duration });
   };
-  // Seconds round up to the hundredth, so they still cover the hits they came from.
-  const roundUp = (x: number) => Math.ceil(x * 100 - 1e-6) / 100;
-  const switchUnit = () => {
-    if (!seconds) set({ duration: roundUp(step.count !== undefined ? secondsFor(rep, step.count) : rep.seconds) });
-    else if (Math.abs(step.duration! - rep.seconds) < 0.005) set({});
-    else set({ count: hitsWithin(rep, step.duration!) });
-  };
-  const hits = seconds ? hitsWithin(rep, step.duration!) : Math.min(step.count ?? rep.hits, rep.maxHits);
-  const what = rep.channel ? 'how long it channels' : 'for how long they land';
-  const title = `${rep.label}: how many ${rep.unit} land, or ${what} (default ${rep.hits} ${rep.unit}, ${fmt(rep.seconds, 2)}s). Now ${hits} ${rep.unit}.`;
   return (
-    <span className="repeat" title={title}>
+    <span className="duration" title={`How long it lasts, in seconds (default ${fmt(range.seconds, 2)}, at most ${fmt(range.maxSeconds, 2)})`}>
       <input
         type="number"
-        aria-label={`${step.slot} ${seconds ? 'seconds' : rep.unit}`}
-        className={step.count === undefined && !seconds ? 'default' : undefined}
-        value={text ?? (seconds ? step.duration! : (step.count ?? rep.hits))}
-        min={seconds ? rep.minSeconds : 0}
-        max={seconds ? rep.maxSeconds : rep.maxHits}
-        step={seconds ? 0.25 : 1}
+        aria-label={`${step.slot} seconds`}
+        className={step.duration === undefined ? 'default' : undefined}
+        value={text ?? step.duration ?? range.seconds}
+        min={0}
+        max={range.maxSeconds}
+        step={0.25}
         onChange={(e) => {
           setText(e.target.value);
           const v = Number(e.target.value);
-          if (e.target.value.trim() !== '' && Number.isFinite(v) && v >= 0) set(seconds ? { duration: v } : { count: Math.round(v) });
+          if (e.target.value.trim() !== '' && Number.isFinite(v) && v >= 0) set(v);
         }}
         onBlur={() => {
-          if (text?.trim() === '') set({});
+          if (text?.trim() === '') set();
           setText(null);
         }}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === 'Escape') && e.currentTarget.blur()}
       />
-      <button type="button" className="repeat-unit" aria-label={seconds ? `Count ${rep.unit} instead` : 'Set seconds instead'} onClick={switchUnit}>
-        {seconds ? 's' : rep.unit}
-      </button>
+      s
     </span>
   );
 }
@@ -852,8 +838,8 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
   const follow = (st: ComboStep) => (crits === 'mixed' ? st : markCrit(st, kit, crits));
   const add = (st: ComboStep) => commit([...steps, follow(st)]);
   const label = (st: ComboStep) => formatCombo([st]);
-  // A step's label in its chip, without the count or seconds its field shows.
-  const chipLabel = (st: ComboStep) => label(st.type === 'ability' ? { ...st, count: undefined, duration: undefined } : st);
+  // A step's label in its chip, without the seconds its field shows.
+  const chipLabel = (st: ComboStep) => label(st.type === 'ability' ? { ...st, duration: undefined } : st);
   // A step's icon, as its damage shows it in the results; none for a wait or an item not found.
   const icon = (source: string, name: string, size: 'xs' | 'sm') => <Icon src={sourceMark(source, name, state.champion).icon} label={name} size={size} />;
   const stepIcon = (st: ComboStep) => {
@@ -946,7 +932,7 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
           )}
           {steps.map((st, i) => {
             const variants = st.type === 'ability' ? Object.entries(kit.abilities[st.slot]?.variants ?? {}) : [];
-            const rep = st.type === 'ability' ? sim?.repeatingHits(st) : null;
+            const range = st.type === 'ability' ? sim?.castDuration(st) : null;
             return (
               <span
                 key={i}
@@ -981,7 +967,7 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
                 ) : (
                   <span title={st.type === 'ability' ? spellName(st.slot) : undefined}>{chipLabel(st)}</span>
                 )}
-                {st.type === 'ability' && rep && rep.maxHits > 1 && <RepeatField step={st} rep={rep} onChange={(next) => commit(steps.map((x, j) => (j === i ? next : x)))} />}
+                {st.type === 'ability' && range && <DurationField step={st} range={range} onChange={(next) => commit(steps.map((x, j) => (j === i ? next : x)))} />}
                 <button aria-label="Remove step" tabIndex={-1} onClick={() => commit(steps.filter((_, j) => j !== i))}>
                   ✕
                 </button>

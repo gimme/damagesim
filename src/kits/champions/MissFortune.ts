@@ -69,17 +69,16 @@ const kit: ChampionKit = {
     R: {
       // Channel: Miss Fortune can't act while firing; waves are spread over the channel.
       lockout: 'dv.BaseChannelDuration',
-      channel: true,
+      variableDuration: true,
       notes: [
         'Channelled for dv.BaseChannelDuration (blocks the next combo step); all dv.BaseWaves waves hit the target once. Each wave can crit for dv.CritDamageMultiplier of crit damage.',
-        'Set the waves or the seconds (R{8}, R{1.5s}) to cancel it early.',
+        'Set the seconds (R{1.5s}) to cancel it early.',
       ],
       components: [
         {
           id: 'wave',
           label: 'Bullet Time',
           type: 'physical',
-          unit: 'waves',
           amount: 'calc.PhysicalDamagePerWave',
           hits: 'dv.BaseWaves',
           maxHits: 'dv.BaseWaves',

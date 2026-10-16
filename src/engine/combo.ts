@@ -11,12 +11,7 @@ export type ComboStep =
       variant?: string;
       /** Override hit counts per component id (0 disables a component). */
       hits?: Record<string, number>;
-      /**
-       * How many of the cast's repeating hits land (Smolder E's bolts, a burn's ticks), counted in
-       * its first repeating component's hits; the others land for as long as those take.
-       */
-      count?: number;
-      /** Seconds the cast's repeating hits land for, in place of a count. */
+      /** Seconds the cast lasts, where the player chooses it (Smolder E's flight, Karthus E's toggle). */
       duration?: number;
       /** Enable optional components by id. */
       enable?: string[];
@@ -47,7 +42,7 @@ const SLOTS = new Set(['P', 'Q', 'W', 'E', 'R']);
  *   Q W E R P          cast an ability (P = passive proc where the kit defines one)
  *   Q:empowered        cast a variant
  *   Q{out:1,back:0}    override component hit counts
- *   E{3}  E{0.5s}      the cast's repeating hits (bolts, ticks): how many land, or for how long
+ *   E{0.5s}            how long the cast lasts (a channel ended early, a toggle left on)
  *   Q+bonus            enable an optional component
  *   AA  A  AA*3  3AA   basic attacks;  AA! = forced crit,  AA? = forced non-crit
  *   Q!  Q?             a cast whose hits that can crit all crit, or none do
@@ -90,14 +85,13 @@ export function parseCombo(src: string): ComboStep[] {
       if (m[2]) step.variant = m[2];
       if (m[3]) {
         for (const kv of m[3].slice(1, -1).split(/[;,]/).filter(Boolean)) {
-          const span = /^(\d*\.?\d+)(s?)$/i.exec(kv.trim());
-          if (span) {
-            if (span[2]) step.duration = Number(span[1]);
-            else step.count = Number(span[1]);
+          const secs = /^(\d*\.?\d+)s$/i.exec(kv.trim());
+          if (secs) {
+            step.duration = Number(secs[1]);
             continue;
           }
           const [k, v] = kv.split(':');
-          if (v === undefined || !Number.isFinite(Number(v))) throw new Error(`bad hit count "${kv}" in "${tok}" (expected {3}, {0.5s} or {id:3})`);
+          if (v === undefined || !Number.isFinite(Number(v))) throw new Error(`bad "${kv}" in "${tok}" (expected seconds like {0.5s}, or hits like {id:3})`);
           (step.hits ??= {})[k.trim()] = Number(v);
         }
       }
@@ -119,7 +113,7 @@ export function formatCombo(steps: ComboStep[]): string {
         case 'ability': {
           let t = s.slot + (s.variant ? ':' + s.variant : '');
           const inner = [
-            ...(s.duration !== undefined ? [`${s.duration}s`] : s.count !== undefined ? [String(s.count)] : []),
+            ...(s.duration !== undefined ? [`${s.duration}s`] : []),
             ...Object.entries(s.hits ?? {}).map(([k, v]) => `${k}:${v}`),
           ];
           if (inner.length) t += '{' + inner.join(',') + '}';

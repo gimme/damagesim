@@ -105,9 +105,9 @@ const kit: ChampionKit = {
     R: {
       // Channel: Malzahar can't act during the suppression.
       lockout: 'dv.CCDuration',
-      channel: true,
+      variableDuration: true,
       notes: [
-        'Channelled for dv.CCDuration (blocks the next combo step); set the ticks or the seconds (R{4}, R{1s}) to cancel it early. Beam: dv.BeamDamageTicks ticks every 0.25s.',
+        'Channelled for dv.CCDuration (blocks the next combo step); set the seconds (R{1s}) to cancel it early. Beam: dv.BeamDamageTicks ticks every 0.25s.',
         'Null Zone ticks every 0.5s for dv.PoolDuration; by default only the ticks during the suppression count (the target walks out afterwards). Use R{zone:10} for the full zone.',
       ],
       cc: [{ kind: 'immobilize', duration: 'dv.CCDuration' }],
