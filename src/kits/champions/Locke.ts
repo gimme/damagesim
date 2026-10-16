@@ -50,15 +50,15 @@ const kit: ChampionKit = {
         });
       }
       // Purgatory execute.
-      if (sim.getDebuff('purgatory') && sim.target.hp > 0 && sim.target.hp <= sim.evalExpr("calc['{6c540a3a}'] * target.maxHp", { slot: 'R' })) {
+      const line = sim.evalExpr("calc['{6c540a3a}'] * target.maxHp", { slot: 'R' });
+      if (sim.getDebuff('purgatory') && sim.target.hp <= line) {
         sim.deal({
           source: 'R',
           sourceLabel: 'Purgatory',
           label: 'Purgatory (sealed)',
           type: 'true',
-          amount: sim.target.hp,
-          flags: { kind: 'ability', slot: 'R', ability: false },
-          markSource: 'purgatory',
+          amount: line,
+          flags: { kind: 'ability', slot: 'R', execute: true },
         });
       }
     },

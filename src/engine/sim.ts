@@ -228,6 +228,10 @@ export class Sim {
   private action: number | undefined;
   private nextCastId = 1;
   private nextInstId = 1;
+  /** Hits whose hooks are running: an execute they ask for waits. */
+  private dealing = 0;
+  /** An execute has counted (the target dies once). */
+  private executed = false;
   private staticMods: StatMods;
   private statsCache: Stats | null = null;
   private attackIndex = 0;
@@ -942,10 +946,22 @@ export class Sim {
   // ---------------------------------------------------------------------------
   // Damage
 
-  /** Deal one damage request: amps, mitigation, HP update, hooks. */
-  deal(req: DamageRequest): DamageInstance {
+  /**
+   * Deal one damage request: amps, mitigation, HP update, hooks. An execute (flags.execute) kills the
+   * target. Like any damage counted past the kill, it counts for its full value (the health it
+   * executes below) as true damage, with no amps or mitigation, and sets off nothing. Only the first
+   * counts: the target dies once. One a hit's hooks ask for lands after the rest of this instant's
+   * damage (what the hit procs too). Nothing is dealt (undefined) when it waits or doesn't count.
+   */
+  deal(req: DamageRequest): DamageInstance | undefined {
     const st = this.stats;
-    let type: DamageType = req.type === 'adaptive' ? (st.adaptiveType === 'physical' ? 'physical' : 'magic') : req.type;
+    const execute = !!req.flags?.execute;
+    if (execute) {
+      if (this.dealing) this.schedule(0, () => this.deal(req));
+      if (this.dealing || this.executed) return undefined;
+      this.executed = true;
+    }
+    let type: DamageType = execute ? 'true' : req.type === 'adaptive' ? (st.adaptiveType === 'physical' ? 'physical' : 'magic') : req.type;
     const flags: DamageFlags = {
       kind: 'ability',
       ability: false,
@@ -974,11 +990,13 @@ export class Sim {
       ...(this.action !== undefined ? { action: this.action } : {}),
     };
 
-    for (const e of this.effects) e.beforeDamage?.(this, inst);
-    for (const b of this.buffs.values()) if (b.expires >= this.time && b.amp) inst.amps.push({ id: b.slot, source: b.label, value: b.amp, kind: 'dealt' });
-    for (const d of this.debuffs.values()) if (d.expires >= this.time && d.amp) inst.amps.push({ id: d.slot, source: d.label, value: d.amp, kind: 'taken' });
-    if (inst.flags.unamplified) inst.amps = inst.amps.filter((a) => a.kind === 'taken');
-    type = inst.type;
+    if (!execute) {
+      for (const e of this.effects) e.beforeDamage?.(this, inst);
+      for (const b of this.buffs.values()) if (b.expires >= this.time && b.amp) inst.amps.push({ id: b.slot, source: b.label, value: b.amp, kind: 'dealt' });
+      for (const d of this.debuffs.values()) if (d.expires >= this.time && d.amp) inst.amps.push({ id: d.slot, source: d.label, value: d.amp, kind: 'taken' });
+      if (inst.flags.unamplified) inst.amps = inst.amps.filter((a) => a.kind === 'taken');
+      type = inst.type;
+    }
 
     // Mitigation.
     let resistMult = 1;
@@ -1002,7 +1020,7 @@ export class Sim {
       resistMult = resistMultiplier(eff);
     }
     const ampMult = combineAmps(inst.amps);
-    const final = inst.raw * resistMult * ampMult * (1 - this.target.damageReduction);
+    const final = execute ? inst.raw : inst.raw * resistMult * ampMult * (1 - this.target.damageReduction);
     inst.effectiveResist = eff;
     inst.resistMult = resistMult;
     inst.ampMult = ampMult;
@@ -1013,13 +1031,16 @@ export class Sim {
     if (this.target.hp <= 0 && this.target.killTime === undefined) this.target.killTime = this.time;
     if (!inst.flags.aura) this.lastCombatTime = this.time;
     this.events.push(inst);
+    if (execute) return inst;
     for (const d of this.debuffs.values()) if (d.spec?.detonate && d.expires >= this.time && !inst.fromMark) d.stored = (d.stored ?? 0) + final;
 
+    this.dealing++;
     for (const e of this.effects) e.afterDamage?.(this, inst);
     if (!inst.fromMark) {
       this.processConsumes(inst);
       this.processMarks(inst);
     }
+    this.dealing--;
     return inst;
   }
 
@@ -2013,12 +2034,13 @@ function componentFlags(comp: ComponentSpec, slot: Slot): Partial<DamageFlags> {
   return {
     kind: 'ability',
     slot,
-    ability: !comp.noProc && !comp.proc,
+    ability: !comp.noProc && !comp.proc && !comp.execute,
     proc: !!comp.proc,
     aoe: !!comp.aoe,
     dot: !!comp.dot,
     pet: !!comp.pet,
     ...(comp.harvest ? { harvest: true } : {}),
+    ...(comp.execute ? { execute: true } : {}),
   };
 }
 

@@ -87,13 +87,12 @@ const kit: ChampionKit = {
       if (sim.opt.stacks >= sim.evalExpr('Q.dv.StackTier3', q))
         sim.setCounter('smolderBurnUntil', sim.time + (sim.spellFor('Q').castTime ?? 0) + 0.15 + sim.evalExpr('Q.dv.Tier3_DotLength', q));
     },
-    // 225 stacks: Smolder's damage executes a burning target below the threshold. The execute is part
-    // of the hit that executes (not a separate hit for Electrocute).
+    // 225 stacks: Smolder's damage executes a burning target below the threshold.
     afterDamage(sim, inst) {
-      if (inst.label === 'Execute' || sim.time > sim.counter('smolderBurnUntil')) return;
-      const hp = sim.target.hp;
-      if (hp <= 0 || hp >= sim.evalExpr('Q.calc.Tier3_ExecuteThreshold', { slot: 'Q' }) * sim.target.maxHp) return;
-      sim.deal({ source: 'Q', sourceLabel: 'Super Scorcher Breath', label: 'Execute', type: 'true', amount: hp, castId: inst.castId, flags: { kind: 'ability', slot: 'Q', ability: false, unamplified: true } });
+      if (sim.time > sim.counter('smolderBurnUntil')) return;
+      const line = sim.evalExpr('Q.calc.Tier3_ExecuteThreshold', { slot: 'Q' }) * sim.target.maxHp;
+      if (sim.target.hp >= line) return;
+      sim.deal({ source: 'Q', sourceLabel: 'Super Scorcher Breath', label: 'Execute', type: 'true', amount: line, castId: inst.castId, flags: { kind: 'ability', slot: 'Q', execute: true } });
     },
   },
 };

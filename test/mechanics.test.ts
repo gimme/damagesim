@@ -487,6 +487,27 @@ test("Iceborn Gauntlet's frost field adds no Electrocute stack; Smolder's execut
   assert.ok(r.events.some((e) => e.source === 'Q' && e.label !== 'Execute' && e.castId === execute.castId && e.time === execute.time));
 });
 
+test('An execute sets off nothing and counts once, for its full value, after the rest of its instant', () => {
+  // W slows. Q's hit procs Cheap Shot and its Dragon Practice part lands; then the execute.
+  const target = { maxHp: 1500, armor: 50, mr: 50, hpPercent: 24 };
+  const smolder = (o = {}) => simulate(data, { champion: 'Smolder', level: 11, runes: ['Electrocute', 'Cheap Shot'], options: { stacks: 225 }, combo: 'W Q AA', target, ...o });
+  const r = smolder();
+  const execute = r.events.find((e) => e.label === 'Execute')!;
+  const instant = r.events.filter((e) => e.time === execute.time);
+  assert.equal(instant.at(-1), execute);
+  assert.ok(instant.some((e) => e.label === 'Cheap Shot'));
+  // 6.5% of max health, also when Q's parts already killed; Collector's below 5% doesn't count on top.
+  for (const run of [r, smolder({ target: { ...target, hpPercent: 20 } }), smolder({ items: ['The Collector'] })]) {
+    const executes = run.events.filter((e) => e.flags.execute);
+    assert.deepEqual(executes.map((e) => e.label), ['Execute']);
+    assert.ok(Math.abs(executes[0].final! - 97.5) < 0.01);
+  }
+  // Urgot's Mercy on a target he suppresses: no Cheap Shot.
+  const urgot = simulate(data, { champion: 'Urgot', level: 11, runes: ['Electrocute', 'Cheap Shot'], combo: 'R R:execute', target: { preset: 'squishy', hpPercent: 20 } });
+  assert.ok(urgot.events.some((e) => e.label === 'Mercy (execute)'));
+  assert.equal(bySource(urgot, 'rune:8126').length, 0);
+});
+
 test("Smolder's Q burn is proc damage: it doesn't keep Liandry's burning, unlike Brand's Blaze", () => {
   const torment = (stacks: number) => bySource(simulate(data, { champion: 'Smolder', level: 11, items: ["Liandry's Torment"], options: { stacks }, combo: 'Q', target: dummy }), 'item:6653');
   const burning = simulate(data, { champion: 'Smolder', level: 11, items: ["Liandry's Torment"], options: { stacks: 225 }, combo: 'Q', target: dummy });

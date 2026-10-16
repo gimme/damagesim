@@ -72,6 +72,11 @@ export interface ComponentSpec {
   /** Proc damage special-cased to trigger Dark Harvest anyway (Teemo's Toxic Shot). */
   harvest?: boolean;
   /**
+   * A literal execute: kills the target and sets off nothing. `amount` is its full value, the health
+   * it executes below (`'target.hp <= calc.Threshold ? calc.Threshold : 0'`). See Sim.deal.
+   */
+  execute?: boolean;
+  /**
    * Spell damage where the hit otherwise isn't: a passive's part of an attack (Diana's Moonsilver
    * Blade), which is the attack's default damage unless marked.
    */
