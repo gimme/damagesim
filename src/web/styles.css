@@ -518,8 +518,10 @@ label.field {
   background: var(--surface-2);
   border: 1px solid var(--border);
 }
-/* A step is dragged to reorder it; a finger's drag on it doesn't scroll the page. */
+/* A step is dragged to reorder it; a finger's drag on it doesn't scroll the page, or open the icon's
+   menu on a long press. Positioned so a step gliding to its place stays over the others. */
 .chip {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -531,6 +533,7 @@ label.field {
   font-size: 13px;
   cursor: grab;
   touch-action: none;
+  -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -539,12 +542,12 @@ label.field {
   outline-offset: 1px;
 }
 .chip.dragging {
-  position: relative;
   z-index: 2;
   cursor: grabbing;
   border-color: var(--accent);
   box-shadow: var(--shadow);
   opacity: 0.9;
+  will-change: transform;
 }
 .chip select,
 .chip button {
@@ -576,18 +579,6 @@ input.combo-text {
   min-height: 40px;
   margin-top: 10px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-/* Where a dragged step will land: over the dragged step too, which can cover it, and past its line */
-.drop-marker {
-  position: absolute;
-  z-index: 3;
-  width: 3px;
-  margin: -4px 0 0 -0.5px;
-  padding-bottom: 8px;
-  box-sizing: content-box;
-  border-radius: 2px;
-  background: var(--accent);
-  pointer-events: none;
 }
 .chip button {
   border: 0;
