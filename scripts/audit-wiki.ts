@@ -48,7 +48,6 @@ const REVIEWED: Record<string, string> = {
 
 /** Damage category differences checked by hand. Key: "<champion id> <damage label>", or "<champion id> <ability> (attack)" for the attack it empowers. */
 const REVIEWED_TAGS: Record<string, string> = {
-  'DrMundo Blunt Force Trauma (attack)': 'works like a regular attack',
   'Kalista Soul-Marked': 'tagged proc, but a note says it benefits from her spell effects',
   'Ornn Brittle': "Living Forge's damage (Temper), tagged proc",
   'Vex Gloom': "Doom 'n Gloom's damage, tagged proc",
@@ -98,7 +97,8 @@ function parseTemplate(raw: string, fallbackName: string): WikiAbility | null {
   const negHit = /(?:does not|doesn't|cannot|can't) apply on-hit/i.test(text);
   // Negative mentions (often about secondary targets) don't count: "…nor trigger on-attack effects".
   const negAtk = /(?:does not|doesn't|cannot|can't|nor) trigger on-attack/i.test(text);
-  const notes = plain(raw.match(/^\|notes\s*=([\s\S]*?)(?=^\|[a-z ]+\d*\s*=|^\}\})/m)?.[1] ?? '');
+  // Up to the next field (inner templates such as {{safesubst:unexpected|…}} close on their own lines).
+  const notes = plain(raw.match(/^\|notes\s*=([\s\S]*?)(?=^\|[a-z ]+\d*\s*=|(?![\s\S]))/m)?.[1] ?? '');
   return {
     name,
     slot: slot === 'I' ? 'P' : (slot as WikiAbility['slot']),

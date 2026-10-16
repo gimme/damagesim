@@ -35,14 +35,14 @@ const kit: ChampionKit = {
         empowerAttacks: {
           count: 1,
           resetsAttack: true,
+          // The wiki: the attack and its bonus damage are basic and spell damage.
+          spell: true,
           components: [
             {
               id: 'bag',
               label: 'Blunt Force Trauma',
               type: 'physical',
               amount: 'max(0, E.calc.AdditionalDamage) * (1 + (E.dv.MaxDamageAmp - 1) * min(1, (1 - hp / maxHp) / E.dv.MaxMissingHealthThreshold))',
-              // Part of the attack, which works like a regular one: no spell effects.
-              noProc: true,
             },
           ],
         },

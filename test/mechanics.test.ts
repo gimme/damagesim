@@ -525,11 +525,12 @@ test("Kalista's Soul-Marked: ability damage, dealt as her next attack goes off a
   assert.equal(r.events[i].time, attacks[1].time);
 });
 
-test("Attacks that are also spell damage light Liandry's: Wukong Q's, Kayle E's, Galio's Colossal Smash, Diana's third hit", () => {
+test("Attacks that are also spell damage light Liandry's: Wukong Q's, Kayle E's, Dr. Mundo E's, Galio's Colossal Smash, Diana's third hit", () => {
   const torments = (champion: string, combo: string) => bySource(simulate(data, { champion, level: 11, items: ["Liandry's Torment"], combo, target: dummy }), 'item:6653').length;
   assert.equal(torments('MonkeyKing', 'AA'), 0);
   assert.ok(torments('MonkeyKing', 'Q AA') > 0);
   assert.ok(torments('Kayle', 'E AA') > 0);
+  assert.ok(torments('DrMundo', 'E AA') > 0);
   assert.ok(torments('Galio', 'AA') > 0);
   assert.equal(torments('Diana', 'AA AA'), 0);
   assert.ok(torments('Diana', 'AA AA AA') > 0);
