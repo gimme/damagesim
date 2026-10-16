@@ -1655,10 +1655,21 @@ details summary {
   flex: 0 1 30px;
   aspect-ratio: 1;
 }
-.rune-pick[aria-pressed='true'] {
-  box-shadow:
-    0 0 0 2px var(--surface),
-    0 0 0 3.5px var(--tree);
+/* A rune or shard's own round edge: grey, in its tree's color (a shard's in the accent) when picked. */
+.rune-pick::after,
+.shard-pick::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  pointer-events: none;
+}
+.rune-pick[aria-pressed='true']::after {
+  box-shadow: inset 0 0 0 2px var(--tree);
+}
+.shard-pick[aria-pressed='true']::after {
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 /* A keystone is art, not a disc: a pick glows in its tree's color. */
 .rune-row.keystones {
@@ -1668,8 +1679,10 @@ details summary {
 .keystones .rune-pick {
   flex-basis: 40px;
 }
+.keystones .rune-pick::after {
+  content: none;
+}
 .keystones .rune-pick[aria-pressed='true'] {
-  box-shadow: none;
   background: radial-gradient(closest-side, color-mix(in srgb, var(--tree) 45%, transparent), transparent);
 }
 .rune-row.hint {
@@ -1695,15 +1708,9 @@ details summary {
 /* Shard icons are light marks, drawn on a dark disc as in the client. */
 .shard-pick .icon {
   background: var(--hp-track);
-  box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 .shard-pick img {
   opacity: 0.6;
-}
-.shard-pick[aria-pressed='true'] {
-  box-shadow:
-    0 0 0 2px var(--surface),
-    0 0 0 3.5px var(--accent);
 }
 .shard-text {
   line-height: 1.25;
