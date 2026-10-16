@@ -41,6 +41,7 @@ const kit: ChampionKit = {
       ],
       // Recast after 0.5s to end it; at max rank it lasts until then (dv.Duration 25000).
       variableDuration: true,
+      minDuration: 0.5,
       components: [
         {
           id: 'shot',

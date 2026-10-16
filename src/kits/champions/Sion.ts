@@ -41,9 +41,10 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
-      // Charges for up to 8s; damage and stun grow every second up to 3s (wiki).
-      charge: { default: 3, max: 8 },
-      castTime: 'max(0.5, charge)',
+      // Charges for up to 8s, recast to stop after ~0.4s at the earliest; damage and stun grow every
+      // second up to 3s (wiki).
+      charge: { default: 3, min: 0.4, max: 8 },
+      castTime: 'charge',
       notes: ['Default: a 3s charge (max damage and stun). Set the seconds charging (R{1s}): damage and stun grow each full second up to 3.'],
       cc: [
         { kind: 'immobilize', duration: `lerp(dv.MinStunDuration, dv.MaxStunDuration, ${R_POWER})` },

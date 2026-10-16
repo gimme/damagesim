@@ -80,6 +80,8 @@ export interface Scenario {
 export interface CastSetting {
   kind: 'lasts' | 'held' | 'count';
   value: number;
+  /** The least that does something: the first hit, the earliest release, one shot. */
+  min: number;
   max: number;
   /** "s", or what the hits are called ("shots"). */
   unit: string;
@@ -1430,34 +1432,40 @@ export class Sim {
   castSetting(step: Pick<Extract<ComboStep, { type: 'ability' }>, 'slot' | 'variant' | 'enable'>): CastSetting | null {
     const spec = this.abilitySpec(step.slot);
     if (spec.charge) {
-      const held = this.defaultCharge(step.slot);
-      return { kind: 'held', value: held, max: Math.max(held, spec.charge.max !== undefined ? this.evalExpr(spec.charge.max, { slot: step.slot }) : held), unit: 's' };
+      // To the hundredth: the data's seconds are floats (0.4000000059604645).
+      const held = round2(this.defaultCharge(step.slot));
+      const ctx = { slot: step.slot };
+      const min = spec.charge.min !== undefined ? round2(this.evalExpr(spec.charge.min, ctx)) : 0;
+      return { kind: 'held', value: held, min: Math.min(min, held), max: Math.max(held, spec.charge.max !== undefined ? round2(this.evalExpr(spec.charge.max, ctx)) : held), unit: 's' };
     }
     const key = step.variant ?? spec.defaultVariant;
     const variant = key ? this.variantOf(spec, key) : undefined;
     const ctx = { slot: step.slot, spell: this.spellFor(step.slot, variant ?? spec), rank: this.abilityRank(step.slot) };
     if (spec.variableCount) {
       const r = this.repeating(variant?.components ?? spec.components ?? [], step.enable, ctx)[0];
-      return r ? { kind: 'count', value: r.hits, max: r.maxHits, unit: spec.variableCount } : null;
+      return r ? { kind: 'count', value: r.hits, min: Math.min(1, r.hits), max: r.maxHits, unit: spec.variableCount } : null;
     }
     const range = this.durationOf(spec, variant, step.enable, ctx, this.castTimeOf(spec, variant, ctx));
-    return range && { kind: 'lasts', value: range.seconds, max: range.maxSeconds, unit: 's' };
+    return range && { kind: 'lasts', value: range.seconds, min: range.minSeconds, max: range.maxSeconds, unit: 's' };
   }
 
   private durationOf(spec: AbilitySpec, variant: VariantSpec | undefined, enable: string[] | undefined, ctx: CastCtx, castTime: number) {
     if (!spec.variableDuration) return null;
-    // Its lockout, or as long as its repeating hits take: by default, and at most.
-    let [last, lastMax] = [0, 0];
+    // Its lockout, or as long as its repeating hits take: by default, and at most; at least until
+    // the first is fired (and the earliest it can be ended).
+    let [first, last, lastMax] = [Infinity, 0, 0];
     for (const r of this.repeating(variant?.components ?? spec.components ?? [], enable, ctx)) {
+      first = Math.min(first, Math.max(0, r.first));
       last = Math.max(last, r.first + (r.hits - 1) * r.interval);
       lastMax = Math.max(lastMax, r.first + (r.maxHits - 1) * r.interval);
     }
     const lockout = variant?.lockout ?? spec.lockout;
     const seconds = Math.max(last, lockout !== undefined ? this.evalExpr(lockout, ctx) - castTime : 0);
     const max = spec.maxDuration !== undefined ? this.evalExpr(spec.maxDuration, ctx) : lockout !== undefined ? seconds : lastMax;
+    const min = Math.max(Number.isFinite(first) ? first : 0, spec.minDuration !== undefined ? this.evalExpr(spec.minDuration, ctx) : 0);
     // Up to the hundredth, so that typed back they still cover every hit.
-    const up = (x: number) => Math.ceil(x * 100 - 1e-6) / 100;
-    return { seconds: up(seconds), maxSeconds: up(Math.max(seconds, max)) };
+    const up = (x: number) => Math.max(0, Math.ceil(x * 100 - 1e-6) / 100);
+    return { seconds: up(seconds), minSeconds: Math.min(up(min), up(seconds)), maxSeconds: up(Math.max(seconds, max)) };
   }
 
   /** A cast's repeating hits (components with an interval): by default and at most, when the first
@@ -1548,7 +1556,8 @@ export class Sim {
     if (spec.charge) {
       const held = this.castSetting(step)!;
       if (step.duration !== undefined && step.duration > held.max + 1e-9) this.warn(`${label} charges for at most ${round2(held.max)}s, so ${formatCombo([step])} is held ${round2(held.max)}s`);
-      this.chargeHeld.set(slot, Math.max(0, Math.min(step.duration ?? held.value, held.max)));
+      if (step.duration !== undefined && step.duration < held.min - 1e-9) this.warn(`${label} is released after ${round2(held.min)}s at the earliest, so ${formatCombo([step])} is held ${round2(held.min)}s`);
+      this.chargeHeld.set(slot, Math.max(held.min, Math.min(step.duration ?? held.value, held.max)));
     }
     const castTime = this.castTimeOf(spec, variant, { slot, spell, rank });
     const castId = this.newCastId();
@@ -1597,14 +1606,16 @@ export class Sim {
     if (step.duration !== undefined) {
       const range = this.durationOf(spec, variant, step.enable, ectx, castTime);
       if (range) {
-        span = Math.min(step.duration, range.maxSeconds);
+        span = Math.max(range.minSeconds, Math.min(step.duration, range.maxSeconds));
         if (step.duration > range.maxSeconds + 1e-9) this.warn(`${label} lasts at most ${round2(range.maxSeconds)}s, so ${formatCombo([step])} lasts ${round2(range.maxSeconds)}s`);
+        if (step.duration < range.minSeconds - 1e-9) this.warn(`${label} lasts at least ${round2(range.minSeconds)}s, so ${formatCombo([step])} lasts ${round2(range.minSeconds)}s`);
       } else if (!spec.charge) this.warn(`${label} can't be ended early, kept on or charged: ${formatCombo([step])} casts it in full`);
     }
     if (step.count !== undefined) {
       const r = spec.variableCount ? this.repeating(comps, step.enable, ectx)[0] : undefined;
-      const n = r ? Math.max(0, Math.min(Math.round(step.count), r.maxHits)) : 0;
+      const n = r ? Math.max(1, Math.min(Math.round(step.count), r.maxHits)) : 0;
       if (r && step.count > r.maxHits) this.warn(`${label} fires at most ${r.maxHits} ${spec.variableCount}, so ${formatCombo([step])} fires ${r.maxHits}`);
+      if (r && step.count < 1) this.warn(`${label} fires at least 1 of its ${spec.variableCount}, so ${formatCombo([step])} fires 1`);
       if (r) span = n > 0 ? r.first + (n - 1) * r.interval : 0;
       else this.warn(`${label}'s hits aren't counted: ${formatCombo([step])} casts it in full`);
     }

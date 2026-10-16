@@ -49,8 +49,8 @@ const kit: ChampionKit = {
     W: {
       dash: true,
       // Charged for MinChargeTime to MaxDuration; stun and All Out's true damage grow until TimeToFullCharge.
-      charge: { default: 'dv.MinChargeTime', max: 'dv.MaxDuration' },
-      castTime: 'max(dv.MinChargeTime, charge)',
+      charge: { default: 'dv.MinChargeTime', min: 'dv.MinChargeTime', max: 'dv.MaxDuration' },
+      castTime: 'charge',
       debuff: mark,
       cc: [{ kind: 'immobilize', duration: `lerp(dv.MinKnockbackDuration, dv.MaxKnockbackDuration, ${W_POWER})` }],
       components: [{ id: 'ram', label: 'Path Maker', type: 'physical', amount: wDamage, aoe: true }],

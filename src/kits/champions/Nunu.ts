@@ -53,7 +53,8 @@ const kit: ChampionKit = {
     R: {
       // Channels before detonating; the damage and the slow's duration grow with the channel (wiki:
       // 1% of the maximum damage every 0.03s, the slow lasting the seconds channelled).
-      charge: { default: 'dv.ChannelDuration' },
+      // Released (recast) after 0.5s at the earliest (wiki).
+      charge: { default: 'dv.ChannelDuration', min: 0.5 },
       castTime: 'charge',
       cc: [{ kind: 'slow', duration: 'min(charge, dv.SlowDuration)' }],
       notes: ['Default: the full 3s channel (maximum damage). Set the seconds to release it early (R{1.5s}): damage grows linearly with the channel.'],

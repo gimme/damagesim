@@ -135,6 +135,11 @@ test('Smolder E: a flight time lands the bolts fired before it ends, and frees S
   assert.equal(bolts(long).length, all.length);
   assert.equal(at(long, 'Q'), at(full, 'Q'));
   assert.ok(long.warnings.some((w) => /lasts at most 1.25s/.test(w)));
+  // At least until the first bolt is fired.
+  const none = simulate(data, { champion: 'Smolder', level: 11, combo: 'E{0s} Q', target: dummy });
+  assert.equal(bolts(none).length, 1);
+  assert.ok(Math.abs(at(none, 'Q') - 0.1) < 1e-6);
+  assert.ok(none.warnings.some((w) => /lasts at least 0.1s/.test(w)));
   assert.ok(new Sim(data, { champion: 'Smolder', level: 11, combo: [] }).castSetting({ slot: 'E' })!.value === 1.25);
 });
 
@@ -160,7 +165,7 @@ test('A charge held for a step\'s seconds: damage, crowd control and cast time f
   assert.ok(Math.abs(smash(sion('Q{0s}')).raw - min) < 1e-6);
   assert.ok(Math.abs(smash(sion('Q{1s}')).raw - (min + max) / 2) < 1e-6);
   assert.equal(sion('Q{1s}').timeline[0].end, 1);
-  assert.deepEqual(sim.castSetting({ slot: 'Q' }), { kind: 'held', value: 2, max: 2, unit: 's' });
+  assert.deepEqual(sim.castSetting({ slot: 'Q' }), { kind: 'held', value: 2, min: 0, max: 2, unit: 's' });
   // Stunned only when charged 1s or more: 1.25s, plus 0.25s per 0.25s beyond.
   const stun = (combo: string) => {
     const s = new Sim(data, { champion: 'Sion', level: 11, combo: [] });
@@ -170,6 +175,8 @@ test('A charge held for a step\'s seconds: damage, crowd control and cast time f
   assert.equal(stun('Q{0.5s}'), 0);
   assert.equal(stun('Q{1s}'), 1.25);
   assert.equal(stun('Q{1.5s}'), 1.75);
+  // K'Sante W is released after 0.4s at the earliest.
+  assert.ok(Math.abs(simulate(data, { champion: 'KSante', level: 11, combo: 'W{0s}', target: dummy }).timeline[0].end - 0.4) < 1e-6);
   // Viego W defaults to a quick release.
   assert.equal(simulate(data, { champion: 'Viego', level: 11, combo: 'W', target: dummy }).timeline[0].end, 0);
 });
@@ -180,6 +187,7 @@ test('A channel ended early lands the hits fired by then, not the one at its end
   assert.deepEqual(xerath.events.filter((e) => e.source === 'R').map((e) => Math.round(e.time * 1000) / 1000), [1.127, 1.727, 2.327]);
   const castTime = new Sim(data, { champion: 'Xerath', level: 11, combo: [] }).spellFor('R').castTime ?? 0;
   assert.ok(Math.abs(xerath.timeline[1].start - (castTime + 1.7)) < 1e-6, 'free once the last shot is fired');
+  assert.equal(simulate(data, { champion: 'Xerath', level: 11, combo: 'R{0}', target: dummy }).events.filter((e) => e.source === 'R').length, 1, 'at least one shot');
   const fiddle = (combo: string) => simulate(data, { champion: 'Fiddlesticks', level: 11, combo, target: dummy }).events.filter((e) => e.label === 'Bountiful Harvest (final)').length;
   assert.equal(fiddle('W'), 1);
   assert.equal(fiddle('W{1s}'), 0);

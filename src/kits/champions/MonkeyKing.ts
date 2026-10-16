@@ -68,8 +68,9 @@ const kit: ChampionKit = {
     R: {
       // Spinning: no attacks and abilities interrupt it, so the cast blocks for the spin.
       lockout: 'dv.SpinDuration',
-      // Recast (or cast another ability) to end a spin early.
+      // Recast after 0.5s (or cast another ability) to end a spin early (wiki).
       variableDuration: true,
+      minDuration: 0.5,
       recasts: 2,
       recastDelay: 'dv.LockoutTimeBetweenCasts',
       notes: ['Use R R for both spins (each knocks up). Ticks every dv.SecondsPerTick for dv.SpinDuration; set the seconds to end a spin early (R{1s}).'],

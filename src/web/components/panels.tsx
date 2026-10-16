@@ -768,10 +768,10 @@ type AbilityStep = Extract<ComboStep, { type: 'ability' }>;
 /**
  * A number a step sets (seconds a cast lasts or charges, the shots it fires, seconds to wait), typed
  * in its chip. Unset, the field is empty with the default as its placeholder, so a click types a
- * number from scratch; emptying it goes back to the default. A number over the most there can be
- * counts as the most, and shows as it once the field is left.
+ * number from scratch; emptying it goes back to the default. A number outside what there can be
+ * (the first hit, the most) counts as the nearest, and shows as it once the field is left.
  */
-function StepNumber({ value, placeholder, max, step, unit, label, title, onChange }: { value?: number; placeholder: number; max?: number; step: number; unit: string; label: string; title: string; onChange: (v?: number) => void }) {
+function StepNumber({ value, placeholder, min = 0, max, step, unit, label, title, onChange }: { value?: number; placeholder: number; min?: number; max?: number; step: number; unit: string; label: string; title: string; onChange: (v?: number) => void }) {
   const [text, setText] = useState<string | null>(null);
   return (
     <span className="step-number" title={title}>
@@ -780,13 +780,13 @@ function StepNumber({ value, placeholder, max, step, unit, label, title, onChang
         aria-label={label}
         value={text ?? value ?? ''}
         placeholder={String(Math.round(placeholder * 100) / 100)}
-        min={0}
+        min={min}
         max={max}
         step={step}
         onChange={(e) => {
           setText(e.target.value);
           const v = Number(e.target.value);
-          if (e.target.value.trim() !== '' && Number.isFinite(v) && v >= 0) onChange(Math.min(step === 1 ? Math.round(v) : v, max ?? Infinity));
+          if (e.target.value.trim() !== '' && Number.isFinite(v)) onChange(Math.max(min, Math.min(step === 1 ? Math.round(v) : v, max ?? Infinity)));
         }}
         onBlur={() => {
           if (text?.trim() === '') onChange(undefined);
@@ -804,16 +804,18 @@ const SETTING_TITLE: Record<CastSetting['kind'], string> = { lasts: 'How long it
 /** A cast's setting in its step (see CastSetting). */
 function CastSettingField({ step, setting, onChange }: { step: AbilityStep; setting: CastSetting; onChange: (s: AbilityStep) => void }) {
   const key = setting.kind === 'count' ? 'count' : 'duration';
+  const num = (x: number) => String(Math.round(x * 100) / 100);
   const { duration: _d, count: _c, ...rest } = step;
   return (
     <StepNumber
       value={step[key]}
       placeholder={setting.value}
+      min={setting.min}
       max={setting.max}
       step={setting.kind === 'count' ? 1 : 0.25}
       unit={setting.unit}
       label={`${step.slot} ${setting.unit === 's' ? 'seconds' : setting.unit}`}
-      title={`${SETTING_TITLE[setting.kind]} (default ${fmt(setting.value, setting.kind === 'count' ? 0 : 2)}, at most ${fmt(setting.max, setting.kind === 'count' ? 0 : 2)})`}
+      title={`${SETTING_TITLE[setting.kind]}: ${num(setting.min)} to ${num(setting.max)}`}
       onChange={(v) => onChange(v === undefined ? rest : { ...rest, [key]: v })}
     />
   );
@@ -1003,7 +1005,7 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
                     step={0.25}
                     unit="s"
                     label="Seconds to wait"
-                    title="Seconds to wait (default 1)"
+                    title="Seconds to wait"
                     onChange={(v) => replace(v === undefined ? { type: 'wait' } : { ...st, seconds: v })}
                   />
                 )}
