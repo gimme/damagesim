@@ -19,7 +19,7 @@ const kit: ChampionKit = {
   },
   // Toxic Shot (impact and poison) is proc damage, special-cased to trigger Dark Harvest anyway (wiki).
   attack: {
-    onHit: [{ id: 'toxicShot', label: 'Toxic Shot', source: 'Toxic Shot', type: 'magic', amount: 'E.calc.ImpactCalculatedDamage', hits: 'E.rank > 0 ? 1 : 0', proc: true, harvest: true }],
+    onHit: [{ id: 'toxicShot', label: 'Toxic Shot', slot: 'E', type: 'magic', amount: 'E.calc.ImpactCalculatedDamage', hits: 'E.rank > 0 ? 1 : 0', proc: true, harvest: true }],
   },
   marks: [
     {

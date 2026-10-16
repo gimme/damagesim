@@ -19,8 +19,8 @@ const kit: ChampionKit = {
   ],
   stats: ({ evalExpr }) => ({ attackSpeed: evalExpr('P.calc.BonusAS') }),
   attack: {
-    // n = P.dv.AttackCount (3); everyNth takes a literal.
-    everyNth: { n: 3, label: 'Moonsilver Blade', components: [{ id: 'cleave', label: 'Moonsilver Blade', type: 'magic', amount: 'P.calc.CleaveDamage', aoe: true }] },
+    // n = P.dv.AttackCount (3); everyNth takes a literal. The cleave is spell damage (wiki: spellaoe).
+    everyNth: { n: 3, label: 'Moonsilver Blade', components: [{ id: 'cleave', label: 'Moonsilver Blade', type: 'magic', amount: 'P.calc.CleaveDamage', aoe: true, spell: true }] },
   },
   hooks: {
     // Lunar Rush cooldown refresh when it hits a Moonlit target (cooldown resets can't be expressed declaratively).

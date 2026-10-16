@@ -42,6 +42,8 @@ const kit: ChampionKit = {
         empowerAttacks: {
           count: 1,
           resetsAttack: true,
+          // The wiki: the attack is basic and spell damage, the bonus spell damage.
+          spell: true,
           components: [{ id: 'tumble', label: 'Tumble', type: 'physical', amount: 'Q.calc.ADRatioBonus' }],
         },
       },

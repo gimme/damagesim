@@ -59,7 +59,8 @@ const kit: ChampionKit = {
             id: 'zaahenQ2',
             label: 'The Darkin Glaive (recast)',
             duration: 'dv.RecastWindow',
-            empowerAttacks: { count: 1, resetsAttack: true, components: [{ id: 'q2', label: 'Darkin Glaive (recast)', type: 'physical', amount: 'Q.calc.SecondHitDamage' }] },
+            // The wiki: The Darkin Glaive's damage is basic and spell damage, the attack's too.
+            empowerAttacks: { count: 1, resetsAttack: true, spell: true, components: [{ id: 'q2', label: 'Darkin Glaive (recast)', type: 'physical', amount: 'Q.calc.SecondHitDamage' }] },
           },
           components: [],
         },

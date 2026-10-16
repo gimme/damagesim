@@ -38,8 +38,8 @@ const kit: ChampionKit = {
         id: 'crushingBlowBuff',
         label: 'Crushing Blow',
         duration: 'dv.BuffDuration',
-        // The wiki: the bonus damage portion is proc damage (the attack is basic and spell damage).
-        empowerAttacks: { count: 1, resetsAttack: true, components: [{ id: 'blow', label: 'Crushing Blow', type: 'physical', amount: 'Q.calc.BonusDamageTT', proc: true }] },
+        // The wiki: the attack is basic and spell damage, the bonus damage portion proc damage.
+        empowerAttacks: { count: 1, resetsAttack: true, spell: true, components: [{ id: 'blow', label: 'Crushing Blow', type: 'physical', amount: 'Q.calc.BonusDamageTT', proc: true }] },
       },
     },
     W: {

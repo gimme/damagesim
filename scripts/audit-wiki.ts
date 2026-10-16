@@ -1,7 +1,8 @@
 // Compare champion kits with the League wiki: which abilities apply on-hit effects and trigger
 // on-attack effects (Spellblade, Energized, Guinsoo's, Lethal Tempo…), at what effectiveness, and
 // which can critically strike; and whether each ability's damage is proc damage, spell damage or
-// neither (the template's "spell effects" field), checked on the damage a simulated combo deals.
+// neither (the template's "spell effects" field), and whether an attack its notes call basic and
+// spell damage is, checked on the damage a simulated combo deals.
 //
 // Sources (data/raw/wiki/pages.json, downloaded by scripts/fetch-wiki.ts):
 //   * each ability's data template ("Template:Data <Champion>/<Ability>"), whose description says
@@ -45,9 +46,9 @@ const REVIEWED: Record<string, string> = {
   'Zeri R': 'the crit applies to the chain lightning, which only hits other enemies',
 };
 
-/** Damage category differences checked by hand. Key: "<champion id> <damage label>". */
+/** Damage category differences checked by hand. Key: "<champion id> <damage label>", or "<champion id> <ability> (attack)" for the attack it empowers. */
 const REVIEWED_TAGS: Record<string, string> = {
-  'Diana Moonsilver Blade': 'part of her attack, which works like a regular one',
+  'DrMundo Blunt Force Trauma (attack)': 'works like a regular attack',
   'Kalista Soul-Marked': 'tagged proc, but a note says it benefits from her spell effects',
   'Ornn Brittle': "Living Forge's damage (Temper), tagged proc",
   'Vex Gloom': "Doom 'n Gloom's damage, tagged proc",
@@ -84,6 +85,8 @@ interface WikiAbility {
   onAttack: boolean;
   effectiveness: string[];
   canCrit: boolean;
+  /** The notes say its attack is basic and spell damage (Wukong Q, Galio's passive, Kayle E). */
+  attackSpell: boolean;
 }
 
 function parseTemplate(raw: string, fallbackName: string): WikiAbility | null {
@@ -95,6 +98,7 @@ function parseTemplate(raw: string, fallbackName: string): WikiAbility | null {
   const negHit = /(?:does not|doesn't|cannot|can't) apply on-hit/i.test(text);
   // Negative mentions (often about secondary targets) don't count: "…nor trigger on-attack effects".
   const negAtk = /(?:does not|doesn't|cannot|can't|nor) trigger on-attack/i.test(text);
+  const notes = plain(raw.match(/^\|notes\s*=([\s\S]*?)(?=^\|[a-z ]+\d*\s*=|^\}\})/m)?.[1] ?? '');
   return {
     name,
     slot: slot === 'I' ? 'P' : (slot as WikiAbility['slot']),
@@ -103,6 +107,7 @@ function parseTemplate(raw: string, fallbackName: string): WikiAbility | null {
     onAttack: !negAtk && /trigger(?:s|ing)?\b[^.]{0,60}\bon-attack\b|\band on-attack effects/i.test(text),
     effectiveness: [...text.matchAll(/(\d+(?:\.\d+)?%)[^.]{0,40}?effectiveness/gi)].map((m) => m[1]),
     canCrit: !/(?:cannot|can't|does not|doesn't) critically strike/i.test(text) && /\bcan critically strike|\bcritically strikes? (?:for|if|when)|\bcan crit\b/i.test(text),
+    attackSpell: /(?:tagged as|treated as|deals?)\s+(?:both\s+)?basic damage,?\s+and\s+spell damage|basic damage\b[^.]*\bby also being tagged as spell damage/i.test(notes),
   };
 }
 
@@ -201,6 +206,8 @@ for (const champ of champs) {
   if (kit.abilities.P?.components?.length) combos.push('P AA');
   for (const [slot, spec] of Object.entries(kit.abilities)) for (const v of Object.keys(spec?.variants ?? {})) combos.push(`${slot}:${v} AA AA`);
   const reported = new Set<string>();
+  // Every attack deals these, whichever ability they're shown under (Kayle's Starfire Spellblade).
+  const passiveOnHits = new Set([...(kit.attack?.onHit ?? []), ...(kit.attack?.everyNth?.components ?? [])].map((c) => c.label));
   for (const combo of combos) {
     for (const hpPercent of [100, 25]) {
       let events: DamageInstance[];
@@ -210,7 +217,21 @@ for (const champ of champs) {
         continue;
       }
       for (const e of events) {
-        if (e.flags.kind !== 'ability' || e.flags.attack || e.flags.pet || !e.flags.slot) continue;
+        if (e.flags.attack) {
+          // An attack is spell damage too when the ability that empowered it (its own slot or source,
+          // or a hit of its cast instance other than the kit's on-hits) says its attack is basic and
+          // spell damage.
+          const mates = events.filter((x) => x.castId === e.castId && x.flags.kind === 'ability' && !passiveOnHits.has(x.label));
+          const slots = new Set<string | undefined>([e.flags.slot, e.source, ...mates.map((x) => x.flags.slot)]);
+          const wiki = live.find((ab) => ab.attackSpell && slots.has(ab.slot));
+          if (!wiki || e.flags.ability || reported.has(`${wiki.name} attack`)) continue;
+          reported.add(`${wiki.name} attack`);
+          const reviewed = REVIEWED_TAGS[`${champ.id} ${wiki.name} (attack)`];
+          if (!reviewed) mismatches++;
+          if (!reviewed || showAll) lines.push(`  ${reviewed ? 'reviewed' : 'TAGS    '} ${wiki.slot} ${wiki.name} / ${e.label}: wiki basic and spell damage | kit basic damage${reviewed ? ` (${reviewed})` : ''}`);
+          continue;
+        }
+        if (e.flags.kind !== 'ability' || e.flags.pet || !e.flags.slot) continue;
         // "Achooo! (Dragon Practice)" is Dragon Practice's, "Upheaval (throw)" Upheaval's.
         const names = [e.label, ...e.sourceLabel.split(' / ')].flatMap((n) => {
           const m = n.match(/^(.*) \((.*)\)$/);

@@ -66,7 +66,8 @@ const kit: ChampionKit = {
         type: 'magic',
         amount: total - ad + ad * atk.critFactor,
         castId: atk.castId,
-        flags: { kind: 'attack', attack: true, ability: false, aoe: true, crit: atk.crit },
+        // The wiki: basic and spell damage to the target (area proc damage only to others around it).
+        flags: { kind: 'ability', slot: 'P', attack: true, ability: true, crit: atk.crit },
       });
     },
     afterDamage(sim: Sim, inst) {

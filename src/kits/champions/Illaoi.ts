@@ -35,6 +35,8 @@ const kit: ChampionKit = {
         empowerAttacks: {
           count: 1,
           resetsAttack: true,
+          // The wiki: the attack is basic and spell damage, the additional damage spell damage.
+          spell: true,
           components: [
             { id: 'lesson', label: 'Harsh Lesson', type: 'physical', amount: 'max(W.calc.HealthPercentTotal * target.maxHp, W.dv.WMinDamage)' },
             {

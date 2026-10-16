@@ -1,8 +1,8 @@
 import type { BuffSpec, ChampionKit } from '../../engine/kit-types.ts';
 
 // Qiyana — patch 16.20.
-// Terrashape enchantment: while enchanted, bonus attack speed and on-hit magic damage. The
-// enchantment lasts until replaced, so the buff is long-lived.
+// Terrashape enchantment: while enchanted, bonus attack speed and bonus magic damage on attacks
+// (on-hit) and basic abilities (a hook). The enchantment lasts until replaced, so the buff is long-lived.
 const enchant: BuffSpec = {
   id: 'qiyanaEnchant',
   label: 'Enchantment',
@@ -75,7 +75,7 @@ const kit: ChampionKit = {
     W: {
       dash: true,
       noTarget: true,
-      notes: ['Dashes, enchants the weapon (attack speed + on-hit magic damage) and refreshes Elemental Wrath\'s cooldown.'],
+      notes: ['Dashes, enchants the weapon (attack speed, bonus magic damage on attacks and once per Q or E cast) and refreshes Elemental Wrath\'s cooldown.'],
       buff: enchant,
       components: [],
     },
@@ -98,6 +98,21 @@ const kit: ChampionKit = {
     // Start enchanted (option) — the enchantment is usually picked up before a fight.
     onStart(sim) {
       if (sim.opt.enchanted && sim.rankOf('W') > 0) sim.applyBuff(enchant, 'W', sim.spellFor('W'), sim.rankOf('W'));
+    },
+    // The enchantment's bonus damage also lands with basic abilities (wiki), once per cast.
+    afterDamage(sim, inst) {
+      if (inst.fromMark || inst.flags.kind !== 'ability' || (inst.flags.slot !== 'Q' && inst.flags.slot !== 'E') || !sim.getBuff(enchant.id)) return;
+      if (sim.counter(`qiyanaW:${inst.castId}`)) return;
+      sim.setCounter(`qiyanaW:${inst.castId}`, 1);
+      sim.deal({
+        source: 'W',
+        sourceLabel: enchant.label,
+        label: 'Terrashape (enchanted)',
+        type: 'magic',
+        amount: sim.evalExpr('W.calc.OnHitDamage', { slot: 'W' }),
+        castId: inst.castId,
+        flags: { kind: 'ability', slot: 'W', ability: false, proc: true },
+      });
     },
     // Terrashape refreshes Q's cooldown and (new element) resets Royal Privilege.
     onCast(sim, cast) {

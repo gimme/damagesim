@@ -55,7 +55,7 @@ const kit: ChampionKit = {
     },
   ],
   attack: {
-    onHit: [{ id: 'quiver', label: 'Blighted Quiver', source: 'Blighted Quiver', type: 'magic', amount: 'W.rank > 0 ? W.calc.OnHitDamage : 0', proc: true }],
+    onHit: [{ id: 'quiver', label: 'Blighted Quiver', slot: 'W', type: 'magic', amount: 'W.rank > 0 ? W.calc.OnHitDamage : 0', proc: true }],
   },
   abilities: {
     Q: {

@@ -29,6 +29,7 @@ const kit: ChampionKit = {
       {
         id: 'convergence',
         label: 'Parallel Convergence',
+        slot: 'W',
         type: 'magic',
         amount: 'W.calc.MissingHealthPercent * target.missingHp',
         // Only procs below the health threshold (hits 0 = no instance).

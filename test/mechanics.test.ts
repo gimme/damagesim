@@ -524,3 +524,41 @@ test("Kalista's Soul-Marked: ability damage, dealt as her next attack goes off a
   assert.equal(r.events[i + 1], attacks[1]);
   assert.equal(r.events[i].time, attacks[1].time);
 });
+
+test("Attacks that are also spell damage light Liandry's: Wukong Q's, Kayle E's, Galio's Colossal Smash, Diana's third hit", () => {
+  const torments = (champion: string, combo: string) => bySource(simulate(data, { champion, level: 11, items: ["Liandry's Torment"], combo, target: dummy }), 'item:6653').length;
+  assert.equal(torments('MonkeyKing', 'AA'), 0);
+  assert.ok(torments('MonkeyKing', 'Q AA') > 0);
+  assert.ok(torments('Kayle', 'E AA') > 0);
+  assert.ok(torments('Galio', 'AA') > 0);
+  assert.equal(torments('Diana', 'AA AA'), 0);
+  assert.ok(torments('Diana', 'AA AA AA') > 0);
+  // Wukong's attack itself is the spell damage (its bonus is proc damage), flagged like Garen Q's strike.
+  const wukong = simulate(data, { champion: 'MonkeyKing', level: 11, combo: 'Q AA', target: dummy });
+  const attack = bySource(wukong, 'AA')[0];
+  assert.deepEqual([attack.flags.attack, attack.flags.ability, attack.flags.slot], [true, true, 'Q']);
+  assert.ok(wukong.events.find((e) => e.label === 'Crushing Blow')!.flags.proc);
+});
+
+test("An ability's passive on-hit shows under that ability: Ekko's Parallel Convergence, Kayle's Starfire Spellblade", () => {
+  const ekko = simulate(data, { champion: 'Ekko', level: 11, combo: 'AA', target: { ...dummy, hpPercent: 25 } });
+  const convergence = ekko.events.find((e) => e.label === 'Parallel Convergence')!;
+  assert.deepEqual([convergence.source, convergence.sourceLabel], ['W', 'Parallel Convergence']);
+  const kayle = simulate(data, { champion: 'Kayle', level: 11, combo: 'AA', target: dummy });
+  assert.equal(kayle.events.find((e) => e.label === 'Starfire Spellblade')!.source, 'E');
+});
+
+test("Qiyana: Terrashape's enchantment adds its damage once per Q or E cast, not to R", () => {
+  const bonus = (enchanted: number) =>
+    simulate(data, { champion: 'Qiyana', level: 11, options: { enchanted }, combo: 'Q+tremor E R', target: { ...dummy, hpPercent: 40 } }).events.filter((e) => e.label === 'Terrashape (enchanted)');
+  assert.deepEqual(bonus(1).map((e) => e.castId === bonus(1)[0].castId), [true, false]);
+  assert.equal(bonus(0).length, 0);
+});
+
+test("Kai'Sa: Void Seeker's Plasma stacks deal Caustic Wounds as if applied one by one, rolling over past the burst", () => {
+  const plasma = (combo: string) => simulate(data, { champion: 'Kaisa', level: 11, combo, target: dummy }).events.filter((e) => e.sourceLabel === 'Second Skin');
+  const [first, second] = plasma('AA AA').map((e) => e.raw);
+  assert.ok(Math.abs(plasma('W')[0].raw - (first + second)) < 1e-6);
+  // 4 stacks: the first of W's two stacks bursts, the second starts over.
+  assert.deepEqual(plasma('AA AA AA AA W').slice(4).map((e) => e.label), ['Plasma', 'Plasma burst', 'Plasma']);
+});

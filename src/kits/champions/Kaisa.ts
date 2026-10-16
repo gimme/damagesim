@@ -3,10 +3,11 @@ import type { DamageRequest } from '../../engine/effects.ts';
 import type { Sim } from '../../engine/sim.ts';
 
 // Kai'Sa — patch 16.20.
-// Plasma (hooks): attacks deal P.calc.PBaseDamage + P.calc.PCurrentPerStackDamage × (stacks before the
-// hit) and add a stack; the application that would make a 5th stack (P.dv.PMaxStacks + 1) bursts for
+// Plasma (hooks): each stack applied deals Caustic Wounds, P.calc.PBaseDamage + P.calc.PCurrentPerStackDamage
+// × (stacks before it); attacks apply one, Void Seeker W.dv.Effect4Amount (Effect5Amount evolved) after its
+// damage. The application that would make a 5th stack (P.dv.PMaxStacks + 1) bursts for
 // P.calc.PExecutePercentage of missing health (computed before the triggering attack's damage) and
-// leftover stacks roll over. Void Seeker adds W.dv.Effect4Amount stacks (Effect5Amount evolved) after its damage.
+// leftover stacks roll over.
 // Evolution thresholds: Q Q.dv.Effect6Amount bonus AD, W W.dv.Effect2Amount AP — or force them with
 // the evolved* options.
 const EVOLVED_Q = '(opt.evolvedQ || bonusAd >= Q.dv.Effect6Amount)';
@@ -41,7 +42,7 @@ const kit: ChampionKit = {
       ],
     },
     W: {
-      notes: ['Applies 2 Plasma stacks (3 evolved), which can trigger the Plasma burst.'],
+      notes: ['Applies 2 Plasma stacks (3 evolved), each dealing Caustic Wounds damage, which can trigger the Plasma burst.'],
       components: [{ id: 'blast', label: 'Void Seeker', type: 'magic', amount: 'calc.TotalDamage', delay: 0.4 }],
     },
     E: {
@@ -56,14 +57,12 @@ const kit: ChampionKit = {
   hooks: {
     onAttack(sim, atk) {
       if (atk.fromAbility || atk.phantom) return;
-      const before = plasmaStacks(sim);
-      atk.extra.push(req(sim, atk.castId, 'Plasma', 'P.calc.PBaseDamage + P.calc.PCurrentPerStackDamage * ' + before));
-      addPlasma(sim, 1, (r) => atk.extra.push({ ...r, castId: atk.castId }));
+      addPlasma(sim, 1, atk.castId, true, (r) => atk.extra.push(r));
     },
     afterDamage(sim, inst) {
       if (inst.fromMark || inst.flags.kind !== 'ability' || inst.flags.slot !== 'W' || inst.flags.onHit) return;
       const add = sim.evalExpr(`${EVOLVED_W} ? dv.Effect5Amount : dv.Effect4Amount`, { slot: 'W' });
-      addPlasma(sim, add, (r) => sim.deal(r));
+      addPlasma(sim, add, inst.castId, false, (r) => sim.deal(r));
     },
   },
 };
@@ -72,18 +71,29 @@ function plasmaStacks(sim: Sim): number {
   return sim.time <= sim.counter('kaisa.plasmaUntil') ? sim.counter('kaisa.plasma') : 0;
 }
 
-function req(sim: Sim, castId: number, label: string, expr: string): DamageRequest {
-  return { source: 'P', sourceLabel: 'Second Skin', label, type: 'magic', amount: sim.evalExpr(expr, { slot: 'P' }), castId, flags: { kind: 'ability', slot: 'P', onHit: true, ability: false, proc: true } };
+function req(sim: Sim, castId: number, label: string, amount: number, onHit: boolean): DamageRequest {
+  return { source: 'P', sourceLabel: 'Second Skin', label, type: 'magic', amount, castId, flags: { kind: 'ability', slot: 'P', onHit, ability: false, proc: true } };
 }
 
-/** Add Plasma stacks; on reaching max + 1 the burst is emitted (amount computed now) and leftovers roll over. */
-function addPlasma(sim: Sim, add: number, emit: (r: DamageRequest) => void) {
+/**
+ * Apply Plasma stacks one after another (wiki): each deals Caustic Wounds damage for the stacks
+ * before it (one hit per run of stacks), and the one that would make max + 1 bursts (amount computed
+ * when emitted) and consumes them all; the rest roll over.
+ */
+function addPlasma(sim: Sim, add: number, castId: number, onHit: boolean, emit: (r: DamageRequest) => void) {
   const max = sim.evalExpr('P.dv.PMaxStacks', { slot: 'P' });
-  let stacks = plasmaStacks(sim) + add;
-  if (stacks > max) {
-    emit(req(sim, sim.newCastId(), 'Plasma burst', 'P.calc.PExecutePercentage * target.missingHp'));
-    stacks -= max + 1;
+  const caustic = (before: number) => sim.evalExpr(`P.calc.PBaseDamage + P.calc.PCurrentPerStackDamage * ${before}`, { slot: 'P' });
+  let stacks = plasmaStacks(sim);
+  let damage = 0;
+  for (let i = 0; i < add; i++) {
+    damage += caustic(stacks);
+    if (++stacks <= max) continue;
+    emit(req(sim, castId, 'Plasma', damage, onHit));
+    emit(req(sim, sim.newCastId(), 'Plasma burst', sim.evalExpr('P.calc.PExecutePercentage * target.missingHp', { slot: 'P' }), onHit));
+    stacks = 0;
+    damage = 0;
   }
+  if (damage > 0) emit(req(sim, castId, 'Plasma', damage, onHit));
   sim.setCounter('kaisa.plasma', stacks);
   sim.setCounter('kaisa.plasmaUntil', sim.time + sim.evalExpr('P.dv.PDuration', { slot: 'P' }));
 }

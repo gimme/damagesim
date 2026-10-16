@@ -1295,9 +1295,10 @@ export class Sim {
 
     // Champion passive on-hits, every-Nth procs and empowered attacks from buffs.
     const kitAtk = this.kit.attack;
-    const pushCompsTo = (target: AttackInfo, comps: ComponentSpec[], sourceLabel: string, slot: Slot = 'P') => {
+    const pushCompsTo = (target: AttackInfo, comps: ComponentSpec[], sourceLabel: string, from: Slot = 'P') => {
       for (const comp of comps) {
         if (comp.optional && !o.enable?.includes(comp.id)) continue;
+        const slot = comp.slot ?? from;
         const spell = this.spellFor(slot);
         const rank = this.abilityRank(slot);
         const hits = Math.max(0, Math.round(this.evalExpr(comp.hits ?? 1, { slot, spell, rank })));
@@ -1315,13 +1316,14 @@ export class Sim {
           const flags = componentFlags(comp, slot);
           const req: DamageRequest = {
             source: slot,
-            sourceLabel: comp.source ?? sourceLabel,
+            sourceLabel: comp.source ?? (comp.slot ? this.slotName(comp.slot) : sourceLabel),
             label: comp.label,
             type: comp.type,
             amount,
             castId: o.castId,
-            // Empowered-attack damage from an ability counts as ability damage; passive on-hits don't.
-            flags: { ...flags, onHit: true, ability: slot !== 'P' && flags.ability, crit: !!comp.canCrit && c.crit },
+            // Empowered-attack damage from an ability counts as ability damage; passive on-hits don't,
+            // unless marked spell damage.
+            flags: { ...flags, onHit: true, ability: (from !== 'P' || !!comp.spell) && flags.ability, crit: !!comp.canCrit && c.crit },
           };
           // Delayed / periodic parts of an empowered attack (bleeds, lightning) land later.
           const delay = (comp.delay !== undefined ? this.evalExpr(comp.delay, { slot, spell, rank }) : 0) + (comp.interval !== undefined ? this.evalExpr(comp.interval, { slot, spell, rank }) * h : 0);
@@ -1333,6 +1335,8 @@ export class Sim {
     const pushComps = (comps: ComponentSpec[], sourceLabel: string, slot: Slot = 'P') => pushCompsTo(atk, comps, sourceLabel, slot);
     const pendingCC: (() => void)[] = [];
     let empoweredEff: number | undefined;
+    /** The ability whose spell damage the attack itself also is (empowerAttacks.spell). */
+    let spellOf: Slot | undefined;
     if (!o.onHitOnly || o.fromAbility) {
       if (kitAtk?.onHit && !o.fromAbility) pushComps(kitAtk.onHit, this.champ.passive.name);
       if (kitAtk?.everyNth && !o.fromAbility) {
@@ -1359,6 +1363,7 @@ export class Sim {
             const first = atk.extra[before];
             if (first) first.flags = { ...first.flags, attack: true, onHit: false };
           }
+          if (b.spec.empowerAttacks.spell) spellOf = b.slot;
           const effComp = b.spec.empowerAttacks.components.find((x) => x.onHitEffectiveness !== undefined);
           if (effComp) empoweredEff = this.evalExpr(effComp.onHitEffectiveness!, { slot: b.slot ?? 'P' });
           for (const cc of b.spec.empowerAttacks.cc ?? []) {
@@ -1399,8 +1404,11 @@ export class Sim {
         type: o.comp && o.comp.type !== 'adaptive' ? o.comp.type : o.comp?.type === 'adaptive' ? 'adaptive' : (kitAtk?.type ?? 'physical'),
         amount: base,
         castId: o.castId,
-        // Attack-like ability hits (Urgot W, Azir soldiers…) deal basic damage too.
-        flags: { kind: o.fromAbility ? 'ability' : 'attack', slot: o.fromAbility, attack: !o.fromAbility, ability: !!o.fromAbility, crit: atk.crit, ...(o.fromAbility ? { basic: true } : {}) },
+        // Attack-like ability hits (Urgot W, Azir soldiers…) deal basic damage too; an attack that is
+        // also an ability's spell damage (Wukong Q) is flagged as an attack its components replace.
+        flags: spellOf
+          ? { kind: 'ability', slot: spellOf, attack: true, ability: true, crit: atk.crit }
+          : { kind: o.fromAbility ? 'ability' : 'attack', slot: o.fromAbility, attack: !o.fromAbility, ability: !!o.fromAbility, crit: atk.crit, ...(o.fromAbility ? { basic: true } : {}) },
       });
     }
     // Abilities that apply on-hit at reduced effectiveness (Azir soldiers, Akshan E…).
@@ -1417,6 +1425,11 @@ export class Sim {
 
   private abilitySpec(slot: Slot): AbilitySpec {
     return this.kit.abilities[slot] ?? {};
+  }
+
+  /** The ability's name as its casts show it. */
+  private slotName(slot: Slot): string {
+    return this.abilitySpec(slot).name ?? this.spellFor(slot).name;
   }
 
   private castTimeOf(spec: AbilitySpec, variant: VariantSpec | undefined, ctx: CastCtx): number {
@@ -1524,7 +1537,7 @@ export class Sim {
       }
     }
     const spell = this.spellFor(slot, (variant as any) ?? spec);
-    const name = spec.name ?? this.spellFor(slot).name;
+    const name = this.slotName(slot);
     const label = variant ? `${name} (${variant.label})` : name;
 
     // Cooldown / recast handling. Process pending hits first: they can reset cooldowns

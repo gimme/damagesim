@@ -71,6 +71,11 @@ export interface ComponentSpec {
   proc?: boolean;
   /** Proc damage special-cased to trigger Dark Harvest anyway (Teemo's Toxic Shot). */
   harvest?: boolean;
+  /**
+   * Spell damage where the hit otherwise isn't: a passive's part of an attack (Diana's Moonsilver
+   * Blade), which is the attack's default damage unless marked.
+   */
+  spell?: boolean;
   /** Excluded unless the combo step enables it. */
   optional?: boolean;
   /** Short condition shown in the UI, e.g. "if the target is isolated". */
@@ -78,6 +83,11 @@ export interface ComponentSpec {
   note?: string;
   /** Display name of the damage source (default: the ability or passive name). */
   source?: string;
+  /**
+   * The basic ability whose passive deals this hit of the kit's `attack` (Ekko W's Parallel
+   * Convergence): shown under that ability, and `calc.`/`dv.` are its spell's.
+   */
+  slot?: 'Q' | 'W' | 'E' | 'R';
   /** Extra percent armor/MR penetration for this hit only (fraction), e.g. Gangplank barrels 0.4. */
   penPercent?: Expr;
   /** For attack/onHit components: fraction of item on-hit damage applied (Azir soldiers 0.5, Akshan E 0.25). */
@@ -111,6 +121,11 @@ export interface BuffSpec {
     components: ComponentSpec[];
     /** The empowered attack's own physical damage is replaced by the components. */
     replaceBase?: boolean;
+    /**
+     * The attack itself is also the ability's spell damage, the wiki's "basic damage and spell
+     * damage" (Wukong Q, Kayle E): like an attack the components replace (Garen Q).
+     */
+    spell?: boolean;
     /** Attack resets the auto-attack timer. */
     resetsAttack?: boolean;
     /** Extra times on-hit effects apply with each empowered attack (Renekton W: 1 or 2). */

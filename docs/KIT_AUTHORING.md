@@ -118,6 +118,8 @@ comparisons, `&& || !` and `cond ? a : b`. Names that aren't identifiers use bra
 | `areaOnHit: true` | on-hit applied by an area effect, which Press the Attack ignores (Katarina daggers, Master Yi Q) |
 | `proc: true` | proc damage (the wiki's "spell effects: proc", "deals proc damage"; Lux's Illumination, Kog'Maw W's on-hit): no spell effects (Liandry's, Luden's, Comet), no rune triggers (Electrocute, Dark Harvest, Conqueror, Cheap Shot), doesn't apply or detonate the kit's marks |
 | `noProc: true` | not ability damage, but not proc damage either (the wiki's "default damage"): no spell effects, still triggers runes. Also an ability's attack that works like a regular attack (Jayce W, Rengar Q) |
+| `spell: true` | spell damage where the hit otherwise isn't: a passive's part of an attack (Diana's Moonsilver Blade), which is default damage unless marked |
+| `slot` | in the kit's `attack`: the basic ability whose passive deals the hit (Ekko W's Parallel Convergence, Teemo's Toxic Shot), shown under that ability, its `calc.`/`dv.` that ability's |
 | `min`, `max` | clamp the amount (e.g. Darius R cap) |
 | `condition`, `note` | short text shown in UIs |
 
@@ -178,6 +180,9 @@ Q: { resetsAttack: true, buff: { id: 'garenQ', label: 'Decisive Strike', duratio
 ```
 `replaceBase: true` when the tooltip's damage *is* the attack's damage ("his next attack deals X");
 leave it false when it's *bonus* damage ("deals X bonus damage"). Write combos as `Q AA`.
+An attack the components replace is the ability's spell damage as well as basic damage (the wiki's
+"basic damage, but also tagged as spell damage"), unless `noProc`. When the wiki says the same of an
+attack that keeps its own damage (Wukong Q, Kayle E, Vayne Q), set `empowerAttacks.spell: true`.
 Inside buffs/marks/attack hooks, refer to formulas with an explicit slot (`Q.calc.X`).
 
 **Buff with on-hit damage while active** (Kog'Maw W, Twitch/Vayne steroids, Varus):

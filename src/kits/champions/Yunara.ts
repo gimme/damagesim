@@ -15,7 +15,7 @@ const kit: ChampionKit = {
   ],
   // The wiki: Cultivation of Spirit's passive and active on-hits are proc damage.
   attack: {
-    onHit: [{ id: 'cultivation', label: 'Cultivation of Spirit', type: 'magic', amount: 'Q.calc.Calc_Passive_Damage', proc: true }],
+    onHit: [{ id: 'cultivation', label: 'Cultivation of Spirit', slot: 'Q', type: 'magic', amount: 'Q.calc.Calc_Passive_Damage', proc: true }],
   },
   hooks: {
     onAttack(sim, atk) {

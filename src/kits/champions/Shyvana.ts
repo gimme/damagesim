@@ -34,7 +34,7 @@ const kit: ChampionKit = {
   }),
   attack: {
     // The wiki: "The passive on-hit damage applies proc damage" (the empowered strikes are spell damage).
-    onHit: [{ id: 'ember', label: 'Emberstrike (passive)', source: 'Emberstrike', type: 'magic', amount: 'Q.calc.Calc_Max_Health_Damage * target.maxHp', hits: 'Q.rank > 0 ? 1 : 0', proc: true }],
+    onHit: [{ id: 'ember', label: 'Emberstrike (passive)', slot: 'Q', type: 'magic', amount: 'Q.calc.Calc_Max_Health_Damage * target.maxHp', hits: 'Q.rank > 0 ? 1 : 0', proc: true }],
   },
   abilities: {
     Q: {
