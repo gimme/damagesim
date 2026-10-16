@@ -557,8 +557,10 @@ export function useDragOrder({
     const [x, y] = [g.px - g.fx * home.w - b.left, g.py - g.fy * home.h - b.top];
     [g.tx, g.ty] = [x - home.x, y - home.y];
     el.style.transform = `translate(${g.tx}px, ${g.ty}px)`;
+    // A brought child lands only over the box. Coming over it, it first joins the others, last, to
+    // land from where it's laid out among them.
     const away = !!g.bring && !(g.px >= b.left && g.px < b.right && g.py >= b.top && g.py < b.bottom);
-    const to = away ? g.from : landAt(x + home.w / 2, y + home.h / 2, laidOut(g.from, g.to).map((j) => homes.current[j]), makeWay ? g.to : g.from, g.from);
+    const to = away || g.away ? g.from : landAt(x + home.w / 2, y + home.h / 2, laidOut(g.from, g.to).map((j) => homes.current[j]), makeWay ? g.to : g.from, g.from);
     if (to !== g.to || away !== !!g.away) reorder(to, away);
   };
   const reorder = (to: number, away = false) => {

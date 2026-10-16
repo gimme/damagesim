@@ -979,12 +979,21 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
   const order = useDragOrder({
     count: shown.length,
     arrange: (from, to) => moveStep(shown.map((_, j) => j), from, to),
-    // Before the first other step it is before in reading order (above its line, or on it and left of
-    // its middle).
+    // Where it's nearest: on the line nearest its middle, however the pointer drifts up or down, after
+    // the steps there whose middle its left edge is past, or its right edge for a step after the gap
+    // it leaves on its own line. So a step it's dragged over makes way once half covered, either way.
     landAt: (x, y, cells, at) => {
-      const others = cells.filter((_, k) => k !== at);
-      const to = others.findIndex((r) => y < r.y || (y <= r.y + r.h && x < r.x + r.w / 2));
-      return to < 0 ? others.length : to;
+      const d = cells[at];
+      // The cells by line, as laid out: one left of the one before it starts a new line.
+      const lines: number[][] = [];
+      cells.forEach((c, k) => (k && c.x >= cells[k - 1].x ? lines[lines.length - 1].push(k) : lines.push([k])));
+      const top = (l: number[]) => Math.min(...l.map((k) => cells[k].y));
+      const bottom = (l: number[]) => Math.max(...l.map((k) => cells[k].y + cells[k].h));
+      let n = 0;
+      while (n < lines.length - 1 && y > (bottom(lines[n]) + top(lines[n + 1])) / 2) n++;
+      const own = lines[n].includes(at);
+      const above = lines.slice(0, n).flat().filter((k) => k !== at).length;
+      return above + lines[n].filter((k) => k !== at && (own && k > at ? x + d.w / 2 : x - d.w / 2) > cells[k].x + cells[k].w / 2).length;
     },
     move: (from, to) => {
       setIncoming(null);
