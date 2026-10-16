@@ -72,12 +72,13 @@ const kit: ChampionKit = {
     },
   },
   hooks: {
-    // The second shot is its own basic attack (separate hit, own crit roll, applies on-hit).
-    onAttack(sim, atk) {
-      if (atk.fromAbility || atk.phantom || sim.counter('akshanSecondShot')) return;
+    // The second shot is its own basic attack (separate hit, own crit roll, applies on-hit), fired
+    // 0.1s after the first.
+    onLaunch(sim, launch) {
+      if (launch.fromAbility || sim.counter('akshanSecondShot')) return;
       sim.schedule(0.1, () => {
         sim.setCounter('akshanSecondShot', 1);
-        sim.performAttackHit({
+        sim.launchAttack({
           castId: sim.newCastId(),
           amount: sim.evalExpr('P.calc.SecondAutoDamage', { slot: 'P' }),
           label: 'Dirty Fighting (second shot)',

@@ -3,9 +3,11 @@ import type { Sim } from '../../engine/sim.ts';
 
 // Lucian — patch 16.20.
 // Lightslinger's second shot is a real attack (on-hit, on-attack, life steal, own crit roll), so it is
-// fired from a hook through the simulator's attack pipeline 0.25s after the first shot (wiki).
+// launched from a hook through the simulator's attack pipeline 0.25s after the first shot (wiki).
 
 const SECOND_SHOT_DELAY = 0.25;
+/** Lightslinger shots in flight: each refunds Relentless Pursuit's cooldown as it hits. */
+const SHOTS = 'lucian:shots';
 
 const vigilance: BuffSpec = {
   id: 'vigilance',
@@ -46,26 +48,34 @@ const kit: ChampionKit = {
       const castTime = cast.slot === 'R' ? sim.evalExpr('R.dv.Duration', { slot: 'R' }) : (sim.spellFor(cast.slot).castTime ?? 0);
       sim.setCounter('lucian:lightslingerUntil', sim.time + castTime + sim.evalExpr('P.dv.PassiveDuration', { slot: 'P' }));
     },
-    onAttack(sim, atk) {
-      if (atk.phantom || atk.fromAbility || sim.counter('lucian:secondShot')) return;
+    // The double shot is decided as the attack is launched: a cast while its missile flies grants the
+    // next attack's.
+    onLaunch(sim, launch) {
+      if (launch.fromAbility || sim.counter('lucian:secondShot')) return;
       if (sim.time > sim.counter('lucian:lightslingerUntil') + 1e-9) return;
       sim.setCounter('lucian:lightslingerUntil', -1);
-      refundE(sim);
+      sim.setCounter(`${SHOTS}:${launch.castId}`, 1);
       sim.schedule(SECOND_SHOT_DELAY, () => {
         if (sim.target.hp <= 0) return;
         const st = sim.stats;
         // Pre-scale so that the pipeline's crit factor (critDamage) becomes the passive's own (CritDamage formula: 175% + bonus crit damage).
         const scale = critFactor(sim, sim.evalExpr('P.calc.CritDamage / P.calc.TotalDamage', { slot: 'P' })) / critFactor(sim, st.critDamage);
+        const castId = sim.newCastId();
+        sim.setCounter(`${SHOTS}:${castId}`, 1);
         sim.setCounter('lucian:secondShot', 1);
-        sim.performAttackHit({
-          castId: sim.newCastId(),
+        sim.launchAttack({
+          castId,
           amount: sim.evalExpr('P.calc.TotalDamage', { slot: 'P' }) * scale,
           label: 'Lightslinger (2nd shot)',
           sourceLabel: 'Lightslinger',
         });
         sim.setCounter('lucian:secondShot', 0);
-        refundE(sim);
       });
+    },
+    onAttack(sim, atk) {
+      if (atk.phantom || !sim.counter(`${SHOTS}:${atk.castId}`)) return;
+      sim.setCounter(`${SHOTS}:${atk.castId}`, 0);
+      refundE(sim);
     },
   },
   abilities: {

@@ -8,7 +8,7 @@ import { compile, type Resolver } from './expr.ts';
 import { computeStats, emptyMods, hasteCooldown, itemStatsToMods, mergeMods, type Stats, type StatMods, GAME } from './stats.ts';
 import { effectiveResist, resistMultiplier, type DamageType } from './damage.ts';
 import type { AbilitySpec, BuffSpec, ChampionKit, ComponentSpec, DebuffSpec, Expr, MarkSpec, VariantSpec } from './kit-types.ts';
-import { addOnHitRepeat, IN_COMBAT, selfHp, type AttackInfo, type CastInfo, type DamageFlags, type DamageInstance, type DamageRequest, type Effect, type SetupCtx, type Slot } from './effects.ts';
+import { addOnHitRepeat, IN_COMBAT, selfHp, type AttackInfo, type AttackLaunch, type CastInfo, type DamageFlags, type DamageInstance, type DamageRequest, type Effect, type SetupCtx, type Slot } from './effects.ts';
 import { attackOptions, findVariant, parseCombo, formatCombo, rollsCrits, type AbilityStep, type ComboStep, type CritMode } from './combo.ts';
 import { getKit } from '../kits/index.ts';
 import { createItemEffect, ITEM_GROUPS } from './items.ts';
@@ -182,6 +182,35 @@ interface ActiveBuff {
   charges?: number;
   mods?: Partial<StatMods>;
   amp?: number;
+}
+
+/** A basic attack or attack-like ability hit landing on the target (Sim.performAttackHit). */
+export interface AttackHit {
+  castId: number;
+  amount?: number;
+  comp?: ComponentSpec;
+  label?: string;
+  sourceLabel?: string;
+  fromAbility?: Slot;
+  onHitOnly?: boolean;
+  /** Optional components enabled for this attack (combo "AA+bounce"). */
+  enable?: string[];
+  /** What the buffs add to it, decided when it was launched (default: now). */
+  buffParts?: BuffPart[];
+  /** When the attack was launched, if before now (its missile flew). */
+  launched?: number;
+  /** Its launch, when launchAttack launched it; else it's launched as it hits. */
+  launch?: AttackLaunch;
+}
+
+/** What a buff adds to an attack, decided when it's launched: its on-hit components, and its
+ *  empowerment, which uses up a charge (a buff whose last charge it takes ends when it hits). */
+interface BuffPart {
+  id: string;
+  label: string;
+  slot?: Slot;
+  onHit?: ComponentSpec[];
+  empower?: NonNullable<BuffSpec['empowerAttacks']>;
 }
 
 interface ActiveDebuff {
@@ -1257,18 +1286,49 @@ export class Sim {
   // ---------------------------------------------------------------------------
   // Basic attacks
 
-  /** Resolve a basic attack (or an attack-like ability hit) landing on the target. */
-  performAttackHit(o: {
-    castId: number;
-    amount?: number;
-    comp?: ComponentSpec;
-    label?: string;
-    sourceLabel?: string;
-    fromAbility?: Slot;
-    onHitOnly?: boolean;
-    /** Optional components enabled for this attack (combo "AA+bounce"). */
-    enable?: string[];
-  }) {
+  /** What the buffs add to an attack launched now, in their order; an ability's hit isn't empowered. */
+  private takeBuffParts(fromAbility: boolean): BuffPart[] {
+    const out: BuffPart[] = [];
+    for (const b of this.buffs.values()) {
+      if (b.expires < this.time || !b.spec) continue;
+      const empower = !fromAbility && (b.charges ?? 0) > 0 ? b.spec.empowerAttacks : undefined;
+      if (!b.spec.onHit && !empower) continue;
+      out.push({ id: b.id, label: b.label, slot: b.slot, ...(b.spec.onHit ? { onHit: b.spec.onHit } : {}), ...(empower ? { empower } : {}) });
+      if (empower) b.charges = (b.charges ?? 1) - 1;
+    }
+    return out;
+  }
+
+  /** Seconds a basic attack's missile flies to a target at the edge of your attack range: 0 for melee
+   *  champions and attacks that hit at once (Senna, Thresh, Zeri). */
+  attackTravel(): number {
+    const missile = this.champ.stats.attackMissile;
+    return missile && this.champ.attackType === 'ranged' ? missileTime(missile, this.stats.range) : 0;
+  }
+
+  /**
+   * Launch a basic attack now (its windup ended): on-attack effects and what empowers it are decided
+   * now, and it hits (on-hit effects, its damage) when its missile arrives. Kits fire extra shots with
+   * it (Lucian's second).
+   */
+  launchAttack(o: Omit<AttackHit, 'fromAbility' | 'buffParts' | 'launched' | 'launch'>) {
+    const launch: AttackLaunch = { castId: o.castId };
+    for (const e of this.effects) e.onLaunch?.(this, launch);
+    const buffParts = this.takeBuffParts(false);
+    const travel = this.attackTravel();
+    if (travel > 0) {
+      const launched = this.time;
+      this.schedule(travel, () => this.performAttackHit({ ...o, buffParts, launched, launch }));
+    } else this.performAttackHit({ ...o, buffParts, launch });
+  }
+
+  /** Resolve a basic attack (or an attack-like ability hit) landing on the target: launched now,
+   *  unless launchAttack launched it. */
+  performAttackHit(o: AttackHit) {
+    if (!o.launch && (!o.fromAbility || o.comp?.onAttack)) {
+      const launch: AttackLaunch = { castId: o.castId, ...(o.fromAbility ? { fromAbility: o.fromAbility } : {}) };
+      for (const e of this.effects) e.onLaunch?.(this, launch);
+    }
     const st = this.stats;
     const canCrit = this.kit.attack?.canCrit !== false && (o.comp ? o.comp.canCrit !== false : true);
     const c = canCrit ? this.critFactor() : { crit: false, factor: 1 };
@@ -1291,6 +1351,7 @@ export class Sim {
       ...(o.fromAbility ? { fromAbility: o.fromAbility } : {}),
       onAttack: !o.fromAbility || !!o.comp?.onAttack,
       ...(o.comp?.areaOnHit ? { areaOnHit: true } : {}),
+      ...(o.launched !== undefined ? { launched: o.launched } : {}),
     };
 
     // Champion passive on-hits, every-Nth procs and empowered attacks from buffs.
@@ -1347,35 +1408,32 @@ export class Sim {
           pushComps(kitAtk.everyNth.components, kitAtk.everyNth.label);
         } else this.setCounter(key, n);
       }
-      for (const b of [...this.buffs.values()]) {
-        if (b.expires < this.time || !b.spec) continue;
-        if (b.spec.onHit) pushComps(b.spec.onHit, b.label, b.slot);
-        if (b.spec.empowerAttacks && (b.charges ?? 0) > 0 && !o.fromAbility) {
-          const before = atk.extra.length;
-          pushComps(b.spec.empowerAttacks.components, b.label, b.slot);
-          if (b.spec.empowerAttacks.onHitRepeats !== undefined) {
-            const n = Math.round(this.evalExpr(b.spec.empowerAttacks.onHitRepeats, { slot: b.slot ?? 'P' }));
-            if (n > 0) addOnHitRepeat(atk, n);
-          }
-          if (b.spec.empowerAttacks.replaceBase) {
-            atk.replaceBase = true;
-            // The first empowered component *is* the basic attack (counts for attack-based effects).
-            const first = atk.extra[before];
-            if (first) first.flags = { ...first.flags, attack: true, onHit: false };
-          }
-          if (b.spec.empowerAttacks.spell) spellOf = b.slot;
-          const effComp = b.spec.empowerAttacks.components.find((x) => x.onHitEffectiveness !== undefined);
-          if (effComp) empoweredEff = this.evalExpr(effComp.onHitEffectiveness!, { slot: b.slot ?? 'P' });
-          for (const cc of b.spec.empowerAttacks.cc ?? []) {
-            const dur = this.evalExpr(cc.duration, { slot: b.slot ?? 'P' });
-            const delay = cc.delay !== undefined ? this.evalExpr(cc.delay, { slot: b.slot ?? 'P' }) : 0;
-            const slotB = b.slot;
-            pendingCC.push(() => (delay > 0 ? this.schedule(delay, () => this.applyCC(cc.kind, dur, o.castId, slotB)) : this.applyCC(cc.kind, dur, o.castId, slotB)));
-          }
-          b.charges = (b.charges ?? 1) - 1;
-          if (b.charges <= 0) this.removeBuff(b.id);
+      const parts = o.buffParts ?? this.takeBuffParts(!!o.fromAbility);
+      for (const { onHit, empower, label, slot } of parts) {
+        if (onHit) pushComps(onHit, label, slot);
+        if (!empower) continue;
+        const before = atk.extra.length;
+        pushComps(empower.components, label, slot);
+        if (empower.onHitRepeats !== undefined) {
+          const n = Math.round(this.evalExpr(empower.onHitRepeats, { slot: slot ?? 'P' }));
+          if (n > 0) addOnHitRepeat(atk, n);
+        }
+        if (empower.replaceBase) {
+          atk.replaceBase = true;
+          // The first empowered component *is* the basic attack (counts for attack-based effects).
+          const first = atk.extra[before];
+          if (first) first.flags = { ...first.flags, attack: true, onHit: false };
+        }
+        if (empower.spell) spellOf = slot;
+        const effComp = empower.components.find((x) => x.onHitEffectiveness !== undefined);
+        if (effComp) empoweredEff = this.evalExpr(effComp.onHitEffectiveness!, { slot: slot ?? 'P' });
+        for (const cc of empower.cc ?? []) {
+          const dur = this.evalExpr(cc.duration, { slot: slot ?? 'P' });
+          const delay = cc.delay !== undefined ? this.evalExpr(cc.delay, { slot: slot ?? 'P' }) : 0;
+          pendingCC.push(() => (delay > 0 ? this.schedule(delay, () => this.applyCC(cc.kind, dur, o.castId, slot)) : this.applyCC(cc.kind, dur, o.castId, slot)));
         }
       }
+      for (const p of parts) if (p.empower && !((this.buffs.get(p.id)?.charges ?? 1) > 0)) this.removeBuff(p.id);
     }
 
     for (const e of this.effects) e.preAttack?.(this, atk);
@@ -1819,8 +1877,13 @@ export class Sim {
     const options = attackOptions(this.kit);
     for (const id of step.enable ?? []) if (!options.has(id)) this.warn(`Attacks have no optional hit "${id}" (available: ${[...options].join(', ') || 'none'})`);
     for (let i = 0; i < count; i++) {
-      const start = Math.max(this.time, this.freeAt, this.attackReadyAt);
+      let start = Math.max(this.time, this.freeAt, this.attackReadyAt);
       this.processUntil(start);
+      // What happened meanwhile can hold it longer (Jhin's reload after his 4th shot lands).
+      while (Math.max(this.freeAt, this.attackReadyAt) > start + 1e-9) {
+        start = Math.max(this.freeAt, this.attackReadyAt);
+        this.processUntil(start);
+      }
       const st = this.stats;
       const as = this.kit.attack?.attackSpeed !== undefined ? this.evalExpr(this.kit.attack.attackSpeed, { slot: 'P' }) : st.attackSpeed;
       const period = 1 / Math.max(0.2, as);
@@ -1830,7 +1893,7 @@ export class Sim {
       this.freeAt = start + windup;
       this.attackReadyAt = start + period;
       timeline.push({ step: step.crit === true ? 'AA!' : step.crit === false ? 'AA?' : 'AA', start, end: start + windup });
-      this.scheduleAt(start + windup, () => this.performAttackHit({ castId, enable: step.enable }));
+      this.scheduleAt(start + windup, () => this.launchAttack({ castId, enable: step.enable }));
     }
   }
 
@@ -2036,6 +2099,19 @@ function structuredCloneMods(m: StatMods): StatMods {
 
 export function isLegendary(item: ItemData): boolean {
   return item.gold.total >= 2000 && !item.into.length && !item.tags.includes('Boots') && !item.tags.includes('Consumable');
+}
+
+/** Seconds a missile takes to fly `distance` units: at its speed, or speeding up or slowing down at
+ *  its acceleration until it reaches its max or min speed (Aurelion Sol's attacks). */
+export function missileTime(m: NonNullable<ChampionData['stats']['attackMissile']>, distance: number): number {
+  const a = m.acceleration ?? 0;
+  const limit = a > 0 ? (m.maxSpeed ?? Infinity) : a < 0 ? (m.minSpeed ?? 0) : m.speed;
+  if (!a || !(limit > 0) || limit === m.speed) return distance / m.speed;
+  // Accelerating until the speed limit, then at it.
+  const accelTime = (limit - m.speed) / a;
+  const accelDistance = ((m.speed + limit) / 2) * accelTime;
+  if (distance >= accelDistance) return accelTime + (distance - accelDistance) / limit;
+  return (-m.speed + Math.sqrt(m.speed * m.speed + 2 * a * distance)) / a;
 }
 
 export function windupFraction(champ: ChampionData): number {

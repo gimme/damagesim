@@ -357,7 +357,8 @@ test('On-hit effectiveness does not reduce Grasp, Heartsteel or Electrospark (Ur
 });
 
 test("Guinsoo's Phantom Hit and Dusk and Dawn's repeat add up (on-hit applies three times)", () => {
-  const r = simulate(data, { champion: 'Jinx', level: 18, items: ["Guinsoo's Rageblade", 'Dusk and Dawn'], combo: 'AA*6 W AA', target: dummy });
+  // W after the 6th attack has landed, which would take Dusk and Dawn's Spellblade in flight.
+  const r = simulate(data, { champion: 'Jinx', level: 18, items: ["Guinsoo's Rageblade", 'Dusk and Dawn'], combo: 'AA*6 wait{0.3s} W AA', target: dummy });
   const last = bySource(r, 'AA').at(-1)!;
   assert.equal(r.events.filter((e) => e.label === 'Wrath' && e.castId === last.castId).length, 3);
 });
@@ -452,7 +453,8 @@ test('Lethal Tempo: stacks decay one by one after the duration', () => {
   const attacks: number[] = [];
   sim.run(parseCombo('AA*6'));
   for (const e of sim.events) if (e.source === 'AA') attacks.push(e.time);
-  const expiry = attacks.at(-1)! + 6;
+  // Stacks last from when the attack is launched, its missile's flight before it hits.
+  const expiry = attacks.at(-1)! - sim.attackTravel() + 6;
   const asAt = (t: number) => {
     sim.time = t;
     sim.invalidateStats();
@@ -521,8 +523,9 @@ test("Kalista's Soul-Marked: ability damage, dealt as her next attack goes off a
   const attacks = bySource(r, 'AA');
   assert.ok(r.events[i].flags.ability);
   assert.equal(r.events[i].source, 'W'); // Sentinel's passive, shown under W
-  assert.equal(r.events[i + 1], attacks[1]);
-  assert.equal(r.events[i].time, attacks[1].time);
+  // As the second attack is launched, while its spear flies.
+  assert.equal(r.events[i].castId, attacks[1].castId);
+  assert.ok(r.events[i].time > attacks[0].time && r.events[i].time < attacks[1].time, `${r.events[i].time} vs attacks at ${attacks.map((a) => a.time)}`);
 });
 
 test("Attacks that are also spell damage light Liandry's: Wukong Q's, Kayle E's, Dr. Mundo E's, Galio's Colossal Smash, Diana's third hit", () => {
@@ -562,4 +565,47 @@ test("Kai'Sa: Void Seeker's Plasma stacks deal Caustic Wounds as if applied one 
   assert.ok(Math.abs(plasma('W')[0].raw - (first + second)) < 1e-6);
   // 4 stacks: the first of W's two stacks bursts, the second starts over.
   assert.deepEqual(plasma('AA AA AA AA W').slice(4).map((e) => e.label), ['Plasma', 'Plasma burst', 'Plasma']);
+});
+
+test("A ranged attack lands after its missile's flight (attack range / the game's missile speed); a melee one at the end of its windup", () => {
+  // Jhin Q (0.25s cast, grenade lands 0.25s later) then AA: the attack only starts after the cast and flies 550 / 2600 s.
+  const jhin = new Sim(data, { champion: 'Jhin', level: 11, combo: 'Q AA', target: dummy });
+  const r = jhin.run(parseCombo('Q AA'));
+  const [grenade] = bySource(r, 'Q');
+  const [attack] = bySource(r, 'AA');
+  assert.ok(grenade.time < attack.time, `grenade ${grenade.time}, attack ${attack.time}`);
+  assert.ok(Math.abs(jhin.attackTravel() - 550 / 2600) < 1e-9);
+  const step = r.timeline.find((s) => s.step === 'AA')!;
+  assert.ok(Math.abs(attack.time - (step.end + 550 / 2600)) < 1e-6);
+  const garen = new Sim(data, { champion: 'Garen', level: 11, combo: 'AA', target: dummy });
+  assert.equal(garen.attackTravel(), 0);
+  // Attacks that hit at once (no missile in the game files) don't fly either.
+  assert.equal(new Sim(data, { champion: 'Senna', level: 11, combo: 'AA', target: dummy }).attackTravel(), 0);
+});
+
+test("Jhin reloads after his 4th shot: the 5th waits P.dv.ReloadTime from when the 4th was fired", () => {
+  const sim = new Sim(data, { champion: 'Jhin', level: 11, combo: 'AA*5', target: dummy });
+  const steps = sim.run(parseCombo('AA*5')).timeline;
+  assert.ok(Math.abs(steps[4].start - (steps[3].end + 2.5)) < 1e-6, `4th fired at ${steps[3].end}, 5th started at ${steps[4].start}`);
+});
+
+test('What kit buffs add to an attack is decided at launch: a cast while it flies empowers the next one (Vayne Q, Kog\'Maw W)', () => {
+  const vayne = simulate(data, { champion: 'Vayne', level: 11, combo: 'AA Q AA', target: dummy });
+  const tumble = bySource(vayne, 'Q').filter((e) => e.label === 'Tumble');
+  assert.equal(tumble.length, 1);
+  assert.equal(tumble[0].castId, bySource(vayne, 'AA')[1].castId);
+  const kog = simulate(data, { champion: 'KogMaw', level: 11, combo: 'AA W AA', target: dummy });
+  const [first, second] = bySource(kog, 'AA');
+  const barrage = kog.events.filter((e) => e.label === 'Bio-Arcane Barrage');
+  assert.ok(barrage.every((e) => e.castId !== first.castId) && barrage.some((e) => e.castId === second.castId));
+});
+
+test("On-attack effects trigger at launch (Lucian's double shot), on-hit ones as it hits (Spellblade, granted as a cast starts)", () => {
+  // Each ability grants its own second shot, though the next cast comes while the first attack flies.
+  const lucian = simulate(data, { champion: 'Lucian', level: 11, combo: 'Q AA W AA', target: dummy });
+  assert.equal(lucian.events.filter((e) => e.label === 'Lightslinger (2nd shot)').length, 2);
+  // Sheen's Spellblade, granted by W while the attack flies, is used by that attack (on-hit, wiki).
+  const ezreal = simulate(data, { champion: 'Ezreal', level: 11, items: ['Sheen'], combo: 'AA W', target: dummy });
+  const blade = ezreal.events.find((e) => e.label === 'Spellblade')!;
+  assert.equal(blade.castId, bySource(ezreal, 'AA')[0].castId);
 });

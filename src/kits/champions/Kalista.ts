@@ -69,10 +69,10 @@ const kit: ChampionKit = {
     onCast(sim, cast) {
       if (cast.slot === 'P' && cast.variant?.toLowerCase() === 'ally') soulMark(sim, cast.castId);
     },
-    preAttack(sim, atk) {
-      if (atk.fromAbility || atk.phantom || !sim.getBuff(ARMED)) return;
+    onLaunch(sim, launch) {
+      if (launch.fromAbility || !sim.getBuff(ARMED)) return;
       sim.removeBuff(ARMED);
-      soulMark(sim, atk.castId);
+      soulMark(sim, launch.castId);
     },
     // Rend rips out all spears.
     afterDamage(sim, inst) {

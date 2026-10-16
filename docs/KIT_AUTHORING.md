@@ -285,7 +285,11 @@ other on-hit effects apply, but Guinsoo's/Lethal Tempo/Energize charges don't st
 
 For mechanics the declarative format can't express, `hooks` accepts the same hook interface items and
 runes use (`src/engine/effects.ts`): `onCast(sim, cast)`, `onAttack(sim, atk)`, `beforeDamage(sim, inst)`,
-`afterDamage(sim, inst)`, `dynamicStats(sim)`, `onStart(sim)`. Useful Sim API: `sim.deal(request)`,
+`afterDamage(sim, inst)`, `dynamicStats(sim)`, `onStart(sim)`. A ranged attack is launched at the end
+of its windup and hits when its missile arrives: `onLaunch(sim, launch)` runs at the launch, for what
+happens on-attack (Lucian's double shot, Kalista's Soul-Marked), `preAttack`/`onAttack` at the hit,
+for what it does on-hit; what kit buffs add to it (`onHit`, `empowerAttacks`) is decided at the launch.
+`sim.launchAttack({ castId, amount, label })` fires an extra shot (Lucian's second). Useful Sim API: `sim.deal(request)`,
 `sim.schedule(delay, fn)`, `sim.counter(key)`/`setCounter`, `sim.evalExpr(expr, { slot: 'Q' })`,
 `sim.target`, `sim.stats`, `sim.time`, `sim.opt`, `sim.applyCC(kind, duration, castId)`,
 `sim.isReady(key)`/`startCooldown(key, s)`. Keep hooks small and comment why they're needed.

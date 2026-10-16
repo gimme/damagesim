@@ -2,7 +2,7 @@
 // research notes in docs/research/runes.md (trigger rules, damage types, stacking).
 
 import type { RuneData } from './data-types.ts';
-import { DISTANCE, IN_COMBAT, SELF_HP, selfHp, triggersOnAttack, type DamageInstance, type Effect, type SetupCtx } from './effects.ts';
+import { DISTANCE, IN_COMBAT, SELF_HP, selfHp, type DamageInstance, type Effect, type SetupCtx } from './effects.ts';
 import type { Sim } from './sim.ts';
 import { GAME, type StatMods } from './stats.ts';
 import { ITEM_STAT_TYPES } from './items.ts';
@@ -152,6 +152,8 @@ const RUNES: Record<number, Factory> = {
   8008: (rune) => {
     let stacks = 0;
     let expires = -Infinity;
+    /** Attacks launched at max stacks, which fire a bolt as they hit. */
+    const bolts = new Set<number>();
     const v = rune.values;
     // When the duration ends one stack expires, then one more every 0.3s (wiki).
     const DECAY = 0.3;
@@ -163,10 +165,15 @@ const RUNES: Record<number, Factory> = {
         if (!n) return;
         return { attackSpeed: n * sim.evalDataCalc(rune.calcs, rune.values, 'ASPerStack', { noStats: true }) };
       },
-      onAttack(sim, atk) {
-        if (!triggersOnAttack(atk)) return;
+      onLaunch(sim, launch) {
         stacks = current(sim.time);
-        if (stacks >= v.MaxStacks) {
+        if (stacks >= v.MaxStacks) bolts.add(launch.castId);
+        stacks = Math.min(v.MaxStacks, stacks + 1);
+        expires = sim.time + v.Duration;
+        sim.invalidateStats();
+      },
+      onAttack(sim, atk) {
+        if (!atk.phantom && bolts.delete(atk.castId)) {
           atk.extra.push({
             source: `rune:${rune.id}`,
             sourceLabel: rune.name,
@@ -176,9 +183,6 @@ const RUNES: Record<number, Factory> = {
             flags: { kind: 'rune', proc: true },
           });
         }
-        stacks = Math.min(v.MaxStacks, stacks + 1);
-        expires = sim.time + v.Duration;
-        sim.invalidateStats();
       },
     });
   },
@@ -295,6 +299,8 @@ const RUNES: Record<number, Factory> = {
     let bonusResets = 0;
     let expires = -Infinity;
     let asFrom = Infinity;
+    /** Attacks launched with a charge, until they hit. */
+    const empowered = new Set<number>();
     const v = rune.values;
     /** The effect ended at `at` (last stack used, or timed out); the cooldown starts then. */
     const end = (sim: Sim, at = sim.time) => {
@@ -308,11 +314,10 @@ const RUNES: Record<number, Factory> = {
         if (!active || sim.time > expires || sim.time < asFrom) return;
         return { attackSpeed: setup.ranged ? v.ASBoostRanged : v.ASBoost, attackSpeedCap: 90 };
       },
-      onAttack(sim, atk) {
+      onLaunch(sim, launch) {
         // Basic attacks only: abilities that trigger on-attack effects don't, except Yasuo's and
         // Yone's Q, which are special cased (wiki).
-        if (!triggersOnAttack(atk)) return;
-        if (atk.fromAbility && !(atk.fromAbility === 'Q' && (setup.champion === 'Yasuo' || setup.champion === 'Yone'))) return;
+        if (launch.fromAbility && !(launch.fromAbility === 'Q' && (setup.champion === 'Yasuo' || setup.champion === 'Yone'))) return;
         if (active && sim.time > expires) end(sim, expires);
         if (!active) {
           if (!sim.isReady(`rune:${rune.id}`)) return;
@@ -321,6 +326,14 @@ const RUNES: Record<number, Factory> = {
           bonusResets = 0;
           asFrom = sim.time + 1e-6;
         }
+        empowered.add(launch.castId);
+        charges--;
+        expires = sim.time + v.Duration;
+        sim.invalidateStats();
+        if (charges <= 0) end(sim);
+      },
+      onAttack(sim, atk) {
+        if (atk.phantom || !empowered.delete(atk.castId)) return;
         atk.extra.push({
           source: `rune:${rune.id}`,
           sourceLabel: rune.name,
@@ -329,10 +342,6 @@ const RUNES: Record<number, Factory> = {
           amount: calc(sim, rune, 'BonusDamage'),
           flags: { kind: 'rune', proc: true },
         });
-        charges--;
-        expires = sim.time + v.Duration;
-        sim.invalidateStats();
-        if (charges <= 0) end(sim);
       },
       onCast(sim, cast) {
         if (active && cast.resetsAttack && bonusResets < v.MaxBonusHits) {

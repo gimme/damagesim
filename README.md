@@ -143,8 +143,10 @@ Only the stats of a target's items count: it never fights back, so their passive
 * **One attacker against one target champion.** No minions, monsters, allies, healing or shields,
   and the target never fights back.
 * **Timing.** Casts use the game's cast times and attacks use your attack speed and windup.
-  Projectile travel is approximated per component (`delay`), and attack-move and positioning are
-  ignored. Items and runes that depend on distance or movement have options (`distance`,
+  A ranged attack's missile flies to a target at the edge of your attack range at its speed from
+  the game files, so it can land after an ability cast before it (Jhin Q then AA). Ability
+  projectile travel is approximated per component (`delay`), and attack-move and positioning are
+  otherwise ignored. Items and runes that depend on distance or movement have options (`distance`,
   `energized.start`, …).
 * **On-hit vs on-attack.** Abilities the wiki lists as applying on-hit effects get item and rune
   on-hit effects. Only basic attacks and abilities that also trigger on-attack effects stack

@@ -92,8 +92,8 @@ const kit: ChampionKit = {
         castId: atk.castId,
         flags: { kind: 'ability', slot: 'P', onHit: true, ability: false, proc: true },
       });
-      // Reload before the next shot.
-      sim.attackReadyAt = Math.max(sim.attackReadyAt, sim.time + sim.evalExpr('P.dv.ReloadTime', { slot: 'P' }));
+      // Reload before the next shot, from when this one was fired.
+      sim.attackReadyAt = Math.max(sim.attackReadyAt, (atk.launched ?? sim.time) + sim.evalExpr('P.dv.ReloadTime', { slot: 'P' }));
     },
   },
 };

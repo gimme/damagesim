@@ -98,6 +98,11 @@ export interface ChampionBaseStats {
   attackWindupOffset: number;
   attackCastTime?: number;
   attackTotalTime?: number;
+  /**
+   * The basic attack's missile, for attacks that fire one: its speed, and for one that slows down or
+   * speeds up (Aurelion Sol, Ivern), at what rate and down or up to what speed.
+   */
+  attackMissile?: { speed: number; acceleration?: number; minSpeed?: number; maxSpeed?: number };
 }
 
 export interface ChampionData {

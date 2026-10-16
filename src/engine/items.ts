@@ -139,10 +139,15 @@ function registerEnergized(sim: Sim, proc: (sim: Sim, push: (r: DamageRequest) =
 
 function fireEnergized(sim: Sim, push: (r: DamageRequest) => void) {
   for (const p of energizedProcs.get(sim) ?? []) p(sim, push);
-  sim.setCounter(ENERGY_KEY, 0);
 }
 
 function energyEffect(): Effect {
+  /** Attacks launched Energized, until they hit. */
+  const energizedAttacks = new Set<number>();
+  const gain = (sim: Sim) => {
+    const shiv = sim.items.find((i) => i.id === 3087);
+    sim.setCounter(ENERGY_KEY, Math.min(100, sim.counter(ENERGY_KEY) + 6 + (shiv ? dv(shiv, 'BonusEnergizedStacks') : 0)));
+  };
   return {
     id: 'item:energized-charges',
     label: 'Energized',
@@ -152,17 +157,28 @@ function energyEffect(): Effect {
     onStart(sim) {
       sim.setCounter(ENERGY_KEY, sim.opt[ENERGY_START.key] ?? ENERGY_START.default);
     },
-    onAttack(sim, atk) {
-      if (atk.phantom) return;
-      // The Energized proc applies on-hit (abilities that apply on-hit consume it too); charges are
-      // gained on-attack (wiki "Attack effects": Rapid Firecannon damage on-hit, stacking on-attack).
+    // The Energized proc applies on-hit, to the attack launched at 100 charges (abilities that apply
+    // on-hit consume it as they hit); charges are gained on-attack (wiki "Attack effects": Rapid
+    // Firecannon damage on-hit, stacking on-attack).
+    onLaunch(sim, launch) {
+      if (launch.fromAbility) return;
       if (sim.counter(ENERGY_KEY) >= 100) {
-        fireEnergized(sim, (r) => atk.extra.push(r));
+        energizedAttacks.add(launch.castId);
+        sim.setCounter(ENERGY_KEY, 0);
         return;
       }
-      if (!triggersOnAttack(atk)) return;
-      const shiv = sim.items.find((i) => i.id === 3087);
-      sim.setCounter(ENERGY_KEY, Math.min(100, sim.counter(ENERGY_KEY) + 6 + (shiv ? dv(shiv, 'BonusEnergizedStacks') : 0)));
+      gain(sim);
+    },
+    onAttack(sim, atk) {
+      if (atk.phantom) return;
+      if (energizedAttacks.delete(atk.castId)) return fireEnergized(sim, (r) => atk.extra.push(r));
+      if (!atk.fromAbility) return;
+      if (sim.counter(ENERGY_KEY) >= 100) {
+        fireEnergized(sim, (r) => atk.extra.push(r));
+        sim.setCounter(ENERGY_KEY, 0);
+        return;
+      }
+      if (triggersOnAttack(atk)) gain(sim);
     },
   };
 }
@@ -299,29 +315,32 @@ const ITEMS: Record<number, Factory> = {
     let stacks = 0;
     let until = -Infinity;
     let count = 0;
+    /** Attacks launched at max stacks whose on-hit effects apply twice (Phantom Hit). */
+    const phantom = new Set<number>();
     return effect(item, {
       description: 'On-hit magic damage; attacks stack attack speed (4×8%). At max stacks every third attack applies on-hit effects twice.',
       dynamicStats(sim) {
         if (sim.time > until || !stacks) return;
         return { attackSpeed: stacks * dv(item, 'AttackSpeedPerStack') };
       },
-      preAttack(sim, atk) {
-        if (!triggersOnAttack(atk)) return;
+      onLaunch(sim, launch) {
         if (sim.time > until) {
           stacks = 0;
           count = 0;
         }
         if (stacks >= dv(item, 'MaxStacks')) {
           count++;
-          if (count % 3 === 0) addOnHitRepeat(atk);
+          if (count % 3 === 0) phantom.add(launch.castId);
         }
-      },
-      onAttack(sim, atk) {
-        atk.extra.push(hit(item, 'Wrath', 'magic', dv(item, 'OnHitDamage'), { onHit: true }));
-        if (!triggersOnAttack(atk)) return;
         stacks = Math.min(dv(item, 'MaxStacks'), stacks + 1);
         until = sim.time + dv(item, 'BuffDuration');
         sim.invalidateStats();
+      },
+      preAttack(sim, atk) {
+        if (!atk.phantom && phantom.delete(atk.castId)) addOnHitRepeat(atk);
+      },
+      onAttack(sim, atk) {
+        atk.extra.push(hit(item, 'Wrath', 'magic', dv(item, 'OnHitDamage'), { onHit: true }));
       },
     });
   },
@@ -480,8 +499,7 @@ const ITEMS: Record<number, Factory> = {
       dynamicStats(sim) {
         if (sim.time <= flurryUntil) return { attackSpeed: dv(item, 'ASMod') };
       },
-      onAttack(sim, atk) {
-        if (!triggersOnAttack(atk)) return;
+      onLaunch(sim) {
         if (sim.isReady(`item:${item.id}`)) {
           sim.startCooldown(`item:${item.id}`, dv(item, 'Cooldown'));
           flurryUntil = sim.time + dv(item, 'ASDuration');
@@ -503,8 +521,7 @@ const ITEMS: Record<number, Factory> = {
   6675: (item) =>
     effect(item, {
       description: 'Attacks reduce basic ability cooldowns by 15% of their remaining cooldown.',
-      onAttack(sim, atk) {
-        if (!triggersOnAttack(atk)) return;
+      onLaunch(sim) {
         for (const s of ['Q', 'W', 'E']) {
           const key = `ability:${s}`;
           const ready = sim.cooldownReadyAt(key);
@@ -540,6 +557,7 @@ const ITEMS: Record<number, Factory> = {
           // (wiki); Galvanize is its own cast instance.
           if (!isChampionAbilityDamage(inst) || s2.counter(ENERGY_KEY) < 100) return;
           fireEnergized(s2, (r) => s2.deal({ ...r, castId: s2.newCastId() }));
+          s2.setCounter(ENERGY_KEY, 0);
         },
       },
     );

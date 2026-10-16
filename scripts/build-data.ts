@@ -326,11 +326,25 @@ function slotOfAbility(rec: any, abilityPath: string, rootSpell: string | undefi
   return 'X';
 }
 
+/** The basic attack's missile: of the first of the champion's attacks that fires one (Draven's
+ *  basic attack spell doesn't; his axe throws do). None for melee or instant attacks (Senna, Zeri). */
+function attackMissile(rec: any, bin: any): ChampionData['stats']['attackMissile'] {
+  const names = [rec.basicAttack?.mAttackName ?? `${rec.mCharacterName}BasicAttack`, ...(rec.extraAttacks ?? []).map((a: any) => a?.mAttackName)].filter(Boolean);
+  const spells = new Map<string, any>();
+  for (const [k, v] of Object.entries(bin) as [string, any][]) if (v?.__type === 'SpellObject' && !spells.has(k.split('/').pop()!)) spells.set(k.split('/').pop()!, v.mSpell);
+  for (const name of names) {
+    const mv = spells.get(name)?.mMissileSpec?.movementComponent;
+    if (mv?.mSpeed) return { speed: mv.mSpeed };
+    if (mv?.mInitialSpeed) return { speed: mv.mInitialSpeed, acceleration: mv.mAcceleration ?? 0, minSpeed: mv.mMinSpeed ?? 0, maxSpeed: mv.mMaxSpeed ?? mv.mInitialSpeed };
+  }
+  return undefined;
+}
+
 function buildChampion(dd: any, bin: any): ChampionData {
   const rec = Object.entries(bin).find(([k, v]: [string, any]) => k.endsWith('/CharacterRecords/Root') && v?.__type === 'CharacterRecord')?.[1] as any;
   if (!rec) throw new Error(`no CharacterRecord for ${dd.id}`);
   const par = rec.primaryAbilityResource ?? {};
-  const stats = {
+  const stats: ChampionData['stats'] = {
     hp: mf(rec.baseHPModifiable),
     hpPerLevel: mf(rec.hpPerLevelModifiable),
     hpRegen: mf(rec.baseStaticHPRegenModifiable),
@@ -355,6 +369,8 @@ function buildChampion(dd: any, bin: any): ChampionData {
     attackWindupOffset: rec.basicAttack?.mAttackDelayCastOffsetPercent ?? 0,
     ...(rec.basicAttack?.mAttackCastTime ? { attackCastTime: rec.basicAttack.mAttackCastTime, attackTotalTime: rec.basicAttack.mAttackTotalTime } : {}),
   };
+  const missile = attackMissile(rec, bin);
+  if (missile) stats.attackMissile = missile;
 
   // Abilities: every AbilityObject, with its root + child spells.
   const abilities: AbilityData[] = [];

@@ -125,6 +125,18 @@ export interface AttackInfo {
   repeatOnHit?: number;
   /** This pass is the repeated on-hit application (no base damage). */
   phantom?: boolean;
+  /** When a basic attack was launched (its windup ended), when its missile flew before it hit. */
+  launched?: number;
+}
+
+/**
+ * A basic attack launched (its windup ended; a ranged one hits when its missile arrives), or an
+ * ability hit that triggers on-attack effects (Ezreal Q), which launches as it hits.
+ */
+export interface AttackLaunch {
+  castId: number;
+  /** The ability whose hit it is; unset for a basic attack. */
+  fromAbility?: Slot;
 }
 
 /** The hit triggers on-attack effects (and isn't a repeated on-hit application). */
@@ -204,6 +216,12 @@ export interface EffectHooks {
   onStart?(sim: Sim): void;
   /** An ability was cast (before its damage). */
   onCast?(sim: Sim, cast: CastInfo): void;
+  /**
+   * An attack is launched: on-attack effects (the wiki's "on-attacking": attack speed stacks, Guinsoo's,
+   * Navori, Energize charges, Hail of Blades) trigger now, before abilities cast while a ranged
+   * attack's missile flies; what it deals waits for its hit (preAttack, onAttack). Same castId as the hit.
+   */
+  onLaunch?(sim: Sim, launch: AttackLaunch): void;
   /** Before on-hit effects resolve: may force a crit (atk.crit/critFactor) or request repeatOnHit. */
   preAttack?(sim: Sim, atk: AttackInfo): void;
   /** A basic attack (or on-hit-applying ability) hits the target; push on-hit damage into atk.extra. */
