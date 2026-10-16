@@ -392,3 +392,12 @@ test("Teemo's Toxic Shot is proc damage that still triggers Dark Harvest (wiki s
   assert.equal(harvests('Teemo'), 1);
   assert.equal(harvests('Warwick'), 0);
 });
+
+test("Kalista's Soul-Marked: ability damage, dealt as her next attack goes off and before it lands", () => {
+  const r = simulate(data, { champion: 'Kalista', level: 11, combo: 'AA P AA', target: dummy });
+  const i = r.events.findIndex((e) => e.label === 'Soul-Marked');
+  const attacks = bySource(r, 'AA');
+  assert.ok(r.events[i].flags.ability);
+  assert.equal(r.events[i + 1], attacks[1]);
+  assert.equal(r.events[i].time, attacks[1].time);
+});
