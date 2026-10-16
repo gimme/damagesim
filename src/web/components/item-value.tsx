@@ -21,8 +21,8 @@ const STANDOUT = 1.15;
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${fmt(Math.abs(v))}`;
 
 /** The parts of an item's bar: what it adds to your other damage (its stats, Rabadon's-style
- *  multipliers), the damage it deals itself (its procs, burns) and the damage of what its hits set
- *  off (Electrocute, Luden's Echo). */
+ *  multipliers), the damage it deals itself (its procs, burns) and the hits of your other damage that
+ *  land only with it (Electrocute it procs, an execute it brings the target into range of). */
 const PARTS = ['stats', 'effect', 'procs'] as const;
 type Part = (typeof PARTS)[number];
 
@@ -458,7 +458,7 @@ function RowTip({ row: r, current, champion, view, action }: { row: Row; current
             </span>
             <strong>{signed(r.itemDamage)}</strong>
           </div>
-          <Procs row={r} champion={champion} swatch />
+          <Procs row={r} champion={champion} />
         </>
       ) : (
         <>
@@ -478,14 +478,13 @@ function RowTip({ row: r, current, champion, view, action }: { row: Row; current
   );
 }
 
-/** The damage of what the item's hits set off, with their icons. */
-function Procs({ row: r, champion, swatch }: { row: Row; champion: string; swatch?: boolean }) {
+/** The damage of the hits that land only with the item, by their sources' icons. */
+function Procs({ row: r, champion }: { row: Row; champion: string }) {
   if (!r.procs.length) return null;
   return (
     <div className="tt-row">
       <span className="source-name">
-        {swatch && <Swatch part="procs" />}
-        Procs
+        <Swatch part="procs" />
         {r.procs.map((p) => (
           <Icon key={`${p.source}|${p.label}`} src={sourceMark(p.source, p.label, champion).icon} label={p.label} size="xs" />
         ))}

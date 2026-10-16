@@ -253,12 +253,18 @@ test("rank items: what an item's hits proc is split from its own damage and its 
   const cap = res.items.find((x) => x.item === "Rabadon's Deathcap")!;
   assert.equal(cap.procDamage, 0);
   assert.deepEqual(cap.procs, []);
-  // With an attack after it, Electrocute would strike without Squall: Squall striking it isn't a proc.
+  // With an attack after it, Electrocute strikes without Squall too: on Squall instead isn't a proc.
   const later = { ...base, combo: 'W Q wait:2 AA' };
-  const sim = simulate(data, { ...later, items: [...later.items, 'Stormsurge'] });
-  const squall = sim.events.find((e) => e.label === 'Squall')!;
-  assert.equal(sim.events.find((e) => e.sourceLabel === 'Electrocute')!.cause, squall.id);
+  assert.ok(simulate(data, later).bySource.some((s) => s.label === 'Electrocute'));
   assert.equal(rankItems(data, later, { candidates: ['Stormsurge'] }).items[0].procDamage, 0);
+  // Any hit that lands only with the item counts: here Smolder's execute, in range only with its damage.
+  const exec = { ...base, level: 9, items: ['Essence Reaver'], options: { stacks: 225 }, combo: 'E Q AA Q' };
+  const executes = (items: string[]) => simulate(data, { ...exec, items }).events.filter((e) => e.label === 'Execute');
+  assert.equal(executes(exec.items).length, 0);
+  const [execute] = executes([...exec.items, "Lord Dominik's Regards"]);
+  const ldr = rankItems(data, exec, { candidates: ["Lord Dominik's Regards"] }).items[0];
+  assert.deepEqual(ldr.procs.map((p) => p.source), ['Q']);
+  near(ldr.procDamage, execute.final!, 0.1);
 });
 
 test('item hover text: numbers for the attacker from the template the shop text is generated from', () => {

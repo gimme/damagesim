@@ -137,8 +137,6 @@ interface ScheduledEvent {
   crit?: boolean;
   /** The combo action that scheduled it. */
   action?: number;
-  /** The damage that set off what scheduled it. */
-  cause?: number;
 }
 
 interface ActiveBuff {
@@ -196,9 +194,6 @@ export class Sim {
   private stepCrit: boolean | undefined;
   /** The combo action being resolved (its castId): set like stepCrit, and dealt damage records it. */
   private action: number | undefined;
-  /** The damage instance whose hooks are being resolved (its id): set like action, and dealt damage
-   *  records it as what set it off. */
-  private cause: number | undefined;
   private nextCastId = 1;
   private nextInstId = 1;
   private staticMods: StatMods;
@@ -870,25 +865,22 @@ export class Sim {
   }
 
   scheduleAt(time: number, run: () => void) {
-    this.queue.push({ time: Math.max(this.time, time), seq: this.seq++, run, crit: this.stepCrit, action: this.action, cause: this.cause });
+    this.queue.push({ time: Math.max(this.time, time), seq: this.seq++, run, crit: this.stepCrit, action: this.action });
     this.queue.sort((a, b) => a.time - b.time || a.seq - b.seq);
   }
 
   processUntil(t: number) {
     const own = this.stepCrit;
     const ownAction = this.action;
-    const ownCause = this.cause;
     while (this.queue.length && this.queue[0].time <= t + 1e-9) {
       const ev = this.queue.shift()!;
       this.advanceTo(ev.time);
       this.setStepCrit(ev.crit);
       this.action = ev.action;
-      this.cause = ev.cause;
       ev.run();
     }
     this.setStepCrit(own);
     this.action = ownAction;
-    this.cause = ownCause;
     this.advanceTo(t);
   }
 
@@ -946,8 +938,6 @@ export class Sim {
       ...(req.markSource ? { fromMark: req.markSource } : {}),
       ...(this.action !== undefined ? { action: this.action } : {}),
     };
-    const cause = req.cause === undefined ? this.cause : req.cause;
-    if (cause != null) inst.cause = cause;
 
     for (const e of this.effects) e.beforeDamage?.(this, inst);
     for (const b of this.buffs.values()) if (b.expires >= this.time && b.amp) inst.amps.push({ id: b.slot, source: b.label, value: b.amp, kind: 'dealt' });
@@ -990,15 +980,11 @@ export class Sim {
     this.events.push(inst);
     for (const d of this.debuffs.values()) if (d.spec?.detonate && d.expires >= this.time && !inst.fromMark) d.stored = (d.stored ?? 0) + final;
 
-    // What the hooks deal, now or by scheduling it, was set off by this damage.
-    const outer = this.cause;
-    this.cause = inst.id;
     for (const e of this.effects) e.afterDamage?.(this, inst);
     if (!inst.fromMark) {
       this.processConsumes(inst);
       this.processMarks(inst);
     }
-    this.cause = outer;
     return inst;
   }
 

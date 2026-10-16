@@ -102,7 +102,7 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
   const metric = opts.metric ?? 'damage';
   const baseRes = simulate(data, base);
   const baseScore = metricValue(baseRes, metric);
-  const baseBySource = bySource(baseRes);
+  const baseHits = hitCounts(baseRes);
   const baseItems = (base.items ?? []).map((q) => findItem(data, q));
   const candidates = opts.candidates?.length ? opts.candidates.map((q) => findItem(data, q)) : defaultCandidates(data, base);
   const rows = [];
@@ -113,7 +113,7 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
     const perGold = it.gold.total > 0 ? (gain / it.gold.total) * 1000 : 0;
     const source = `item:${it.id}`;
     const own = r.bySource.filter((s) => s.source === source);
-    const procs = own.length ? itemProcs(r, source, baseBySource) : [];
+    const procs = newHits(r, baseHits, source);
     rows.push({
       item: it.name,
       id: it.id,
@@ -123,7 +123,7 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
       gainPerGold: round(perGold, 2),
       /** Part of the gain dealt by the item itself (its procs, burns, actives). */
       itemDamage: round(own.reduce((sum, s) => sum + s.damage, 0)),
-      /** Part of the gain dealt by your other damage the item's hits set off (Electrocute, Luden's Echo…); the rest is its stats and amplifiers raising your other damage. */
+      /** Part of the gain dealt by hits of your other damage that land only with the item (Electrocute it procs, an execute it brings the target into range of); the rest is its stats and amplifiers raising your other damage. */
       procDamage: round(procs.reduce((sum, p) => sum + p.damage, 0)),
       /** The procDamage by source, largest first. */
       procs: procs
@@ -141,38 +141,54 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
     metric,
     base: summarize(baseRes, 'current build'),
     items: rows.slice(0, opts.limit ?? 25),
-    note: 'gainPerGold is damage gained per 1000 gold of the item. itemDamage is the part of the gain the item deals itself; procDamage the part dealt by your other damage its hits set off (procs lists it by source, e.g. Electrocute).',
+    note: 'gainPerGold is damage gained per 1000 gold of the item. itemDamage is the part of the gain the item deals itself; procDamage the part dealt by hits of your other damage that land only with the item (procs lists it by source, e.g. Electrocute).',
   };
 }
 
-/** Damage by source and label. */
-const bySource = (r: SimResult) => new Map(r.bySource.map((s) => [`${s.source}|${s.label}`, s]));
+/** How many hits a build lands, by source, and by kind (Smolder's Q hit, its execute) for the
+ *  sources `of` names (all by default). */
+function hitCounts(r: SimResult, of?: Map<string, unknown>) {
+  const kinds = new Map<string, { source: string; label: string; hits: number; damage: number }>();
+  for (const e of r.events) {
+    const id = `${e.source}|${e.sourceLabel}`;
+    if (of && !of.has(id)) continue;
+    const key = `${id}|${e.label}`;
+    if (!kinds.has(key)) kinds.set(key, { source: e.source, label: e.sourceLabel, hits: 0, damage: 0 });
+    const k = kinds.get(key)!;
+    k.hits++;
+    k.damage += e.final ?? 0;
+  }
+  return { kinds, sources: new Map(r.bySource.map((s) => [`${s.source}|${s.label}`, s.hits])) };
+}
 
 /**
- * Damage of your other sources an item's hits set off, directly or down a chain (Squall →
- * Electrocute → …), for as many hits as each source gained over the build without the item: one it
- * would have dealt anyway (Electrocute striking on Squall instead of a later hit) isn't the item's
- * doing.
+ * The hits of your other damage that land only with the item, by source: of each kind, as many as
+ * land more often than without it, at their average damage but at most what the kind gained (First
+ * Strike's hit on an aura tick is smaller than its average). Electrocute striking only with it, an
+ * execute it brings the target into range of; not Electrocute striking on its hit instead of a later
+ * one, which lands either way. Nor a hit that only changed kind (an attack now critting on average):
+ * a source's new hits are at most how many more it lands in all.
  */
-function itemProcs(r: SimResult, source: string, base: ReturnType<typeof bySource>) {
-  const fromItem = new Set<number>();
-  const setOff = new Map<string, { source: string; label: string; damage: number; hits: number }>();
-  for (const e of r.events) {
-    if (e.source === source) fromItem.add(e.id);
-    else if (e.cause !== undefined && fromItem.has(e.cause)) {
-      fromItem.add(e.id);
-      const key = `${e.source}|${e.sourceLabel}`;
-      if (!setOff.has(key)) setOff.set(key, { source: e.source, label: e.sourceLabel, damage: 0, hits: 0 });
-      const p = setOff.get(key)!;
-      p.damage += e.final ?? 0;
-      p.hits++;
-    }
+function newHits(r: SimResult, base: ReturnType<typeof hitCounts>, item: string) {
+  const more = new Map<string, number>();
+  for (const s of r.bySource) {
+    const id = `${s.source}|${s.label}`;
+    const n = s.hits - (base.sources.get(id) ?? 0);
+    if (s.source !== item && n > 0) more.set(id, n);
   }
-  const withItem = bySource(r);
-  return [...setOff].map(([key, { hits, ...p }]) => {
-    const gained = Math.max(0, (withItem.get(key)?.hits ?? 0) - (base.get(key)?.hits ?? 0));
-    return { ...p, damage: p.damage * Math.min(1, gained / hits) };
-  });
+  if (!more.size) return [];
+  const found = new Map<string, { source: string; label: string; hits: number; damage: number }>();
+  for (const [key, k] of hitCounts(r, more).kinds) {
+    const was = base.kinds.get(key);
+    const n = k.hits - (was?.hits ?? 0);
+    if (n <= 0) continue;
+    const id = `${k.source}|${k.label}`;
+    if (!found.has(id)) found.set(id, { source: k.source, label: k.label, hits: 0, damage: 0 });
+    const f = found.get(id)!;
+    f.hits += n;
+    f.damage += Math.max(0, Math.min((k.damage / k.hits) * n, k.damage - (was?.damage ?? 0)));
+  }
+  return [...found].map(([id, { hits, ...f }]) => ({ ...f, damage: f.damage * Math.min(1, more.get(id)! / hits) }));
 }
 
 /** Legendary items + boots on Summoner's Rift (excluding champion-specific ones). */
