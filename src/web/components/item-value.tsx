@@ -39,7 +39,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   const [showAll, setShowAll] = useState(false);
   // The slot being ranked: the first empty one, or a filled one whose item is being reconsidered.
   const [chosen, setChosen] = useState<number | null>(null);
-  // It follows its item when the build's items are swapped.
+  // It follows its item when the build's items are moved.
   const seen = useRef(state.items);
   useLayoutEffect(() => {
     const [was, now] = [seen.current, state.items];

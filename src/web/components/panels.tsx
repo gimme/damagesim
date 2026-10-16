@@ -212,17 +212,24 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
     put(picking ?? 0, id);
     setPicking(null);
   };
-  // An item is dragged onto another slot to swap them, or into an empty one; the slot it would land
-  // in slides over to the one it left. Arrow keys swap a focused item with its neighbour, Delete
-  // removes it. The picker stays with what it was opened for.
-  const swap = (from: number, to: number) => {
-    const order = items.map((_, j) => j);
-    [order[from], order[to]] = [order[to], order[from]];
-    return order;
+  // An item is dragged to another slot: into an empty one, or onto an item, which shifts along toward
+  // the slot it left, as do the items after it up to the first empty slot. The others slide to make
+  // room as it's dragged. Arrow keys move a focused item past its neighbour, Delete removes it. The
+  // picker stays with what it was opened for.
+  const shift = (from: number, to: number) => {
+    const next = items.map((_, j) => j);
+    const d = Math.sign(from - to);
+    let carry = from;
+    for (let k = to; k !== from; k += d) {
+      [next[k], carry] = [carry, next[k]];
+      if (!items[carry]) break;
+    }
+    next[from] = carry;
+    return next;
   };
   const order = useDragOrder({
     count: items.length,
-    arrange: swap,
+    arrange: shift,
     // The slot its middle is nearest, within a slot's size; farther away, it goes back.
     landAt: (x, y, cells, _at, from) => {
       const d = cells.map((c) => Math.hypot((x - c.x) / c.w - 0.5, (y - c.y) / c.h - 0.5));
@@ -230,8 +237,9 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
       return d[k] < 1 ? k : from;
     },
     move: (from, to) => {
-      set((s) => ({ ...s, items: swap(from, to).map((j) => s.items[j]) }));
-      setPicking((p) => (p === from ? to : p === to ? from : p));
+      const next = shift(from, to);
+      set((s) => ({ ...s, items: next.map((j) => s.items[j]) }));
+      setPicking((p) => (p == null ? p : next.indexOf(p)));
     },
     onPick: hover.hide,
   });
