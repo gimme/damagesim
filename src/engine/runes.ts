@@ -273,7 +273,7 @@ const RUNES: Record<number, Factory> = {
       description: 'Damaging a champion below 50% health deals adaptive damage (+11 per soul); 35s cooldown.',
       options: [{ key: 'darkHarvest.souls', label: 'Dark Harvest souls', default: 0, min: 0, max: 100 }],
       afterDamage(sim, inst) {
-        if (!triggers(inst) || (inst.final ?? 0) < 2 || !sim.isReady(`rune:${rune.id}`)) return;
+        if (!(triggers(inst) || inst.flags.harvest) || (inst.final ?? 0) < 2 || !sim.isReady(`rune:${rune.id}`)) return;
         if ((inst.targetHpBefore ?? 0) / sim.target.maxHp >= v.HarvestThreshold) return;
         sim.startCooldown(`rune:${rune.id}`, v.Cooldown);
         sim.deal({

@@ -114,7 +114,8 @@ comparisons, `&& || !` and `cond ? a : b`. Names that aren't identifiers use bra
 | `onHit: true` | ability damage that also applies on-hit effects (Fizz Q): Spellblade, Energized procs, Kraken, BotRK… |
 | `onAttack: true` | with `onHit`/`attack`: also triggers on-attack effects (Ezreal Q, Smolder Q): Guinsoo's and Lethal Tempo stacks, Energize charges, Navori, Yun Tal, Hail of Blades |
 | `areaOnHit: true` | on-hit applied by an area effect, which Press the Attack ignores (Katarina daggers, Master Yi Q) |
-| `noProc: true` | not ability damage for item/rune triggers (passive procs like Lux's Illumination) |
+| `proc: true` | proc damage (the wiki's "spell effects: proc", "deals proc damage"; Lux's Illumination, Kog'Maw W's on-hit): no spell effects (Liandry's, Luden's, Comet), no rune triggers (Electrocute, Dark Harvest, Conqueror, Cheap Shot), doesn't apply or detonate the kit's marks |
+| `noProc: true` | not ability damage, but not proc damage either (the wiki's "default damage"): no spell effects, still triggers runes |
 | `min`, `max` | clamp the amount (e.g. Darius R cap) |
 | `condition`, `note` | short text shown in UIs |
 

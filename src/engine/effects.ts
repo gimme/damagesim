@@ -20,8 +20,10 @@ export interface DamageFlags {
   aoe: boolean;
   dot: boolean;
   pet: boolean;
-  /** Damage from an item/rune proc; does not trigger further procs. */
+  /** Proc damage (items, runes, champion procs): applies no spell effects and triggers no runes. */
   proc: boolean;
+  /** Proc damage that triggers Dark Harvest anyway (Teemo's Toxic Shot). */
+  harvest?: boolean;
   crit: boolean;
   /** Not affected by damage-dealt amplifiers (Ignite, First Strike bonus). */
   unamplified?: boolean;

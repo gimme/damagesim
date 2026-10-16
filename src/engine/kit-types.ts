@@ -66,6 +66,8 @@ export interface ComponentSpec {
   /** Proc damage (the wiki's "deals proc damage", Smolder's Q burn): no spell effects (Liandry's,
    *  Luden's) and no rune triggers (Dark Harvest). */
   proc?: boolean;
+  /** Proc damage special-cased to trigger Dark Harvest anyway (Teemo's Toxic Shot). */
+  harvest?: boolean;
   /** Excluded unless the combo step enables it. */
   optional?: boolean;
   /** Short condition shown in the UI, e.g. "if the target is isolated". */
