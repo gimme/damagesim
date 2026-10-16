@@ -90,7 +90,7 @@ const kit: ChampionKit = {
         type: 'physical',
         amount: sim.evalExpr('P.calc.TotalDamage', { slot: 'P' }) * atk.critFactor,
         castId: atk.castId,
-        flags: { kind: 'ability', slot: 'P', onHit: true, ability: false, crit: atk.crit },
+        flags: { kind: 'ability', slot: 'P', onHit: true, ability: false, proc: true, crit: atk.crit },
       });
     },
   },

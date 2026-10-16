@@ -17,8 +17,8 @@ const kit: ChampionKit = {
   ],
   marks: [{ id: 'zealous', label: 'Zealous', maxStacks: 'P.dv.EnrageMaxStacks', duration: 'P.dv.EnrageDuration', appliedBy: ['attack'] }],
   attack: {
-    // Starfire Spellblade passive.
-    onHit: [{ id: 'starfire', label: 'Starfire Spellblade', type: 'magic', amount: 'E.rank > 0 ? E.calc.EPassiveTotalDamage : 0' }],
+    // Starfire Spellblade passive. The wiki: "Proc damage for the passive's on-hit effect."
+    onHit: [{ id: 'starfire', label: 'Starfire Spellblade', type: 'magic', amount: 'E.rank > 0 ? E.calc.EPassiveTotalDamage : 0', proc: true }],
   },
   abilities: {
     Q: {
@@ -37,7 +37,8 @@ const kit: ChampionKit = {
         empowerAttacks: {
           count: 1,
           resetsAttack: true,
-          components: [{ id: 'execute', label: 'Starfire Spellblade (active)', type: 'magic', amount: 'E.calc.ActiveTotalExecuteDamage * target.missingHp', aoe: true }],
+          // The wiki: "Proc damage for the active's on-hit effect."
+          components: [{ id: 'execute', label: 'Starfire Spellblade (active)', type: 'magic', amount: 'E.calc.ActiveTotalExecuteDamage * target.missingHp', aoe: true, proc: true }],
         },
       },
     },

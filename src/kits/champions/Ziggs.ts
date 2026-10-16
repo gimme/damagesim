@@ -18,7 +18,7 @@ const kit: ChampionKit = {
       maxStacks: 1,
       duration: 1,
       appliedBy: ['attack'],
-      atMax: { components: [{ id: 'fuse', label: 'Short Fuse', type: 'magic', amount: 'P.calc.TotalDamage', noProc: true }], consume: true, cooldown: 'P.cooldown' },
+      atMax: { components: [{ id: 'fuse', label: 'Short Fuse', type: 'magic', amount: 'P.calc.TotalDamage', proc: true }], consume: true, cooldown: 'P.cooldown' },
     },
   ],
   hooks: {

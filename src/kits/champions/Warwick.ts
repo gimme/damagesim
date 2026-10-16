@@ -3,7 +3,7 @@ import type { ChampionKit, ComponentSpec } from '../../engine/kit-types.ts';
 // Warwick — patch 16.20.
 // Eternal Hunger is an on-hit effect: Q and R's strikes apply on-hit effects in game, but the engine
 // applies kit passive on-hits only to basic attacks, so those abilities list it explicitly.
-const HUNGER: ComponentSpec = { id: 'hunger', label: 'Eternal Hunger', type: 'magic', amount: 'P.calc.OnHitDamage', noProc: true };
+const HUNGER: ComponentSpec = { id: 'hunger', label: 'Eternal Hunger', type: 'magic', amount: 'P.calc.OnHitDamage', proc: true };
 
 const kit: ChampionKit = {
   id: 'Warwick',

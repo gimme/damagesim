@@ -7,7 +7,7 @@ const frozen = (duration: string): DebuffSpec => ({
   id: 'sejuaniFrozen',
   label: 'Frozen',
   duration,
-  consume: { by: 'any', components: [{ id: 'shatter', label: 'Fury of the North', type: 'magic', amount: 'P.calc.PercentHPDamage * target.maxHp', noProc: true }] },
+  consume: { by: 'any', components: [{ id: 'shatter', label: 'Fury of the North', type: 'magic', amount: 'P.calc.PercentHPDamage * target.maxHp', proc: true }] },
 });
 
 const kit: ChampionKit = {

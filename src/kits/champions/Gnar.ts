@@ -48,7 +48,7 @@ const kit: ChampionKit = {
       stacksPerHit: 'buff.megaGnar || W.rank == 0 ? 0 : 1',
       atMax: {
         consume: true,
-        components: [{ id: 'hyper', label: 'Hyper', type: 'magic', amount: "spell['GnarW'].calc.MiniTotalDamage + spell['GnarW'].dv.MiniPercentHPDamage * target.maxHp", noProc: true }],
+        components: [{ id: 'hyper', label: 'Hyper', type: 'magic', amount: "spell['GnarW'].calc.MiniTotalDamage + spell['GnarW'].dv.MiniPercentHPDamage * target.maxHp", proc: true }],
       },
     },
   ],

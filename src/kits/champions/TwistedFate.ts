@@ -26,7 +26,7 @@ const kit: ChampionKit = {
     everyNth: {
       n: 4, // every 4th attack (tooltip; 3 stacks + empowered attack)
       label: 'Stacked Deck',
-      components: [{ id: 'stackedDeck', label: 'Stacked Deck', type: 'magic', amount: 'E.calc.BonusDamage', hits: 'E.rank > 0 ? 1 : 0' }],
+      components: [{ id: 'stackedDeck', label: 'Stacked Deck', type: 'magic', amount: 'E.calc.BonusDamage', hits: 'E.rank > 0 ? 1 : 0', proc: true }],
     },
   },
   abilities: {

@@ -84,7 +84,7 @@ const kit: ChampionKit = {
         type: 'physical',
         amount: sim.evalExpr('P.calc.FourthShotExecutePercent * target.missingHp', { slot: 'P' }),
         castId: atk.castId,
-        flags: { kind: 'ability', slot: 'P', onHit: true, ability: false },
+        flags: { kind: 'ability', slot: 'P', onHit: true, ability: false, proc: true },
       });
       // Reload before the next shot.
       sim.attackReadyAt = Math.max(sim.attackReadyAt, sim.time + sim.evalExpr('P.dv.ReloadTime', { slot: 'P' }));

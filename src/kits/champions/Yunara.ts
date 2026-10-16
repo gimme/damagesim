@@ -13,8 +13,9 @@ const kit: ChampionKit = {
     'Arc of Judgment: impact plus the lingering bead for 1s (15% of impact every 0.25s per the wiki). Its 10s cooldown (wiki) is set in the kit — the data has none.',
     'Attacks spreading to other enemies (Q active) are ignored (single target).',
   ],
+  // The wiki: Cultivation of Spirit's passive and active on-hits are proc damage.
   attack: {
-    onHit: [{ id: 'cultivation', label: 'Cultivation of Spirit', type: 'magic', amount: 'Q.calc.Calc_Passive_Damage' }],
+    onHit: [{ id: 'cultivation', label: 'Cultivation of Spirit', type: 'magic', amount: 'Q.calc.Calc_Passive_Damage', proc: true }],
   },
   hooks: {
     onAttack(sim, atk) {
@@ -30,7 +31,7 @@ const kit: ChampionKit = {
         type: 'magic',
         amount: share * sim.evalExpr('P.calc.Calc_Damage_Amp', { slot: 'P' }) * critDamage,
         castId: atk.castId,
-        flags: { kind: 'ability', slot: 'P', ability: false, onHit: true },
+        flags: { kind: 'ability', slot: 'P', ability: false, proc: true, onHit: true },
       });
     },
   },
@@ -43,7 +44,7 @@ const kit: ChampionKit = {
         label: 'Cultivation of Spirit',
         duration: 'dv.Buff_Duration',
         stats: { attackSpeed: 'calc.Calc_Attack_Speed' },
-        onHit: [{ id: 'active', label: 'Cultivation of Spirit (active)', type: 'magic', amount: 'Q.calc.Calc_Damage' }],
+        onHit: [{ id: 'active', label: 'Cultivation of Spirit (active)', type: 'magic', amount: 'Q.calc.Calc_Damage', proc: true }],
       },
     },
     W: {
@@ -80,7 +81,7 @@ const kit: ChampionKit = {
         label: 'Transcendent State',
         duration: 'dv.Buff_Duration',
         stats: { attackSpeed: 'Q.calc.Calc_Attack_Speed' },
-        onHit: [{ id: 'active', label: 'Cultivation of Spirit (active)', type: 'magic', amount: 'Q.calc.Calc_Damage' }],
+        onHit: [{ id: 'active', label: 'Cultivation of Spirit (active)', type: 'magic', amount: 'Q.calc.Calc_Damage', proc: true }],
       },
     },
   },

@@ -16,7 +16,7 @@ const kit: ChampionKit = {
   ],
   marks: [{ id: 'taste', label: 'An Acquired Taste', maxStacks: 'P.dv.MaxStacks', duration: 'P.dv.Duration', appliedBy: ['attack', 'Q'] }],
   attack: {
-    onHit: [{ id: 'taste', label: 'An Acquired Taste', type: 'magic', amount: 'P.calc.TotalDamage' }],
+    onHit: [{ id: 'taste', label: 'An Acquired Taste', type: 'magic', amount: 'P.calc.TotalDamage', proc: true }],
   },
   hooks: {
     onCast(sim, cast) {
@@ -43,7 +43,7 @@ const kit: ChampionKit = {
       notes: ['Deals Tongue Lash damage plus An Acquired Taste damage; stuns if the target already had 3 stacks.'],
       components: [
         { id: 'lash', label: 'Tongue Lash', type: 'magic', amount: 'calc.TotalDamage', delay: Q_DELAY },
-        { id: 'taste', label: 'An Acquired Taste', type: 'magic', amount: 'P.calc.TotalDamage', delay: Q_DELAY },
+        { id: 'taste', label: 'An Acquired Taste', type: 'magic', amount: 'P.calc.TotalDamage', delay: Q_DELAY, proc: true },
       ],
     },
     W: {

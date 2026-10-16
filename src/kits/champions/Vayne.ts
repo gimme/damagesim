@@ -24,7 +24,7 @@ const kit: ChampionKit = {
             label: 'Silver Bolts',
             type: 'true',
             amount: 'W.rank > 0 ? max(W.dv.DamageFloor, W.calc.TotalDamage * target.maxHp) : 0',
-            noProc: true,
+            proc: true,
           },
         ],
       },

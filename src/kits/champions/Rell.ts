@@ -19,7 +19,7 @@ const kit: ChampionKit = {
     'Rell starts mounted: W is Crash Down by default; W:mountup empowers the next attack (its knock-up is not modeled as crowd control).',
   ],
   attack: {
-    onHit: [{ id: 'mold', label: 'Break the Mold', type: 'magic', amount: 'P.calc.OnHitDamage' }],
+    onHit: [{ id: 'mold', label: 'Break the Mold', type: 'magic', amount: 'P.calc.OnHitDamage', proc: true }],
   },
   marks: [
     {

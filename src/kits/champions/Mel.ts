@@ -5,6 +5,7 @@ import { effectiveResist, resistMultiplier } from '../../engine/damage.ts';
 // Mel — patch 16.20.
 
 const OVERWHELM = 'P.dv.OverwhelmDuration';
+const PROJECTILE = 'Searing Brilliance projectile';
 const STORED = "spell['MelR'].calc.PassiveFlatDamage + spell['MelR'].calc.PassiveStackDamage * stacks.overwhelm";
 
 /** Overwhelm execute: once the stored damage (after MR) reaches the target's health, it is dealt. */
@@ -21,7 +22,7 @@ function checkExecute(sim: Sim) {
     label: 'Overwhelm execute',
     type: 'magic',
     amount: stored,
-    flags: { kind: 'ability', slot: 'P', ability: false },
+    flags: { kind: 'ability', slot: 'P', ability: false, proc: true },
     markSource: 'overwhelm',
   });
 }
@@ -57,6 +58,8 @@ const kit: ChampionKit = {
       if (!atk.fromAbility && !atk.phantom) sim.setCounter('melMissiles', 0);
     },
     afterDamage(sim, inst) {
+      // The projectiles are proc damage (no mark stacks from the engine) but still apply Overwhelm.
+      if (inst.flags.proc && inst.label === PROJECTILE) sim.setMarkStacks('overwhelm', (sim.markStacks('overwhelm') ?? 0) + 1, sim.evalExpr(OVERWHELM, { slot: 'P' }));
       // Marks are updated after afterDamage hooks: check the execute once this hit's stack is in.
       if (!inst.fromMark && (inst.flags.kind === 'ability' || inst.flags.kind === 'attack')) sim.schedule(0, () => checkExecute(sim));
     },
@@ -65,10 +68,11 @@ const kit: ChampionKit = {
     onHit: [
       {
         id: 'radiance',
-        label: 'Searing Brilliance projectile',
+        label: PROJECTILE,
         type: 'magic',
         amount: 'P.calc.PassiveBonusMissileDamage',
         hits: 'time <= stacks.melMissilesUntil ? stacks.melMissiles : 0',
+        proc: true,
       },
     ],
   },

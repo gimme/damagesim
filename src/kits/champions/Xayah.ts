@@ -31,7 +31,7 @@ const kit: ChampionKit = {
         label: 'Deadly Plumage',
         duration: 'dv.WAttackSpeedDuration',
         stats: { attackSpeed: 'dv.WAttackSpeedAmount / 100' },
-        onHit: [{ id: 'blade', label: 'Deadly Plumage', type: 'physical', amount: 'ad * W.dv.BonusDamagePercent / 100', canCrit: true, noProc: true }],
+        onHit: [{ id: 'blade', label: 'Deadly Plumage', type: 'physical', amount: 'ad * W.dv.BonusDamagePercent / 100', canCrit: true, proc: true }],
       },
     },
     E: {

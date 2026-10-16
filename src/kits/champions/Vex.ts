@@ -25,7 +25,7 @@ const kit: ChampionKit = {
         id: 'gloom',
         label: 'Gloom',
         duration: 'P.dv.GloomDuration',
-        consume: { by: ['attack', 'Q', 'W'], components: [{ id: 'gloom', label: 'Gloom', type: 'magic', amount: 'P.calc.GloomProcCalc', noProc: true }] },
+        consume: { by: ['attack', 'Q', 'W'], components: [{ id: 'gloom', label: 'Gloom', type: 'magic', amount: 'P.calc.GloomProcCalc', proc: true }] },
       },
       components: [{ id: 'shadow', label: 'Looming Darkness', type: 'magic', amount: 'calc.EDamageCalc', aoe: true, delay: 0.4 }],
     },

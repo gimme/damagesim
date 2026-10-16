@@ -25,7 +25,7 @@ const kit: ChampionKit = {
   abilities: {
     P: {
       notes: ['Use as a combo step when a vital is struck.'],
-      components: [{ id: 'vital', label: 'Vital', type: 'true', amount: 'calc.PassiveDamageTotal * target.maxHp', noProc: true }],
+      components: [{ id: 'vital', label: 'Vital', type: 'true', amount: 'calc.PassiveDamageTotal * target.maxHp', proc: true }],
     },
     Q: {
       dash: true,
@@ -107,7 +107,7 @@ const kit: ChampionKit = {
         type: 'true',
         amount: sim.evalExpr('P.calc.PassiveDamageTotal * target.maxHp', { slot: 'P' }),
         castId: inst.castId,
-        flags: { kind: 'ability', slot: 'P', ability: false },
+        flags: { kind: 'ability', slot: 'P', ability: false, proc: true },
         markSource: 'grandChallenge',
       });
     },

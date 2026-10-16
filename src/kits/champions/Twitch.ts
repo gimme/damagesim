@@ -26,7 +26,7 @@ function venomTick(sim: Sim) {
     return;
   }
   const amount = sim.evalExpr('P.calc.DamagePerSecond', { slot: 'P' }) * sim.counter('venom');
-  sim.deal({ source: 'P', sourceLabel: 'Deadly Venom', label: `Venom (${sim.counter('venom')})`, type: 'true', amount, castId: sim.counter('venomCast'), flags: { kind: 'ability', slot: 'P', dot: true } });
+  sim.deal({ source: 'P', sourceLabel: 'Deadly Venom', label: `Venom (${sim.counter('venom')})`, type: 'true', amount, castId: sim.counter('venomCast'), flags: { kind: 'ability', slot: 'P', ability: false, proc: true, dot: true } });
   sim.schedule(1, () => venomTick(sim));
 }
 

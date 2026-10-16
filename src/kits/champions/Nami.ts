@@ -36,7 +36,7 @@ const kit: ChampionKit = {
         empowerAttacks: {
           count: 'dv.HitCount',
           cc: [{ kind: 'slow', duration: 'E.dv.SlowDuration' }],
-          components: [{ id: 'blessing', label: 'Blessing', type: 'magic', amount: 'E.calc.TotalDamage' }],
+          components: [{ id: 'blessing', label: 'Blessing', type: 'magic', amount: 'E.calc.TotalDamage', proc: true }],
         },
       },
     },
@@ -63,7 +63,7 @@ const kit: ChampionKit = {
         type: 'magic',
         amount: sim.evalExpr('E.calc.TotalDamage', { slot: 'E' }),
         castId: inst.castId,
-        flags: { kind: 'ability', slot: 'E', ability: true },
+        flags: { kind: 'ability', slot: 'E', ability: false, proc: true },
       });
       sim.applyCC('slow', sim.evalExpr('E.dv.SlowDuration', { slot: 'E' }), inst.castId, 'E');
     },

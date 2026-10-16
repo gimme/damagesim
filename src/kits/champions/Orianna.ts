@@ -11,7 +11,7 @@ const kit: ChampionKit = {
   marks: [{ id: 'windup', label: 'Clockwork Windup', maxStacks: 'P.dv.StackCount', duration: 'P.dv.StackDuration', appliedBy: ['attack'] }],
   attack: {
     // Stacks are counted before this attack adds its own: 1st attack base, 2nd +1 stack, 3rd+ +2 stacks.
-    onHit: [{ id: 'windup', label: 'Clockwork Windup', type: 'magic', amount: 'P.calc.TotalDamage + P.calc.StackDamage * stacks.windup' }],
+    onHit: [{ id: 'windup', label: 'Clockwork Windup', type: 'magic', amount: 'P.calc.TotalDamage + P.calc.StackDamage * stacks.windup', proc: true }],
   },
   abilities: {
     Q: {

@@ -2,7 +2,7 @@ import type { ChampionKit } from '../../engine/kit-types.ts';
 
 // Smolder — patch 16.20.
 // Dragon Practice stacks are an option (fed to the game formulas' stack counter). Stacks gained
-// during the combo are ignored.
+// during the combo are ignored. Dragon Practice's bonus damage in Q/W/E is proc damage (wiki).
 const STACKS = '{32bcea5d}';
 
 const kit: ChampionKit = {
@@ -19,7 +19,7 @@ const kit: ChampionKit = {
       components: [
         // Applies on-hit effects and triggers on-attack effects (Spellblade, Energized, Guinsoo's stacks…).
         { id: 'breath', label: 'Super Scorcher Breath', type: 'physical', amount: 'calc.TotalDamage', onHit: true, onAttack: true, delay: 0.15 },
-        { id: 'practice', label: 'Super Scorcher Breath (Dragon Practice)', type: 'magic', amount: 'P.calc.Passive_QDamageIncrease', hits: 'opt.stacks > 0 ? 1 : 0', delay: 0.15 },
+        { id: 'practice', label: 'Super Scorcher Breath (Dragon Practice)', type: 'magic', amount: 'P.calc.Passive_QDamageIncrease', hits: 'opt.stacks > 0 ? 1 : 0', delay: 0.15, proc: true },
         {
           id: 'burn',
           label: 'Super Scorcher Breath (burn)',
@@ -40,7 +40,7 @@ const kit: ChampionKit = {
       components: [
         { id: 'sneeze', label: 'Achooo!', type: 'physical', amount: 'calc.InitialDamage', delay: 0.3 },
         { id: 'explosion', label: 'Achooo! (explosion)', type: 'physical', amount: 'calc.ExplosionDamage', aoe: true, delay: 0.3 },
-        { id: 'practice', label: 'Achooo! (Dragon Practice)', type: 'magic', amount: 'P.calc.Passive_WDamageIncrease', hits: 'opt.stacks > 0 ? 1 : 0', aoe: true, delay: 0.3 },
+        { id: 'practice', label: 'Achooo! (Dragon Practice)', type: 'magic', amount: 'P.calc.Passive_WDamageIncrease', hits: 'opt.stacks > 0 ? 1 : 0', aoe: true, delay: 0.3, proc: true },
       ],
     },
     E: {
@@ -63,6 +63,7 @@ const kit: ChampionKit = {
           hits: 'opt.stacks > 0 ? floor(calc.TotalNumberOfAttacks) : 0',
           interval: 'dv.Duration / floor(calc.TotalNumberOfAttacks)',
           delay: 0.1,
+          proc: true,
         },
       ],
     },

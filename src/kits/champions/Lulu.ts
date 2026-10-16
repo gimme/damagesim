@@ -11,7 +11,7 @@ const kit: ChampionKit = {
   attack: {
     onHit: [
       // Pix fires 3 homing bolts at the attack target; a single champion takes all three.
-      { id: 'pix', label: 'Pix bolt', type: 'magic', amount: 'P.calc.TotalDamage', hits: 'P.dv.NumberOfBolts', noProc: true, note: 'Pix, Faerie Companion' },
+      { id: 'pix', label: 'Pix bolt', type: 'magic', amount: 'P.calc.TotalDamage', hits: 'P.dv.NumberOfBolts', proc: true, note: 'Pix, Faerie Companion' },
     ],
   },
   abilities: {

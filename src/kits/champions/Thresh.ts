@@ -33,6 +33,8 @@ const kit: ChampionKit = {
         type: 'magic',
         amount: 'E.calc.PAttackDamageMin + (E.calc.PAttackDamageMax - E.calc.PAttackDamageMin) * clamp((time - stacks.threshLastAttack) / E.dv.FullChargeDuration, 0, 1)',
         hits: 'E.rank > 0 ? 1 : 0',
+        // The wiki: Flay "deals proc damage on the enhanced basic attack" (the active is area damage).
+        proc: true,
       },
     ],
   },

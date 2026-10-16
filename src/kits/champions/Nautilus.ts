@@ -46,7 +46,7 @@ const kit: ChampionKit = {
           type: 'physical',
           amount: sim.evalExpr('P.calc.BonusDamage', { slot: 'P' }),
           castId: atk.castId,
-          flags: { kind: 'ability', slot: 'P', onHit: true, ability: false },
+          flags: { kind: 'ability', slot: 'P', onHit: true, ability: false, proc: true },
         });
         sim.applyCC('immobilize', sim.evalExpr('P.calc.RootDuration', { slot: 'P' }), atk.castId, 'P');
       }

@@ -99,7 +99,8 @@ const kit: ChampionKit = {
         type: 'true',
         amount: sim.evalExpr('R.calc.FinalOnHitDamage', { slot: 'R' }) * stacks * eff,
         castId: inst.castId,
-        flags: { kind: 'ability', slot: 'R', onHit: true, ability: false },
+        // The wiki: "Applies proc damage on the bonus true damage" (the explosion is area damage).
+        flags: { kind: 'ability', slot: 'R', onHit: true, ability: false, proc: true },
         markSource: 'banquet',
       });
     },

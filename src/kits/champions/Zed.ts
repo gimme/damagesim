@@ -49,7 +49,7 @@ const kit: ChampionKit = {
         type: 'magic',
         amount: sim.evalExpr('P.calc.TotalDamage', { slot: 'P' }),
         castId: atk.castId,
-        flags: { kind: 'ability', slot: 'P', ability: false, onHit: true },
+        flags: { kind: 'ability', slot: 'P', ability: false, proc: true, onHit: true },
       });
     },
   },

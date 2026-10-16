@@ -13,7 +13,7 @@ function snips(id: string, label: string, amount: string, hits: string, delay: s
   return [
     { id, label, type: 'magic', amount: `${amount} * (1 - dv.TrueDamageConversion)`, hits, interval: 0.05, delay, aoe: true },
     { id: `${id}True`, label: `${label} (true)`, type: 'true', amount: `${amount} * dv.TrueDamageConversion`, hits, interval: 0.05, delay, aoe: true },
-    { id: `${id}Cuts`, label: 'A Thousand Cuts', type: 'magic', amount: CUTS, hits, interval: 0.05, delay, noProc: true },
+    { id: `${id}Cuts`, label: 'A Thousand Cuts', type: 'magic', amount: CUTS, hits, interval: 0.05, delay, proc: true },
   ];
 }
 const qSnips = (center: boolean): ComponentSpec[] => [
@@ -31,7 +31,7 @@ const kit: ChampionKit = {
     'Needlework: write "R R R" — 1, 3 and 5 needles; each needle applies A Thousand Cuts.',
   ],
   attack: {
-    onHit: [{ id: 'cuts', label: 'A Thousand Cuts', type: 'magic', amount: CUTS }],
+    onHit: [{ id: 'cuts', label: 'A Thousand Cuts', type: 'magic', amount: CUTS, proc: true }],
   },
   abilities: {
     Q: {
@@ -52,7 +52,7 @@ const kit: ChampionKit = {
         label: "Skip 'n Slash",
         duration: 'dv.BuffDuration',
         stats: { attackSpeed: 'calc.BonusAttackSpeed', range: 'dv.BonusAttackRange' },
-        onHit: [{ id: 'skip', label: "Skip 'n Slash", type: 'magic', amount: 'E.calc.OnHitDamage' }],
+        onHit: [{ id: 'skip', label: "Skip 'n Slash", type: 'magic', amount: 'E.calc.OnHitDamage', proc: true }],
       },
     },
     R: {
@@ -61,7 +61,7 @@ const kit: ChampionKit = {
       cc: [{ kind: 'slow', duration: 'dv.DebuffDuration' }],
       components: [
         { id: 'needle', label: 'Needle', type: 'magic', amount: 'calc.TotalDamage', hits: '2 * recast - 1', interval: 0.05, delay: 0.3, aoe: true },
-        { id: 'needleCuts', label: 'A Thousand Cuts', type: 'magic', amount: CUTS, hits: '2 * recast - 1', interval: 0.05, delay: 0.3, noProc: true },
+        { id: 'needleCuts', label: 'A Thousand Cuts', type: 'magic', amount: CUTS, hits: '2 * recast - 1', interval: 0.05, delay: 0.3, proc: true },
       ],
     },
   },

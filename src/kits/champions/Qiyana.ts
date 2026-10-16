@@ -8,7 +8,7 @@ const enchant: BuffSpec = {
   label: 'Enchantment',
   duration: 600,
   stats: { attackSpeed: 'W.dv.AttackSpeed' },
-  onHit: [{ id: 'enchant', label: 'Terrashape (enchanted)', type: 'magic', amount: 'W.calc.OnHitDamage' }],
+  onHit: [{ id: 'enchant', label: 'Terrashape (enchanted)', type: 'magic', amount: 'W.calc.OnHitDamage', proc: true }],
 };
 
 const kit: ChampionKit = {
@@ -34,7 +34,7 @@ const kit: ChampionKit = {
       atMax: {
         consume: true,
         cooldown: 25,
-        components: [{ id: 'privilege', label: 'Royal Privilege', type: 'physical', amount: 'P.calc.FinalDamage', noProc: true }],
+        components: [{ id: 'privilege', label: 'Royal Privilege', type: 'physical', amount: 'P.calc.FinalDamage', proc: true }],
       },
     },
   ],

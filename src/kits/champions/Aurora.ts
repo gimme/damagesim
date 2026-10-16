@@ -15,7 +15,7 @@ const kit: ChampionKit = {
       maxStacks: 3,
       duration: 'P.dv.DebuffDuration',
       appliedBy: ['attack', 'ability'],
-      atMax: { consume: true, components: [{ id: 'exorcise', label: 'Spirit Abjuration', type: 'magic', amount: 'P.calc.ProcDamage * target.maxHp', noProc: true }] },
+      atMax: { consume: true, components: [{ id: 'exorcise', label: 'Spirit Abjuration', type: 'magic', amount: 'P.calc.ProcDamage * target.maxHp', proc: true }] },
     },
   ],
   abilities: {

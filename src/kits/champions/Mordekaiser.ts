@@ -57,8 +57,9 @@ const kit: ChampionKit = {
     },
   },
   attack: {
-    // Darkness Rise: attacks deal bonus magic damage (40% AP); skipped when it would be 0.
-    onHit: [{ id: 'nightfall', label: 'Darkness Rise', type: 'magic', amount: 'P.calc.BonusAPAuto', hits: 'ap > 0 ? 1 : 0' }],
+    // Darkness Rise: attacks deal bonus magic damage (40% AP); skipped when it would be 0. The wiki:
+    // "the bonus damage on his basic attacks is proc damage" (the aura is ability damage).
+    onHit: [{ id: 'nightfall', label: 'Darkness Rise', type: 'magic', amount: 'P.calc.BonusAPAuto', hits: 'ap > 0 ? 1 : 0', proc: true }],
   },
   stats: ({ ranks, evalExpr }) => (ranks.E > 0 ? { magicPenPercent: [evalExpr('E.dv.MagicPen')] } : {}),
   abilities: {

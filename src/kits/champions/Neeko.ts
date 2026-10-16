@@ -12,7 +12,7 @@ const kit: ChampionKit = {
     everyNth: {
       n: 3,
       label: 'Shapesplitter',
-      components: [{ id: 'shapesplitter', label: 'Shapesplitter', type: 'magic', amount: 'W.rank > 0 ? W.calc.PassiveBonusDamageCalc : 0' }],
+      components: [{ id: 'shapesplitter', label: 'Shapesplitter', type: 'magic', amount: 'W.rank > 0 ? W.calc.PassiveBonusDamageCalc : 0', proc: true }],
     },
   },
   abilities: {

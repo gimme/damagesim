@@ -14,7 +14,9 @@ const kit: ChampionKit = {
       // While Noxian Might is active every hit applies max stacks.
       stacksPerHit: 'buff.noxianMight ? P.dv.MaxStacks : 1',
       appliedBy: ['attack', 'Q', 'W'],
-      dot: { interval: 1.25, components: [{ id: 'bleed', label: 'Bleed', type: 'physical', amount: 'P.calc.BleedDamagePerStack / 4 * stacks.hemorrhage', dot: true }] },
+      // The wiki tags Hemorrhage proc but notes it "used to say default": default damage (no spell
+      // effects, still stacks Conqueror) until that is settled.
+      dot: { interval: 1.25, components: [{ id: 'bleed', label: 'Bleed', type: 'physical', amount: 'P.calc.BleedDamagePerStack / 4 * stacks.hemorrhage', dot: true, noProc: true }] },
       atMax: {
         components: [],
         buff: { id: 'noxianMight', label: 'Noxian Might', duration: 'P.dv.BleedDuration', stats: { ad: 'P.calc.NoxianMightBonusAD' } },

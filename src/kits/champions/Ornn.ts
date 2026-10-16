@@ -112,7 +112,7 @@ function detonate(sim: Sim, castId: number) {
     label: 'Brittle',
     type: 'magic',
     amount: sim.evalExpr('W.calc.BrittlePercentMaxHPCalc * target.maxHp', { slot: 'W' }),
-    flags: { kind: 'ability', slot: 'W', ability: true },
+    flags: { kind: 'ability', slot: 'W', ability: false, proc: true },
     markSource: 'brittle',
   });
 }

@@ -16,6 +16,8 @@ const spiderForm: BuffSpec = {
       type: 'magic',
       // Rappel raises Spider Queen's bonus damage by RappelDamageAmp % for 5s.
       amount: 'R.calc.PassiveTotalDamage * (1 + (buff.eliseRappel ? E.dv.RappelDamageAmp / 100 : 0))',
+      // The wiki: "Applies proc damage on the bonus magic damage on-hit in Spider Form".
+      proc: true,
     },
     {
       id: 'spiderling',

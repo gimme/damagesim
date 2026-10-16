@@ -53,7 +53,7 @@ const kit: ChampionKit = {
         type: 'physical',
         amount: Math.max(min, pct * Math.max(0, sim.target.hp)),
         castId: atk.castId,
-        flags: { kind: 'ability', slot: 'P', onHit: true, ability: false },
+        flags: { kind: 'ability', slot: 'P', onHit: true, ability: false, proc: true },
       });
       sim.startCooldown('jarvan.cadence', sim.evalExpr('P.calc.TooltipCooldown', { slot: 'P' }));
     },

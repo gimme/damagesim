@@ -34,6 +34,7 @@ const kit: ChampionKit = {
         // Only procs below the health threshold (hits 0 = no instance).
         hits: 'W.rank > 0 && target.hpPct < W.dv.BelowHealthThreshold ? 1 : 0',
         condition: 'target below 30% health',
+        proc: true,
       },
     ],
   },

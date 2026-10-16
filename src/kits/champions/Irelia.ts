@@ -26,7 +26,7 @@ const kit: ChampionKit = {
           id: 'fervorMax',
           label: 'Ionian Fervor (max)',
           duration: 'P.dv.BuffDuration',
-          onHit: [{ id: 'fervor', label: 'Ionian Fervor', type: 'magic', amount: 'P.calc.OnHitBonus', noProc: true }],
+          onHit: [{ id: 'fervor', label: 'Ionian Fervor', type: 'magic', amount: 'P.calc.OnHitBonus', proc: true }],
         },
       },
     },

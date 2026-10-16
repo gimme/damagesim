@@ -7,7 +7,7 @@ const harrier: DebuffSpec = {
   id: 'harrier',
   label: 'Harrier',
   duration: 'P.dv.RevealDuration',
-  consume: { by: 'attack', components: [{ id: 'harrier', label: 'Harrier', type: 'physical', amount: 'P.calc.BonusDamage', noProc: true }] },
+  consume: { by: 'attack', components: [{ id: 'harrier', label: 'Harrier', type: 'physical', amount: 'P.calc.BonusDamage', proc: true }] },
 };
 
 // Heightened Senses passive: attacking a Harrier target grants attack speed.

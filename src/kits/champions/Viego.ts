@@ -11,6 +11,8 @@ const BLADE_ON_HIT: ComponentSpec = {
   type: 'physical',
   // Crits raise the % current health part by HealthCritMod of the crit bonus (expected value).
   amount: 'Q.rank > 0 ? max(Q.dv.MinDamageOnHit, Q.calc.TotalPercentHealthOnHit * target.hp) * (1 + critChance * Q.dv.HealthCritMod * (critDamage - 1)) : 0',
+  // The wiki: proc damage for the on-hit bonus damage (the thrust is area damage).
+  proc: true,
 };
 const MARK: DebuffSpec = { id: 'viegoMark', label: 'Blade of the Ruined King (mark)', duration: 'Q.dv.MarkDuration' };
 

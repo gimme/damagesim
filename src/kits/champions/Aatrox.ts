@@ -75,7 +75,7 @@ const kit: ChampionKit = {
         type: 'magic',
         amount: sim.evalExpr('P.calc.PDamage * target.maxHp', { slot: 'P' }),
         castId: atk.castId,
-        flags: { kind: 'ability', slot: 'P', onHit: true, ability: false },
+        flags: { kind: 'ability', slot: 'P', onHit: true, ability: false, proc: true },
       });
       sim.setCounter('aatroxP.readyAt', sim.time + sim.evalExpr('P.calc.PCooldown', { slot: 'P' }));
     },

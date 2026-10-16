@@ -72,7 +72,8 @@ const kit: ChampionKit = {
         id: 'rengarRLeap',
         label: 'Thrill of the Hunt',
         duration: 'dv.StealthDuration',
-        empowerAttacks: { count: 1, components: [{ id: 'leap', label: 'Thrill of the Hunt', type: 'physical', amount: 'R.calc.BonusDamage' }] },
+        // The wiki tags the bonus damage proc ("unlike other ability empowered attacks": no Malignance).
+        empowerAttacks: { count: 1, components: [{ id: 'leap', label: 'Thrill of the Hunt', type: 'physical', amount: 'R.calc.BonusDamage', proc: true }] },
       },
       components: [],
     },

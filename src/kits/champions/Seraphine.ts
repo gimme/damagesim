@@ -96,7 +96,7 @@ const kit: ChampionKit = {
       sim.setCounter('seraNotes', 0);
       const amount = sim.evalExpr('P.calc.AutoDamage', { slot: 'P' });
       for (let i = 0; i < notes; i++)
-        atk.extra.push({ source: 'P', sourceLabel: 'Stage Presence', label: 'Note', type: 'magic', amount, castId: atk.castId, flags: { kind: 'ability', slot: 'P', onHit: true, ability: false } });
+        atk.extra.push({ source: 'P', sourceLabel: 'Stage Presence', label: 'Note', type: 'magic', amount, castId: atk.castId, flags: { kind: 'ability', slot: 'P', onHit: true, ability: false, proc: true } });
     },
   },
 };

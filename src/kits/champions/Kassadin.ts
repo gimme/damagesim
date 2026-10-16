@@ -44,7 +44,7 @@ const kit: ChampionKit = {
     // Nether Blade passive on-hit, skipped when the empowered attack (pushed by the W buff, source 'W') replaces it.
     onAttack(sim, atk) {
       if (atk.fromAbility || sim.rankOf('W') <= 0 || atk.extra.some((x) => x.source === 'W')) return;
-      atk.extra.push({ source: 'W', sourceLabel: 'Nether Blade', label: 'Nether Blade', type: 'magic', amount: sim.evalExpr('W.calc.OnHitDamage', { slot: 'W' }), castId: atk.castId, flags: { kind: 'ability', slot: 'W', onHit: true, ability: false } });
+      atk.extra.push({ source: 'W', sourceLabel: 'Nether Blade', label: 'Nether Blade', type: 'magic', amount: sim.evalExpr('W.calc.OnHitDamage', { slot: 'W' }), castId: atk.castId, flags: { kind: 'ability', slot: 'W', onHit: true, ability: false, proc: true } });
     },
     onStart(sim) {
       const stacks = sim.opt.riftStacks ?? 0;

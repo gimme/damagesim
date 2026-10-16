@@ -6,7 +6,7 @@ const illumination: DebuffSpec = {
   id: 'illumination',
   label: 'Illumination',
   duration: 'P.dv.DebuffDuration',
-  consume: { by: ['attack', 'R'], slot: 'P', components: [{ id: 'detonate', label: 'Illumination', type: 'magic', amount: 'P.calc.TotalDamage', noProc: true }] },
+  consume: { by: ['attack', 'R'], slot: 'P', components: [{ id: 'detonate', label: 'Illumination', type: 'magic', amount: 'P.calc.TotalDamage', proc: true }] },
 };
 
 const kit: ChampionKit = {

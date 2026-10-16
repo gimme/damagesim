@@ -64,7 +64,8 @@ const kit: ChampionKit = {
           hits: 'floor(dv.SpiritDuration / calc.TimeBetweenVesselTentacleSlams)',
           interval: 'calc.TimeBetweenVesselTentacleSlams',
           delay: 0.5,
-          noProc: true,
+          // The wiki: "Echoed damage always counts as proc damage".
+          proc: true,
         },
       ],
       variants: {

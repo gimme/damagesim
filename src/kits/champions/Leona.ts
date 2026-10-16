@@ -10,7 +10,8 @@ const kit: ChampionKit = {
   abilities: {
     P: {
       notes: ['An allied champion damages the Sunlight-marked target.'],
-      components: [{ id: 'sunlight', label: 'Sunlight (ally)', type: 'magic', amount: 'calc.TotalDamage', noProc: true }],
+      // Spell damage (wiki): Leona's spell effects apply.
+      components: [{ id: 'sunlight', label: 'Sunlight (ally)', type: 'magic', amount: 'calc.TotalDamage' }],
     },
     Q: {
       resetsAttack: true,

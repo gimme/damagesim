@@ -29,7 +29,7 @@ const kit: ChampionKit = {
         label: 'Overheat',
         duration: 'P.dv.OverheatDuration',
         stats: { attackSpeed: 'P.calc.OverheatAS' },
-        onHit: [{ id: 'overheat', label: 'Overheat', type: 'magic', amount: 'P.calc.TotalBaseDamage + P.dv.OverheatPercBonusDamage * target.maxHp' }],
+        onHit: [{ id: 'overheat', label: 'Overheat', type: 'magic', amount: 'P.calc.TotalBaseDamage + P.dv.OverheatPercBonusDamage * target.maxHp', proc: true }],
       },
       components: [],
     },

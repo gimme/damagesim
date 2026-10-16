@@ -28,7 +28,7 @@ function passiveFromW(sim: Sim, inst: DamageInstance) {
     type: 'physical',
     amount: sim.evalExpr('P.calc.TotalDamage', { slot: 'P' }),
     castId: inst.castId,
-    flags: { kind: 'ability', slot: 'P', ability: false, onHit: true },
+    flags: { kind: 'ability', slot: 'P', ability: false, proc: true, onHit: true },
   });
 }
 
@@ -44,7 +44,7 @@ const kit: ChampionKit = {
     everyNth: {
       n: 3,
       label: 'Determination',
-      components: [{ id: 'determination', label: 'Determination', type: 'physical', amount: 'P.calc.TotalDamage', noProc: true }],
+      components: [{ id: 'determination', label: 'Determination', type: 'physical', amount: 'P.calc.TotalDamage', proc: true }],
     },
   },
   hooks: {

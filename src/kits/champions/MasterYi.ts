@@ -85,7 +85,7 @@ const kit: ChampionKit = {
     W: { noTarget: true, components: [] },
     E: {
       noTarget: true,
-      buff: { id: 'wujuStyle', label: 'Wuju Style', duration: 'dv.Duration', onHit: [{ id: 'wuju', label: 'Wuju Style', type: 'true', amount: 'E.calc.TotalDamage' }] },
+      buff: { id: 'wujuStyle', label: 'Wuju Style', duration: 'dv.Duration', onHit: [{ id: 'wuju', label: 'Wuju Style', type: 'true', amount: 'E.calc.TotalDamage', proc: true }] },
       components: [],
     },
     R: {

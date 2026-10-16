@@ -22,7 +22,7 @@ const kit: ChampionKit = {
   options: [{ key: 'sealedStacks', label: 'Sealed champions (R stacks)', default: 0, min: 0, max: 50, description: 'Permanent Purgatory execute-threshold stacks.' }],
   buffStacks: { '{b5c3348f}': 'opt.sealedStacks' },
   attack: {
-    onHit: [{ id: 'stake', label: 'Silver Stake', type: 'magic', amount: 'lerp(P.calc.MinOnHitDamage, P.calc.MaxOnHitDamage, target.missingHpPct)' }],
+    onHit: [{ id: 'stake', label: 'Silver Stake', type: 'magic', amount: 'lerp(P.calc.MinOnHitDamage, P.calc.MaxOnHitDamage, target.missingHpPct)', proc: true }],
   },
   hooks: {
     preAttack(sim, atk) {

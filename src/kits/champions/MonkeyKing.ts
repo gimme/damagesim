@@ -33,12 +33,13 @@ const kit: ChampionKit = {
     Q: {
       castTime: 0, // no cast time (wiki); the data's 0.5s is the attack animation
       resetsAttack: true,
-      notes: ['Empowers the next attack with bonus physical damage (counts as ability damage) and gives it extra range; follow Q with AA.'],
+      notes: ['Empowers the next attack with bonus physical damage (proc damage) and gives it extra range; follow Q with AA.'],
       buff: {
         id: 'crushingBlowBuff',
         label: 'Crushing Blow',
         duration: 'dv.BuffDuration',
-        empowerAttacks: { count: 1, resetsAttack: true, components: [{ id: 'blow', label: 'Crushing Blow', type: 'physical', amount: 'Q.calc.BonusDamageTT' }] },
+        // The wiki: the bonus damage portion is proc damage (the attack is basic and spell damage).
+        empowerAttacks: { count: 1, resetsAttack: true, components: [{ id: 'blow', label: 'Crushing Blow', type: 'physical', amount: 'Q.calc.BonusDamageTT', proc: true }] },
       },
     },
     W: {

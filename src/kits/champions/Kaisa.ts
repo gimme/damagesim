@@ -73,7 +73,7 @@ function plasmaStacks(sim: Sim): number {
 }
 
 function req(sim: Sim, castId: number, label: string, expr: string): DamageRequest {
-  return { source: 'P', sourceLabel: 'Second Skin', label, type: 'magic', amount: sim.evalExpr(expr, { slot: 'P' }), castId, flags: { kind: 'ability', slot: 'P', onHit: true, ability: false } };
+  return { source: 'P', sourceLabel: 'Second Skin', label, type: 'magic', amount: sim.evalExpr(expr, { slot: 'P' }), castId, flags: { kind: 'ability', slot: 'P', onHit: true, ability: false, proc: true } };
 }
 
 /** Add Plasma stacks; on reaching max + 1 the burst is emitted (amount computed now) and leftovers roll over. */

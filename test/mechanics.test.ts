@@ -373,3 +373,20 @@ test("Smolder's Q burn is proc damage: it doesn't keep Liandry's burning, unlike
   const ticks = bySource(brand, 'item:6653');
   assert.ok(ticks[ticks.length - 1].time - ticks[0].time > 3);
 });
+
+test("Champion proc damage triggers nothing: Kog'Maw W's on-hit lights no Liandry's, Lux's Illumination is no Electrocute hit", () => {
+  const kog = simulate(data, { champion: 'KogMaw', level: 11, items: ["Liandry's Torment"], combo: 'W AA AA', target: dummy });
+  assert.ok(kog.events.some((e) => e.label === 'Bio-Arcane Barrage' && e.flags.proc));
+  assert.equal(bySource(kog, 'item:6653').length, 0);
+  // Light Binding, the attack and the detonation are three casts, but only two hits for Electrocute.
+  const lux = (combo: string) => bySource(simulate(data, { champion: 'Lux', level: 11, runes: ['Electrocute'], combo, target: dummy }), 'rune:8112').length;
+  assert.equal(lux('Q wait:1 AA'), 0);
+  assert.equal(lux('Q wait:1 AA E'), 1);
+});
+
+test("Teemo's Toxic Shot is proc damage that still triggers Dark Harvest (wiki special case); Warwick's Eternal Hunger doesn't", () => {
+  // The attack takes the target from 51% to below 50%: only the on-hit after it can harvest.
+  const harvests = (champion: string) => bySource(simulate(data, { champion, level: 11, runes: ['Dark Harvest'], combo: 'AA', target: { ...dummy, hpPercent: 51 } }), 'rune:8128').length;
+  assert.equal(harvests('Teemo'), 1);
+  assert.equal(harvests('Warwick'), 0);
+});

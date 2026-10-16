@@ -21,7 +21,8 @@ const kit: ChampionKit = {
         id: 'sonaMelodyQ',
         label: 'Hymn of Valor (Melody)',
         duration: 'dv.OnHitDuration',
-        empowerAttacks: { count: 'dv.OnHitProcs', components: [{ id: 'melody', label: 'Hymn of Valor (on-hit)', type: 'magic', amount: 'Q.calc.TotalOnHitDamage' }] },
+        // The wiki: the Melody empowered attacks deal proc damage (the bolts are area damage).
+        empowerAttacks: { count: 'dv.OnHitProcs', components: [{ id: 'melody', label: 'Hymn of Valor (on-hit)', type: 'magic', amount: 'Q.calc.TotalOnHitDamage', proc: true }] },
       },
       components: [{ id: 'bolt', label: 'Hymn of Valor', type: 'magic', amount: 'calc.TotalDamage', delay: 0.2 }],
     },
@@ -52,7 +53,7 @@ const kit: ChampionKit = {
         type: 'magic',
         amount: sim.evalExpr(staccato ? 'Q.calc.TotalStaccatoDamage' : 'P.calc.PowerChordDamage', { slot: staccato ? 'Q' : 'P' }),
         castId: atk.castId,
-        flags: { kind: 'ability', slot: 'P', onHit: true, ability: false },
+        flags: { kind: 'ability', slot: 'P', onHit: true, ability: false, proc: true },
       });
       if (song === 3) sim.applyCC('slow', sim.evalExpr('E.dv.TempoDuration', { slot: 'E' }), atk.castId, 'E');
     },

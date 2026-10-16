@@ -22,7 +22,7 @@ const kit: ChampionKit = {
         id: 'kogW',
         label: 'Bio-Arcane Barrage',
         duration: 'dv.Duration',
-        onHit: [{ id: 'barrage', label: 'Bio-Arcane Barrage', type: 'magic', amount: 'W.calc.TotalHealthDamage * target.maxHp' }],
+        onHit: [{ id: 'barrage', label: 'Bio-Arcane Barrage', type: 'magic', amount: 'W.calc.TotalHealthDamage * target.maxHp', proc: true }],
       },
       components: [],
     },

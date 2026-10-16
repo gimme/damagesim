@@ -32,7 +32,7 @@ const kit: ChampionKit = {
       sim.setMarkCooldown('wound', duration); // no Wound stacks while bleeding
       for (let i = 1; i <= BLEED_TICKS; i++)
         sim.schedule((duration / BLEED_TICKS) * i, () =>
-          sim.deal({ source: 'P', sourceLabel: "Blade's End", label: 'Bleed', type: 'physical', amount: perTick, castId: atk.castId, flags: { kind: 'ability', slot: 'P', dot: true } }),
+          sim.deal({ source: 'P', sourceLabel: "Blade's End", label: 'Bleed', type: 'physical', amount: perTick, castId: atk.castId, flags: { kind: 'ability', slot: 'P', ability: false, proc: true, dot: true } }),
         );
     },
   },

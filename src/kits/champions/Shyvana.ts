@@ -33,7 +33,8 @@ const kit: ChampionKit = {
     ...(opt.dragonForm && ranks.R > 0 ? { hp: evalExpr('R.calc.Calc_Bonus_Health', 'R'), range: evalExpr('R.dv.BonusAttackRange', 'R') } : {}),
   }),
   attack: {
-    onHit: [{ id: 'ember', label: 'Emberstrike (passive)', source: 'Emberstrike', type: 'magic', amount: 'Q.calc.Calc_Max_Health_Damage * target.maxHp', hits: 'Q.rank > 0 ? 1 : 0' }],
+    // The wiki: "The passive on-hit damage applies proc damage" (the empowered strikes are spell damage).
+    onHit: [{ id: 'ember', label: 'Emberstrike (passive)', source: 'Emberstrike', type: 'magic', amount: 'Q.calc.Calc_Max_Health_Damage * target.maxHp', hits: 'Q.rank > 0 ? 1 : 0', proc: true }],
   },
   abilities: {
     Q: {

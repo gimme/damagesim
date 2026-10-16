@@ -17,7 +17,7 @@ const kit: ChampionKit = {
       appliedBy: ['attack', 'Q'],
       atMax: {
         consume: true,
-        components: [{ id: 'dent', label: 'Denting Blows', type: 'physical', amount: 'W.calc.TotalDamageTooltip * target.maxHp', noProc: true }],
+        components: [{ id: 'dent', label: 'Denting Blows', type: 'physical', amount: 'W.calc.TotalDamageTooltip * target.maxHp', proc: true }],
         buff: { id: 'viW', label: 'Denting Blows', duration: 'W.dv.SharedBuffsDuration', stats: { attackSpeed: 'W.dv.AttackSpeed / 100' } },
         debuff: { id: 'viShred', label: 'Denting Blows (armor shred)', duration: 'W.dv.SharedBuffsDuration', armorReduction: 'W.dv.ShredAmount / 100' },
       },

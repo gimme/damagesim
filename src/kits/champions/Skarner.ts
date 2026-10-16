@@ -4,7 +4,7 @@ import type { ChampionKit } from '../../engine/kit-types.ts';
 // Threads of Vibration: attacks, Shattered Earth / Upheaval and Impale apply Quaking (4s, refreshed
 // on every application, max 3). At 3 stacks the target burns for % max health magic damage over
 // Quaking's duration (ticks every 0.5s); further hits refresh it (assumption: like a Darius bleed).
-// Shattered Earth's third empowered attack is counted with a mark on the target.
+// Shattered Earth's empowered attacks are proc damage (wiki), so a hook counts them for the third.
 
 const kit: ChampionKit = {
   id: 'Skarner',
@@ -29,23 +29,9 @@ const kit: ChampionKit = {
             amount: 'P.calc.PercentHealthDamage * target.maxHp * P.dv.TickFrequency / P.dv.Duration',
             hits: 'stacks.quaking >= P.dv.StacksToTriggerPassive ? 1 : 0',
             dot: true,
-            noProc: true,
+            proc: true,
           },
         ],
-      },
-    },
-    {
-      // Counts Shattered Earth's empowered hits (reset on each Q cast); the third deals % max health and slows.
-      id: 'shatteredEarth',
-      label: 'Shattered Earth',
-      slot: 'Q',
-      maxStacks: 3,
-      duration: 'dv.RockHoldDuration',
-      appliedBy: ['Q'],
-      atMax: {
-        consume: true,
-        cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-        components: [{ id: 'final', label: 'Shattered Earth (final)', type: 'physical', amount: 'dv.MaxHPPercent * target.maxHp', aoe: true }],
       },
     },
   ],
@@ -65,7 +51,12 @@ const kit: ChampionKit = {
           // "next 3 Attacks" (tooltip text).
           count: 3,
           resetsAttack: true,
-          components: [{ id: 'quake', label: 'Shattered Earth', type: 'physical', amount: 'Q.calc.AbilityDamage', aoe: true }],
+          components: [
+            { id: 'quake', label: 'Shattered Earth', type: 'physical', amount: 'Q.calc.AbilityDamage', aoe: true, proc: true },
+            // The third attack also deals % max health and slows.
+            { id: 'final', label: 'Shattered Earth (final)', type: 'physical', amount: 'Q.dv.MaxHPPercent * target.maxHp', hits: 'stacks.skarnerQHits >= 2 ? 1 : 0', aoe: true, proc: true },
+          ],
+          cc: [{ kind: 'slow', duration: 'stacks.skarnerQHits >= 2 ? Q.dv.SlowDuration : 0' }],
         },
       },
       components: [],
@@ -98,12 +89,10 @@ const kit: ChampionKit = {
   hooks: {
     // A new Shattered Earth starts its count from zero.
     onCast(sim, cast) {
-      if (cast.slot !== 'Q') return;
-      const m = sim.marks.get('shatteredEarth');
-      if (m) {
-        m.stacks = 0;
-        m.castIds.clear();
-      }
+      if (cast.slot === 'Q') sim.setCounter('skarnerQHits', 0);
+    },
+    onAttack(sim, atk) {
+      if (atk.extra.some((x) => x.label === 'Shattered Earth')) sim.setCounter('skarnerQHits', sim.counter('skarnerQHits') + 1);
     },
   },
 };

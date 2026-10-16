@@ -24,7 +24,7 @@ const kit: ChampionKit = {
         id: 'brushmaker',
         label: 'Brushmaker',
         duration: 'dv.BuffDuration',
-        onHit: [{ id: 'bolt', label: 'Brushmaker', type: 'magic', amount: 'W.calc.TotalDamage' }],
+        onHit: [{ id: 'bolt', label: 'Brushmaker', type: 'magic', amount: 'W.calc.TotalDamage', proc: true }],
       },
     },
     E: {

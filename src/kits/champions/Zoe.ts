@@ -9,7 +9,7 @@ const sparkles: BuffSpec = {
   id: 'zoeP',
   label: 'More Sparkles!',
   duration: 5, // wiki: the next attack within 5 seconds of an ability
-  empowerAttacks: { count: 1, components: [{ id: 'sparkles', label: 'More Sparkles!', type: 'magic', amount: 'P.calc.PassiveDamage', noProc: true }] },
+  empowerAttacks: { count: 1, components: [{ id: 'sparkles', label: 'More Sparkles!', type: 'magic', amount: 'P.calc.PassiveDamage', proc: true }] },
 };
 
 const kit: ChampionKit = {

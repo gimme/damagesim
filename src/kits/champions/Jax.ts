@@ -22,7 +22,8 @@ const kit: ChampionKit = {
       maxStacks: 'R.rank > 0 ? (buff.jaxR ? 2 : 3) : 1000',
       duration: 'R.dv.PassiveFallOffTime',
       appliedBy: ['attack'],
-      atMax: { consume: true, components: [{ id: 'gm', label: 'Grandmaster-at-Arms (passive)', type: 'magic', amount: 'R.calc.OnHitDamage', noProc: true }] },
+      // The wiki: "The on-hit deals proc damage. The swing deals area damage."
+      atMax: { consume: true, components: [{ id: 'gm', label: 'Grandmaster-at-Arms (passive)', type: 'magic', amount: 'R.calc.OnHitDamage', proc: true }] },
     },
   ],
   options: [{ key: 'dodges', label: 'Attacks dodged by Counter Strike', default: 0, min: 0, max: 5, description: 'Each dodged attack increases Counter Strike damage by 20% (max 5).' }],

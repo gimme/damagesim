@@ -84,7 +84,7 @@ const kit: ChampionKit = {
         type: 'magic',
         amount: sim.evalExpr('P.calc.ChainLightningDamage', { slot: 'P' }),
         castId: atk.castId,
-        flags: { kind: 'ability', slot: 'P', onHit: true, ability: false, aoe: true },
+        flags: { kind: 'ability', slot: 'P', onHit: true, ability: false, proc: true, aoe: true },
       });
     },
   },

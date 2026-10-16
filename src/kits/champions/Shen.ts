@@ -18,7 +18,7 @@ const kit: ChampionKit = {
         stats: { attackSpeed: 'dv.SteroidAS / 100' },
         empowerAttacks: {
           count: 'dv.NumEnhancedAttacks',
-          components: [{ id: 'assault', label: 'Twilight Assault', type: 'magic', amount: 'Q.calc.BaseFlatDamage + Q.calc.EmpPercentHealth * target.maxHp' }],
+          components: [{ id: 'assault', label: 'Twilight Assault', type: 'magic', amount: 'Q.calc.BaseFlatDamage + Q.calc.EmpPercentHealth * target.maxHp', proc: true }],
         },
       },
       components: [],
@@ -32,7 +32,7 @@ const kit: ChampionKit = {
             duration: 'dv.AttackBuffDuration',
             empowerAttacks: {
               count: 'dv.NumEnhancedAttacks',
-              components: [{ id: 'assault', label: 'Twilight Assault', type: 'magic', amount: 'Q.calc.BaseFlatDamage + Q.calc.BasePercentHealth * target.maxHp' }],
+              components: [{ id: 'assault', label: 'Twilight Assault', type: 'magic', amount: 'Q.calc.BaseFlatDamage + Q.calc.BasePercentHealth * target.maxHp', proc: true }],
             },
           },
           components: [],

@@ -12,7 +12,7 @@ const kit: ChampionKit = {
   ],
   options: [{ key: 'gritPct', label: 'Grit stored (% of max)', default: 50, min: 0, max: 100, step: 5, description: 'Grit consumed by Haymaker, as a percentage of the cap (50% of max health).' }],
   attack: {
-    everyNth: { n: 2, label: 'Right punch', components: [{ id: 'right', label: 'Right punch', type: 'physical', amount: 'P.calc.RightPunchBonus' }] },
+    everyNth: { n: 2, label: 'Right punch', components: [{ id: 'right', label: 'Right punch', type: 'physical', amount: 'P.calc.RightPunchBonus', proc: true }] },
   },
   abilities: {
     Q: {

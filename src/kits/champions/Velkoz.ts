@@ -6,7 +6,7 @@ import type { Sim } from '../../engine/sim.ts';
 // stacks the target takes true damage and becomes "Researched" (7s, wiki), which makes Life Form
 // Disintegration Ray deal true damage instead of magic.
 const RESEARCH: BuffSpec = { id: 'velkozResearch', label: 'Researched (target)', duration: 'P.dv.Duration' };
-const PROC: ComponentSpec = { id: 'deconstruct', label: 'Organic Deconstruction', type: 'true', amount: 'P.calc.TotalDamage', noProc: true };
+const PROC: ComponentSpec = { id: 'deconstruct', label: 'Organic Deconstruction', type: 'true', amount: 'P.calc.TotalDamage', proc: true };
 
 /** The beam adds a stack every 0.7s (wiki) — done by hand since the mark counts every damage tick. */
 function beamStack(sim: Sim) {
@@ -26,7 +26,7 @@ function beamStack(sim: Sim) {
     label: PROC.label,
     type: 'true',
     amount: sim.evalExpr(PROC.amount, { slot: 'P' }),
-    flags: { kind: 'ability', slot: 'P', ability: false },
+    flags: { kind: 'ability', slot: 'P', ability: false, proc: true },
     markSource: 'deconstruction',
   });
   sim.applyBuff(RESEARCH, 'P', sim.spellFor('P'), 1);

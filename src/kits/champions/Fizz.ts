@@ -103,7 +103,8 @@ const kit: ChampionKit = {
         type: 'magic',
         amount: sim.evalExpr('W.calc.OnHitBuffDamage', { slot: 'W' }),
         castId: atk.castId,
-        flags: { kind: 'ability', slot: 'W', onHit: true, ability: true },
+        // The wiki: proc damage on the bonus damage on-hit (spell damage on the empowered attack).
+        flags: { kind: 'ability', slot: 'W', onHit: true, ability: false, proc: true },
       });
     },
   },

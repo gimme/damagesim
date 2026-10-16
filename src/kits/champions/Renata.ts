@@ -18,7 +18,7 @@ const kit: ChampionKit = {
       atMax: {
         consume: true,
         cooldown: 'P.dv.PassiveDuration',
-        components: [{ id: 'leverage', label: 'Leverage', type: 'magic', amount: 'P.calc.PercentAmpCalcSelf * target.maxHp', noProc: true }],
+        components: [{ id: 'leverage', label: 'Leverage', type: 'magic', amount: 'P.calc.PercentAmpCalcSelf * target.maxHp', proc: true }],
       },
     },
   ],

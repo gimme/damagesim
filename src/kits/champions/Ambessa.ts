@@ -11,7 +11,7 @@ const drakehoundsStep: BuffSpec = {
   stats: { attackSpeed: 'P.calc.Calc_Attack_Speed' },
   empowerAttacks: {
     count: 'stacks.ambessaCharges',
-    components: [{ id: 'step', label: "Drakehound's Step", type: 'physical', amount: 'P.calc.Calc_OnHit_Damage_Flat', noProc: true }],
+    components: [{ id: 'step', label: "Drakehound's Step", type: 'physical', amount: 'P.calc.Calc_OnHit_Damage_Flat', proc: true }],
   },
 };
 

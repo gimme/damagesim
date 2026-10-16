@@ -86,7 +86,7 @@ const kit: ChampionKit = {
             id: LIGHTS,
             label: LIGHTS_LABEL,
             duration: 'dv.Duration',
-            empowerAttacks: { count: 3, components: [{ id: 'light', label: LIGHTS_LABEL, type: 'magic', amount: 'W.calc.Tooltip_WEOnHitDamage' }] },
+            empowerAttacks: { count: 3, components: [{ id: 'light', label: LIGHTS_LABEL, type: 'magic', amount: 'W.calc.Tooltip_WEOnHitDamage', proc: true }] },
           },
         },
         WQ: { label: 'Fleeting Current', spell: 'HweiWQ', components: [], note: 'Move speed only.' },
@@ -153,7 +153,7 @@ const kit: ChampionKit = {
           type: 'magic',
           amount: sim.evalExpr('W.calc.Tooltip_WEOnHitDamage', { slot: 'W' }),
           castId: inst.castId,
-          flags: { kind: 'ability', slot: 'W', ability: true },
+          flags: { kind: 'ability', slot: 'W', ability: false, proc: true },
           markSource: LIGHTS,
         });
       }
@@ -172,7 +172,7 @@ const kit: ChampionKit = {
             label: 'Signature',
             type: 'magic',
             amount,
-            flags: { kind: 'ability', slot: 'P', ability: false, aoe: true },
+            flags: { kind: 'ability', slot: 'P', ability: true, aoe: true }, // area damage, with spell effects (wiki)
             markSource: 'hweiSignature',
           }),
         );

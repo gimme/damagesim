@@ -9,7 +9,7 @@ const kit: ChampionKit = {
   notes: ['Zephyr\'s passive move speed counts toward Tailwind\'s bonus damage; the Tailwind ally aura is ignored.'],
   stats: ({ ranks, evalExpr }) => (ranks.W > 0 ? { msPercent: evalExpr('W.calc.TotalMS', 'W') } : {}),
   attack: {
-    onHit: [{ id: 'tailwind', label: 'Tailwind', type: 'magic', amount: 'P.calc.BonusDamage', noProc: true }],
+    onHit: [{ id: 'tailwind', label: 'Tailwind', type: 'magic', amount: 'P.calc.BonusDamage', proc: true }],
   },
   abilities: {
     Q: {
@@ -31,7 +31,7 @@ const kit: ChampionKit = {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       components: [
         { id: 'zephyr', label: 'Zephyr', type: 'magic', amount: 'calc.TotalDamage', delay: 0.1 },
-        { id: 'tailwind', label: 'Tailwind', type: 'magic', amount: 'P.calc.BonusDamage', delay: 0.1, noProc: true },
+        { id: 'tailwind', label: 'Tailwind', type: 'magic', amount: 'P.calc.BonusDamage', delay: 0.1, proc: true },
       ],
     },
     E: {

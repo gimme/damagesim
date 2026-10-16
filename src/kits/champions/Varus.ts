@@ -29,7 +29,7 @@ function detonate(sim: Sim, inst: DamageInstance, amp: number) {
     type: 'magic',
     amount: sim.evalExpr('W.calc.PercentHPPerStack * target.maxHp', { slot: 'W' }) * stacks * amp,
     castId: inst.castId,
-    flags: { kind: 'ability', slot: inst.flags.slot, ability: true },
+    flags: { kind: 'ability', slot: inst.flags.slot, ability: false, proc: true },
     markSource: 'blight',
   });
 }
@@ -52,7 +52,7 @@ const kit: ChampionKit = {
     },
   ],
   attack: {
-    onHit: [{ id: 'quiver', label: 'Blighted Quiver', source: 'Blighted Quiver', type: 'magic', amount: 'W.rank > 0 ? W.calc.OnHitDamage : 0' }],
+    onHit: [{ id: 'quiver', label: 'Blighted Quiver', source: 'Blighted Quiver', type: 'magic', amount: 'W.rank > 0 ? W.calc.OnHitDamage : 0', proc: true }],
   },
   abilities: {
     Q: {
@@ -108,7 +108,7 @@ const kit: ChampionKit = {
           type: 'magic',
           amount: pct * missing,
           castId: inst.castId,
-          flags: { kind: 'ability', slot: 'Q', ability: true },
+          flags: { kind: 'ability', slot: 'Q', ability: false, proc: true },
           markSource: 'varusW',
         });
       }

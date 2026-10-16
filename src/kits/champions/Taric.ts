@@ -10,7 +10,7 @@ const bravado: BuffSpec = {
   stats: { attackSpeed: 1 }, // "100% Attack Speed" (tooltip text, not in data)
   empowerAttacks: {
     count: 2, // tooltip text
-    components: [{ id: 'bravado', label: 'Bravado', type: 'magic', amount: 'P.calc.TotalDamage', noProc: true }],
+    components: [{ id: 'bravado', label: 'Bravado', type: 'magic', amount: 'P.calc.TotalDamage', proc: true }],
   },
 };
 

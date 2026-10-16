@@ -10,7 +10,8 @@ const mark: DebuffSpec = {
   consume: {
     by: 'attack',
     slot: 'P',
-    components: [{ id: 'mark', label: 'Dauntless Instinct', type: 'physical', amount: 'P.dv.FlatDamage + P.calc.PercentHealthDamage * target.maxHp', noProc: true }],
+    // The wiki: "The mark deals proc damage in sequence after the basic attack."
+    components: [{ id: 'mark', label: 'Dauntless Instinct', type: 'physical', amount: 'P.dv.FlatDamage + P.calc.PercentHealthDamage * target.maxHp', proc: true }],
   },
 };
 const wDamage = 'dv.BaseDamage + calc.TotalMaxHealthDamage * target.maxHp';
@@ -110,10 +111,11 @@ const kit: ChampionKit = {
     onCast(sim, cast) {
       if (cast.slot === 'R') sim.startCooldown('ability:W', 0);
     },
-    // All Out: K'Sante's attacks, abilities and passive deal extra % max health inside the same instance.
+    // All Out: K'Sante's attacks, abilities and passive deal extra % max health inside the same instance
+    // (the passive's mark consumption too, though it is proc damage).
     beforeDamage(sim, inst) {
-      if (inst.type !== 'physical' || !sim.getBuff('ksanteR') || inst.flags.proc) return;
-      const own = inst.flags.kind === 'attack' || inst.fromMark === 'ksanteMark' || (inst.flags.kind === 'ability' && !!inst.flags.slot && inst.flags.slot !== 'P' && !inst.fromMark);
+      if (inst.type !== 'physical' || !sim.getBuff('ksanteR')) return;
+      const own = inst.fromMark === 'ksanteMark' || (!inst.flags.proc && (inst.flags.kind === 'attack' || (inst.flags.kind === 'ability' && !!inst.flags.slot && inst.flags.slot !== 'P' && !inst.fromMark)));
       if (!own) return;
       inst.raw += sim.evalExpr('P.calc.MaxHealthDamagePercent', { slot: 'P' }) * sim.target.maxHp;
       inst.note = (inst.note ? inst.note + '; ' : '') + 'All Out';

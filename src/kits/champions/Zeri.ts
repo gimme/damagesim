@@ -51,7 +51,7 @@ const kit: ChampionKit = {
       components: [
         // onHit + canCrit rather than attack: true — kit.attack.canCrit: false (right-click) would also stop Q crits.
         { id: 'burst', label: 'Burst Fire', type: 'physical', amount: 'calc.ActiveDamageThatCanCrit', canCrit: true, onHit: true, onAttack: true, delay: 0.1 },
-        { id: 'surge', label: 'Spark Surge', type: 'magic', amount: 'E.calc.BonusDamageTotal', hits: 'buff.zeriE', maxHits: 1, delay: 0.1, condition: 'during Spark Surge' },
+        { id: 'surge', label: 'Spark Surge', type: 'magic', amount: 'E.calc.BonusDamageTotal', hits: 'buff.zeriE', maxHits: 1, delay: 0.1, proc: true, condition: 'during Spark Surge' },
       ],
     },
     W: {

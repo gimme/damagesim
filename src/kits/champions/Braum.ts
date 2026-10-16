@@ -16,14 +16,14 @@ const kit: ChampionKit = {
       duration: 'P.dv.StackDuration',
       appliedBy: ['attack', 'Q'],
       atMax: {
-        components: [{ id: 'stun', label: 'Concussive Blows (stun)', type: 'magic', amount: 'P.calc.TotalDamage', noProc: true }],
+        components: [{ id: 'stun', label: 'Concussive Blows (stun)', type: 'magic', amount: 'P.calc.TotalDamage', proc: true }],
         consume: true,
         cooldown: 'P.calc.StunCD',
         buff: {
           id: 'braumAfterStun',
           label: 'Concussive Blows (after stun)',
           duration: 'P.calc.StunCD',
-          onHit: [{ id: 'bonus', label: 'Concussive Blows (bonus)', type: 'magic', amount: 'P.calc.OnHitDamage', noProc: true }],
+          onHit: [{ id: 'bonus', label: 'Concussive Blows (bonus)', type: 'magic', amount: 'P.calc.OnHitDamage', proc: true }],
         },
       },
     },
