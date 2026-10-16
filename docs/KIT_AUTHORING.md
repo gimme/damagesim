@@ -108,7 +108,7 @@ comparisons, `&& || !` and `cond ? a : b`. Names that aren't identifiers use bra
 | `type` | `physical`, `magic`, `true`, or `adaptive` |
 | `amount` | raw damage of **one** hit |
 | `hits`, `interval`, `delay` | number of hits in a default cast, seconds between hits, seconds after the cast time |
-| `maxHits` | the most hits, for a step's per-component count or a longer duration (default `hits`) |
+| `maxHits` | the most hits a longer duration or a step's count fires (default `hits`) |
 | `optional: true` | off unless the combo enables it (`Q+bonus` / `enable: ['bonus']`) |
 | `aoe`, `dot`, `pet` | damage tags (affect items/runes: Deathfire Touch duration, Aery, etc.) |
 | `canCrit`, `critMultiplier` | can crit (expected-value in default mode); custom multiplier e.g. `'1 + 0.3 * (critDamage - 1)'` |
@@ -135,9 +135,10 @@ be ended later (a recast after 0.5s: Urgot W). Hits fired before it ends still l
 missile's flight as `travel` (part of its delay, Xerath R), and a hit at the end of a full channel
 (Fiddlesticks W's last tick) doesn't. Don't mark what the player can't end (burns, fixed zones).
 
-When the player chooses how many hits it fires rather than for how long (Xerath R's shots), mark it
-`variableCount: 'shots'` instead: a step sets the count (`R{3}`, at least 1) of its first repeating
-component, the others land for as long as those take, and its lockout ends when the last is fired.
+When the player chooses how many hits it fires rather than for how long (Xerath R's and Jhin R's
+shots), mark it `variableCount: 'shots'` instead: a step sets the count (`R{3}`, at least 1), the
+first that many of its hits in the order they're fired (Jhin's 4th shot, its own component, is
+always the last), and its lockout ends when the last of them is fired.
 
 An ability held to charge (Sion Q, Varus Q) takes `charge: { default, min, max }`: the step's seconds
 are the hold (usually the full charge by default; `min` is the earliest release, `max` the longest

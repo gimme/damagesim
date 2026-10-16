@@ -200,6 +200,29 @@ test('A channel ended early lands the hits fired by then, not the one at its end
   const fiddle = (combo: string) => simulate(data, { champion: 'Fiddlesticks', level: 11, combo, target: dummy }).events.filter((e) => e.label === 'Bountiful Harvest (final)').length;
   assert.equal(fiddle('W'), 1);
   assert.equal(fiddle('W{1s}'), 0);
+  // Jhin R: the shots in the order they're fired, the 4th (its own component) last.
+  const jhin = (combo: string) => simulate(data, { champion: 'Jhin', level: 11, combo, target: dummy });
+  const shots = (r: ReturnType<typeof simulate>) => r.events.filter((e) => e.source === 'R').map((e) => e.label);
+  assert.deepEqual(shots(jhin('R')), ['Curtain Call', 'Curtain Call', 'Curtain Call', 'Curtain Call (4th shot)']);
+  assert.deepEqual(shots(jhin('R{2}')), ['Curtain Call', 'Curtain Call']);
+  assert.ok(jhin('R{2} AA').timeline[1].start < jhin('R AA').timeline[1].start, 'free once the 2nd shot is fired');
+  assert.deepEqual(new Sim(data, { champion: 'Jhin', level: 11, combo: [] }).castSetting({ slot: 'R' }), { kind: 'count', value: 4, min: 1, max: 4, unit: 'shots' });
+  // Bel'Veth E: another ability ends it.
+  const belveth = simulate(data, { champion: 'Belveth', level: 11, combo: 'E{0.5s} Q', target: dummy });
+  assert.ok(belveth.events.filter((e) => e.source === 'E').every((e) => e.time <= 0.5));
+  assert.equal(belveth.timeline[1].start, 0.5);
+});
+
+test("A number, hit or optional hit a cast doesn't take is warned about", () => {
+  const warnings = (champion: string, combo: string) => simulate(data, { champion, level: 11, combo, target: dummy }).warnings;
+  assert.deepEqual(warnings('Xerath', 'R{2.5}'), ['Rite of the Arcane fires whole shots, so R{2.5} fires 3']);
+  assert.deepEqual(warnings('Xerath', 'R{9}'), ['Rite of the Arcane fires 1 to 5 shots, so R{9} fires 5']);
+  assert.deepEqual(warnings('Ahri', 'Q{foo:3}+bar AA+baz'), [
+    'Orb of Deception has no hit "foo" (available: out, back)',
+    'Orb of Deception has no optional hit "bar" (available: none)',
+    'Attacks have no optional hit "baz" (available: none)',
+  ]);
+  assert.deepEqual(warnings('Swain', 'R+endFlare'), []);
 });
 
 test('On-hit-only abilities (Fizz Q) consume Spellblade but do not trigger on-attack effects', () => {

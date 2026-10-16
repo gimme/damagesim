@@ -27,7 +27,7 @@ const comboStep = z.union([
     variant: z.string().optional(),
     hits: z.record(z.string(), z.number()).optional(),
     duration: z.number().optional().describe('Seconds the cast lasts, where the player chooses it: a channel ended early (Smolder E, Katarina R), a toggle left on (Karthus E), or a charge held (Sion Q)'),
-    count: z.number().optional().describe("How many of its repeating hits the cast fires, where the player chooses it (Xerath R's shots)"),
+    count: z.number().optional().describe("How many of its hits the cast fires, the first in the order they're fired, where the player chooses it (Xerath R's and Jhin R's shots)"),
     enable: z.array(z.string()).optional(),
     miss: z.boolean().optional(),
     crit: z.boolean().optional(),

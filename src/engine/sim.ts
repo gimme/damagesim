@@ -9,7 +9,7 @@ import { computeStats, emptyMods, hasteCooldown, itemStatsToMods, mergeMods, typ
 import { effectiveResist, resistMultiplier, type DamageType } from './damage.ts';
 import type { AbilitySpec, BuffSpec, ChampionKit, ComponentSpec, DebuffSpec, Expr, MarkSpec, VariantSpec } from './kit-types.ts';
 import { addOnHitRepeat, IN_COMBAT, selfHp, type AttackInfo, type CastInfo, type DamageFlags, type DamageInstance, type DamageRequest, type Effect, type SetupCtx, type Slot } from './effects.ts';
-import { findVariant, parseCombo, formatCombo, type AbilityStep, type ComboStep, type CritMode } from './combo.ts';
+import { attackOptions, findVariant, parseCombo, formatCombo, type AbilityStep, type ComboStep, type CritMode } from './combo.ts';
 import { getKit } from '../kits/index.ts';
 import { createItemEffect, ITEM_GROUPS } from './items.ts';
 import { bonusSkillPoints, createRuneEffects } from './runes.ts';
@@ -75,7 +75,7 @@ export interface Scenario {
 /**
  * What a combo step sets about a cast, where the player chooses it: the seconds it lasts after its
  * cast time (AbilitySpec.variableDuration), the seconds it's held to charge (charge), or how many of
- * its repeating hits it fires (variableCount). By default `value`, at most `max`.
+ * its hits it fires (variableCount). By default `value`, at most `max`.
  */
 export interface CastSetting {
   kind: 'lasts' | 'held' | 'count';
@@ -95,12 +95,12 @@ type CastCtx = { slot: Slot; spell: SpellData; rank: number; recast?: number };
 
 const round2 = (x: number) => Math.round(x * 100) / 100;
 
-/** Why a step's number became its cast's limit: "… lasts 0.1s to 1.25s, so E{5s} lasts 1.25s". */
-function limitWarning(label: string, step: AbilityStep, s: CastSetting, asked: number) {
+/** Why a step's number became `set`: "… lasts 0.1s to 1.25s, so E{5s} lasts 1.25s", "… fires whole shots, so R{2.5} fires 3". */
+function settingWarning(label: string, step: AbilityStep, s: CastSetting, asked: number, set: number) {
   const verb = s.kind === 'lasts' ? 'lasts' : s.kind === 'held' ? 'is held' : 'fires';
-  const limit = asked > s.max ? s.max : s.min;
-  const [range, set] = s.kind === 'count' ? [`${s.min} to ${s.max} ${s.unit}`, String(limit)] : [`${s.min}s to ${s.max}s`, `${limit}s`];
-  return `${label} ${verb} ${range}, so ${formatCombo([step])} ${verb} ${set}`;
+  const within = asked >= s.min && asked <= s.max;
+  const range = s.kind !== 'count' ? `${s.min}s to ${s.max}s` : within ? `whole ${s.unit}` : `${s.min} to ${s.max} ${s.unit}`;
+  return `${label} ${verb} ${range}, so ${formatCombo([step])} ${verb} ${set}${s.kind === 'count' ? '' : 's'}`;
 }
 
 export interface SourceTotal {
@@ -1448,16 +1448,16 @@ export class Sim {
       const max = spec.charge.max !== undefined ? round2(this.evalExpr(spec.charge.max, ctx)) : held;
       return { kind: 'held', value: held, min: Math.min(min, held), max: Math.max(held, max), unit: 's' };
     }
-    const repeating = this.repeating(variant?.components ?? spec.components ?? [], enable, ctx);
+    const comps = variant?.components ?? spec.components ?? [];
     if (spec.variableCount) {
-      const r = repeating[0];
-      return r ? { kind: 'count', value: r.hits, min: Math.min(1, r.hits), max: r.maxHits, unit: spec.variableCount } : null;
+      const { times, byDefault } = this.firedTimes(comps, enable, ctx);
+      return times.length ? { kind: 'count', value: byDefault, min: 1, max: times.length, unit: spec.variableCount } : null;
     }
     if (!spec.variableDuration) return null;
     // Its lockout, or as long as its repeating hits take: by default, and at most; at least until
     // the first is fired (and the earliest it can be ended).
     let [first, last, lastMax] = [Infinity, 0, 0];
-    for (const r of repeating) {
+    for (const r of this.repeating(comps, enable, ctx)) {
       first = Math.min(first, Math.max(0, r.first));
       last = Math.max(last, r.first + (r.hits - 1) * r.interval);
       lastMax = Math.max(lastMax, r.first + (r.maxHits - 1) * r.interval);
@@ -1483,6 +1483,22 @@ export class Sim {
       if (interval > 0 && maxHits > 0) out.push({ id: c.id, hits, maxHits, first: this.firedAt(c, ctx), interval });
     }
     return out;
+  }
+
+  /** When each of a cast's hits is fired after its cast time, in that order and as many as there can
+   *  be (a step's count fires the first so many: Jhin R's 4th shot after the other three); and how
+   *  many there are by default. */
+  private firedTimes(comps: ComponentSpec[], enable: string[] | undefined, ctx: CastCtx) {
+    const times: number[] = [];
+    let byDefault = 0;
+    for (const c of comps) {
+      if (c.optional && !enable?.includes(c.id)) continue;
+      const r = this.repeating([c], enable, ctx)[0];
+      const n = r?.maxHits ?? Math.max(0, Math.round(this.evalExpr(c.hits ?? 1, ctx)));
+      byDefault += r?.hits ?? n;
+      for (let k = 0; k < n; k++) times.push(r ? r.first + k * r.interval : this.firedAt(c, ctx));
+    }
+    return { times: times.sort((a, b) => a - b), byDefault };
   }
 
   /** Seconds after the cast time a component's first hit is fired: its delay, less its travel. */
@@ -1563,14 +1579,21 @@ export class Sim {
     // ends with them.
     const setting = this.settingOf(spec, variant, step.enable, ectx);
     const asked = !setting ? undefined : setting.kind === 'count' ? step.count : step.duration;
-    const set = setting && asked !== undefined ? Math.max(setting.min, Math.min(setting.kind === 'count' ? Math.round(asked) : asked, setting.max)) : undefined;
-    if (setting && asked !== undefined && (asked > setting.max + 1e-9 || asked < setting.min - 1e-9)) this.warn(limitWarning(label, step, setting, asked));
+    let set: number | undefined;
+    if (setting && asked !== undefined) {
+      set = Math.max(setting.min, Math.min(setting.kind === 'count' ? Math.round(asked) : asked, setting.max));
+      if (Math.abs(set - asked) > 1e-9) this.warn(settingWarning(label, step, setting, asked, set));
+    }
     if (step.duration !== undefined && (!setting || setting.kind === 'count')) this.warn(`${label} can't be ended early, kept on or charged: ${formatCombo([step])} casts it in full`);
     if (step.count !== undefined && setting?.kind !== 'count') this.warn(`${label}'s hits aren't counted: ${formatCombo([step])} casts it in full`);
     if (setting?.kind === 'held') this.chargeHeld.set(slot, set ?? setting.value);
     const comps = variant?.components ?? spec.components ?? [];
-    const repeating = set !== undefined && setting?.kind !== 'held' ? this.repeating(comps, step.enable, ectx) : [];
-    const span = set === undefined || setting?.kind === 'held' ? undefined : setting?.kind === 'count' ? repeating[0].first + (set - 1) * repeating[0].interval : set;
+    const span = set === undefined || setting?.kind === 'held' ? undefined : setting?.kind === 'count' ? this.firedTimes(comps, step.enable, ectx).times[set - 1] : set;
+    const repeating = span !== undefined ? this.repeating(comps, step.enable, ectx) : [];
+    // Hit counts and optional hits the cast doesn't have (another champion's, a typo).
+    const ids = (optional: boolean) => comps.filter((c) => !optional || c.optional).map((c) => c.id);
+    for (const id of Object.keys(step.hits ?? {})) if (!ids(false).includes(id)) this.warn(`${label} has no hit "${id}" (available: ${ids(false).join(', ') || 'none'})`);
+    for (const id of step.enable ?? []) if (!ids(true).includes(id)) this.warn(`${label} has no optional hit "${id}" (available: ${ids(true).join(', ') || 'none'})`);
 
     const castTime = this.castTimeOf(spec, variant, { slot, spell, rank });
     const castId = this.newCastId();
@@ -1778,6 +1801,8 @@ export class Sim {
 
   attack(step: Extract<ComboStep, { type: 'attack' }>, timeline: SimResult['timeline']) {
     const count = Math.max(1, step.count ?? 1);
+    const options = attackOptions(this.kit);
+    for (const id of step.enable ?? []) if (!options.has(id)) this.warn(`Attacks have no optional hit "${id}" (available: ${[...options].join(', ') || 'none'})`);
     for (let i = 0; i < count; i++) {
       const start = Math.max(this.time, this.freeAt, this.attackReadyAt);
       this.processUntil(start);

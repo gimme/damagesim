@@ -31,7 +31,7 @@ export interface ComponentSpec {
   amount: Expr;
   /** Number of hits in a default cast (user can override per combo step). */
   hits?: Expr;
-  /** The most hits: a step's per-component count, or a longer duration (default: `hits`). */
+  /** The most hits a longer duration or a step's count fires (variableDuration, variableCount; default: `hits`). */
   maxHits?: Expr;
   /** Seconds between hits. */
   interval?: Expr;
@@ -253,8 +253,9 @@ export interface AbilitySpec {
   /** The fewest seconds, when it can't be ended sooner (a recast allowed after 0.5s); never less than until its first hit is fired. */
   minDuration?: Expr;
   /**
-   * The player chooses how many of its repeating hits to fire, called this ("shots": Xerath R): a
-   * combo step sets the count (`R{3}`), and its lockout ends when the last is fired.
+   * The player chooses how many of its hits to fire, called this ("shots": Xerath R, Jhin R): a combo
+   * step sets the count (`R{3}`), the first that many in the order they're fired, and its lockout
+   * ends when the last of them is fired.
    */
   variableCount?: string;
   /**

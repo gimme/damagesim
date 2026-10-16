@@ -104,6 +104,7 @@ test('combo shorthand round-trips', () => {
   assert.equal(formatCombo(parseCombo('E{0.5s}! R{1.5s,zone:10}')), 'E{0.5s}! R{1.5s,zone:10}');
   assert.deepEqual(parseCombo('R{3}'), [{ type: 'ability', slot: 'R', count: 3 }]);
   assert.throws(() => parseCombo('E{a}'));
+  for (const bad of ['AA*0', '0AA', 'Q*0', 'Q{out:2.5}', 'Q{out:-1}']) assert.throws(() => parseCombo(bad), Error, bad);
 });
 
 test("a champion switch drops the other champion's variants, durations, hit counts and crit marks", () => {
@@ -119,6 +120,8 @@ test("a step's number is clamped to what its cast allows at the build's ranks", 
   assert.equal(formatCombo(clampCombo(steps, (st) => at(1).castSetting(st))), 'R{4} Q');
   const kept = clampCombo(steps, (st) => at(3).castSetting(st));
   assert.ok(kept.every((st, i) => st === steps[i]), 'unchanged steps stay the same objects');
+  // A number the cast doesn't take is dropped: seconds on a count, a count on a cast that has none.
+  assert.equal(formatCombo(clampCombo(parseCombo('R{2s} Q{3} W{1s}'), (st) => at(3).castSetting(st))), 'R Q W');
 });
 
 test('crit marks: the steps that roll crits, marked all at once', () => {

@@ -41,7 +41,8 @@ Combo shorthand: "Q W E R P AA AA*3 3AA AA! AA? Q! Q? Q:variant Q{out:1,back:0} 
   (crits deal their expected value; ! crits every hit of the step that can crit, ? none, follow-up attacks included)
   E{0.5s}: how long a cast lasts where the player chooses it: a channel ended early (Smolder E,
   Katarina R), a toggle left on (Karthus E), or a charge held (Sion Q{1s}, Varus Q{0s}). R{3}: how
-  many shots Xerath R fires. Q{id:N} sets one component's hits. wait = 1 second.
+  many shots Xerath R or Jhin R fires. Q{id:N} sets one component's hits. wait = 1 second.
+  A number past what the cast allows runs as the nearest it does, with a warning.
 
 Common options: self.hpPercent (your HP in %, for Last Stand etc.), gameTime (minutes; Gathering Storm,
 Conditioning), distance (to the target; Arcane Comet, Hexoptics C44, Horizon Focus), legend.stacks,

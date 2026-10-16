@@ -14,7 +14,7 @@ export type ComboStep =
       hits?: Record<string, number>;
       /** Seconds the cast lasts, where the player chooses it (Smolder E's flight, Karthus E's toggle), or is held to charge (Sion Q). */
       duration?: number;
-      /** How many of its repeating hits it fires, where the player chooses it (Xerath R's shots). */
+      /** How many of its hits it fires, the first in the order they're fired, where the player chooses it (Xerath R's and Jhin R's shots). */
       count?: number;
       /** Enable optional components by id. */
       enable?: string[];
@@ -57,7 +57,7 @@ const SLOTS = new Set(['P', 'Q', 'W', 'E', 'R']);
  *   Q:empowered        cast a variant
  *   Q{out:1,back:0}    override component hit counts
  *   E{0.5s}  R{3}      how long the cast lasts (a channel ended early, a toggle left on, a
- *                      charge held), or how many hits it fires (Xerath R's shots)
+ *                      charge held), or how many hits it fires (Xerath R's and Jhin R's shots)
  *   Q+bonus            enable an optional component
  *   AA  A  AA*3  3AA   basic attacks;  AA! = forced crit,  AA? = forced non-crit
  *   Q!  Q?             a cast whose hits that can crit all crit, or none do
@@ -76,6 +76,7 @@ export function parseCombo(src: string): ComboStep[] {
     let m: RegExpExecArray | null;
     if ((m = /^(?:(\d+)\s*[x*]?\s*)?(AA|A)(?:\s*[x*]\s*(\d+))?([!?])?((?:\+[A-Za-z0-9_-]+)*)$/i.exec(tok))) {
       const count = Number(m[1] ?? m[3] ?? 1);
+      if (count < 1) throw new Error(`"${tok}" attacks 0 times (expected 1 or more)`);
       const enable = m[5] ? m[5].split('+').filter(Boolean) : [];
       steps.push({ type: 'attack', count, ...(m[4] === '!' ? { crit: true } : m[4] === '?' ? { crit: false } : {}), ...(enable.length ? { enable } : {}) });
       continue;
@@ -107,13 +108,14 @@ export function parseCombo(src: string): ComboStep[] {
             continue;
           }
           const [k, v] = kv.split(':');
-          if (v === undefined || !Number.isFinite(Number(v))) throw new Error(`bad "${kv}" in "${tok}" (expected seconds like {0.5s}, a count like {3}, or hits like {id:3})`);
+          if (v === undefined || !/^\s*\d+\s*$/.test(v)) throw new Error(`bad "${kv}" in "${tok}" (expected seconds like {0.5s}, a count like {3}, or hits like {id:3})`);
           (step.hits ??= {})[k.trim()] = Number(v);
         }
       }
       if (m[4]) step.crit = m[4] === '!';
       if (m[5]) step.enable = m[5].split('+').filter(Boolean);
       const times = Number(m[6] ?? 1);
+      if (times < 1) throw new Error(`"${tok}" casts 0 times (expected 1 or more)`);
       for (let i = 0; i < times; i++) steps.push({ ...step });
       continue;
     }
@@ -153,19 +155,20 @@ export function formatCombo(steps: ComboStep[]): string {
 
 const critSuffix = (crit?: boolean) => (crit === true ? '!' : crit === false ? '?' : '');
 
+/** The optional hits an attack step can enable (AA+id): among the kit's on-hits and its abilities' empowered attacks. */
+export function attackOptions(kit: ChampionKit): Set<string> {
+  const specs = Object.values(kit.abilities).flatMap((a) => [a, ...Object.values(a?.variants ?? {})]);
+  const buffs = specs.flatMap((s) => (Array.isArray(s?.buff) ? s.buff : s?.buff ? [s.buff] : []));
+  const comps = [...(kit.attack?.onHit ?? []), ...(kit.attack?.everyNth?.components ?? []), ...buffs.flatMap((b) => [...(b.onHit ?? []), ...(b.empowerAttacks?.components ?? [])])];
+  return new Set(comps.filter((c) => c.optional).map((c) => c.id));
+}
+
 /**
  * The steps as `kit`'s champion takes them, for a champion switch: another champion's variants,
  * durations, counts, hit counts, optional hits and crit marks are dropped.
  */
 export function fitCombo(steps: ComboStep[], kit: ChampionKit): ComboStep[] {
-  // Optional hits an attack step can enable: the kit's on-hits and its abilities' empowered attacks.
-  const onAttack = new Set(
-    [
-      ...(kit.attack?.onHit ?? []),
-      ...(kit.attack?.everyNth?.components ?? []),
-      ...Object.values(kit.abilities).flatMap((a) => (Array.isArray(a?.buff) ? a.buff : a?.buff ? [a.buff] : []).flatMap((b) => [...(b.onHit ?? []), ...(b.empowerAttacks?.components ?? [])])),
-    ].map((c) => c.id),
-  );
+  const onAttack = attackOptions(kit);
   const keep = <T,>(xs: T[] | undefined, ok: (x: T) => boolean) => {
     const kept = (xs ?? []).filter(ok);
     return kept.length ? kept : undefined;
@@ -186,9 +189,9 @@ export function fitCombo(steps: ComboStep[], kit: ChampionKit): ComboStep[] {
     const spec = kit.abilities[step.slot];
     const { variant: key, duration, count, hits, enable, ...rest } = step;
     const [variant, vspec] = (key && findVariant(spec, key)) || [];
-    const ids = new Set((vspec?.components ?? spec?.components ?? []).map((c) => c.id));
-    const keptHits = Object.entries(hits ?? {}).filter(([id]) => ids.has(id));
-    const kept = keep(enable, (id) => ids.has(id));
+    const comps = vspec?.components ?? spec?.components ?? [];
+    const keptHits = Object.entries(hits ?? {}).filter(([id]) => comps.some((c) => c.id === id));
+    const kept = keep(enable, (id) => comps.some((c) => c.id === id && c.optional));
     return critFit({
       ...rest,
       ...(variant ? { variant } : {}),
@@ -201,18 +204,20 @@ export function fitCombo(steps: ComboStep[], kit: ChampionKit): ComboStep[] {
 }
 
 /**
- * The steps with each number they set kept within what its cast allows now (`range`, a CastSetting):
- * after a lower rank, Xerath's R{5} fires 4 shots and says so.
+ * The steps with each number they set kept within what its cast allows now (`range`, a CastSetting),
+ * and dropped where it takes none: after a lower rank, Xerath's R{5} fires 4 shots and says so, and
+ * Ahri's Q{3} is a plain Q.
  */
 export function clampCombo(steps: ComboStep[], range: (step: AbilityStep) => Pick<CastSetting, 'kind' | 'min' | 'max'> | null): ComboStep[] {
   return steps.map((step) => {
-    if (step.type !== 'ability') return step;
+    if (step.type !== 'ability' || (step.duration === undefined && step.count === undefined)) return step;
     const r = range(step);
-    const key = r?.kind === 'count' ? 'count' : 'duration';
+    const [key, other] = r?.kind === 'count' ? (['count', 'duration'] as const) : (['duration', 'count'] as const);
     const v = step[key];
-    if (!r || v === undefined) return step;
-    const c = Math.max(r.min, Math.min(key === 'count' ? Math.round(v) : v, r.max));
-    return c === v ? step : { ...step, [key]: c };
+    const c = r && v !== undefined ? Math.max(r.min, Math.min(key === 'count' ? Math.round(v) : v, r.max)) : undefined;
+    if (c === v && step[other] === undefined) return step;
+    const { duration: _d, count: _c, ...rest } = step;
+    return c === undefined ? rest : { ...rest, [key]: c };
   });
 }
 

@@ -40,8 +40,12 @@ const kit: ChampionKit = {
       components: [{ id: 'trap', label: 'Captive Audience', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 'dv.TrapArmTime + dv.TrapDetonationTime' }],
     },
     R: {
+      // Busy until the last shot is fired: the 1s cast (data), then one every MInimumDelayBetweenShots.
+      lockout: '1 + 3 * dv.MInimumDelayBetweenShots',
+      variableCount: 'shots',
       notes: [
-        'Four shots, dv.MInimumDelayBetweenShots s apart; each deals calc.DamageCalc × (1 + dv.PercentMissingAmp × target missing health %) at impact.',
+        'Four shots, dv.MInimumDelayBetweenShots s apart; each deals calc.DamageCalc × (1 + dv.PercentMissingAmp × target missing health %) at impact, ≈0.2s after it is fired.',
+        'Jhin is busy until the last shot is fired; set the shots to fire fewer (R{2}): the 4th is always the last.',
         'The 4th shot crits for dv.FourthShotMultiplier (raised by bonus crit damage such as Infinity Edge, without Whisper\'s reduction).',
       ],
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
@@ -54,6 +58,7 @@ const kit: ChampionKit = {
           hits: 3,
           interval: 'dv.MInimumDelayBetweenShots',
           delay: 0.2,
+          travel: 0.2,
         },
         {
           id: 'final',
@@ -61,6 +66,7 @@ const kit: ChampionKit = {
           type: 'physical',
           amount: 'calc.DamageCalc * (1 + dv.PercentMissingAmp * target.missingHpPct) * max(dv.FourthShotMultiplier, critDamage)',
           delay: '0.2 + 3 * dv.MInimumDelayBetweenShots',
+          travel: 0.2,
         },
       ],
     },

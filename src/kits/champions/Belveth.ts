@@ -46,8 +46,11 @@ const kit: ChampionKit = {
     },
     E: {
       lockout: 'dv.TotalDuration',
+      // Another ability or a recast ends it early (tooltip).
+      variableDuration: true,
       notes: [
         'Channel: floor(calc.TotalStrikes) strikes over 1.5s, each +1% damage per 1% missing health (up to 2×); Bel\'Veth is busy for the whole channel.',
+        'Set the seconds to end it early (E{0.5s}), as another ability or a recast does in the game: the strikes so far land.',
         'Strikes can crit; life steal and damage reduction are not modeled.',
       ],
       components: [
