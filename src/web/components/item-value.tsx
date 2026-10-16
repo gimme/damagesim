@@ -57,15 +57,22 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   const [showAll, setShowAll] = useState(false);
   // The slot being ranked: the first empty one, or the one picked, empty or with an item to reconsider.
   const [chosen, setChosen] = useState<number | null>(null);
-  // It follows its item when the build's items are moved, here or in Items, and an empty one follows
-  // the gap the item it swapped with left. When its item is sold it stays, ranking what to buy there.
+  // An item sold, here or in Items, the slot it left is the one ranked, for what to buy there; several
+  // at once (Clear), the first empty one. It follows its item when the build's items are moved, and an
+  // empty one the gap the item it swapped with left; filled otherwise (bought from Items, an undo),
+  // the next empty one is ranked.
   const seen = useRef(state.items);
   useLayoutEffect(() => {
     const [was, now] = [seen.current, state.items];
     seen.current = now;
+    const changed = now.flatMap((x, k) => (x !== was[k] ? [k] : []));
+    if (changed.length && changed.every((k) => now[k] == null)) {
+      setChosen(changed.length === 1 ? changed[0] : null);
+      return;
+    }
     if (chosen == null || now[chosen] === was[chosen]) return;
     const to = now.findIndex((x, k) => x === was[chosen] && was[k] !== x);
-    if (to >= 0) setChosen(to);
+    setChosen(to >= 0 ? to : null);
   }, [state.items]);
   const firstEmpty = state.items.findIndex((x) => x == null);
   const slot = chosen ?? (firstEmpty >= 0 ? firstEmpty : state.items.length - 1);
