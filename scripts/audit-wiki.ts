@@ -1,6 +1,7 @@
 // Compare champion kits with the League wiki: which abilities apply on-hit effects and trigger
 // on-attack effects (Spellblade, Energized, Guinsoo's, Lethal Tempo…), at what effectiveness, and
-// which can critically strike.
+// which can critically strike; and whether each ability's damage is proc damage, spell damage or
+// neither (the template's "spell effects" field), checked on the damage a simulated combo deals.
 //
 // Sources (data/raw/wiki/pages.json, downloaded by scripts/fetch-wiki.ts):
 //   * each ability's data template ("Template:Data <Champion>/<Ability>"), whose description says
@@ -14,8 +15,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { loadGameData } from '../src/node/load.ts';
 import { loadAllKits } from '../src/node/kits.ts';
 import { getKit } from '../src/kits/index.ts';
+import { simulate } from '../src/engine/sim.ts';
 import type { ChampionData } from '../src/engine/data-types.ts';
 import type { ComponentSpec } from '../src/engine/kit-types.ts';
+import type { DamageInstance } from '../src/engine/effects.ts';
 
 import { WIKI_CACHE } from './fetch-wiki.ts';
 
@@ -42,6 +45,27 @@ const REVIEWED: Record<string, string> = {
   'Zeri R': 'the crit applies to the chain lightning, which only hits other enemies',
 };
 
+/** Damage category differences checked by hand. Key: "<champion id> <damage label>". */
+const REVIEWED_TAGS: Record<string, string> = {
+  'Darius Bleed': 'the wiki doubts its proc tag ("used to say default"): default damage, which stacks Conqueror',
+  'Diana Moonsilver Blade': "spell damage, but the engine never counts a passive's attack components as ability damage",
+  'Ornn Brittle': "Living Forge's damage (Temper), tagged proc",
+  'Vex Gloom': "Doom 'n Gloom's damage, tagged proc",
+};
+
+type Category = 'proc' | 'spell' | 'default';
+
+/** The template's "spell effects" field as a damage category; null when it depends on the part. */
+function category(spellEffects: string): Category | null {
+  const s = spellEffects.replace(/<!--[\s\S]*?-->/g, '').trim().toLowerCase();
+  if (s === 'proc') return 'proc';
+  if (s === 'default') return 'default';
+  return /^(spell|spellaoe|spellpersist|aoe|aoedot|dot|area|area of effect|damage over time|single|single target|single-target)$/.test(s) ? 'spell' : null;
+}
+
+/** How the simulator tags a hit: proc damage, ability damage (spell effects) or neither. */
+const kitCategory = (inst: DamageInstance): Category => (inst.flags.proc ? 'proc' : inst.flags.ability ? 'spell' : 'default');
+
 /** Strip common wiki templates down to their visible text. */
 function plain(s: string): string {
   let prev = '';
@@ -55,6 +79,7 @@ function plain(s: string): string {
 interface WikiAbility {
   name: string;
   slot: 'P' | 'Q' | 'W' | 'E' | 'R';
+  spellEffects: string;
   onHit: boolean;
   onAttack: boolean;
   effectiveness: string[];
@@ -73,6 +98,7 @@ function parseTemplate(raw: string, fallbackName: string): WikiAbility | null {
   return {
     name,
     slot: slot === 'I' ? 'P' : (slot as WikiAbility['slot']),
+    spellEffects: raw.match(/^\|spelleffects\s*=\s*(.*)$/m)?.[1] ?? '',
     onHit: !negHit && /appl(?:y|ies|ying)\b[^.]{0,80}\bon-hit\b(?! damage)|\band on-hit (?:and on-attack )?effects/i.test(text),
     onAttack: !negAtk && /trigger(?:s|ing)?\b[^.]{0,60}\bon-attack\b|\band on-attack effects/i.test(text),
     effectiveness: [...text.matchAll(/(\d+(?:\.\d+)?%)[^.]{0,40}?effectiveness/gi)].map((m) => m[1]),
@@ -166,6 +192,41 @@ for (const champ of champs) {
     if (ab.canCrit && !ours.canCrit && !empowered && (!reviewed || showAll)) {
       if (!reviewed) mismatches++;
       lines.push(`  ${reviewed ? 'reviewed' : 'CRIT?   '} ${ab.slot} ${ab.name}: wiki says it can critically strike | kit has no canCrit component${reviewed ? ` (${reviewed})` : ''}`);
+    }
+  }
+  // Damage categories: each ability hit of a few combos (full health and low health targets) against
+  // the wiki ability it is named after (its label, the label's parts, its source), else its slot's.
+  const live = abilities.filter((ab, i) => current.has(norm(ab.name.replace(/ \d$/, ''))) && abilities.findIndex((x) => x.name === ab.name) === i);
+  const combos = ['Q AA W AA E AA R AA AA AA AA'];
+  if (kit.abilities.P?.components?.length) combos.push('P AA');
+  for (const [slot, spec] of Object.entries(kit.abilities)) for (const v of Object.keys(spec?.variants ?? {})) combos.push(`${slot}:${v} AA AA`);
+  const reported = new Set<string>();
+  for (const combo of combos) {
+    for (const hpPercent of [100, 25]) {
+      let events: DamageInstance[];
+      try {
+        events = simulate(data, { champion: champ.id, level: 18, combo, target: { maxHp: 3000, armor: 80, mr: 60, hpPercent } }).events;
+      } catch {
+        continue;
+      }
+      for (const e of events) {
+        if (e.flags.kind !== 'ability' || e.flags.attack || e.flags.pet || !e.flags.slot) continue;
+        // "Achooo! (Dragon Practice)" is Dragon Practice's, "Upheaval (throw)" Upheaval's.
+        const names = [e.label, ...e.sourceLabel.split(' / ')].flatMap((n) => {
+          const m = n.match(/^(.*) \((.*)\)$/);
+          return m ? [n, m[2], m[1]] : [n];
+        });
+        const wiki = names.map((n) => live.filter((ab) => norm(ab.name) === norm(n))).find((l) => l.length) ?? live.filter((ab) => ab.slot === e.flags.slot);
+        const cats = new Set(wiki.map((ab) => category(ab.spellEffects)));
+        const want = cats.size === 1 ? [...cats][0] : null;
+        const got = kitCategory(e);
+        if (!want || got === want || reported.has(`${e.label} ${got}`)) continue;
+        reported.add(`${e.label} ${got}`);
+        const reviewed = REVIEWED_TAGS[`${champ.id} ${e.label}`];
+        if (!reviewed) mismatches++;
+        if (!reviewed || showAll)
+          lines.push(`  ${reviewed ? 'reviewed' : 'TAGS    '} ${e.flags.slot} ${e.sourceLabel} / ${e.label}: wiki ${want} (${wiki.map((ab) => `${ab.name}: ${ab.spellEffects}`).join(', ')}) | kit ${got}${reviewed ? ` (${reviewed})` : ''}`);
+      }
     }
   }
   if (lines.length) console.log(`${champ.name}\n${lines.join('\n')}`);
