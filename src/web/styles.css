@@ -205,20 +205,11 @@ a {
   align-items: center;
   gap: 8px;
 }
-.card h2 .right,
-.card h2 .h2-control {
+.card h2 .right {
+  margin-left: auto;
   text-transform: none;
   letter-spacing: 0;
   font-weight: 500;
-}
-.card h2 .right {
-  margin-left: auto;
-}
-/* Text with an explanation on hover */
-.hint {
-  text-decoration: underline dotted var(--text-muted);
-  text-underline-offset: 3px;
-  cursor: help;
 }
 .row {
   display: flex;
@@ -516,6 +507,7 @@ label.field {
 }
 .combo-seq {
   position: relative;
+  cursor: text;
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
@@ -557,6 +549,33 @@ label.field {
 .chip select,
 .chip button {
   cursor: pointer;
+}
+/* Turns the steps into their shorthand to type; the box's empty space does too (its text cursor) */
+.combo-edit {
+  margin-left: auto;
+  display: inline-flex;
+  padding: 5px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.combo-edit:hover {
+  background: var(--surface-3);
+  color: var(--text-primary);
+}
+.combo-edit svg {
+  width: 15px;
+  height: 15px;
+}
+/* The shorthand, typed in the steps' place and size */
+input.combo-text {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  margin-top: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 /* Where a dragged step will land: over the dragged step too, which can cover it, and past its line */
 .drop-marker {
@@ -1030,8 +1049,8 @@ table.data .source-name {
   margin-top: 8px;
 }
 
-/* An item far more gold-efficient than the rest: a twinkling star on its icon, a sheen sweeping its
-   bar, and a gold flash on the row when it first stands out. */
+/* An item far more gold-efficient than the rest: a twinkling star on its icon, a glow and a sheen
+   sweeping its bar, and a gold flash on the row when it first stands out. */
 .iv-spark {
   position: absolute;
   top: -8px;
@@ -1055,19 +1074,6 @@ table.data .source-name {
   background: linear-gradient(105deg, transparent 25%, rgba(255, 255, 255, 0.6) 50%, transparent 75%);
   transform: translateX(-100%);
   animation: iv-sheen 3s ease-in-out infinite;
-}
-.iv-lead {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 6px;
-  color: var(--text-primary);
-}
-.iv-lead svg {
-  width: 12px;
-  height: 12px;
-  flex: none;
-  color: var(--gold);
 }
 @keyframes iv-twinkle {
   0%,
@@ -1121,7 +1127,9 @@ table.data .source-name {
   }
 }
 
-/* Show all / Show less, centered on a line under the list */
+/* Show all / Show less, centered on a line under the list. Expanded, it floats where it was over
+   the list (its bottom offset is set where it's clicked): only the pill takes clicks then, and the
+   line is left out, as it would cross the rows. */
 .iv-more {
   display: flex;
   align-items: center;
@@ -1141,6 +1149,19 @@ table.data .source-name {
   flex: 1;
   height: 1px;
   background: var(--grid);
+}
+.iv-more[aria-expanded='true'] {
+  position: sticky;
+  z-index: 4;
+  pointer-events: none;
+}
+.iv-more[aria-expanded='true']::before,
+.iv-more[aria-expanded='true']::after {
+  visibility: hidden;
+}
+.iv-more[aria-expanded='true'] span {
+  pointer-events: auto;
+  box-shadow: var(--shadow);
 }
 .iv-more span {
   display: inline-flex;

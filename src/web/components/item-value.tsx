@@ -1,7 +1,7 @@
 // Item value: what each legendary or pair of boots would add to the current build, ranked by damage
 // per gold or total damage, as a list or a gold-vs-damage map. Recomputed live as the build changes.
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { DATA } from '../data.ts';
 import { Card, ItemIcon, ItemTip, fmt } from './common.tsx';
 import { GoldScatter, useTooltip, type GoldPoint } from './charts.tsx';
@@ -17,21 +17,20 @@ type By = 'perGold' | 'damage';
 const DEFAULT_IDS = defaultCandidates(DATA).map((i) => i.id);
 const SHOWN = 8;
 /** How far ahead of the next best an item has to be, per gold, to stand out. */
-const STANDOUT = 1.2;
+const STANDOUT = 1.15;
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${fmt(Math.abs(v))}`;
 
 /**
- * The items far more gold-efficient than the rest: the best one, or the best two, when they're 20%
- * or more ahead of the next best per gold. Each with how far ahead of the rest it is (0.25 = 25%).
- * Most rankings have none: the best few are usually within 10% of each other.
+ * The items far more gold-efficient than the rest: the best one, or the best two, when they're 15%
+ * or more ahead of the next best per gold. About 2 rankings in 5 have one.
  */
-function standouts(rows: Row[]): Map<number, number> {
+function standouts(rows: Row[]): ReadonlySet<number> {
   const v = [...rows].sort((a, b) => b.gainPerGold - a.gainPerGold);
   for (let k = 0; k < 2 && k + 1 < v.length; k++) {
     const rest = v[k + 1].gainPerGold;
-    if (rest > 0 && v[k].gainPerGold >= STANDOUT * rest) return new Map(v.slice(0, k + 1).map((r) => [r.id, r.gainPerGold / rest - 1]));
+    if (rest > 0 && v[k].gainPerGold >= STANDOUT * rest) return new Set(v.slice(0, k + 1).map((r) => r.id));
   }
-  return new Map();
+  return new Set();
 }
 
 export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; set: Set; scenario: Scenario; sim: Sim | null }) {
@@ -79,7 +78,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   const currentRank = rows.findIndex((r) => r.id === current) + 1;
   const more = rows.length - SHOWN - (currentRank > SHOWN ? 1 : 0);
 
-  const pick = (id: number) => {
+  const pick = (id: number | null) => {
     set((s) => {
       const items = [...s.items];
       items[slot] = id;
@@ -87,6 +86,26 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
     });
     setChosen(null);
   };
+  // Selling the item being reconsidered loses what it adds, the same gain its row shows.
+  const worth = rows.find((r) => r.id === current)?.gain;
+
+  // Show all / Show less stays where it was on screen, so it can be clicked again at once: expanded,
+  // it floats there over the list (sticky) until the list's end comes up to it; collapsing scrolls the
+  // page so the shorter list ends there again.
+  const toggle = useRef<HTMLButtonElement>(null);
+  const anchor = useRef<number | null>(null);
+  const [stick, setStick] = useState(8);
+  const toggleAll = () => {
+    const r = toggle.current!.getBoundingClientRect();
+    anchor.current = r.top;
+    setStick(Math.max(8, window.innerHeight - r.bottom));
+    setShowAll(!showAll);
+  };
+  useLayoutEffect(() => {
+    if (anchor.current == null || !toggle.current) return;
+    window.scrollBy(0, toggle.current.getBoundingClientRect().top - anchor.current);
+    anchor.current = null;
+  }, [showAll]);
 
   const slotLabel = current != null ? `in place of ${DATA.items[current]?.name}` : `in slot ${slot + 1}`;
 
@@ -126,6 +145,11 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
             'Next item'
           )}
         </span>
+        {current != null && (
+          <button className="btn small" aria-label={`Sell ${DATA.items[current]?.name}`} onClick={() => pick(null)}>
+            Sell{worth != null && <span className="secondary"> · {signed(-worth)} damage</span>}
+          </button>
+        )}
       </div>
       {res?.error && <div className="notice warn small">{res.error}</div>}
       {!res && <div className="muted small">Simulating…</div>}
@@ -137,10 +161,10 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
             <>
               <RankList rows={rows} limit={showAll ? Infinity : SHOWN} by={by} setBy={setBy} current={current} lead={lead} slotLabel={slotLabel} onPick={pick} sim={sim} />
               {(more > 0 || showAll) && (
-                <button className="iv-more" aria-expanded={showAll} onClick={() => setShowAll(!showAll)}>
+                <button ref={toggle} className="iv-more" aria-expanded={showAll} style={showAll ? { bottom: stick } : undefined} onClick={toggleAll}>
                   <span>
                     <Chevron />
-                    {showAll ? 'Show less' : `${more} more`}
+                    {showAll ? 'Show less' : 'Show all'}
                   </span>
                 </button>
               )}
@@ -148,7 +172,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
           ) : (
             <GoldScatter
               points={rows.map((r): GoldPoint => ({ id: r.id, label: r.item, gold: r.gold, gain: r.gain, perGold: r.gainPerGold, highlight: r.id === current, standout: lead.has(r.id) }))}
-              tip={(p, touch) => <RowTip row={rows.find((r) => r.id === p.id)!} current={current} lead={lead.get(p.id)} view="map" action={p.id === current || touch ? undefined : 'Click to buy'} />}
+              tip={(p, touch) => <RowTip row={rows.find((r) => r.id === p.id)!} current={current} view="map" action={p.id === current || touch ? undefined : 'Click to buy'} />}
               onPick={(p) => pick(p.id)}
             />
           )}
@@ -174,7 +198,7 @@ function RankList({
   by: By;
   setBy: (by: By) => void;
   current: number | null;
-  lead: Map<number, number>;
+  lead: ReadonlySet<number>;
   slotLabel: string;
   onPick: (id: number) => void;
   sim: Sim | null;
@@ -206,7 +230,7 @@ function RankList({
     tt.show(
       e,
       <>
-        {col === 'iv-item' ? <ItemTip id={r.id} sim={sim} /> : <RowTip row={r} current={current} lead={lead.get(r.id)} view="list" />}
+        {col === 'iv-item' ? <ItemTip id={r.id} sim={sim} /> : <RowTip row={r} current={current} view="list" />}
         {buy}
       </>,
     );
@@ -293,12 +317,12 @@ function RankList({
             const stats = Math.max(0, r.gain - r.itemDamage);
             const fx = Math.max(0, r.itemDamage);
             const width = (Math.max(0, v) / max) * 100;
-            const ahead = lead.get(r.id);
+            const ahead = lead.has(r.id);
             const item = (
               <>
                 <span className="iv-icon">
                   <ItemIcon id={r.id} size="sm" />
-                  {ahead != null && <Sparkle className="iv-spark" />}
+                  {ahead && <Sparkle className="iv-spark" />}
                 </span>
                 <span className="iv-name">{r.item}</span>
                 {isCurrent && <span className="iv-tag">current{rank > limit ? ` · #${rank}` : ''}</span>}
@@ -308,7 +332,7 @@ function RankList({
               <div
                 key={r.id}
                 role="row"
-                className={`iv-row ${isCurrent ? 'current' : ''} ${ahead != null ? 'standout' : ''}`}
+                className={`iv-row ${isCurrent ? 'current' : ''} ${ahead ? 'standout' : ''}`}
                 onPointerDown={(e) => {
                   pointer.current = e.pointerType;
                   if (e.pointerType !== 'touch') return;
@@ -337,7 +361,7 @@ function RankList({
                     item
                   ) : (
                     // For the keyboard; its click reaches the row, which buys.
-                    <button type="button" className="iv-buy" aria-label={`Buy ${r.item} ${slotLabel}${ahead != null ? `, ${Math.round(ahead * 100)}% more damage per gold than the rest` : ''}`}>
+                    <button type="button" className="iv-buy" aria-label={`Buy ${r.item} ${slotLabel}${ahead ? ', far more damage per gold than the rest' : ''}`}>
                       {item}
                     </button>
                   )}
@@ -387,9 +411,8 @@ function nearestColumn(e: PointerEvent<HTMLElement>): string {
 }
 
 /** A row's card shows what its view doesn't: in the list, which already has the numbers, how the bar
- *  splits between stats and effect damage; on the map, whose dots only have positions, the numbers.
- *  An item that stands out says by how much. */
-function RowTip({ row: r, current, lead, view, action }: { row: Row; current: number | null; lead?: number; view: 'list' | 'map'; action?: ReactNode }) {
+ *  splits between stats and effect damage; on the map, whose dots only have positions, the numbers. */
+function RowTip({ row: r, current, view, action }: { row: Row; current: number | null; view: 'list' | 'map'; action?: ReactNode }) {
   return (
     <>
       <div className="tt-title">
@@ -423,12 +446,6 @@ function RowTip({ row: r, current, lead, view, action }: { row: Row; current: nu
             <strong>{fmt(r.gainPerGold, 1)}</strong>
           </div>
         </>
-      )}
-      {lead != null && (
-        <div className="iv-lead">
-          <Sparkle />
-          {Math.round(lead * 100)}% more damage per gold than the rest
-        </div>
       )}
       {action && <div className="tt-foot">{action}</div>}
     </>

@@ -465,37 +465,16 @@ function TargetItems({ items, onChange }: { items: number[]; onChange: (i: numbe
 // -----------------------------------------------------------------------------
 
 export function SettingsPanel({ state, set }: { state: UIState; set: Set }) {
-  const hover = useHoverCard();
   const st = state.settings;
   const upd = (p: Partial<UIState['settings']>) => set((s) => ({ ...s, settings: { ...s.settings, ...p } }));
   return (
     <Card title="Settings">
       <div className="stack">
-        <div className="row" style={{ justifyContent: 'space-between' }}>
-          <span
-            className="small hint"
-            tabIndex={0}
-            {...hover.bind(
-              <div className="item-tip">
-                <strong>Seconds already in combat</strong>
-                <div className="secondary">
-                  Starts the combo as if you had been fighting the target this long, so what builds up over a fight starts partway: the damage bonus of Liandry's Torment, Riftmaker and Haunting Guise, and
-                  Grasp of the Undying's charge when it isn't charged at the start. None takes more than 4 seconds.
-                </div>
-              </div>,
-            )}
-          >
-            Seconds already in combat
-          </span>
-          {/* Nothing ramps longer: Riftmaker and Grasp take 4s, Liandry's and Haunting Guise 3s. */}
-          <input type="number" min={0} max={4} step={1} style={{ width: 80 }} aria-label="Seconds already in combat" value={st.priorCombatTime} onChange={(e) => upd({ priorCombatTime: Number(e.target.value) })} />
-        </div>
         <label className="row small" style={{ justifyContent: 'space-between' }}>
           Let burns and bleeds finish after the combo
           <input type="checkbox" checked={st.finishDots} onChange={(e) => upd({ finishDots: e.target.checked })} />
         </label>
       </div>
-      {hover.node}
     </Card>
   );
 }
@@ -509,37 +488,15 @@ const moveStep = (steps: ComboStep[], from: number, to: number) => {
   return next;
 };
 
-// Whether the combo shows as steps or as its shorthand, remembered in this browser.
-type ComboView = 'steps' | 'text';
-const COMBO_VIEW_KEY = 'lolsim:comboView';
-const savedComboView = (): ComboView => {
-  try {
-    return localStorage.getItem(COMBO_VIEW_KEY) === 'text' ? 'text' : 'steps';
-  } catch {
-    return 'steps';
-  }
-};
-
 export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; sim: Sim | null }) {
   const [text, setText] = useState(state.combo);
-  const [editing, setEditing] = useState(false);
-  const [view, setView] = useState<ComboView>(savedComboView);
-  const input = useRef<HTMLInputElement>(null);
-  const focusInput = useRef(false);
-  const pickView = (v: ComboView) => {
-    setView(v);
-    focusInput.current = v === 'text';
-    try {
-      localStorage.setItem(COMBO_VIEW_KEY, v);
-    } catch {
-      // storage unavailable
-    }
+  // The combo shows as steps; the pencil (or a click on the box's empty space) turns it into its
+  // shorthand, typed in place, until Enter, Escape or a click elsewhere.
+  const [typing, setTyping] = useState(false);
+  const startTyping = () => {
+    setText(state.combo);
+    setTyping(true);
   };
-  // Switching to the text opens it for typing.
-  useEffect(() => {
-    if (view === 'text' && focusInput.current) input.current?.focus();
-    focusInput.current = false;
-  }, [view]);
   const parsed = useMemo(() => {
     try {
       return { steps: parseCombo(state.combo), error: null as string | null };
@@ -626,21 +583,7 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
 
   return (
     <Card
-      title={
-        <>
-          Combo
-          <span className="h2-control">
-            <span className="segmented small" role="group" aria-label="Show the combo as">
-              <button aria-pressed={view === 'steps'} onClick={() => pickView('steps')}>
-                Steps
-              </button>
-              <button aria-pressed={view === 'text'} onClick={() => pickView('text')}>
-                Text
-              </button>
-            </span>
-          </span>
-        </>
-      }
+      title="Combo"
       right={
         <div className="row" style={{ gap: 6 }}>
           <span className="small secondary">Crits</span>
@@ -657,7 +600,8 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
         </div>
       }
     >
-      <div className="combo-palette">
+      {/* While typing, the keys add to the text without taking the focus from it */}
+      <div className="combo-palette" onMouseDown={typing ? (e) => e.preventDefault() : undefined}>
         {(['Q', 'W', 'E', 'R'] as Slot[]).map((s) => (
           <button key={s} className="combo-key" title={spellName(s)} onClick={() => add({ type: 'ability', slot: s })}>
             {icon(s, spellName(s), 'sm')}
@@ -688,9 +632,13 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
           +1s
         </button>
       </div>
-      {view === 'steps' ? (
-        <div className="combo-seq" ref={seq} style={{ marginTop: 10 }} role="list" aria-label="Combo sequence">
-          {!steps.length && <span className="muted small">Click abilities above to build a combo.</span>}
+      {!typing ? (
+        <div className="combo-seq" ref={seq} style={{ marginTop: 10 }} role="list" aria-label="Combo sequence" onClick={(e) => e.target === e.currentTarget && startTyping()}>
+          {!steps.length && (
+            <span className="muted small" style={{ pointerEvents: 'none' }}>
+              Click abilities above to build a combo.
+            </span>
+          )}
           {steps.map((st, i) => {
             const variants = st.type === 'ability' ? Object.entries(kit.abilities[st.slot]?.variants ?? {}) : [];
             const dragging = drag?.from === i;
@@ -766,18 +714,21 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
             );
           })}
           {drag?.marker && <span className="drop-marker" style={drag.marker} aria-hidden />}
+          <button className="combo-edit" aria-label="Edit as text" title="Edit as text" onClick={startTyping}>
+            <svg viewBox="0 0 16 16" aria-hidden>
+              <path d="M10.5 2.5l3 3L5.5 13.5H2.5v-3z M9 4l3 3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+            </svg>
+          </button>
         </div>
       ) : (
         <input
-          ref={input}
           type="text"
+          className="combo-text"
           aria-label="Combo shorthand"
-          value={editing ? text : state.combo}
-          onFocus={() => {
-            setEditing(true);
-            setText(state.combo);
-          }}
-          onBlur={() => setEditing(false)}
+          autoFocus
+          value={text}
+          onBlur={() => setTyping(false)}
+          onKeyDown={(e) => (e.key === 'Enter' || e.key === 'Escape') && e.currentTarget.blur()}
           onChange={(e) => {
             setText(e.target.value);
             try {
@@ -787,10 +738,9 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
               // keep editing
             }
           }}
-          style={{ marginTop: 10, width: '100%', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
         />
       )}
-      {view === 'text' && editing && textError && (
+      {typing && textError && (
         <div className="small" style={{ marginTop: 4, color: 'var(--critical)' }}>
           {textError}
         </div>

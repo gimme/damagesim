@@ -2,7 +2,7 @@
 // research notes in docs/research/runes.md (trigger rules, damage types, stacking).
 
 import type { RuneData } from './data-types.ts';
-import { DISTANCE, SELF_HP, selfHp, triggersOnAttack, type DamageInstance, type Effect, type SetupCtx } from './effects.ts';
+import { DISTANCE, IN_COMBAT, SELF_HP, selfHp, triggersOnAttack, type DamageInstance, type Effect, type SetupCtx } from './effects.ts';
 import type { Sim } from './sim.ts';
 import { GAME, type StatMods } from './stats.ts';
 import { ITEM_STAT_TYPES } from './items.ts';
@@ -452,7 +452,7 @@ const RUNES: Record<number, Factory> = {
     const v = rune.values;
     return base(rune, {
       description: 'After 4s in combat, the next attack on a champion deals 3.5% of your max health as magic damage (ranged 40%).',
-      options: [{ key: 'grasp.charged', label: 'Grasp charged at start', default: 1, min: 0, max: 1, step: 1 }],
+      options: [{ key: 'grasp.charged', label: 'Grasp charged at start', default: 1, min: 0, max: 1, step: 1 }, IN_COMBAT],
       onStart(sim) {
         readyAt = (sim.opt['grasp.charged'] ?? 1) ? -Infinity : sim.combatStart + v.TriggerTime;
       },

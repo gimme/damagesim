@@ -41,8 +41,7 @@ export interface UIState {
   options: Record<string, number>;
   combo: string;
   target: TargetState;
-  /** Damage amplifiers stack as they do live (additive); the CLI and MCP server can still multiply them. */
-  settings: Required<Pick<SimSettings, 'priorCombatTime' | 'finishDots'>>;
+  settings: Required<Pick<SimSettings, 'finishDots'>>;
 }
 
 export const DEFAULT_STATE: UIState = {
@@ -71,7 +70,7 @@ export const DEFAULT_STATE: UIState = {
     champion: 'Jinx',
     items: [3031],
   },
-  settings: { priorCombatTime: 0, finishDots: true },
+  settings: { finishDots: true },
 };
 
 export function toScenario(s: UIState): Scenario {
@@ -116,9 +115,7 @@ export function decodeState(hash: string): UIState | null {
     const parsed = JSON.parse(decodeURIComponent(escape(atob(b64))));
     const target: TargetState = { ...DEFAULT_STATE.target, ...parsed.target };
     if (!isTargetPreset(target.preset)) target.preset = null;
-    // Only the settings the page has: older links also set how damage amplifiers stack.
-    const { priorCombatTime, finishDots } = { ...DEFAULT_STATE.settings, ...parsed.settings };
-    return { ...DEFAULT_STATE, ...parsed, target, settings: { priorCombatTime, finishDots } };
+    return { ...DEFAULT_STATE, ...parsed, target, settings: { ...DEFAULT_STATE.settings, ...parsed.settings } };
   } catch {
     return null;
   }

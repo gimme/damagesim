@@ -167,6 +167,21 @@ export const DISTANCE = { key: 'distance', label: 'Distance to target (units)', 
  */
 export const SELF_HP: KitOption = { key: 'self.hpPercent', label: 'Your current HP (%)', default: 100, min: 10, max: 100, step: 10, description: 'Your health as a percentage of your maximum health.' };
 
+/**
+ * Seconds you've already been fighting when the combo starts, shared by what builds up over a fight:
+ * the damage bonus of Liandry's Torment, Riftmaker and Haunting Guise, and Grasp of the Undying's
+ * charge. None takes more than 4 seconds.
+ */
+export const IN_COMBAT: KitOption = {
+  key: 'combat.seconds',
+  label: 'Seconds already in combat',
+  default: 0,
+  min: 0,
+  max: 4,
+  step: 1,
+  description: 'Starts the combo as if you had been fighting the target this long, so what builds up over a fight starts partway.',
+};
+
 /** Your current health as a fraction of your maximum (the option is a percentage). */
 export const selfHp = (opt: Record<string, number>) => (opt[SELF_HP.key] ?? SELF_HP.default) / 100;
 

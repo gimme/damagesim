@@ -37,7 +37,6 @@ Scenario options (simulate / compare / rank-items / optimize / combo-order / swe
   --target squishy|bruiser|tank[,hpPercent=..]   archetype whose stats follow its level (typical build)
   --target-champion <name> --target-items <a,b>
   --target-level-diff <n>       target level relative to yours (default 0)   --target-level <n> absolute
-  --amps additive|multiplicative   --prior-combat <seconds>
   --scenario <file.json|->      load a full scenario (JSON) instead; flags above override it
   --events                      print every damage instance
 
@@ -63,8 +62,6 @@ const { values: o, positionals } = parseArgs({
     'target-level': { type: 'string' },
     'target-level-diff': { type: 'string' },
     'target-items': { type: 'string' },
-    amps: { type: 'string' },
-    'prior-combat': { type: 'string' },
     scenario: { type: 'string' },
     events: { type: 'boolean' },
     json: { type: 'boolean' },
@@ -137,9 +134,6 @@ function buildScenario(): Scenario {
     if (tv.dr !== undefined) t.damageReduction = tv.dr;
     sc.target = t;
   }
-  sc.settings = { ...sc.settings };
-  if (o.amps) sc.settings.ampStacking = o.amps as any;
-  if (o['prior-combat']) sc.settings.priorCombatTime = Number(o['prior-combat']);
   if (!sc.champion) throw new Error('missing --champion');
   if (sc.combo === undefined) sc.combo = 'Q W E R AA';
   return sc as Scenario;

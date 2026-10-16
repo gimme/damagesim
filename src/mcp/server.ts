@@ -65,8 +65,6 @@ const scenarioShape = {
     .object({
       finishDots: z.boolean().optional(),
       waitForCooldowns: z.boolean().optional(),
-      priorCombatTime: z.number().optional(),
-      ampStacking: z.enum(['additive', 'multiplicative']).optional(),
     })
     .optional(),
 };

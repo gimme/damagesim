@@ -5,7 +5,7 @@
 // Behaviour sources: the in-game tooltips and docs/research/items.md.
 
 import type { ItemData } from './data-types.ts';
-import { addOnHitRepeat, DISTANCE, forceCrit, SELF_HP, selfHp, triggersOnAttack, type DamageInstance, type DamageRequest, type Effect, type SetupCtx } from './effects.ts';
+import { addOnHitRepeat, DISTANCE, forceCrit, IN_COMBAT, SELF_HP, selfHp, triggersOnAttack, type DamageInstance, type DamageRequest, type Effect, type SetupCtx } from './effects.ts';
 import type { Sim } from './sim.ts';
 import type { StatMods } from './stats.ts';
 
@@ -549,6 +549,7 @@ const ITEMS: Record<number, Factory> = {
     const combat = combatTimer(dv(item, 'BuffCounterDuration'));
     return effect(item, {
       description: 'Ability damage burns for 2% max health per second for 3s; +2% damage per second in combat (max 6%).',
+      options: [IN_COMBAT],
       afterDamage(sim, inst) {
         combat.hit(sim, inst);
         if (!isAbilityDamage(inst)) return;
@@ -586,6 +587,7 @@ const ITEMS: Record<number, Factory> = {
     const combat = combatTimer(dv(item, 'BuffCounterDuration'));
     return effect(item, {
       description: '+2% damage per second in combat with champions (max 6%).',
+      options: [IN_COMBAT],
       afterDamage: (sim, inst) => combat.hit(sim, inst),
       beforeDamage(sim, inst) {
         if (inst.flags.unamplified) return;
@@ -598,6 +600,7 @@ const ITEMS: Record<number, Factory> = {
     const combat = combatTimer(dv(item, 'BuffCounterDuration'));
     return effect(item, {
       description: '+2% damage per second in combat (max 8%); 2% of bonus health as AP.',
+      options: [IN_COMBAT],
       stats: () => ({ conversions: [{ from: 'bonusHp', to: 'ap', ratio: dv(item, 'HealthToAPConversionPercent'), source: item.name }] }),
       afterDamage: (sim, inst) => combat.hit(sim, inst),
       beforeDamage(sim, inst) {

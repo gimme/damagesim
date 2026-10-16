@@ -172,8 +172,7 @@ test('damage-dealt amplifiers add; damage-taken modifiers multiply', () => {
     { source: 'b', value: 0.08, kind: 'dealt' as const },
     { source: 'c', value: 0.12, kind: 'taken' as const },
   ];
-  near(combineAmps(amps, 'additive'), 1.16 * 1.12, 1e-9);
-  near(combineAmps(amps, 'multiplicative'), 1.08 * 1.08 * 1.12, 1e-9);
+  near(combineAmps(amps), 1.16 * 1.12, 1e-9);
 });
 
 test('Electrocute triggers on the third separate hit within 3s', () => {

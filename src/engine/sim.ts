@@ -8,7 +8,7 @@ import { compile, type Resolver } from './expr.ts';
 import { computeStats, emptyMods, hasteCooldown, itemStatsToMods, mergeMods, type Stats, type StatMods, GAME } from './stats.ts';
 import { effectiveResist, resistMultiplier, type DamageType } from './damage.ts';
 import type { AbilitySpec, BuffSpec, ChampionKit, ComponentSpec, DebuffSpec, Expr, MarkSpec, VariantSpec } from './kit-types.ts';
-import { addOnHitRepeat, selfHp, type AttackInfo, type CastInfo, type DamageFlags, type DamageInstance, type DamageRequest, type Effect, type SetupCtx, type Slot } from './effects.ts';
+import { addOnHitRepeat, IN_COMBAT, selfHp, type AttackInfo, type CastInfo, type DamageFlags, type DamageInstance, type DamageRequest, type Effect, type SetupCtx, type Slot } from './effects.ts';
 import { parseCombo, formatCombo, type ComboStep, type CritMode } from './combo.ts';
 import { getKit } from '../kits/index.ts';
 import { createItemEffect, ITEM_GROUPS } from './items.ts';
@@ -51,10 +51,6 @@ export interface SimSettings {
   finishDots?: boolean;
   /** Wait for an ability's cooldown when it's used again (default true); otherwise cast anyway. */
   waitForCooldowns?: boolean;
-  /** Seconds of combat before the combo starts (stacks Liandry's Suffering etc.). */
-  priorCombatTime?: number;
-  /** How damage-dealt amplifiers combine: additive (live since 26.9) or multiplicative (pre-26.9). */
-  ampStacking?: 'additive' | 'multiplicative';
 }
 
 export interface Scenario {
@@ -237,8 +233,6 @@ export class Sim {
     this.settings = {
       finishDots: scenario.settings?.finishDots ?? true,
       waitForCooldowns: scenario.settings?.waitForCooldowns ?? true,
-      priorCombatTime: scenario.settings?.priorCombatTime ?? 0,
-      ampStacking: scenario.settings?.ampStacking ?? 'additive',
     };
     this.runes = (scenario.runes ?? []).map((q) => findRune(data, q));
     this.ranks = resolveRanks(this.champ, this.level, scenario.ranks, scenario.skillOrder, bonusSkillPoints(this.runes, this.level));
@@ -968,7 +962,7 @@ export class Sim {
       }
       resistMult = resistMultiplier(eff);
     }
-    const ampMult = combineAmps(inst.amps, this.settings.ampStacking);
+    const ampMult = combineAmps(inst.amps);
     const final = inst.raw * resistMult * ampMult * (1 - this.target.damageReduction);
     inst.effectiveResist = eff;
     inst.resistMult = resistMult;
@@ -1703,7 +1697,7 @@ export class Sim {
   run(steps: ComboStep[]): SimResult {
     const timeline: SimResult['timeline'] = [];
     const initialStats = this.stats;
-    this.combatStart = -this.settings.priorCombatTime;
+    this.combatStart = -(this.opt[IN_COMBAT.key] ?? 0);
     for (const e of this.effects) e.onStart?.(this);
     const startHp = this.target.hp;
     const initialRed = this.targetReductions();
@@ -1839,16 +1833,13 @@ export class Sim {
 
 // -----------------------------------------------------------------------------
 
-/** Combine damage modifiers: dealt amps add (or multiply, pre-26.9); taken/multiplier kinds multiply. */
-export function combineAmps(amps: DamageInstance['amps'], stacking: 'additive' | 'multiplicative'): number {
-  let dealt = stacking === 'additive' ? 1 : 1;
+/** Combine damage modifiers: damage-dealt amps add (since 26.9); damage-taken and other multipliers multiply. */
+export function combineAmps(amps: DamageInstance['amps']): number {
+  let dealt = 1;
   let mult = 1;
   for (const a of amps) {
-    const kind = a.kind ?? 'dealt';
-    if (kind === 'dealt') {
-      if (stacking === 'additive') dealt += a.value;
-      else dealt *= 1 + a.value;
-    } else mult *= 1 + a.value;
+    if ((a.kind ?? 'dealt') === 'dealt') dealt += a.value;
+    else mult *= 1 + a.value;
   }
   return Math.max(0, dealt) * mult;
 }

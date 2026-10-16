@@ -20,9 +20,7 @@ export const SCENARIO_HELP = `Scenario JSON (all fields except champion and comb
   },
   "settings": {
     "finishDots": true,               // keep simulating burns/bleeds after the last step (else they stop 3s after it)
-    "waitForCooldowns": true,         // repeated abilities wait for their cooldown
-    "priorCombatTime": 0,             // seconds already in combat (Liandry's/Riftmaker ramp, Grasp; max 4 matters)
-    "ampStacking": "additive"         // additive (live since 26.9) | multiplicative
+    "waitForCooldowns": true          // repeated abilities wait for their cooldown
   }
 }
 
@@ -40,5 +38,6 @@ Common options: self.hpPercent (your HP in %, for Last Stand etc.), gameTime (mi
 Conditioning), distance (to the target; Arcane Comet, Hexoptics C44, Horizon Focus), legend.stacks,
 darkHarvest.souls, aery.cycle, grasp.charged, firstStrike.active, suddenImpact.armed, energized.start
 (0-100), heartsteel.ready, heartsteel.stacks, glory.stacks, rodofages.stacks, yuntal.crit,
-deadmans.stacks, luden.targets,
+deadmans.stacks, luden.targets, combat.seconds (seconds already in combat when the combo starts, 0-4;
+Liandry's, Riftmaker and Haunting Guise ramp, Grasp's charge),
 plus champion-specific options listed by "lolsim champion <name>" (e.g. stack counts).`;
