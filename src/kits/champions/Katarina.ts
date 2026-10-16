@@ -34,14 +34,16 @@ const kit: ChampionKit = {
     R: {
       notes: [
         '15 knives per target (6/s for 2.5s); each knife deals both the magic and the physical part, applies on-hit at reduced effectiveness and counts as a separate hit.',
-        'Full channel assumed: Katarina is busy for 2.5s (cancel early with a Shunpo in the game).',
+        'Full channel by default: Katarina is busy for 2.5s. Set the knives or the seconds (R{6}, R{1s}) to cancel it early, as a Shunpo does in the game.',
       ],
       lockout: 'dv.Duration',
+      channel: true,
       components: [
         {
           id: 'knife',
           label: 'Death Lotus knife',
           type: 'magic',
+          unit: 'knives',
           amount: 'calc.DamageCalc',
           hits: 'dv.TicksPerSecond * dv.Duration',
           interval: '1 / dv.TicksPerSecond',

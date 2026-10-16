@@ -72,6 +72,41 @@ export interface Scenario {
   settings?: SimSettings;
 }
 
+/**
+ * A cast's repeating hits (Smolder E's bolts, a burn's ticks), as its first component with an
+ * interval: how many land by default and at most, `interval` apart. A step sets how many land, or
+ * for how long: a channel's seconds run from the cast's start, so hits fired before it ends land;
+ * other hits (burns, zones) tick once per interval of it.
+ */
+export interface RepeatingHits {
+  id: string;
+  label: string;
+  /** What the hits are called, plural ("bolts", "ticks"). */
+  unit: string;
+  hits: number;
+  maxHits: number;
+  interval: number;
+  channel: boolean;
+  /** Seconds in when the first hit lands. */
+  first: number;
+  /** The fewest seconds there can be (a channel's cast time), the default, and the most. */
+  minSeconds: number;
+  seconds: number;
+  maxSeconds: number;
+}
+
+/** How many hits, `first` seconds in and `interval` apart, land within `seconds` (at most `maxHits`). */
+export function hitsWithin(r: Pick<RepeatingHits, 'first' | 'interval' | 'maxHits'>, seconds: number): number {
+  return seconds + 1e-6 < r.first ? 0 : Math.min(r.maxHits, Math.floor((seconds - r.first) / r.interval + 1e-6) + 1);
+}
+
+/** The seconds `count` hits take to land. */
+export function secondsFor(r: Pick<RepeatingHits, 'first' | 'interval' | 'minSeconds'>, count: number): number {
+  return count <= 0 ? r.minSeconds : Math.max(r.minSeconds, r.first + (count - 1) * r.interval);
+}
+
+type CastCtx = { slot: Slot; spell: SpellData; rank: number; recast?: number };
+
 export interface SourceTotal {
   source: string;
   label: string;
@@ -1386,6 +1421,54 @@ export class Sim {
     return this.kit.abilities[slot] ?? {};
   }
 
+  private variantOf(spec: AbilitySpec, key: string): VariantSpec | undefined {
+    return spec.variants?.[key] ?? Object.entries(spec.variants ?? {}).find(([k]) => k.toLowerCase() === key.toLowerCase())?.[1];
+  }
+
+  private castTimeOf(spec: AbilitySpec, variant: VariantSpec | undefined, ctx: CastCtx): number {
+    const ctExpr = variant?.castTime ?? spec.castTime;
+    return Math.max(0, ctExpr !== undefined ? this.evalExpr(ctExpr, ctx) : (ctx.spell.castTime ?? 0));
+  }
+
+  /** The repeating hits of a cast step: what its count or duration counts (see RepeatingHits). */
+  repeatingHits(step: Pick<Extract<ComboStep, { type: 'ability' }>, 'slot' | 'variant' | 'enable'>): RepeatingHits | null {
+    const spec = this.abilitySpec(step.slot);
+    const key = step.variant ?? spec.defaultVariant;
+    const variant = key ? this.variantOf(spec, key) : undefined;
+    const ctx = { slot: step.slot, spell: this.spellFor(step.slot, variant ?? spec), rank: this.abilityRank(step.slot) };
+    return this.repeatingOf(spec, variant, step.enable, ctx, this.castTimeOf(spec, variant, ctx));
+  }
+
+  private repeatingOf(spec: AbilitySpec, variant: VariantSpec | undefined, enable: string[] | undefined, ctx: CastCtx, castTime: number): RepeatingHits | null {
+    for (const c of variant?.components ?? spec.components ?? []) {
+      if (c.interval === undefined || (c.optional && !enable?.includes(c.id))) continue;
+      const interval = this.evalExpr(c.interval, ctx);
+      const hits = Math.max(0, Math.round(this.evalExpr(c.hits ?? 1, ctx)));
+      const maxHits = this.hitCap(c, ctx, hits);
+      if (!(interval > 0) || maxHits <= 0) continue;
+      const channel = !!spec.channel;
+      const timing = { first: this.firstHitAt(c, ctx, castTime, interval, channel), interval, minSeconds: channel ? castTime : 0 };
+      // A channel lasts its lockout, or as long as its most hits take when they can take longer.
+      const lockout = variant?.lockout ?? spec.lockout;
+      const channelled = channel && lockout !== undefined ? Math.max(castTime, this.evalExpr(lockout, ctx)) : 0;
+      const seconds = Math.max(channelled, secondsFor(timing, hits));
+      const maxSeconds = Math.max(seconds, secondsFor(timing, maxHits));
+      return { id: c.id, label: c.label, unit: c.unit ?? (c.dot ? 'ticks' : 'hits'), hits, maxHits, channel, ...timing, seconds, maxSeconds };
+    }
+    return null;
+  }
+
+  /** When a component's first hit lands in a step's seconds: a channel's from its cast's start, a
+   *  burn's or zone's one interval in. */
+  private firstHitAt(c: ComponentSpec, ctx: CastCtx, castTime: number, interval: number, channel: boolean) {
+    return channel ? castTime + (c.delay !== undefined ? this.evalExpr(c.delay, ctx) : 0) : interval;
+  }
+
+  /** The most hits a component lands: its maxHits, else its default count. */
+  private hitCap(c: ComponentSpec, ctx: CastCtx, hits: number) {
+    return c.maxHits !== undefined ? Math.max(0, Math.round(this.evalExpr(c.maxHits, ctx))) : hits;
+  }
+
   castAbility(step: Extract<ComboStep, { type: 'ability' }>, timeline: SimResult['timeline']) {
     const slot = step.slot;
     const spec = this.abilitySpec(slot);
@@ -1397,7 +1480,7 @@ export class Sim {
     let variantKey = step.variant ?? spec.defaultVariant;
     let variant: VariantSpec | undefined;
     if (variantKey) {
-      variant = spec.variants?.[variantKey] ?? Object.entries(spec.variants ?? {}).find(([k]) => k.toLowerCase() === variantKey!.toLowerCase())?.[1];
+      variant = this.variantOf(spec, variantKey);
       if (!variant) {
         this.warn(`${slot} has no variant "${variantKey}" (available: ${Object.keys(spec.variants ?? {}).join(', ') || 'none'})`);
         variantKey = undefined;
@@ -1451,8 +1534,7 @@ export class Sim {
       ammo.state.charges = Math.max(0, ammo.state.charges - 1);
       if (!Number.isFinite(ammo.state.nextAt)) ammo.state.nextAt = start + ammo.recharge;
     }
-    const ctExpr = variant?.castTime ?? spec.castTime;
-    const castTime = Math.max(0, ctExpr !== undefined ? this.evalExpr(ctExpr, { slot, spell, rank }) : (spell.castTime ?? 0));
+    const castTime = this.castTimeOf(spec, variant, { slot, spell, rank });
     const castId = this.newCastId();
     this.action = castId;
     const hitsTarget = !step.miss && !spec.noTarget;
@@ -1491,16 +1573,23 @@ export class Sim {
     const buffs = variant?.buff ?? spec.buff;
     for (const b of Array.isArray(buffs) ? buffs : buffs ? [buffs] : []) this.applyBuff(b, slot, spell, rank, recast);
 
+    // The step's count or duration of the repeating hits, as the seconds they land for; a channel
+    // ends then.
+    const comps = variant?.components ?? spec.components ?? [];
+    const repeating = this.repeatingOf(spec, variant, step.enable, ectx, castTime);
+    const span = step.duration ?? (step.count !== undefined && repeating ? secondsFor(repeating, step.count) : undefined);
+    if ((step.duration !== undefined || step.count !== undefined) && !repeating) this.warn(`${label} has no repeating hits to count: ${formatCombo([step])} casts it in full`);
+
     const end = start + castTime;
     const lockExpr = variant?.lockout ?? spec.lockout;
-    this.freeAt = lockExpr !== undefined ? Math.max(end, start + this.evalExpr(lockExpr, ectx)) : end;
+    const lockout = lockExpr !== undefined ? this.evalExpr(lockExpr, ectx) : 0;
+    this.freeAt = Math.max(end, start + (repeating?.channel && span !== undefined ? Math.min(span, repeating.maxSeconds) : lockout));
     if (resets) this.attackReadyAt = this.freeAt;
     timeline.push({ step: formatCombo([step]), start, end: this.freeAt });
 
     if (!hitsTarget) return;
     const debuff = variant && 'debuff' in variant ? (variant.debuff ?? undefined) : spec.debuff;
     const ccs = variant?.cc ?? spec.cc ?? [];
-    const comps = variant?.components ?? spec.components ?? [];
     let landed = 0;
     // Debuffs and crowd control apply with the cast's first landed hit (after its damage unless
     // the debuff says otherwise), or after `afterHits` hits.
@@ -1521,6 +1610,9 @@ export class Sim {
       hits = Math.max(0, Math.round(hits));
       const delay = comp.delay !== undefined ? this.evalExpr(comp.delay, ectx) : 0;
       const interval = comp.interval !== undefined ? this.evalExpr(comp.interval, ectx) : 0;
+      // Repeating hits land for the step's span: as many as fit, up to the most there can be.
+      if (span !== undefined && repeating && enabled && interval > 0 && step.hits?.[comp.id] === undefined)
+        hits = hitsWithin({ first: this.firstHitAt(comp, ectx, castTime, interval, repeating.channel), interval, maxHits: this.hitCap(comp, ectx, hits) }, span);
       for (let h = 0; h < hits; h++) {
         const at = end + delay + interval * h;
         const hitIdx = h;

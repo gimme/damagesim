@@ -6,10 +6,9 @@ const kit: ChampionKit = {
   status: 'curated',
   notes: [
     'Lay Waste defaults to an isolated target (double damage); Q:multi when another enemy is in the blast.',
-    'Defile is toggled on for option "defileSeconds" (default 4s), ticking every 0.25s.',
+    'Defile stays on the target for 4s by default (set the seconds per cast, e.g. E{8s}), ticking every 0.25s.',
     'Death Defied (casting while dead) is not modeled.',
   ],
-  options: [{ key: 'defileSeconds', label: 'Defile active time (s)', default: 4, min: 0, max: 30, step: 0.25, description: 'How long Defile stays on the target.' }],
   abilities: {
     Q: {
       // The blast lands ≈0.5–0.75s after the cast (wiki); 0.6s used.
@@ -27,7 +26,7 @@ const kit: ChampionKit = {
     E: {
       notes: ['Per tick: calc.TotalDPS / 4 (the game\'s own tick calc is TotalDPS × 0.25).'],
       components: [
-        { id: 'defile', label: 'Defile', type: 'magic', amount: 'calc.TotalDPS * 0.25', hits: 'floor(opt.defileSeconds * 4)', interval: 0.25, delay: 0.25, aoe: true, dot: true },
+        { id: 'defile', label: 'Defile', type: 'magic', amount: 'calc.TotalDPS * 0.25', hits: 16, maxHits: 120, interval: 0.25, delay: 0.25, aoe: true, dot: true },
       ],
     },
     R: {

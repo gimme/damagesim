@@ -613,7 +613,7 @@ export function useDragOrder({
     style: placed ? { order: placed.indexOf(i) } : undefined,
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
       moved.current = false;
-      if (!movable(i) || e.button !== 0 || (e.target as Element).closest('button, select')) return;
+      if (!movable(i) || e.button !== 0 || (e.target as Element).closest('button, select, input')) return;
       const r = e.currentTarget.getBoundingClientRect();
       grab.current = { from: i, x: e.clientX, y: e.clientY, px: e.clientX, py: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, w: r.width, h: r.height, tx: 0, ty: 0, to: null };
       e.currentTarget.setPointerCapture(e.pointerId);

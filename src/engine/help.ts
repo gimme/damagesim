@@ -31,13 +31,16 @@ export const SCENARIO_HELP = `Scenario JSON (all fields except champion and comb
 
 Combo steps (array form):
   { "type": "ability", "slot": "Q", "variant": "empowered", "hits": { "componentId": 2 }, "enable": ["optionalComponentId"], "miss": false, "crit": true }
+  { "type": "ability", "slot": "E", "count": 3 }      // or "duration": 0.5 (seconds): see E{3} below
   { "type": "attack", "count": 3, "crit": true }
   { "type": "summoner", "spell": "ignite" }
   { "type": "item", "item": "Hextech Rocketbelt" }
   { "type": "wait", "seconds": 1.5 }
 
-Combo shorthand: "Q W E R P AA AA*3 3AA AA! AA? Q! Q? Q:variant Q{out:1,back:0} Q+bonus ignite item:rocketbelt wait:1.5"
+Combo shorthand: "Q W E R P AA AA*3 3AA AA! AA? Q! Q? Q:variant Q{out:1,back:0} E{3} E{0.5s} Q+bonus ignite item:rocketbelt wait:1.5"
   (crits deal their expected value; ! crits every hit of the step that can crit, ? none, follow-up attacks included)
+  E{3} / E{0.5s}: how many of the cast's repeating hits land (Smolder E's bolts, a burn's ticks), or for
+  how many seconds; a channel (Smolder E, Katarina R) ends then. Q{id:N} sets one component's hits.
 
 Common options: self.hpPercent (your HP in %, for Last Stand etc.), gameTime (minutes; Gathering Storm,
 Conditioning), distance (to the target; Arcane Comet, Hexoptics C44, Horizon Focus), legend.stacks,

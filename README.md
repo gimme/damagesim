@@ -76,7 +76,8 @@ The CLI exposes the same features (`damagesim --help`); add `--json` for machine
 ```
 
 Combo shorthand: `Q W E R P`, `AA`, `AA*3`, `AA!`/`Q!` (crits), `AA?`/`Q?` (doesn't), `Q:variant`, `Q{out:1,back:0}` (hit
-counts), `Q+bonus` (enable an optional hit), `ignite`, `item:rocketbelt`, `wait:1.5`. Run
+counts), `E{3}`/`E{0.5s}` (how many bolts or ticks land, or for how long; a channel ends then), `Q+bonus` (enable an
+optional hit), `ignite`, `item:rocketbelt`, `wait:1.5`. Run
 `damagesim scenario` for everything.
 
 Targets:

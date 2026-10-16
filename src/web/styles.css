@@ -659,6 +659,37 @@ input.combo-text {
 .chip button:hover {
   color: var(--text-primary);
 }
+/* A cast's repeating hits: how many, or for how many seconds */
+.chip .repeat {
+  display: inline-flex;
+  align-items: baseline;
+  font-weight: 500;
+}
+.chip .repeat input[type='number'] {
+  width: 4.5ch;
+  padding: 0 3px;
+  border-radius: 4px;
+  font-size: 12px;
+  text-align: right;
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.chip .repeat input::-webkit-inner-spin-button,
+.chip .repeat input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.chip .repeat input.default {
+  color: var(--text-muted);
+}
+.chip .repeat button {
+  opacity: 1;
+  padding: 0 2px;
+  color: var(--text-secondary);
+}
 
 /* Results */
 .hero {

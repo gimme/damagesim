@@ -21,7 +21,17 @@ await loadAllKits();
 
 const idOrName = z.union([z.string(), z.number()]);
 const comboStep = z.union([
-  z.object({ type: z.literal('ability'), slot: z.enum(['P', 'Q', 'W', 'E', 'R']), variant: z.string().optional(), hits: z.record(z.string(), z.number()).optional(), enable: z.array(z.string()).optional(), miss: z.boolean().optional(), crit: z.boolean().optional() }),
+  z.object({
+    type: z.literal('ability'),
+    slot: z.enum(['P', 'Q', 'W', 'E', 'R']),
+    variant: z.string().optional(),
+    hits: z.record(z.string(), z.number()).optional(),
+    count: z.number().optional().describe("How many of the cast's repeating hits land (Smolder E's bolts, a burn's ticks)"),
+    duration: z.number().optional().describe('Seconds the repeating hits land for (a channel ends then), in place of count'),
+    enable: z.array(z.string()).optional(),
+    miss: z.boolean().optional(),
+    crit: z.boolean().optional(),
+  }),
   z.object({ type: z.literal('attack'), count: z.number().optional(), crit: z.boolean().optional() }),
   z.object({ type: z.literal('item'), item: idOrName }),
   z.object({ type: z.literal('summoner'), spell: z.literal('ignite') }),
