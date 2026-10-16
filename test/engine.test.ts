@@ -9,7 +9,7 @@ import { effectiveResist, resistMultiplier } from '../src/engine/damage.ts';
 import { computeStats, emptyMods, levelStats } from '../src/engine/stats.ts';
 import { statProgression, evalPart } from '../src/engine/calc.ts';
 import { compile } from '../src/engine/expr.ts';
-import { critMarking, formatCombo, markCrit, parseCombo, rollsCrits } from '../src/engine/combo.ts';
+import { critMarking, fitCombo, formatCombo, markCrit, parseCombo, rollsCrits } from '../src/engine/combo.ts';
 import { getKit } from '../src/kits/index.ts';
 import { combineAmps } from '../src/engine/sim.ts';
 import { rankItems } from '../src/engine/analysis.ts';
@@ -102,6 +102,13 @@ test('combo shorthand round-trips', () => {
   ]);
   assert.equal(formatCombo(parseCombo('E{0.5s}! R{1.5s,zone:10}')), 'E{0.5s}! R{1.5s,zone:10}');
   assert.throws(() => parseCombo('E{3}'));
+});
+
+test("a champion switch drops the other champion's variants, durations, hit counts and crit marks", () => {
+  const ahri = getKit(data.champions.Ahri);
+  assert.equal(formatCombo(fitCombo(parseCombo('Q:tap{tick:3}! E{0.5s} W+bonus AA!+bounce R:Q2 ignite wait:1'), ahri)), 'Q E W AA! R ignite wait:1');
+  const smolder = getKit(data.champions.Smolder);
+  assert.equal(formatCombo(fitCombo(parseCombo('E{0.5s} R:Center Q{burn:1}'), smolder)), 'E{0.5s} R:center Q{burn:1}');
 });
 
 test('crit marks: the steps that roll crits, marked all at once', () => {

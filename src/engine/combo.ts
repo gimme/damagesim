@@ -1,7 +1,7 @@
 // Combo steps and the shorthand parser ("E Q AA W R AA ignite").
 
 import type { Slot } from './effects.ts';
-import type { ChampionKit } from './kit-types.ts';
+import type { ChampionKit, ComponentSpec } from './kit-types.ts';
 
 export type ComboStep =
   | {
@@ -136,6 +136,46 @@ export function formatCombo(steps: ComboStep[]): string {
 
 const critSuffix = (crit?: boolean) => (crit === true ? '!' : crit === false ? '?' : '');
 
+/**
+ * The steps as `kit`'s champion takes them, for a champion switch: another champion's variants,
+ * durations, hit counts, optional hits and crit marks are dropped.
+ */
+export function fitCombo(steps: ComboStep[], kit: ChampionKit): ComboStep[] {
+  // Optional hits an attack step can enable: the kit's on-hits and its abilities' empowered attacks.
+  const onAttack = new Set(
+    [
+      ...(kit.attack?.onHit ?? []),
+      ...(kit.attack?.everyNth?.components ?? []),
+      ...Object.values(kit.abilities).flatMap((a) => (Array.isArray(a?.buff) ? a.buff : a?.buff ? [a.buff] : []).flatMap((b) => [...(b.onHit ?? []), ...(b.empowerAttacks?.components ?? [])])),
+    ].map((c) => c.id),
+  );
+  const keep = <T,>(xs: T[] | undefined, ok: (x: T) => boolean) => {
+    const kept = (xs ?? []).filter(ok);
+    return kept.length ? kept : undefined;
+  };
+  return steps.map((step) => {
+    if (step.type === 'attack') {
+      const { enable, ...rest } = step;
+      const kept = keep(enable, (id) => onAttack.has(id));
+      return markCrit(kept ? { ...rest, enable: kept } : rest, kit, markMode(step.crit), true);
+    }
+    if (step.type !== 'ability') return step;
+    const spec = kit.abilities[step.slot];
+    const { variant: key, duration, hits, enable, ...rest } = step;
+    const variant = key ? Object.keys(spec?.variants ?? {}).find((k) => k.toLowerCase() === key.toLowerCase()) : undefined;
+    const ids = new Set(((variant ? spec?.variants?.[variant].components : spec?.components) ?? ([] as ComponentSpec[])).map((c) => c.id));
+    const kept = Object.entries(hits ?? {}).filter(([id]) => ids.has(id));
+    const fitted: ComboStep = {
+      ...rest,
+      ...(variant ? { variant } : {}),
+      ...(duration !== undefined && spec?.variableDuration ? { duration } : {}),
+      ...(kept.length ? { hits: Object.fromEntries(kept) } : {}),
+      ...(keep(enable, (id) => ids.has(id)) ? { enable: keep(enable, (id) => ids.has(id)) } : {}),
+    };
+    return markCrit(fitted, kit, markMode(step.crit), true);
+  });
+}
+
 /** How crits resolve: their expected value, or every crit-capable hit crits or doesn't. */
 export type CritMode = 'expected' | 'always' | 'never';
 
@@ -155,9 +195,13 @@ export function rollsCrits(step: ComboStep, kit: ChampionKit): boolean {
   return (variant?.components ?? spec?.components ?? []).some((c) => c.canCrit || (c.attack && c.canCrit !== false && attacksCrit));
 }
 
-/** A step with the crit mark for `mode` (none for expected), if it rolls crits. */
-export function markCrit(step: ComboStep, kit: ChampionKit, mode: CritMode): ComboStep {
-  if (!rollsCrits(step, kit)) return step;
+/** A step with the crit mark for `mode` (none for expected), if it rolls crits; `clear`: else without one. */
+export function markCrit(step: ComboStep, kit: ChampionKit, mode: CritMode, clear = false): ComboStep {
+  if (!rollsCrits(step, kit)) {
+    if (!clear || (step.type !== 'attack' && step.type !== 'ability')) return step;
+    const { crit: _, ...rest } = step;
+    return rest;
+  }
   const { crit: _, ...rest } = step as MarkableStep;
   const crit = CRIT_MARK[mode];
   return crit === undefined ? rest : { ...rest, crit };

@@ -9,7 +9,7 @@ import { describeChampion } from '../../engine/describe.ts';
 import { bonusSkillPoints } from '../../engine/runes.ts';
 import { choosePrimary, chooseSecondary, pickRune, type RunePage } from '../../engine/rune-page.ts';
 import type { RuneData, RuneTreeData } from '../../engine/data-types.ts';
-import { critMarking, formatCombo, markCrit, parseCombo, type ComboStep, type CritMode } from '../../engine/combo.ts';
+import { critMarking, fitCombo, formatCombo, markCrit, parseCombo, type ComboStep, type CritMode } from '../../engine/combo.ts';
 import { conflicts } from '../../engine/analysis.ts';
 import { findItem } from '../../engine/gamedata.ts';
 import { getKit } from '../../kits/index.ts';
@@ -17,6 +17,15 @@ import type { Effect, Slot } from '../../engine/effects.ts';
 import type { KitOption } from '../../engine/kit-types.ts';
 
 type Set = (fn: (s: UIState) => UIState) => void;
+
+/** A combo's shorthand as another champion takes it (see fitCombo); unchanged when it doesn't parse. */
+function fitShorthand(combo: string, kit: ReturnType<typeof getKit>) {
+  try {
+    return formatCombo(fitCombo(parseCombo(combo), kit));
+  } catch {
+    return combo;
+  }
+}
 
 // -----------------------------------------------------------------------------
 
@@ -36,7 +45,7 @@ export function AttackerPanel({ state, set, sim }: { state: UIState; set: Set; s
   return (
     <Card title="Champion">
       <div className="stack" style={{ gap: 12 }}>
-        <ChampionPicker value={state.champion} onChange={(id) => set((s) => ({ ...s, champion: id, ranks: null, options: {} }))} />
+        <ChampionPicker value={state.champion} onChange={(id) => set((s) => ({ ...s, champion: id, ranks: null, options: {}, combo: fitShorthand(s.combo, getKit(DATA.champions[id])) }))} />
         <div className="row" style={{ flexWrap: 'nowrap' }}>
           <span className="small secondary" style={{ width: 44 }}>
             Level

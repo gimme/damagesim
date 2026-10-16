@@ -125,6 +125,11 @@ textarea {
   font: inherit;
   color: inherit;
 }
+/* A select's list in the theme's colors, whatever the select's own background (transparent in a combo step) */
+option {
+  background: var(--surface);
+  color: var(--text-primary);
+}
 a {
   color: var(--accent-text);
 }
