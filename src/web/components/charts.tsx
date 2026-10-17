@@ -5,7 +5,8 @@ import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type Rea
 import type { DamageInstance } from '../../engine/effects.ts';
 import type { SourceTotal } from '../../engine/sim.ts';
 import { abilityIcon } from '../data.ts';
-import { Icon, fmt, initials, sourceMark } from './common.tsx';
+import { Icon, initials, sourceMark } from './icons.tsx';
+import { fmt } from './common.tsx';
 
 export type DmgType = 'physical' | 'magic' | 'true';
 export const TYPE_COLOR: Record<DmgType, string> = { magic: 'var(--magic)', physical: 'var(--physical)', true: 'var(--true)' };

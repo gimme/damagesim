@@ -3,7 +3,12 @@ import { DATA, loadBundledIcons } from './data.ts';
 import { DEFAULT_STATE, decodeState, encodeState, loadSavedState, saveState, toScenario, type UIState } from './state.ts';
 import { simulate, Sim, type SimResult } from '../engine/sim.ts';
 import { clampCombo, formatCombo, parseCombo } from '../engine/combo.ts';
-import { AttackerPanel, ComboBuilder, ItemsPanel, RunesPanel, SettingsPanel, TargetPanel } from './components/panels.tsx';
+import { AttackerPanel } from './components/attacker.tsx';
+import { ItemsPanel } from './components/items.tsx';
+import { RunesPanel } from './components/runes.tsx';
+import { TargetPanel } from './components/target.tsx';
+import { SettingsPanel } from './components/settings.tsx';
+import { ComboBuilder } from './components/combo.tsx';
 import { Details, Summary } from './components/results.tsx';
 import { ItemValueCard } from './components/item-value.tsx';
 

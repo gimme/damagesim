@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { DATA, abilityIcon } from '../data.ts';
-import { Card, Icon, ItemIcon, ItemTip, fmt, sourceMark, useHoverCard } from './common.tsx';
+import { Icon, ItemIcon, sourceMark } from './icons.tsx';
+import { ItemTip, useHoverCard } from './hover.tsx';
+import { Card, fmt } from './common.tsx';
 import { HpBar, LineChart, SimpleBars, SourceBars, SourceName, Timeline, TypeLegend, TYPE_COLOR, TYPE_LABEL, type DmgType } from './charts.tsx';
 import type { DamageInstance } from '../../engine/effects.ts';
 import type { Scenario, SimResult, Sim } from '../../engine/sim.ts';

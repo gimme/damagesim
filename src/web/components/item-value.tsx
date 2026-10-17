@@ -3,13 +3,15 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { DATA } from '../data.ts';
-import { Card, Icon, ItemIcon, ItemTip, fmt, sourceMark, useHoverCard, useItemSlots } from './common.tsx';
+import { Icon, ItemIcon, sourceMark } from './icons.tsx';
+import { ItemTip, useHoverCard } from './hover.tsx';
+import { useItemSlots } from './drag.tsx';
+import { Card, fmt } from './common.tsx';
 import { GoldScatter, useTooltip, type GoldPoint } from './charts.tsx';
 import { rankItems, defaultCandidates } from '../../engine/analysis.ts';
 import type { Scenario, Sim } from '../../engine/sim.ts';
-import type { UIState } from '../state.ts';
+import type { Set, UIState } from '../state.ts';
 
-type Set = (fn: (s: UIState) => UIState) => void;
 type Ranking = ReturnType<typeof rankItems>;
 type Row = Ranking['items'][number];
 type By = 'perGold' | 'damage';

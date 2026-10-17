@@ -51,6 +51,9 @@ export interface UIState {
   settings: Required<Pick<SimSettings, 'finishDots'>>;
 }
 
+/** How a card changes the state: from the state as it is. */
+export type Set = (fn: (s: UIState) => UIState) => void;
+
 export const DEFAULT_STATE: UIState = {
   champion: 'Ahri',
   level: 11,
