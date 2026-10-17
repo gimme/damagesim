@@ -20,7 +20,8 @@
     "dev": "vite",
     "build": "node scripts/gen-kit-index.ts && vite build",
     "preview": "vite preview",
-    "test": "tsc --noEmit && node --test 'test/**/*.test.ts'",
+    "test": "tsc --noEmit && node --test 'test/**/*.test.ts' && prettier --check .",
+    "fmt": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "check-kits": "node scripts/check-kits.ts",
     "wiki": "node scripts/fetch-wiki.ts",
@@ -32,6 +33,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.0",
+    "prettier": "^3.9.10",
     "sharp": "^0.35.5",
     "typescript": "^5.9.3",
     "vite": "^7.3.7"

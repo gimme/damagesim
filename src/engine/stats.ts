@@ -1,7 +1,7 @@
 // Champion stat computation: base stats + level growth + items + runes + dynamic buffs.
 
-import type { ChampionBaseStats } from './data-types.ts';
-import { statProgression } from './calc.ts';
+import type { ChampionBaseStats } from "./data-types.ts";
+import { statProgression } from "./calc.ts";
 
 /** Global game constants (patch 16.20). Sources: see docs/MECHANICS.md. */
 export const GAME = {
@@ -65,7 +65,7 @@ export interface Stats {
   healShieldPower: number;
   /** Adaptive force points granted (already converted into ad/ap above). */
   adaptiveForce: number;
-  adaptiveType: 'physical' | 'magic';
+  adaptiveType: "physical" | "magic";
   /** Outgoing damage multipliers that behave like stats (e.g. Rabadon's is AP, this is not). */
   critChanceCapExceeded?: boolean;
 }
@@ -121,8 +121,21 @@ export interface StatMods {
 }
 
 export interface Conversion {
-  from: 'bonusHp' | 'maxHp' | 'maxMana' | 'bonusMana' | 'bonusArmor' | 'bonusMr' | 'ap' | 'bonusAd' | 'baseAd' | 'totalAd' | 'critChanceOverCap' | 'bonusAttackSpeed' | 'lethality';
-  to: 'ad' | 'ap' | 'hp' | 'abilityHaste' | 'armor' | 'mr' | 'attackSpeed' | 'msPercent' | 'lethality' | 'critDamage';
+  from:
+    | "bonusHp"
+    | "maxHp"
+    | "maxMana"
+    | "bonusMana"
+    | "bonusArmor"
+    | "bonusMr"
+    | "ap"
+    | "bonusAd"
+    | "baseAd"
+    | "totalAd"
+    | "critChanceOverCap"
+    | "bonusAttackSpeed"
+    | "lethality";
+  to: "ad" | "ap" | "hp" | "abilityHaste" | "armor" | "mr" | "attackSpeed" | "msPercent" | "lethality" | "critDamage";
   ratio: number;
   source?: string;
 }
@@ -174,7 +187,7 @@ export function mergeMods(into: StatMods, from: Partial<StatMods>): StatMods {
     if (v === undefined) continue;
     const cur = into[k] as any;
     if (Array.isArray(cur)) cur.push(...(Array.isArray(v) ? v : [v]));
-    else if (k === 'attackSpeedCap') into.attackSpeedCap = Math.max(into.attackSpeedCap, v);
+    else if (k === "attackSpeedCap") into.attackSpeedCap = Math.max(into.attackSpeedCap, v);
     else (into as any)[k] = cur + v;
   }
   return into;
@@ -186,35 +199,35 @@ export function itemStatsToMods(stats: Record<string, number>): Partial<StatMods
   const add = (k: keyof StatMods, v: number) => ((m as any)[k] = ((m as any)[k] ?? 0) + v);
   for (const [k, v] of Object.entries(stats)) {
     switch (k) {
-      case 'hp':
-      case 'mana':
-      case 'ad':
-      case 'ap':
-      case 'armor':
-      case 'mr':
-      case 'attackSpeed':
-      case 'critChance':
-      case 'critDamage':
-      case 'lethality':
-      case 'armorPenFlat':
-      case 'magicPenFlat':
-      case 'abilityHaste':
-      case 'msFlat':
-      case 'msPercent':
-      case 'lifeSteal':
-      case 'omnivamp':
-      case 'tenacity':
-      case 'healShieldPower':
-      case 'range':
+      case "hp":
+      case "mana":
+      case "ad":
+      case "ap":
+      case "armor":
+      case "mr":
+      case "attackSpeed":
+      case "critChance":
+      case "critDamage":
+      case "lethality":
+      case "armorPenFlat":
+      case "magicPenFlat":
+      case "abilityHaste":
+      case "msFlat":
+      case "msPercent":
+      case "lifeSteal":
+      case "omnivamp":
+      case "tenacity":
+      case "healShieldPower":
+      case "range":
         add(k, v);
         break;
-      case 'attackSpeedMult':
-        add('attackSpeedMult', v);
+      case "attackSpeedMult":
+        add("attackSpeedMult", v);
         break;
-      case 'armorPenPercent':
+      case "armorPenPercent":
         m.armorPenPercent = [...(m.armorPenPercent ?? []), v];
         break;
-      case 'magicPenPercent':
+      case "magicPenPercent":
         m.magicPenPercent = [...(m.magicPenPercent ?? []), v];
         break;
       default:
@@ -230,7 +243,7 @@ const product = (xs: number[]) => xs.reduce((p, x) => p * x, 1);
 export interface BaseStatsInput {
   base: ChampionBaseStats;
   level: number;
-  adaptiveDefault: 'physical' | 'magic';
+  adaptiveDefault: "physical" | "magic";
   ranged: boolean;
 }
 
@@ -266,9 +279,9 @@ export function computeStats(input: BaseStatsInput, mods: StatMods, currentHpPct
 
   // Adaptive force: AD if bonus AD > AP, AP if AP > bonus AD, champion default on ties.
   let adaptiveType = input.adaptiveDefault;
-  if (bonusAd > ap) adaptiveType = 'physical';
-  else if (ap > bonusAd) adaptiveType = 'magic';
-  if (adaptiveType === 'physical') bonusAd += mods.adaptive * GAME.adaptiveToAd;
+  if (bonusAd > ap) adaptiveType = "physical";
+  else if (ap > bonusAd) adaptiveType = "magic";
+  if (adaptiveType === "physical") bonusAd += mods.adaptive * GAME.adaptiveToAd;
   else ap += mods.adaptive * GAME.adaptiveToAp;
 
   // Conversions (Titanic Hydra, Manamune, Archangel's, Heartsteel…), evaluated on pre-conversion values.
@@ -291,34 +304,34 @@ export function computeStats(input: BaseStatsInput, mods: StatMods, currentHpPct
   for (const c of mods.conversions) {
     const v = pre[c.from] * c.ratio;
     switch (c.to) {
-      case 'ad':
+      case "ad":
         bonusAd += v;
         break;
-      case 'ap':
+      case "ap":
         ap += v;
         break;
-      case 'hp':
+      case "hp":
         bonusHp += v;
         break;
-      case 'abilityHaste':
+      case "abilityHaste":
         abilityHaste += v;
         break;
-      case 'armor':
+      case "armor":
         bonusArmor += v;
         break;
-      case 'mr':
+      case "mr":
         bonusMr += v;
         break;
-      case 'attackSpeed':
+      case "attackSpeed":
         bonusAs += v;
         break;
-      case 'msPercent':
+      case "msPercent":
         msPercent += v;
         break;
-      case 'lethality':
+      case "lethality":
         lethality += v;
         break;
-      case 'critDamage':
+      case "critDamage":
         critDamageBonus += v;
         break;
     }

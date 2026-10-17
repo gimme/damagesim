@@ -1,19 +1,19 @@
 // Small SVG charts. Color encodes damage type (magic / physical / true) with fixed slots, always
 // accompanied by a legend or labels; every chart has a hover tooltip and a table elsewhere.
 
-import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import type { DamageInstance } from '../../engine/effects.ts';
-import type { SourceTotal } from '../../engine/sim.ts';
-import { abilityIcon } from '../data.ts';
-import { Icon, initials, sourceMark } from './icons.tsx';
-import { fmt } from './common.tsx';
+import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import type { DamageInstance } from "../../engine/effects.ts";
+import type { SourceTotal } from "../../engine/sim.ts";
+import { abilityIcon } from "../data.ts";
+import { Icon, initials, sourceMark } from "./icons.tsx";
+import { fmt } from "./common.tsx";
 
-export type DmgType = 'physical' | 'magic' | 'true';
-export const TYPE_COLOR: Record<DmgType, string> = { magic: 'var(--magic)', physical: 'var(--physical)', true: 'var(--true)' };
-export const TYPE_ORDER: DmgType[] = ['magic', 'physical', 'true'];
-export const TYPE_LABEL: Record<DmgType, string> = { magic: 'Magic', physical: 'Physical', true: 'True' };
+export type DmgType = "physical" | "magic" | "true";
+export const TYPE_COLOR: Record<DmgType, string> = { magic: "var(--magic)", physical: "var(--physical)", true: "var(--true)" };
+export const TYPE_ORDER: DmgType[] = ["magic", "physical", "true"];
+export const TYPE_LABEL: Record<DmgType, string> = { magic: "Magic", physical: "Physical", true: "True" };
 /** The damage types' colors for small text: a tooltip's numbers. */
-const TYPE_TEXT: Record<DmgType, string> = { magic: 'var(--magic-text)', physical: 'var(--physical-text)', true: 'var(--true-text)' };
+const TYPE_TEXT: Record<DmgType, string> = { magic: "var(--magic-text)", physical: "var(--physical-text)", true: "var(--true-text)" };
 /** The damage types, the one with the most damage first. */
 const typesByAmount = (amounts: Partial<Record<DmgType, number>>) => [...TYPE_ORDER].sort((a, b) => (amounts[b] ?? 0) - (amounts[a] ?? 0));
 
@@ -21,9 +21,9 @@ const typesByAmount = (amounts: Partial<Record<DmgType, number>>) => [...TYPE_OR
 export function TypeLegend({ amounts }: { amounts?: Record<DmgType, number> }) {
   const total = amounts ? TYPE_ORDER.reduce((s, t) => s + amounts[t], 0) : 0;
   const types = amounts ? typesByAmount(amounts).filter((t) => amounts[t] > 0.5) : TYPE_ORDER;
-  const share = (v: number) => (v / total < 0.005 ? '<1%' : `${Math.round((v / total) * 100)}%`);
+  const share = (v: number) => (v / total < 0.005 ? "<1%" : `${Math.round((v / total) * 100)}%`);
   return (
-    <div className="legend" aria-label={amounts ? 'Damage by type' : 'Damage types'}>
+    <div className="legend" aria-label={amounts ? "Damage by type" : "Damage types"}>
       {types.map((t) => (
         <span key={t} className="key">
           <span className="swatch" style={{ background: TYPE_COLOR[t] }} />
@@ -50,7 +50,7 @@ export function useTooltip() {
   const [width, setWidth] = useState(900);
   useEffect(() => {
     const el = ref.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
+    if (!el || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver((entries) => {
       const w = Math.round(entries[0].contentRect.width);
       if (w > 0) setWidth(w);
@@ -69,23 +69,23 @@ export function useTooltip() {
     const el = ref.current;
     if (!el) return;
     const down = (e: PointerEvent) => {
-      if (e.pointerType !== 'touch') return;
+      if (e.pointerType !== "touch") return;
       downAt.current = e.timeStamp;
       (e.target as Element).releasePointerCapture(e.pointerId);
     };
     const move = (e: TouchEvent) => shown.current && e.timeStamp - downAt.current >= 200 && e.cancelable && e.preventDefault();
-    el.addEventListener('pointerdown', down);
-    el.addEventListener('touchmove', move, { passive: false });
+    el.addEventListener("pointerdown", down);
+    el.addEventListener("touchmove", move, { passive: false });
     return () => {
-      el.removeEventListener('pointerdown', down);
-      el.removeEventListener('touchmove', move);
+      el.removeEventListener("pointerdown", down);
+      el.removeEventListener("touchmove", move);
     };
   }, []);
   const show = (e: { clientX: number; clientY: number; pointerType?: string }, content: ReactNode) => {
     const box = ref.current?.getBoundingClientRect();
     if (!box) return;
     shown.current = true;
-    setTip({ x: e.clientX - box.left, y: e.clientY - box.top, touch: e.pointerType === 'touch', content });
+    setTip({ x: e.clientX - box.left, y: e.clientY - box.top, touch: e.pointerType === "touch", content });
   };
   const hide = () => {
     shown.current = false;
@@ -97,8 +97,8 @@ export function useTooltip() {
     const el = tipRef.current;
     const box = ref.current?.getBoundingClientRect();
     if (!tip || !el || !box) return;
-    el.style.left = '0px';
-    el.style.top = '0px';
+    el.style.left = "0px";
+    el.style.top = "0px";
     const { width: w, height: h } = el.getBoundingClientRect();
     let x = tip.x + 14;
     if (x + w > box.width) x = Math.max(0, tip.x - 14 - w);
@@ -128,7 +128,7 @@ export const compact = (v: number) => (v >= 1000 ? `${Math.round(v / 100) / 10}K
 let measurer: CanvasRenderingContext2D | null | undefined;
 /** The width of `text` in the page's font, with `font` its weight and size ('650 12.5px'). */
 function textWidth(text: string, font: string) {
-  measurer ??= typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
+  measurer ??= typeof document === "undefined" ? null : document.createElement("canvas").getContext("2d");
   if (!measurer) return text.length * 8;
   measurer.font = `${font} ${getComputedStyle(document.body).fontFamily}`;
   return measurer.measureText(text).width;
@@ -145,9 +145,10 @@ type Moment = SourceTotal & { action?: number; dot: boolean; parts: Part[]; from
  *  Super Scorcher Breath (burn)), else its source's. */
 const partName = (p: Part) => (p.hit?.startsWith(`${p.label} (`) ? p.hit : p.label);
 /** The source of a block with several sources' DoTs. */
-const DOTS = 'dots';
+const DOTS = "dots";
 /** A block's source in a few letters and its icon; several sources' DoTs show Brand's burn (Blaze), a common stand-in for damage over time. */
-const blockMark = (source: string, label: string, champion: string) => (source === DOTS ? { text: 'DoTs', icon: abilityIcon('Brand', 'P') } : sourceMark(source, label, champion));
+const blockMark = (source: string, label: string, champion: string) =>
+  source === DOTS ? { text: "DoTs", icon: abilityIcon("Brand", "P") } : sourceMark(source, label, champion);
 
 const addHit = (s: SourceTotal, e: DamageInstance) => {
   s.damage += e.final ?? 0;
@@ -203,13 +204,27 @@ function moments(events: DamageInstance[]) {
     addHit(m, e);
     m.to = e.time;
   }
-  for (const m of out) if (m.dot && m.parts.length > 1) Object.assign(m, { source: DOTS, label: 'DoTs' });
+  for (const m of out) if (m.dot && m.parts.length > 1) Object.assign(m, { source: DOTS, label: "DoTs" });
   return out;
 }
 
-export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sources: SourceTotal[]; events: DamageInstance[]; by: 'time' | 'size'; maxHp: number; startHp: number; champion: string }) {
+export function HpBar({
+  sources,
+  events,
+  by,
+  maxHp,
+  startHp,
+  champion,
+}: {
+  sources: SourceTotal[];
+  events: DamageInstance[];
+  by: "time" | "size";
+  maxHp: number;
+  startHp: number;
+  champion: string;
+}) {
   const tt = useTooltip();
-  const clipId = useId().replace(/[^\w-]/g, '');
+  const clipId = useId().replace(/[^\w-]/g, "");
   const [broken, setBroken] = useState<ReadonlySet<string>>(new Set());
   const W = tt.width;
   const H = 34;
@@ -221,7 +236,7 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
   // first. A block dealing several damage types has them as layers, each as tall as its share, so it
   // stays one block. Its largest layer is on top; layers dealing exactly as much go in the legend's
   // order instead.
-  const ordered: (SourceTotal | Moment)[] = by === 'time' ? moments(events) : sources;
+  const ordered: (SourceTotal | Moment)[] = by === "time" ? moments(events) : sources;
   const amounts: Partial<Record<DmgType, number>> = {};
   for (const s of sources) for (const t of TYPE_ORDER) amounts[t] = (amounts[t] ?? 0) + (s.type[t] ?? 0);
   const order = typesByAmount(amounts);
@@ -297,7 +312,15 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
           >
             <rect x={x} y={0} width={W - x} height={H} fill="transparent" />
             {leftText && (
-              <text x={(x + W) / 2} y={H / 2 + 4} textAnchor="middle" fontSize={12} fill="var(--hp-left-text)" className="num" style={{ pointerEvents: 'none' }}>
+              <text
+                x={(x + W) / 2}
+                y={H / 2 + 4}
+                textAnchor="middle"
+                fontSize={12}
+                fill="var(--hp-left-text)"
+                className="num"
+                style={{ pointerEvents: "none" }}
+              >
                 {leftText}
               </text>
             )}
@@ -317,24 +340,33 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
             </g>
           ))}
           {notches.map((k) => (
-            <line key={k} x1={startOffset + k * tick} x2={startOffset + k * tick} y1={0} y2={k % 10 ? H * 0.18 : H * 0.33} stroke="var(--hp-track)" strokeWidth={k % 10 ? 1 : 2} style={{ pointerEvents: 'none' }} />
+            <line
+              key={k}
+              x1={startOffset + k * tick}
+              x2={startOffset + k * tick}
+              y1={0}
+              y2={k % 10 ? H * 0.18 : H * 0.33}
+              stroke="var(--hp-track)"
+              strokeWidth={k % 10 ? 1 : 2}
+              style={{ pointerEvents: "none" }}
+            />
           ))}
           {/* Over the notches */}
           {blocks.map(({ s, x, w }, i) => {
             const mark = blockMark(s.source, s.label, champion);
-            const icon = mark.icon && !broken.has(mark.icon) ? mark.icon : '';
+            const icon = mark.icon && !broken.has(mark.icon) ? mark.icon : "";
             // A source's icon names it, and an ability's key with it where there's room: a champion's
             // ability icons are less known than which key they're on. Letters stand in for no icon. A
             // block too narrow for the icon shows nothing.
             const key = /^[QWER]$/.test(s.source);
-            const textW = textWidth(mark.text, '650 12.5px');
-            const show = icon ? (key && ICON + 3 + textW + 8 <= w ? 'both' : ICON + 6 <= w ? 'icon' : null) : textW + 6 <= w ? 'text' : null;
+            const textW = textWidth(mark.text, "650 12.5px");
+            const show = icon ? (key && ICON + 3 + textW + 8 <= w ? "both" : ICON + 6 <= w ? "icon" : null) : textW + 6 <= w ? "text" : null;
             const cx = x + w / 2;
-            const textX = show === 'both' ? cx + (ICON + 3) / 2 : cx;
-            const iconX = show === 'both' ? textX - textW / 2 - 3 - ICON : cx - ICON / 2;
+            const textX = show === "both" ? cx + (ICON + 3) / 2 : cx;
+            const iconX = show === "both" ? textX - textW / 2 - 3 - ICON : cx - ICON / 2;
             return (
-              <g key={i} style={{ pointerEvents: 'none' }}>
-                {(show === 'both' || show === 'icon') && (
+              <g key={i} style={{ pointerEvents: "none" }}>
+                {(show === "both" || show === "icon") && (
                   <image
                     href={icon}
                     x={iconX}
@@ -346,7 +378,7 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
                     onError={() => setBroken((b) => new Set(b).add(icon))}
                   />
                 )}
-                {(show === 'both' || show === 'text') && (
+                {(show === "both" || show === "text") && (
                   <text x={textX} y={H / 2 + 4.5} textAnchor="middle" fontSize={12.5} fontWeight={650} fill="#0b0b0b">
                     {mark.text}
                   </text>
@@ -359,7 +391,7 @@ export function HpBar({ sources, events, by, maxHp, startHp, champion }: { sourc
           0
         </text>
         <text x={W} y={H + 16} fontSize={12} fill="var(--text-muted)" textAnchor="end">
-          {fmt(maxHp)} HP{overkill > 0 ? ` · overkill ${fmt(overkill)}` : ''}
+          {fmt(maxHp)} HP{overkill > 0 ? ` · overkill ${fmt(overkill)}` : ""}
         </text>
       </svg>
       {tt.node}
@@ -385,7 +417,7 @@ function SourceTip({ s, maxHp, champion }: { s: SourceTotal | Moment; maxHp: num
   // No hit count: an ability's parts aren't hits to a player (Smolder's W lands as three).
   return (
     <>
-      {('parts' in s ? s.parts : [s]).map((p: Part) => (
+      {("parts" in s ? s.parts : [s]).map((p: Part) => (
         <div className="tt-row" key={`${p.source}|${p.label}`}>
           <SourceName source={p.source} label={p.label} champion={champion}>
             {partName(p)}
@@ -403,7 +435,7 @@ function SourceTip({ s, maxHp, champion }: { s: SourceTotal | Moment; maxHp: num
         </div>
       ))}
       <div className="tt-row tt-total">
-        <span className="muted">{'from' in s && (s.to - s.from < 0.005 ? `at ${s.from.toFixed(2)}s` : `${s.from.toFixed(2)}–${s.to.toFixed(2)}s`)}</span>
+        <span className="muted">{"from" in s && (s.to - s.from < 0.005 ? `at ${s.from.toFixed(2)}s` : `${s.from.toFixed(2)}–${s.to.toFixed(2)}s`)}</span>
         <span>
           <strong>{fmt(s.damage)}</strong>
           <span className="muted"> ({((s.damage / maxHp) * 100).toFixed(1)}% max HP)</span>
@@ -416,7 +448,19 @@ function SourceTip({ s, maxHp, champion }: { s: SourceTotal | Moment; maxHp: num
 // -----------------------------------------------------------------------------
 // Timeline: target HP over time (step line) with each damage instance as a dot.
 
-export function Timeline({ events, startHp, maxHp, timeline, champion }: { events: DamageInstance[]; startHp: number; maxHp: number; timeline: { step: string; start: number; end: number }[]; champion: string }) {
+export function Timeline({
+  events,
+  startHp,
+  maxHp,
+  timeline,
+  champion,
+}: {
+  events: DamageInstance[];
+  startHp: number;
+  maxHp: number;
+  timeline: { step: string; start: number; end: number }[];
+  champion: string;
+}) {
   const tt = useTooltip();
   const W = tt.width;
   const H = 260;
@@ -475,7 +519,7 @@ export function Timeline({ events, startHp, maxHp, timeline, champion }: { event
         {(() => {
           let lastLabelEnd = -Infinity;
           return timeline.map((s, i) => {
-            const text = s.step.length > 10 ? s.step.slice(0, 9) + '…' : s.step;
+            const text = s.step.length > 10 ? s.step.slice(0, 9) + "…" : s.step;
             const x0 = sx(s.start);
             const showLabel = x0 >= lastLabelEnd + 4;
             if (showLabel) lastLabelEnd = x0 + text.length * 7;
@@ -507,7 +551,7 @@ export function Timeline({ events, startHp, maxHp, timeline, champion }: { event
 
 export function SourceBars({ sources, maxHp, champion }: { sources: SourceTotal[]; maxHp: number; champion: string }) {
   const tt = useTooltip();
-  const clipId = useId().replace(/[^\w-]/g, '');
+  const clipId = useId().replace(/[^\w-]/g, "");
   const [broken, setBroken] = useState<ReadonlySet<string>>(new Set());
   const rows = sources.filter((s) => s.damage > 0.5);
   const W = tt.width;
@@ -537,7 +581,7 @@ export function SourceBars({ sources, maxHp, champion }: { sources: SourceTotal[
             <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} maxHp={maxHp} champion={champion} />)} onPointerLeave={tt.hide}>
               <rect x={0} y={y - 4} width={W} height={rowH} fill="transparent" />
               <text x={iconX - 6} y={y + 15} textAnchor="end" fontSize={13} fill="var(--text-primary)">
-                {s.label.length > maxChars ? s.label.slice(0, maxChars - 1) + '…' : s.label}
+                {s.label.length > maxChars ? s.label.slice(0, maxChars - 1) + "…" : s.label}
               </text>
               {/* The initials of its name stand in for an icon it doesn't have, as in Icon */}
               {icon && !broken.has(icon) ? (
@@ -587,7 +631,15 @@ function barPath(x: number, y: number, w: number, h: number, roundEnd = true) {
 // -----------------------------------------------------------------------------
 // Simple horizontal bars (single hue) with labels — item ranking, build comparison.
 
-export function SimpleBars({ rows, unit = '', format = (v: number) => fmt(v) }: { rows: { label: string; value: number; sub?: string; icon?: ReactNode; highlight?: boolean }[]; unit?: string; format?: (v: number) => string }) {
+export function SimpleBars({
+  rows,
+  unit = "",
+  format = (v: number) => fmt(v),
+}: {
+  rows: { label: string; value: number; sub?: string; icon?: ReactNode; highlight?: boolean }[];
+  unit?: string;
+  format?: (v: number) => string;
+}) {
   const tt = useTooltip();
   const W = tt.width;
   const rowH = 32;
@@ -610,7 +662,7 @@ export function SimpleBars({ rows, unit = '', format = (v: number) => fmt(v) }: 
                   <>
                     <div className="tt-title">{r.label}</div>
                     <div className="tt-row">
-                      <span>{unit || 'Value'}</span>
+                      <span>{unit || "Value"}</span>
                       <strong>{format(r.value)}</strong>
                     </div>
                     {r.sub && <div className="muted">{r.sub}</div>}
@@ -621,12 +673,12 @@ export function SimpleBars({ rows, unit = '', format = (v: number) => fmt(v) }: 
             >
               <rect x={0} y={y - 4} width={W} height={rowH} fill="transparent" />
               <text x={labelW - 10} y={y + 15} textAnchor="end" fontSize={13} fill="var(--text-primary)" fontWeight={r.highlight ? 650 : 400}>
-                {r.label.length > maxChars ? r.label.slice(0, maxChars - 1) + '…' : r.label}
+                {r.label.length > maxChars ? r.label.slice(0, maxChars - 1) + "…" : r.label}
               </text>
               <path d={barPath(labelW, y, Math.max(1, sx(r.value)), 20)} fill="var(--accent)" opacity={r.highlight ? 1 : 0.85} />
               <text x={labelW + sx(r.value) + 8} y={y + 15} fontSize={12.5} fill="var(--text-secondary)" className="num">
                 {format(r.value)}
-                {r.sub && W >= 600 ? `  ·  ${r.sub}` : ''}
+                {r.sub && W >= 600 ? `  ·  ${r.sub}` : ""}
               </text>
             </g>
           );
@@ -640,7 +692,15 @@ export function SimpleBars({ rows, unit = '', format = (v: number) => fmt(v) }: 
 // -----------------------------------------------------------------------------
 // Line chart (resist sweep): x = resist, y = damage, one line per series.
 
-export function LineChart({ xLabel, series, markerX }: { xLabel: string; series: { label: string; color: string; points: { x: number; y: number }[] }[]; markerX?: number }) {
+export function LineChart({
+  xLabel,
+  series,
+  markerX,
+}: {
+  xLabel: string;
+  series: { label: string; color: string; points: { x: number; y: number }[] }[];
+  markerX?: number;
+}) {
   const tt = useTooltip();
   const W = tt.width;
   const H = 280;
@@ -652,7 +712,7 @@ export function LineChart({ xLabel, series, markerX }: { xLabel: string; series:
   const sy = (y: number) => m.t + (1 - y / yMax) * (H - m.t - m.b);
   const onMove = (e: React.PointerEvent<SVGRectElement>) => {
     const box = (e.currentTarget.ownerSVGElement as SVGSVGElement).getBoundingClientRect();
-    const x = (((e.clientX - box.left) / box.width) * W - m.l) / (W - m.l - m.r) * xMax;
+    const x = ((((e.clientX - box.left) / box.width) * W - m.l) / (W - m.l - m.r)) * xMax;
     const pts = series.map((s) => ({ s, p: s.points.reduce((best, p) => (Math.abs(p.x - x) < Math.abs(best.x - x) ? p : best), s.points[0]) }));
     tt.show(
       e,
@@ -694,9 +754,23 @@ export function LineChart({ xLabel, series, markerX }: { xLabel: string; series:
         {markerX !== undefined && <line x1={sx(markerX)} x2={sx(markerX)} y1={m.t} y2={H - m.b} stroke="var(--axis)" />}
         {series.map((s) => (
           <g key={s.label}>
-            <path d={s.points.map((p, i) => `${i ? 'L' : 'M'} ${sx(p.x)} ${sy(p.y)}`).join(' ')} fill="none" stroke={s.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+            <path
+              d={s.points.map((p, i) => `${i ? "L" : "M"} ${sx(p.x)} ${sy(p.y)}`).join(" ")}
+              fill="none"
+              stroke={s.color}
+              strokeWidth={2}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
             {s.points.length > 0 && (
-              <circle cx={sx(s.points[s.points.length - 1].x)} cy={sy(s.points[s.points.length - 1].y)} r={4} fill={s.color} stroke="var(--surface)" strokeWidth={2} />
+              <circle
+                cx={sx(s.points[s.points.length - 1].x)}
+                cy={sy(s.points[s.points.length - 1].y)}
+                r={4}
+                fill={s.color}
+                stroke="var(--surface)"
+                strokeWidth={2}
+              />
             )}
           </g>
         ))}
@@ -724,7 +798,17 @@ export interface GoldPoint {
   standout?: boolean;
 }
 
-export function GoldScatter({ points, labelTop = 6, tip, onPick }: { points: GoldPoint[]; labelTop?: number; tip: (p: GoldPoint, touch: boolean) => ReactNode; onPick?: (p: GoldPoint) => void }) {
+export function GoldScatter({
+  points,
+  labelTop = 6,
+  tip,
+  onPick,
+}: {
+  points: GoldPoint[];
+  labelTop?: number;
+  tip: (p: GoldPoint, touch: boolean) => ReactNode;
+  onPick?: (p: GoldPoint) => void;
+}) {
   const tt = useTooltip();
   const [hover, setHover] = useState<number | null>(null);
   // A click buys the dot clicked, but a tap shows its card instead, as a finger hides which dot it's
@@ -738,8 +822,8 @@ export function GoldScatter({ points, labelTop = 6, tip, onPick }: { points: Gol
       setHover(null);
       tt.hide();
     };
-    document.addEventListener('pointerdown', close);
-    return () => document.removeEventListener('pointerdown', close);
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
   }, [tapped]);
   const W = tt.width;
   const H = W < 600 ? 260 : 320;
@@ -813,13 +897,13 @@ export function GoldScatter({ points, labelTop = 6, tip, onPick }: { points: Gol
           <g key={v}>
             <line x1={m.l} x2={W - m.r} y1={sy(v)} y2={sy(v)} stroke="var(--grid)" />
             <text x={m.l - 8} y={sy(v) + 4} fontSize={11} textAnchor="end" fill="var(--text-muted)" className="num">
-              {v > 0 ? `+${compact(v)}` : '0'}
+              {v > 0 ? `+${compact(v)}` : "0"}
             </text>
           </g>
         ))}
         {xTicks.map((g) => (
-          <text key={g} x={sx(g)} y={H - m.b + 16} fontSize={11} textAnchor={g === xHi ? 'end' : 'middle'} fill="var(--text-muted)" className="num">
-            {fmt(g)}g{g === xHi ? ' item cost' : ''}
+          <text key={g} x={sx(g)} y={H - m.b + 16} fontSize={11} textAnchor={g === xHi ? "end" : "middle"} fill="var(--text-muted)" className="num">
+            {fmt(g)}g{g === xHi ? " item cost" : ""}
           </text>
         ))}
         <text x={m.l - 8} y={m.t - 12} fontSize={11} fill="var(--text-muted)">
@@ -838,46 +922,76 @@ export function GoldScatter({ points, labelTop = 6, tip, onPick }: { points: Gol
         {points.map(
           (p) =>
             p.standout && (
-              <g key={p.id} transform={`translate(${sx(p.gold)} ${sy(p.gain)})`} style={{ pointerEvents: 'none' }}>
+              <g key={p.id} transform={`translate(${sx(p.gold)} ${sy(p.gain)})`} style={{ pointerEvents: "none" }}>
                 <circle className="gs-halo" r={6} />
               </g>
             ),
         )}
         {points.map((p) =>
           p.highlight ? (
-            <circle key={p.id} cx={sx(p.gold)} cy={sy(p.gain)} r={5} fill="var(--surface)" stroke={p.standout ? 'var(--gold)' : 'var(--text-primary)'} strokeWidth={2} />
+            <circle
+              key={p.id}
+              cx={sx(p.gold)}
+              cy={sy(p.gain)}
+              r={5}
+              fill="var(--surface)"
+              stroke={p.standout ? "var(--gold)" : "var(--text-primary)"}
+              strokeWidth={2}
+            />
           ) : (
-            <circle key={p.id} cx={sx(p.gold)} cy={sy(p.gain)} r={p.standout ? 6 : 5} fill="var(--accent)" stroke={p.standout ? 'var(--gold)' : 'var(--surface)'} strokeWidth={2} />
+            <circle
+              key={p.id}
+              cx={sx(p.gold)}
+              cy={sy(p.gain)}
+              r={p.standout ? 6 : 5}
+              fill="var(--accent)"
+              stroke={p.standout ? "var(--gold)" : "var(--surface)"}
+              strokeWidth={2}
+            />
           ),
         )}
         {points.map((p) => {
           const b = labels.get(p.id);
           return (
             b && (
-              <g key={p.id} style={{ pointerEvents: 'none' }}>
-                {p.standout && <path transform={`translate(${b.x} ${b.y + 2}) scale(0.45)`} d="M12 0C12.9 6.6 17.4 11.1 24 12C17.4 12.9 12.9 17.4 12 24C11.1 17.4 6.6 12.9 0 12C6.6 11.1 11.1 6.6 12 0Z" fill="var(--gold)" />}
-                <text x={b.x + (p.standout ? 14 : 0)} y={b.y + 11} fontSize={11.5} fill={p.standout ? 'var(--text-primary)' : 'var(--text-secondary)'} fontWeight={p.highlight || p.standout ? 650 : 400}>
+              <g key={p.id} style={{ pointerEvents: "none" }}>
+                {p.standout && (
+                  <path
+                    transform={`translate(${b.x} ${b.y + 2}) scale(0.45)`}
+                    d="M12 0C12.9 6.6 17.4 11.1 24 12C17.4 12.9 12.9 17.4 12 24C11.1 17.4 6.6 12.9 0 12C6.6 11.1 11.1 6.6 12 0Z"
+                    fill="var(--gold)"
+                  />
+                )}
+                <text
+                  x={b.x + (p.standout ? 14 : 0)}
+                  y={b.y + 11}
+                  fontSize={11.5}
+                  fill={p.standout ? "var(--text-primary)" : "var(--text-secondary)"}
+                  fontWeight={p.highlight || p.standout ? 650 : 400}
+                >
                   {p.label}
                 </text>
               </g>
             )
           );
         })}
-        {hovered && <circle cx={sx(hovered.gold)} cy={sy(hovered.gain)} r={9} fill="none" stroke="var(--accent)" strokeWidth={2} style={{ pointerEvents: 'none' }} />}
+        {hovered && (
+          <circle cx={sx(hovered.gold)} cy={sy(hovered.gain)} r={9} fill="none" stroke="var(--accent)" strokeWidth={2} style={{ pointerEvents: "none" }} />
+        )}
         <rect
           x={m.l}
           y={m.t}
           width={W - m.l - m.r}
           height={H - m.t - m.b}
           fill="transparent"
-          style={{ cursor: hovered && onPick && !hovered.highlight ? 'pointer' : 'default' }}
+          style={{ cursor: hovered && onPick && !hovered.highlight ? "pointer" : "default" }}
           onPointerDown={(e) => {
-            touched.current = e.pointerType === 'touch';
+            touched.current = e.pointerType === "touch";
           }}
           onPointerMove={(e) => {
             const p = nearest(e);
             setHover(p?.id ?? null);
-            if (p) tt.show(e, tip(p, e.pointerType === 'touch'));
+            if (p) tt.show(e, tip(p, e.pointerType === "touch"));
             else tt.hide();
           }}
           onPointerLeave={() => {
@@ -892,7 +1006,7 @@ export function GoldScatter({ points, labelTop = 6, tip, onPick }: { points: Gol
             }
             setHover(p?.id ?? null);
             if (!p) return;
-            tt.show({ clientX: e.clientX, clientY: e.clientY, pointerType: 'touch' }, tip(p, true));
+            tt.show({ clientX: e.clientX, clientY: e.clientY, pointerType: "touch" }, tip(p, true));
             setTapped(true);
           }}
         />

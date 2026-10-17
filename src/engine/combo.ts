@@ -1,12 +1,12 @@
 // Combo steps and the shorthand parser ("E Q AA W R AA ignite").
 
-import type { Slot } from './effects.ts';
-import type { AbilitySpec, ChampionKit, VariantSpec } from './kit-types.ts';
-import type { CastSetting } from './sim.ts';
+import type { Slot } from "./effects.ts";
+import type { AbilitySpec, ChampionKit, VariantSpec } from "./kit-types.ts";
+import type { CastSetting } from "./sim.ts";
 
 export type ComboStep =
   | {
-      type: 'ability';
+      type: "ability";
       slot: Slot;
       /** Variant key from the kit (e.g. "empowered", "Q2"). */
       variant?: string;
@@ -24,7 +24,7 @@ export type ComboStep =
       crit?: boolean;
     }
   | {
-      type: 'attack';
+      type: "attack";
       count?: number;
       /**
        * Crit mark ("AA!", "AA?"): true crits, false doesn't, unset deals the expected value. It holds
@@ -34,22 +34,22 @@ export type ComboStep =
       /** Enable optional on-hit components (e.g. "AA+bounce"). */
       enable?: string[];
     }
-  | { type: 'item'; item: number | string }
-  | { type: 'summoner'; spell: 'ignite' }
+  | { type: "item"; item: number | string }
+  | { type: "summoner"; spell: "ignite" }
   | {
-      type: 'wait';
+      type: "wait";
       /** Default 1. */
       seconds?: number;
     };
 
-export type AbilityStep = Extract<ComboStep, { type: 'ability' }>;
+export type AbilityStep = Extract<ComboStep, { type: "ability" }>;
 
 /** `spec`'s variant called `key` in any case (Q:Tornado for Q:tornado), and its own key. */
 export function findVariant(spec: AbilitySpec | undefined, key: string): [string, VariantSpec] | undefined {
   return Object.entries(spec?.variants ?? {}).find(([k]) => k.toLowerCase() === key.toLowerCase());
 }
 
-const SLOTS = new Set(['P', 'Q', 'W', 'E', 'R']);
+const SLOTS = new Set(["P", "Q", "W", "E", "R"]);
 
 /**
  * Shorthand grammar (tokens separated by spaces, commas or ">"):
@@ -68,7 +68,7 @@ const SLOTS = new Set(['P', 'Q', 'W', 'E', 'R']);
 export function parseCombo(src: string): ComboStep[] {
   const steps: ComboStep[] = [];
   const tokens = src
-    .replace(/\{[^}]*\}/g, (m) => m.replace(/[\s,]+/g, ';'))
+    .replace(/\{[^}]*\}/g, (m) => m.replace(/[\s,]+/g, ";"))
     .split(/[\s,>]+/)
     .filter(Boolean);
   for (const raw of tokens) {
@@ -77,27 +77,27 @@ export function parseCombo(src: string): ComboStep[] {
     if ((m = /^(?:(\d+)\s*[x*]?\s*)?(AA|A)(?:\s*[x*]\s*(\d+))?([!?])?((?:\+[A-Za-z0-9_-]+)*)$/i.exec(tok))) {
       const count = Number(m[1] ?? m[3] ?? 1);
       if (count < 1) throw new Error(`"${tok}" attacks 0 times (expected 1 or more)`);
-      const enable = m[5] ? m[5].split('+').filter(Boolean) : [];
-      steps.push({ type: 'attack', count, ...(m[4] === '!' ? { crit: true } : m[4] === '?' ? { crit: false } : {}), ...(enable.length ? { enable } : {}) });
+      const enable = m[5] ? m[5].split("+").filter(Boolean) : [];
+      steps.push({ type: "attack", count, ...(m[4] === "!" ? { crit: true } : m[4] === "?" ? { crit: false } : {}), ...(enable.length ? { enable } : {}) });
       continue;
     }
     if ((m = /^wait(?:\{(\d*\.?\d+)s?\})?$/i.exec(tok))) {
-      steps.push(m[1] !== undefined ? { type: 'wait', seconds: Number(m[1]) } : { type: 'wait' });
+      steps.push(m[1] !== undefined ? { type: "wait", seconds: Number(m[1]) } : { type: "wait" });
       continue;
     }
     if (/^(ignite|ign|dot)$/i.test(tok)) {
-      steps.push({ type: 'summoner', spell: 'ignite' });
+      steps.push({ type: "summoner", spell: "ignite" });
       continue;
     }
     if ((m = /^item:(.+)$/i.exec(tok))) {
-      const v = m[1].replace(/_/g, ' ');
-      steps.push({ type: 'item', item: /^\d+$/.test(v) ? Number(v) : v });
+      const v = m[1].replace(/_/g, " ");
+      steps.push({ type: "item", item: /^\d+$/.test(v) ? Number(v) : v });
       continue;
     }
     if ((m = /^([PQWER])(?:[:.]([A-Za-z0-9_-]+))?(\{[^}]*\})?([!?])?((?:\+[A-Za-z0-9_-]+)*)(?:\s*[x*]\s*(\d+))?$/i.exec(tok))) {
       const slot = m[1].toUpperCase() as Slot;
       if (!SLOTS.has(slot)) throw new Error(`bad ability "${tok}"`);
-      const step: ComboStep = { type: 'ability', slot };
+      const step: ComboStep = { type: "ability", slot };
       if (m[2]) step.variant = m[2];
       if (m[3]) {
         for (const kv of m[3].slice(1, -1).split(/[;,]/).filter(Boolean)) {
@@ -107,13 +107,14 @@ export function parseCombo(src: string): ComboStep[] {
             else step.count = Number(n[1]);
             continue;
           }
-          const [k, v] = kv.split(':');
-          if (v === undefined || !/^\s*\d+\s*$/.test(v)) throw new Error(`bad "${kv}" in "${tok}" (expected seconds like {0.5s}, a count like {3}, or hits like {id:3})`);
+          const [k, v] = kv.split(":");
+          if (v === undefined || !/^\s*\d+\s*$/.test(v))
+            throw new Error(`bad "${kv}" in "${tok}" (expected seconds like {0.5s}, a count like {3}, or hits like {id:3})`);
           (step.hits ??= {})[k.trim()] = Number(v);
         }
       }
-      if (m[4]) step.crit = m[4] === '!';
-      if (m[5]) step.enable = m[5].split('+').filter(Boolean);
+      if (m[4]) step.crit = m[4] === "!";
+      if (m[5]) step.enable = m[5].split("+").filter(Boolean);
       const times = Number(m[6] ?? 1);
       if (times < 1) throw new Error(`"${tok}" casts 0 times (expected 1 or more)`);
       for (let i = 0; i < times; i++) steps.push({ ...step });
@@ -128,38 +129,42 @@ export function formatCombo(steps: ComboStep[]): string {
   return steps
     .map((s) => {
       switch (s.type) {
-        case 'ability': {
-          let t = s.slot + (s.variant ? ':' + s.variant : '');
+        case "ability": {
+          let t = s.slot + (s.variant ? ":" + s.variant : "");
           const inner = [
             ...(s.duration !== undefined ? [`${s.duration}s`] : []),
             ...(s.count !== undefined ? [String(s.count)] : []),
             ...Object.entries(s.hits ?? {}).map(([k, v]) => `${k}:${v}`),
           ];
-          if (inner.length) t += '{' + inner.join(',') + '}';
+          if (inner.length) t += "{" + inner.join(",") + "}";
           t += critSuffix(s.crit);
-          if (s.enable?.length) t += s.enable.map((e) => '+' + e).join('');
+          if (s.enable?.length) t += s.enable.map((e) => "+" + e).join("");
           return t;
         }
-        case 'attack':
-          return (s.count && s.count > 1 ? `AA*${s.count}` : 'AA') + critSuffix(s.crit) + (s.enable?.length ? s.enable.map((e) => '+' + e).join('') : '');
-        case 'item':
-          return `item:${String(s.item).replace(/\s+/g, '_')}`;
-        case 'summoner':
-          return 'ignite';
-        case 'wait':
-          return s.seconds === undefined ? 'wait' : `wait{${s.seconds}s}`;
+        case "attack":
+          return (s.count && s.count > 1 ? `AA*${s.count}` : "AA") + critSuffix(s.crit) + (s.enable?.length ? s.enable.map((e) => "+" + e).join("") : "");
+        case "item":
+          return `item:${String(s.item).replace(/\s+/g, "_")}`;
+        case "summoner":
+          return "ignite";
+        case "wait":
+          return s.seconds === undefined ? "wait" : `wait{${s.seconds}s}`;
       }
     })
-    .join(' ');
+    .join(" ");
 }
 
-const critSuffix = (crit?: boolean) => (crit === true ? '!' : crit === false ? '?' : '');
+const critSuffix = (crit?: boolean) => (crit === true ? "!" : crit === false ? "?" : "");
 
 /** The optional hits an attack step can enable (AA+id): among the kit's on-hits and its abilities' empowered attacks. */
 export function attackOptions(kit: ChampionKit): Set<string> {
   const specs = Object.values(kit.abilities).flatMap((a) => [a, ...Object.values(a?.variants ?? {})]);
   const buffs = specs.flatMap((s) => (Array.isArray(s?.buff) ? s.buff : s?.buff ? [s.buff] : []));
-  const comps = [...(kit.attack?.onHit ?? []), ...(kit.attack?.everyNth?.components ?? []), ...buffs.flatMap((b) => [...(b.onHit ?? []), ...(b.empowerAttacks?.components ?? [])])];
+  const comps = [
+    ...(kit.attack?.onHit ?? []),
+    ...(kit.attack?.everyNth?.components ?? []),
+    ...buffs.flatMap((b) => [...(b.onHit ?? []), ...(b.empowerAttacks?.components ?? [])]),
+  ];
   return new Set(comps.filter((c) => c.optional).map((c) => c.id));
 }
 
@@ -169,7 +174,7 @@ export function attackOptions(kit: ChampionKit): Set<string> {
  */
 export function fitCombo(steps: ComboStep[], kit: ChampionKit): ComboStep[] {
   const onAttack = attackOptions(kit);
-  const keep = <T,>(xs: T[] | undefined, ok: (x: T) => boolean) => {
+  const keep = <T>(xs: T[] | undefined, ok: (x: T) => boolean) => {
     const kept = (xs ?? []).filter(ok);
     return kept.length ? kept : undefined;
   };
@@ -180,12 +185,12 @@ export function fitCombo(steps: ComboStep[], kit: ChampionKit): ComboStep[] {
     return rest;
   };
   return steps.map((step) => {
-    if (step.type === 'attack') {
+    if (step.type === "attack") {
       const { enable, ...rest } = step;
       const kept = keep(enable, (id) => onAttack.has(id));
       return critFit(kept ? { ...rest, enable: kept } : rest);
     }
-    if (step.type !== 'ability') return step;
+    if (step.type !== "ability") return step;
     const spec = kit.abilities[step.slot];
     const { variant: key, duration, count, hits, enable, ...rest } = step;
     const [variant, vspec] = (key && findVariant(spec, key)) || [];
@@ -208,13 +213,13 @@ export function fitCombo(steps: ComboStep[], kit: ChampionKit): ComboStep[] {
  * and dropped where it takes none: after a lower rank, Xerath's R{5} fires 4 shots and says so, and
  * Ahri's Q{3} is a plain Q.
  */
-export function clampCombo(steps: ComboStep[], range: (step: AbilityStep) => Pick<CastSetting, 'kind' | 'min' | 'max'> | null): ComboStep[] {
+export function clampCombo(steps: ComboStep[], range: (step: AbilityStep) => Pick<CastSetting, "kind" | "min" | "max"> | null): ComboStep[] {
   return steps.map((step) => {
-    if (step.type !== 'ability' || (step.duration === undefined && step.count === undefined)) return step;
+    if (step.type !== "ability" || (step.duration === undefined && step.count === undefined)) return step;
     const r = range(step);
-    const [key, other] = r?.kind === 'count' ? (['count', 'duration'] as const) : (['duration', 'count'] as const);
+    const [key, other] = r?.kind === "count" ? (["count", "duration"] as const) : (["duration", "count"] as const);
     const v = step[key];
-    const c = r && v !== undefined ? Math.max(r.min, Math.min(key === 'count' ? Math.round(v) : v, r.max)) : undefined;
+    const c = r && v !== undefined ? Math.max(r.min, Math.min(key === "count" ? Math.round(v) : v, r.max)) : undefined;
     if (c === v && step[other] === undefined) return step;
     const { duration: _d, count: _c, ...rest } = step;
     return c === undefined ? rest : { ...rest, [key]: c };
@@ -222,18 +227,18 @@ export function clampCombo(steps: ComboStep[], range: (step: AbilityStep) => Pic
 }
 
 /** How crits resolve: their expected value, or every crit-capable hit crits or doesn't. */
-export type CritMode = 'expected' | 'always' | 'never';
+export type CritMode = "expected" | "always" | "never";
 
-type MarkableStep = Extract<ComboStep, { type: 'attack' | 'ability' }>;
+type MarkableStep = Extract<ComboStep, { type: "attack" | "ability" }>;
 const CRIT_MARK: Record<CritMode, boolean | undefined> = { expected: undefined, always: true, never: false };
-const markMode = (crit?: boolean): CritMode => (crit === true ? 'always' : crit === false ? 'never' : 'expected');
+const markMode = (crit?: boolean): CritMode => (crit === true ? "always" : crit === false ? "never" : "expected");
 
 /** Whether a step rolls crits: basic attacks (unless the champion's can't crit), and casts with a hit
  *  that can crit (its variant's hits, for a variant). */
 export function rollsCrits(step: ComboStep, kit: ChampionKit): boolean {
   const attacksCrit = kit.attack?.canCrit !== false;
-  if (step.type === 'attack') return attacksCrit;
-  if (step.type !== 'ability') return false;
+  if (step.type === "attack") return attacksCrit;
+  if (step.type !== "ability") return false;
   const spec = kit.abilities[step.slot];
   const key = step.variant ?? spec?.defaultVariant;
   const variant = key ? findVariant(spec, key)?.[1] : undefined;
@@ -250,7 +255,7 @@ export function markCrit(step: ComboStep, kit: ChampionKit, mode: CritMode): Com
 
 /** How the steps that roll crits are marked: their mode when they agree, 'mixed' when they don't,
  *  null when no step rolls crits. */
-export function critMarking(steps: ComboStep[], kit: ChampionKit): CritMode | 'mixed' | null {
+export function critMarking(steps: ComboStep[], kit: ChampionKit): CritMode | "mixed" | null {
   const modes = new Set(steps.filter((s) => rollsCrits(s, kit)).map((s) => markMode((s as MarkableStep).crit)));
-  return modes.size === 0 ? null : modes.size > 1 ? 'mixed' : [...modes][0];
+  return modes.size === 0 ? null : modes.size > 1 ? "mixed" : [...modes][0];
 }

@@ -1,73 +1,84 @@
-import type { ChampionKit } from '../../engine/kit-types.ts';
+import type { ChampionKit } from "../../engine/kit-types.ts";
 
 // Nami — patch 16.20.
 // Tidecaller's Blessing is modeled self-cast: it empowers Nami's next 3 attacks *or* abilities
 // (shared charges). Attacks use the buff's empowerAttacks; abilities are handled by a small hook.
 const kit: ChampionKit = {
-  id: 'Nami',
-  status: 'curated',
+  id: "Nami",
+  status: "curated",
   notes: [
     "Tidecaller's Blessing is assumed cast on Nami herself; its 3 charges are shared by attacks and Q/W/R casts (one charge and one bonus hit per ability cast).",
-    'The 33–66% area reduction of the blessing only applies to non-champions, so champions take the full bonus.',
+    "The 33–66% area reduction of the blessing only applies to non-champions, so champions take the full bonus.",
   ],
   abilities: {
     Q: {
-      cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
+      cc: [{ kind: "immobilize", duration: "dv.StunDuration" }],
       // Wiki: the bubble lands 0.7s after the cast time ends, whatever the distance.
-      components: [{ id: 'bubble', label: 'Aqua Prison', type: 'magic', amount: 'calc.TotalDamageTT', aoe: true, delay: 0.7 }],
+      components: [{ id: "bubble", label: "Aqua Prison", type: "magic", amount: "calc.TotalDamageTT", aoe: true, delay: 0.7 }],
     },
     W: {
       notes: ['Default: cast directly on the enemy (full damage). Variant "bounced": the enemy is the second target after an ally (−20% +15% per 100 AP).'],
       variants: {
         bounced: {
-          label: 'after bouncing off an ally',
+          label: "after bouncing off an ally",
           // To the ally, then the bounce to the target: up to 800 units at 1500 speed (wiki). The ally
           // is assumed as far from both.
-          components: [{ id: 'bounce', label: 'Ebb and Flow (bounce)', type: 'magic', amount: 'calc.TotalDamage * (1 + calc.BounceScaling)', travel: 'reach / missileSpeed + min(distance, 800) / 1500' }],
+          components: [
+            {
+              id: "bounce",
+              label: "Ebb and Flow (bounce)",
+              type: "magic",
+              amount: "calc.TotalDamage * (1 + calc.BounceScaling)",
+              travel: "reach / missileSpeed + min(distance, 800) / 1500",
+            },
+          ],
         },
       },
-      components: [{ id: 'stream', label: 'Ebb and Flow', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
+      components: [{ id: "stream", label: "Ebb and Flow", type: "magic", amount: "calc.TotalDamage", travel: true }],
     },
     E: {
       noTarget: true,
-      notes: ['Self-cast. Empowered attacks and abilities also slow.'],
+      notes: ["Self-cast. Empowered attacks and abilities also slow."],
       buff: {
-        id: 'namiE',
+        id: "namiE",
         label: "Tidecaller's Blessing",
-        duration: 'dv.BuffDuration',
+        duration: "dv.BuffDuration",
         empowerAttacks: {
-          count: 'dv.HitCount',
-          cc: [{ kind: 'slow', duration: 'E.dv.SlowDuration' }],
-          components: [{ id: 'blessing', label: "Tidecaller's Blessing", type: 'magic', amount: 'E.calc.TotalDamage', proc: true }],
+          count: "dv.HitCount",
+          cc: [{ kind: "slow", duration: "E.dv.SlowDuration" }],
+          components: [{ id: "blessing", label: "Tidecaller's Blessing", type: "magic", amount: "E.calc.TotalDamage", proc: true }],
         },
       },
     },
     R: {
-      cc: [{ kind: 'immobilize', duration: 'dv.KnockupDuration' }, { kind: 'slow', duration: 'min(dv.MaxSlowDuration, dv.MinSlowDuration + dv.DistToSlowRatio * reach)' }],
-      notes: ['The slow lasts longer the farther the wave travelled to the target (data: +2s per 1000 units, up to 4s).'],
-      components: [{ id: 'wave', label: 'Tidal Wave', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true }],
+      cc: [
+        { kind: "immobilize", duration: "dv.KnockupDuration" },
+        { kind: "slow", duration: "min(dv.MaxSlowDuration, dv.MinSlowDuration + dv.DistToSlowRatio * reach)" },
+      ],
+      notes: ["The slow lasts longer the farther the wave travelled to the target (data: +2s per 1000 units, up to 4s)."],
+      components: [{ id: "wave", label: "Tidal Wave", type: "magic", amount: "calc.TotalDamage", aoe: true, travel: true }],
     },
   },
   hooks: {
     // Blessing charges are also spent by Nami's damaging abilities (once per cast).
     afterDamage(sim, inst) {
-      if (inst.flags.kind !== 'ability' || inst.flags.attack || inst.fromMark) return;
-      if (inst.flags.slot !== 'Q' && inst.flags.slot !== 'W' && inst.flags.slot !== 'R') return;
-      const b = sim.getBuff('namiE');
-      if (!b || (b.charges ?? 0) <= 0 || sim.counter('namiE.lastCast') === inst.castId) return;
-      sim.setCounter('namiE.lastCast', inst.castId);
+      if (inst.flags.kind !== "ability" || inst.flags.attack || inst.fromMark) return;
+      if (inst.flags.slot !== "Q" && inst.flags.slot !== "W" && inst.flags.slot !== "R") return;
+      const b = sim.getBuff("namiE");
+      if (!b || (b.charges ?? 0) <= 0 || sim.counter("namiE.lastCast") === inst.castId) return;
+      sim.setCounter("namiE.lastCast", inst.castId);
       b.charges = (b.charges ?? 1) - 1;
-      if (b.charges <= 0) sim.removeBuff('namiE');
+      if (b.charges <= 0) sim.removeBuff("namiE");
       sim.deal({
-        source: 'E',
+        source: "E",
         sourceLabel: "Tidecaller's Blessing",
         label: "Tidecaller's Blessing (ability)",
-        type: 'magic',
-        amount: sim.evalExpr('E.calc.TotalDamage', { slot: 'E' }),
+        type: "magic",
+        amount: sim.evalExpr("E.calc.TotalDamage", { slot: "E" }),
         castId: inst.castId,
-        flags: { kind: 'ability', slot: 'E', ability: false, proc: true },
+        flags: { kind: "ability", slot: "E", ability: false, proc: true },
       });
-      sim.applyCC('slow', sim.evalExpr('E.dv.SlowDuration', { slot: 'E' }), inst.castId, 'E');
+      sim.applyCC("slow", sim.evalExpr("E.dv.SlowDuration", { slot: "E" }), inst.castId, "E");
     },
   },
 };

@@ -1,6 +1,6 @@
 // In-memory game data container + name lookups. Loaders: src/node/load.ts (fs) and the web app (bundled JSON).
 
-import type { ChampionData, ChampionIndexEntry, DataMeta, ItemData, RuneData, RunePageData, SpellData } from './data-types.ts';
+import type { ChampionData, ChampionIndexEntry, DataMeta, ItemData, RuneData, RunePageData, SpellData } from "./data-types.ts";
 
 export interface GameData {
   meta: DataMeta;
@@ -15,31 +15,31 @@ export interface GameData {
 const norm = (s: string) =>
   s
     .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[^a-z0-9]/g, '');
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]/g, "");
 
 const CHAMPION_ALIASES: Record<string, string> = {
-  wukong: 'MonkeyKing',
-  mf: 'MissFortune',
-  tf: 'TwistedFate',
-  j4: 'JarvanIV',
-  jarvan: 'JarvanIV',
-  asol: 'AurelionSol',
-  mundo: 'DrMundo',
-  nunu: 'Nunu',
-  kogmaw: 'KogMaw',
-  ksante: 'KSante',
-  belveth: 'Belveth',
-  chogath: 'Chogath',
-  kaisa: 'Kaisa',
-  khazix: 'Khazix',
-  velkoz: 'Velkoz',
-  reksai: 'RekSai',
-  renata: 'Renata',
-  leblanc: 'Leblanc',
-  fiddle: 'Fiddlesticks',
-  yi: 'MasterYi',
-  masteryi: 'MasterYi',
+  wukong: "MonkeyKing",
+  mf: "MissFortune",
+  tf: "TwistedFate",
+  j4: "JarvanIV",
+  jarvan: "JarvanIV",
+  asol: "AurelionSol",
+  mundo: "DrMundo",
+  nunu: "Nunu",
+  kogmaw: "KogMaw",
+  ksante: "KSante",
+  belveth: "Belveth",
+  chogath: "Chogath",
+  kaisa: "Kaisa",
+  khazix: "Khazix",
+  velkoz: "Velkoz",
+  reksai: "RekSai",
+  renata: "Renata",
+  leblanc: "Leblanc",
+  fiddle: "Fiddlesticks",
+  yi: "MasterYi",
+  masteryi: "MasterYi",
 };
 
 export function findChampion(data: GameData, query: string): ChampionData {
@@ -54,11 +54,11 @@ export function findChampion(data: GameData, query: string): ChampionData {
 }
 
 const ITEM_ALIASES: Record<string, string> = {
-  botrk: 'Blade of The Ruined King',
-  bork: 'Blade of The Ruined King',
-  ie: 'Infinity Edge',
+  botrk: "Blade of The Ruined King",
+  bork: "Blade of The Ruined King",
+  ie: "Infinity Edge",
   ldr: "Lord Dominik's Regards",
-  rfc: 'Rapid Firecannon',
+  rfc: "Rapid Firecannon",
   dcap: "Rabadon's Deathcap",
   rabadon: "Rabadon's Deathcap",
   deathcap: "Rabadon's Deathcap",
@@ -68,26 +68,26 @@ const ITEM_ALIASES: Record<string, string> = {
   ludens: "Luden's Echo",
   nashor: "Nashor's Tooth",
   nashors: "Nashor's Tooth",
-  triforce: 'Trinity Force',
-  tf: 'Trinity Force',
-  bc: 'Black Cleaver',
-  ga: 'Guardian Angel',
+  triforce: "Trinity Force",
+  tf: "Trinity Force",
+  bc: "Black Cleaver",
+  ga: "Guardian Angel",
   dd: "Death's Dance",
-  pd: 'Phantom Dancer',
+  pd: "Phantom Dancer",
   rylai: "Rylai's Crystal Scepter",
   rylais: "Rylai's Crystal Scepter",
   zhonya: "Zhonya's Hourglass",
   zhonyas: "Zhonya's Hourglass",
-  shojin: 'Spear of Shojin',
+  shojin: "Spear of Shojin",
   sorcs: "Sorcerer's Shoes",
   sorc: "Sorcerer's Shoes",
   berserkers: "Berserker's Greaves",
   zerks: "Berserker's Greaves",
-  tabis: 'Plated Steelcaps',
-  steelcaps: 'Plated Steelcaps',
+  tabis: "Plated Steelcaps",
+  steelcaps: "Plated Steelcaps",
   mercs: "Mercury's Treads",
-  lucidity: 'Ionian Boots of Lucidity',
-  collector: 'The Collector',
+  lucidity: "Ionian Boots of Lucidity",
+  collector: "The Collector",
   youmuu: "Youmuu's Ghostblade",
   youmuus: "Youmuu's Ghostblade",
   seryldas: "Serylda's Grudge",
@@ -95,28 +95,28 @@ const ITEM_ALIASES: Record<string, string> = {
   guinsoo: "Guinsoo's Rageblade",
   guinsoos: "Guinsoo's Rageblade",
   rageblade: "Guinsoo's Rageblade",
-  kraken: 'Kraken Slayer',
+  kraken: "Kraken Slayer",
   witsend: "Wit's End",
-  rocketbelt: 'Hextech Rocketbelt',
-  gunblade: 'Hextech Gunblade',
-  hullbreaker: 'Hullbreaker',
-  hydra: 'Ravenous Hydra',
-  titanic: 'Titanic Hydra',
-  profane: 'Profane Hydra',
-  shiv: 'Statikk Shiv',
-  morello: 'Morellonomicon',
+  rocketbelt: "Hextech Rocketbelt",
+  gunblade: "Hextech Gunblade",
+  hullbreaker: "Hullbreaker",
+  hydra: "Ravenous Hydra",
+  titanic: "Titanic Hydra",
+  profane: "Profane Hydra",
+  shiv: "Statikk Shiv",
+  morello: "Morellonomicon",
   archangels: "Archangel's Staff",
   seraphs: "Seraph's Embrace",
-  muramana: 'Muramana',
+  muramana: "Muramana",
   sterak: "Sterak's Gage",
   steraks: "Sterak's Gage",
-  eon: 'Edge of Night',
+  eon: "Edge of Night",
   mejai: "Mejai's Soulstealer",
   mejais: "Mejai's Soulstealer",
 };
 
 export function findItem(data: GameData, query: number | string): ItemData {
-  if (typeof query === 'number' || /^\d+$/.test(String(query))) {
+  if (typeof query === "number" || /^\d+$/.test(String(query))) {
     const it = data.items[String(query)];
     if (!it) throw new Error(`Unknown item id ${query}`);
     return it;
@@ -135,7 +135,7 @@ export function findItem(data: GameData, query: number | string): ItemData {
 }
 
 export function findRune(data: GameData, query: number | string): RuneData {
-  if (typeof query === 'number' || /^\d+$/.test(String(query))) {
+  if (typeof query === "number" || /^\d+$/.test(String(query))) {
     const r = data.runes.find((x) => x.id === Number(query));
     if (!r) throw new Error(`Unknown rune id ${query}`);
     return r;

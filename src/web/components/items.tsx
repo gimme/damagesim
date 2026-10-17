@@ -1,15 +1,15 @@
 // The Items card: the build's six slots, with the shop, drags between slots, and undo.
 
-import { useEffect, useState, type KeyboardEvent } from 'react';
-import { DATA } from '../data.ts';
-import { ItemIcon } from './icons.tsx';
-import { ItemPicker } from './pickers.tsx';
-import { ItemTip, useHoverCard } from './hover.tsx';
-import { useItemSlots } from './drag.tsx';
-import { Card, fmt, useHistory } from './common.tsx';
-import type { Set, UIState } from '../state.ts';
-import type { Sim } from '../../engine/sim.ts';
-import { conflicts } from '../../engine/analysis.ts';
+import { useEffect, useState, type KeyboardEvent } from "react";
+import { DATA } from "../data.ts";
+import { ItemIcon } from "./icons.tsx";
+import { ItemPicker } from "./pickers.tsx";
+import { ItemTip, useHoverCard } from "./hover.tsx";
+import { useItemSlots } from "./drag.tsx";
+import { Card, fmt, useHistory } from "./common.tsx";
+import type { Set, UIState } from "../state.ts";
+import type { Sim } from "../../engine/sim.ts";
+import { conflicts } from "../../engine/analysis.ts";
 
 export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set; gold: number; sim: Sim | null }) {
   const [picking, setPicking] = useState<number | null>(null);
@@ -18,7 +18,7 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
   const build = items.filter((x): x is number => x != null).map((id) => DATA.items[id]);
   const warnings = build.flatMap((it, i) => {
     const c = conflicts(build.slice(0, i), it);
-    return c ? [`${it.name}: only one ${c === 'duplicate' ? 'copy' : c === 'boots' ? 'pair of boots' : `${c} item`} works`] : [];
+    return c ? [`${it.name}: only one ${c === "duplicate" ? "copy" : c === "boots" ? "pair of boots" : `${c} item`} works`] : [];
   });
   const put = (i: number, id: number | null) =>
     set((s) => {
@@ -50,16 +50,16 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
       const k = e.key.toLowerCase();
-      if (!(e.ctrlKey || e.metaKey) || e.altKey || (k !== 'z' && k !== 'y')) return;
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || (k !== "z" && k !== "y")) return;
       const el = e.target as HTMLElement;
-      if (el !== document.body && !slots.box.current?.closest('.card')?.contains(el)) return;
-      if (el.matches('input, textarea, select, [contenteditable]')) return;
+      if (el !== document.body && !slots.box.current?.closest(".card")?.contains(el)) return;
+      if (el.matches("input, textarea, select, [contenteditable]")) return;
       e.preventDefault();
-      if (k === 'z' && !e.shiftKey) past.undo();
+      if (k === "z" && !e.shiftKey) past.undo();
       else past.redo();
     };
-    addEventListener('keydown', onKey);
-    return () => removeEventListener('keydown', onKey);
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
   });
   return (
     <Card
@@ -94,15 +94,15 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
               key={i}
               aria-expanded={picking === i}
               aria-label={id ? `Item slot ${i + 1}: ${DATA.items[id]?.name}. Arrow keys move it, Delete sells it.` : `Empty item slot ${i + 1}`}
-              title={id ? undefined : 'Add item'}
+              title={id ? undefined : "Add item"}
               {...slots.slot(i, {
-                className: picking === i ? 'picking' : '',
+                className: picking === i ? "picking" : "",
                 ...(id ? hover.bind(<ItemTip id={id} sim={sim} />) : {}),
                 onClick: () => setPicking((p) => (p === i ? null : i)),
-                onKeyDown: (e: KeyboardEvent) => e.target === e.currentTarget && e.key === 'Enter' && setPicking(i),
+                onKeyDown: (e: KeyboardEvent) => e.target === e.currentTarget && e.key === "Enter" && setPicking(i),
               })}
             >
-              {id ? <ItemIcon id={id} /> : '+'}
+              {id ? <ItemIcon id={id} /> : "+"}
               {slots.remove(i)}
             </div>
           ))}
@@ -113,7 +113,7 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
       {hover.node}
       {!!build.length && (
         <div className="small secondary" style={{ marginTop: 8 }}>
-          {build.map((b) => b.name).join(' · ')}
+          {build.map((b) => b.name).join(" · ")}
         </div>
       )}
       {warnings.map((w) => (

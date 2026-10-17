@@ -5,19 +5,19 @@
 // the in-game tooltip. What can't be inferred reliably (hit counts, conditions, which spans are
 // alternatives of each other) is flagged: only the first span of each ability is on by default.
 
-import type { ChampionData, SpellData } from './data-types.ts';
-import type { AbilitySpec, ChampionKit, ComponentSpec } from './kit-types.ts';
+import type { ChampionData, SpellData } from "./data-types.ts";
+import type { AbilitySpec, ChampionKit, ComponentSpec } from "./kit-types.ts";
 
 const SPAN = /<(physicalDamage|magicDamage|trueDamage)>([\s\S]*?)<\/\1>/g;
 const REF = /@([^@]+)@/g;
 
-const TYPE: Record<string, ComponentSpec['type']> = { physicalDamage: 'physical', magicDamage: 'magic', trueDamage: 'true' };
+const TYPE: Record<string, ComponentSpec["type"]> = { physicalDamage: "physical", magicDamage: "magic", trueDamage: "true" };
 
 export interface ParsedRef {
   raw: string;
   /** Expression for the referenced value (in game units, e.g. 0.04 for 4%). */
   expr: string | null;
-  kind: 'calc' | 'dv' | 'ext' | 'unknown';
+  kind: "calc" | "dv" | "ext" | "unknown";
   pctCalc: boolean;
   mult: number;
   after: string;
@@ -34,33 +34,40 @@ function q(name: string) {
 }
 
 export function parseRef(spell: SpellData, ref: string, after: string, allSpells: SpellData[]): ParsedRef {
-  let [name, multStr] = ref.split('*');
+  let [name, multStr] = ref.split("*");
   const mult = multStr ? Number(multStr) : 1;
   let target = spell;
-  let prefix = '';
+  let prefix = "";
   const m = /^spell\.([^:]+):(.+)$/.exec(name);
   if (m) {
     const s = allSpells.find((x) => x.scriptName.toLowerCase() === m[1].toLowerCase());
-    if (!s) return { raw: ref, expr: null, kind: 'unknown', pctCalc: false, mult, after };
+    if (!s) return { raw: ref, expr: null, kind: "unknown", pctCalc: false, mult, after };
     target = s;
     name = m[2];
     prefix = `spell['${s.scriptName}']`;
   }
   const ck = findKey(target.calcs, name);
   if (ck) {
-    return { raw: ref, expr: `${prefix || ''}${prefix ? '.calc' : 'calc'}${q(ck)}`, kind: prefix ? 'ext' : 'calc', pctCalc: !!target.calcs[ck].pct, mult, after };
+    return {
+      raw: ref,
+      expr: `${prefix || ""}${prefix ? ".calc" : "calc"}${q(ck)}`,
+      kind: prefix ? "ext" : "calc",
+      pctCalc: !!target.calcs[ck].pct,
+      mult,
+      after,
+    };
   }
   const dk = findKey(target.dataValues, name);
-  if (dk) return { raw: ref, expr: `${prefix || ''}${prefix ? '.dv' : 'dv'}${q(dk)}`, kind: prefix ? 'ext' : 'dv', pctCalc: false, mult, after };
-  return { raw: ref, expr: null, kind: 'unknown', pctCalc: false, mult, after };
+  if (dk) return { raw: ref, expr: `${prefix || ""}${prefix ? ".dv" : "dv"}${q(dk)}`, kind: prefix ? "ext" : "dv", pctCalc: false, mult, after };
+  return { raw: ref, expr: null, kind: "unknown", pctCalc: false, mult, after };
 }
 
 function healthBasis(after: string): string | null {
   const a = after.toLowerCase();
-  if (/^\s*%?\s*(of\s+(the\s+)?(target'?s\s+)?)?(max(imum)?)\s+health/.test(a)) return 'target.maxHp';
-  if (/^\s*%?\s*(of\s+(the\s+)?(target'?s\s+)?)?current\s+health/.test(a)) return 'target.hp';
-  if (/^\s*%?\s*(of\s+(the\s+)?(target'?s\s+)?)?missing[\s-]+health/.test(a)) return 'target.missingHp';
-  if (/^\s*%?\s*(of\s+(the\s+)?(target'?s\s+)?)?bonus\s+health/.test(a)) return 'target.bonusHp';
+  if (/^\s*%?\s*(of\s+(the\s+)?(target'?s\s+)?)?(max(imum)?)\s+health/.test(a)) return "target.maxHp";
+  if (/^\s*%?\s*(of\s+(the\s+)?(target'?s\s+)?)?current\s+health/.test(a)) return "target.hp";
+  if (/^\s*%?\s*(of\s+(the\s+)?(target'?s\s+)?)?missing[\s-]+health/.test(a)) return "target.missingHp";
+  if (/^\s*%?\s*(of\s+(the\s+)?(target'?s\s+)?)?bonus\s+health/.test(a)) return "target.bonusHp";
   return null;
 }
 
@@ -89,27 +96,30 @@ export function spanToExpr(spell: SpellData, inner: string, allSpells: SpellData
   }
   // "A to B" / "A - B": a range, not a sum.
   if (refs.length === 2 && /^\s*(to|-|–)\s*$/i.test(refs[0].after)) return { exprs: terms, range: true };
-  return { exprs: [terms.join(' + ')], range: false };
+  return { exprs: [terms.join(" + ")], range: false };
 }
 
 function stripTags(s: string) {
   return s
-    .replace(/<br\s*\/?>/gi, ' ')
-    .replace(/<[^>]+>/g, '')
-    .replace(/\s+/g, ' ')
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
 /** Text around a span, to explain the component. */
 function context(tooltip: string, index: number, length: number): string {
-  const before = stripTags(tooltip.slice(Math.max(0, index - 120), index)).split(/[.!:]/).pop() ?? '';
-  const after = stripTags(tooltip.slice(index + length, index + length + 80)).split(/[.<]/)[0] ?? '';
+  const before =
+    stripTags(tooltip.slice(Math.max(0, index - 120), index))
+      .split(/[.!:]/)
+      .pop() ?? "";
+  const after = stripTags(tooltip.slice(index + length, index + length + 80)).split(/[.<]/)[0] ?? "";
   return `${before.trim()} [damage] ${after.trim()}`.trim();
 }
 
 export function autoComponents(spell: SpellData, allSpells: SpellData[], slot: string): ComponentSpec[] {
   const out: ComponentSpec[] = [];
-  const tip = spell.tooltip ?? '';
+  const tip = spell.tooltip ?? "";
   let i = 0;
   for (const m of tip.matchAll(SPAN)) {
     const parsed = spanToExpr(spell, m[2], allSpells);
@@ -119,7 +129,7 @@ export function autoComponents(spell: SpellData, allSpells: SpellData[], slot: s
     const perSecond = /per second|each second|every second/i.test(tip.slice(m.index! + m[0].length, m.index! + m[0].length + 30));
     const base = {
       type,
-      note: `Tooltip: "${ctx}"${perSecond ? ' (per second)' : ''}`,
+      note: `Tooltip: "${ctx}"${perSecond ? " (per second)" : ""}`,
       ...(perSecond ? { dot: true } : {}),
     };
     if (parsed.range) {
@@ -134,8 +144,8 @@ export function autoComponents(spell: SpellData, allSpells: SpellData[], slot: s
 
 export function autoKit(champ: ChampionData): ChampionKit {
   const all = champ.abilities.flatMap((a) => a.spells);
-  const abilities: ChampionKit['abilities'] = {};
-  for (const slot of ['P', 'Q', 'W', 'E', 'R'] as const) {
+  const abilities: ChampionKit["abilities"] = {};
+  for (const slot of ["P", "Q", "W", "E", "R"] as const) {
     const ab = champ.abilities.find((a) => a.slot === slot);
     if (!ab) continue;
     const spell = ab.spells[0];
@@ -144,5 +154,5 @@ export function autoKit(champ: ChampionData): ChampionKit {
     const spec: AbilitySpec = { components: comps };
     abilities[slot] = spec;
   }
-  return { id: champ.id, status: 'auto', abilities };
+  return { id: champ.id, status: "auto", abilities };
 }

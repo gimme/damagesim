@@ -1,20 +1,20 @@
-import type { ChampionKit } from '../../engine/kit-types.ts';
-import type { Sim } from '../../engine/sim.ts';
-import type { DamageInstance } from '../../engine/effects.ts';
+import type { ChampionKit } from "../../engine/kit-types.ts";
+import type { Sim } from "../../engine/sim.ts";
+import type { DamageInstance } from "../../engine/effects.ts";
 
 // Xin Zhao — patch 16.20.
 // Determination counts basic attacks and Wind Becomes Lightning strikes (first slash + thrust); the
 // declarative everyNth only counts attacks, so a hook feeds W strikes into the same counter.
 // Three Talon Strike's knock-up lands on the 3rd empowered attack (hook counts the empowered hits).
-const NTH = 'kit.nth'; // the engine's everyNth counter
+const NTH = "kit.nth"; // the engine's everyNth counter
 
 function passiveFromW(sim: Sim, inst: DamageInstance) {
-  if (inst.source !== 'W' || inst.fromMark) return;
-  if (inst.label === 'Slash') {
+  if (inst.source !== "W" || inst.fromMark) return;
+  if (inst.label === "Slash") {
     // Only the first of the four slashes counts.
-    if (inst.castId === sim.counter('xinLastSlash')) return;
-    sim.setCounter('xinLastSlash', inst.castId);
-  } else if (inst.label !== 'Thrust') return;
+    if (inst.castId === sim.counter("xinLastSlash")) return;
+    sim.setCounter("xinLastSlash", inst.castId);
+  } else if (inst.label !== "Thrust") return;
   const n = sim.counter(NTH) + 1;
   if (n < 3) {
     sim.setCounter(NTH, n);
@@ -22,42 +22,42 @@ function passiveFromW(sim: Sim, inst: DamageInstance) {
   }
   sim.setCounter(NTH, 0);
   sim.deal({
-    source: 'P',
-    sourceLabel: 'Determination',
-    label: 'Determination',
-    type: 'physical',
-    amount: sim.evalExpr('P.calc.TotalDamage', { slot: 'P' }),
+    source: "P",
+    sourceLabel: "Determination",
+    label: "Determination",
+    type: "physical",
+    amount: sim.evalExpr("P.calc.TotalDamage", { slot: "P" }),
     castId: inst.castId,
-    flags: { kind: 'ability', slot: 'P', ability: false, proc: true, onHit: true },
+    flags: { kind: "ability", slot: "P", ability: false, proc: true, onHit: true },
   });
 }
 
 const kit: ChampionKit = {
-  id: 'XinZhao',
-  status: 'curated',
+  id: "XinZhao",
+  status: "curated",
   notes: [
-    'Determination: every 3rd attack or Wind Becomes Lightning strike (first slash and thrust, max 2 per cast) deals bonus damage (cannot crit).',
-    'Three Talon Strike: the 1s cooldown reduction per empowered attack is not modeled.',
-    'Crescent Guard: assumes the target is Challenged (hit by W/E/attacks), so it is not knocked back.',
+    "Determination: every 3rd attack or Wind Becomes Lightning strike (first slash and thrust, max 2 per cast) deals bonus damage (cannot crit).",
+    "Three Talon Strike: the 1s cooldown reduction per empowered attack is not modeled.",
+    "Crescent Guard: assumes the target is Challenged (hit by W/E/attacks), so it is not knocked back.",
   ],
   attack: {
     everyNth: {
       n: 3,
-      label: 'Determination',
-      components: [{ id: 'determination', label: 'Determination', type: 'physical', amount: 'P.calc.TotalDamage', proc: true }],
+      label: "Determination",
+      components: [{ id: "determination", label: "Determination", type: "physical", amount: "P.calc.TotalDamage", proc: true }],
     },
   },
   hooks: {
     onCast(sim, cast) {
-      if (cast.slot === 'Q') sim.setCounter('xinQHits', 0);
+      if (cast.slot === "Q") sim.setCounter("xinQHits", 0);
     },
     afterDamage(sim, inst) {
       passiveFromW(sim, inst);
       // Knock-up on the third empowered attack.
-      if (inst.source === 'Q' && inst.label === 'Three Talon Strike') {
-        const n = sim.counter('xinQHits') + 1;
-        sim.setCounter('xinQHits', n);
-        if (n === 3) sim.applyCC('immobilize', sim.evalExpr('Q.dv.KnockUpDuration', { slot: 'Q' }), inst.castId, 'Q');
+      if (inst.source === "Q" && inst.label === "Three Talon Strike") {
+        const n = sim.counter("xinQHits") + 1;
+        sim.setCounter("xinQHits", n);
+        if (n === 3) sim.applyCC("immobilize", sim.evalExpr("Q.dv.KnockUpDuration", { slot: "Q" }), inst.castId, "Q");
       }
     },
   },
@@ -66,41 +66,52 @@ const kit: ChampionKit = {
       resetsAttack: true,
       notes: ['Next 3 attacks within 5s (wiki; refreshed per attack) deal bonus damage (crit-affected); the 3rd knocks up. Write "Q AA AA AA".'],
       buff: {
-        id: 'xinQ',
-        label: 'Three Talon Strike',
+        id: "xinQ",
+        label: "Three Talon Strike",
         duration: 5,
         empowerAttacks: {
           count: 3,
           resetsAttack: true,
-          components: [{ id: 'talon', label: 'Three Talon Strike', type: 'physical', amount: 'Q.calc.BonusDamage', canCrit: true }],
+          components: [{ id: "talon", label: "Three Talon Strike", type: "physical", amount: "Q.calc.BonusDamage", canCrit: true }],
         },
       },
     },
     W: {
-      notes: ['Four slashes (tooltip value split evenly) then the thrust; ThrustDamage already includes the crit-chance amplification.'],
-      cc: [{ kind: 'slow', duration: 'calc.TotalSlowDuration' }],
+      notes: ["Four slashes (tooltip value split evenly) then the thrust; ThrustDamage already includes the crit-chance amplification."],
+      cc: [{ kind: "slow", duration: "calc.TotalSlowDuration" }],
       components: [
-        { id: 'slash', label: 'Slash', type: 'physical', amount: 'calc.SlashDamage / dv.HitNum', hits: 'dv.HitNum', maxHits: 'dv.HitNum', interval: 'dv.DelayTime', aoe: true },
+        {
+          id: "slash",
+          label: "Slash",
+          type: "physical",
+          amount: "calc.SlashDamage / dv.HitNum",
+          hits: "dv.HitNum",
+          maxHits: "dv.HitNum",
+          interval: "dv.DelayTime",
+          aoe: true,
+        },
         // Wiki: the thrust follows the cast time, its missile flying through the target at its speed.
-        { id: 'thrust', label: 'Thrust', type: 'physical', amount: 'calc.ThrustDamage', travel: true, aoe: true },
+        { id: "thrust", label: "Thrust", type: "physical", amount: "calc.ThrustDamage", travel: true, aoe: true },
       ],
     },
     E: {
       dash: true,
       // Dashes to the target at its speed; Three Talon Strike and Crescent Guard can be cast during it (wiki).
-      attackLockout: 'castTime + reach / missileSpeed',
-      notes: ['Attack speed: base + AP ratio + 1% per 5% bonus attack speed (PermanentASToASRatio).'],
-      cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
+      attackLockout: "castTime + reach / missileSpeed",
+      notes: ["Attack speed: base + AP ratio + 1% per 5% bonus attack speed (PermanentASToASRatio)."],
+      cc: [{ kind: "slow", duration: "dv.SlowDuration" }],
       buff: {
-        id: 'xinE',
-        label: 'Audacious Charge',
-        duration: 'dv.ASDuration',
-        stats: { attackSpeed: 'dv.ASMod + dv.APToASRatio * ap + bonusAs / dv.PermanentASToASRatio' },
+        id: "xinE",
+        label: "Audacious Charge",
+        duration: "dv.ASDuration",
+        stats: { attackSpeed: "dv.ASMod + dv.APToASRatio * ap + bonusAs / dv.PermanentASToASRatio" },
       },
-      components: [{ id: 'charge', label: 'Audacious Charge', type: 'magic', amount: 'calc.ChargeDamage', aoe: true, travel: true }],
+      components: [{ id: "charge", label: "Audacious Charge", type: "magic", amount: "calc.ChargeDamage", aoe: true, travel: true }],
     },
     R: {
-      components: [{ id: 'sweep', label: 'Crescent Guard', type: 'physical', amount: 'calc.TotalDamage + dv.PercentCurrentHealthDamage * target.hp', aoe: true }],
+      components: [
+        { id: "sweep", label: "Crescent Guard", type: "physical", amount: "calc.TotalDamage + dv.PercentCurrentHealthDamage * target.hp", aoe: true },
+      ],
     },
   },
 };

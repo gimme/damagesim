@@ -41,11 +41,11 @@
   --critical: #d03b3b;
   --shadow: 0 1px 2px rgba(11, 11, 11, 0.06), 0 8px 24px rgba(11, 11, 11, 0.06);
   --radius: 10px;
-  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
+  :root:not([data-theme="light"]) {
     color-scheme: dark;
     --page: #0d0d0d;
     --surface: #1a1a19;
@@ -75,7 +75,7 @@
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
   }
 }
-:root[data-theme='dark'] {
+:root[data-theme="dark"] {
   color-scheme: dark;
   --page: #0d0d0d;
   --surface: #1a1a19;
@@ -250,9 +250,9 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
-input[type='text'],
-input[type='number'],
-input[type='search'],
+input[type="text"],
+input[type="number"],
+input[type="search"],
 select {
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -260,7 +260,7 @@ select {
   padding: 6px 8px;
   min-width: 0;
 }
-input[type='number'] {
+input[type="number"] {
   width: 84px;
 }
 input:focus-visible,
@@ -269,7 +269,7 @@ button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
-input[type='range'] {
+input[type="range"] {
   flex: 1;
   min-width: 80px;
 }
@@ -305,7 +305,7 @@ label.field {
   padding: 3px 8px;
   font-size: 12px;
 }
-.btn[aria-pressed='true'] {
+.btn[aria-pressed="true"] {
   background: var(--accent-wash);
   border-color: var(--accent);
   color: var(--accent-text);
@@ -323,7 +323,7 @@ label.field {
   padding: 5px 10px;
   cursor: pointer;
 }
-.segmented button[aria-pressed='true'] {
+.segmented button[aria-pressed="true"] {
   background: var(--accent-wash);
   color: var(--accent-text);
   font-weight: 600;
@@ -359,7 +359,7 @@ label.field {
   border-radius: 6px;
   cursor: pointer;
 }
-.picker-option[aria-selected='true'],
+.picker-option[aria-selected="true"],
 .picker-option:hover {
   background: var(--accent-wash);
 }
@@ -410,7 +410,7 @@ label.field {
   display: flex;
   justify-content: flex-end;
 }
-.opt-control input[type='number'] {
+.opt-control input[type="number"] {
   width: 100%;
 }
 
@@ -439,7 +439,7 @@ label.field {
 /* Each slot reaches halfway into the gaps beside it, so the pointer going across them is always on
    one slot or the next: the cursor and the ✕ don't flicker on the way. */
 .slot::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: -1px -4px;
 }
@@ -720,7 +720,7 @@ input.combo-text {
   font-weight: 600;
 }
 .step-variant > button:hover,
-.step-variant > button[aria-expanded='true'] {
+.step-variant > button[aria-expanded="true"] {
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 .step-variant svg {
@@ -742,15 +742,15 @@ input.combo-text {
   padding: 4px;
   outline: none;
 }
-.step-variant-list [role='option'] {
+.step-variant-list [role="option"] {
   padding: 4px 8px;
   border-radius: 5px;
   cursor: pointer;
 }
-.step-variant-list [role='option'].active {
+.step-variant-list [role="option"].active {
   background: var(--accent-wash);
 }
-.step-variant-list [role='option'][aria-selected='true'] {
+.step-variant-list [role="option"][aria-selected="true"] {
   color: var(--accent-text);
 }
 /* A number a step sets: seconds a cast lasts or charges, shots it fires, seconds to wait */
@@ -761,7 +761,7 @@ input.combo-text {
   font-weight: 500;
   color: var(--text-secondary);
 }
-.chip .step-number input[type='number'] {
+.chip .step-number input[type="number"] {
   width: 4.5ch;
   padding: 0 3px;
   border-radius: 4px;
@@ -860,7 +860,7 @@ input.combo-text {
   border-bottom: 2px solid transparent;
   white-space: nowrap;
 }
-.tabs button[aria-selected='true'] {
+.tabs button[aria-selected="true"] {
   color: var(--text-primary);
   border-bottom-color: var(--accent);
   font-weight: 600;
@@ -1044,17 +1044,17 @@ table.data .source-name {
   height: 8px;
 }
 /* The other items are dimmed, so the one being reconsidered stands out */
-.slot.filled[aria-pressed='false'] .icon {
+.slot.filled[aria-pressed="false"] .icon {
   opacity: 0.55;
 }
-.slot[aria-pressed='false']:hover .icon,
+.slot[aria-pressed="false"]:hover .icon,
 .slot.dragging .icon {
   opacity: 1;
 }
-.slot[aria-pressed='false']:hover {
+.slot[aria-pressed="false"]:hover {
   border-color: var(--accent);
 }
-.slot[aria-pressed='true'] {
+.slot[aria-pressed="true"] {
   border: 1px solid var(--accent);
   background: var(--accent-wash);
   color: var(--accent-text);
@@ -1272,7 +1272,7 @@ table.data .source-name {
   box-shadow: 0 0 8px var(--gold-glow);
 }
 .iv-row.standout .iv-bars::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   background: linear-gradient(105deg, transparent 25%, rgba(255, 255, 255, 0.6) 50%, transparent 75%);
@@ -1350,7 +1350,7 @@ table.data .source-name {
 }
 .iv-more::before,
 .iv-more::after {
-  content: '';
+  content: "";
   flex: 1;
   height: 1px;
   background: var(--grid);
@@ -1379,7 +1379,7 @@ table.data .source-name {
 .iv-more .chevron {
   transition: transform 0.2s;
 }
-.iv-more[aria-expanded='true'] .chevron {
+.iv-more[aria-expanded="true"] .chevron {
   transform: rotate(180deg);
 }
 
@@ -1506,8 +1506,8 @@ table.data th.r {
   gap: 8px;
 }
 .grid3 select,
-.grid3 input[type='number'],
-.grid2 input[type='number'] {
+.grid3 input[type="number"],
+.grid2 input[type="number"] {
   width: 100%;
 }
 .stats-grid {
@@ -1628,7 +1628,7 @@ table.target-stats td:not(:last-child) {
 table.target-stats.editable td {
   width: 27%;
 }
-table.target-stats input[type='number'] {
+table.target-stats input[type="number"] {
   width: 100%;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -1656,7 +1656,7 @@ details summary {
   --tree-inspiration: #237886;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
+  :root:not([data-theme="light"]) {
     --tree-precision: #c8aa6e;
     --tree-domination: #e05656;
     --tree-sorcery: #9faafc;
@@ -1664,7 +1664,7 @@ details summary {
     --tree-inspiration: #49aab9;
   }
 }
-:root[data-theme='dark'] {
+:root[data-theme="dark"] {
   --tree-precision: #c8aa6e;
   --tree-domination: #e05656;
   --tree-sorcery: #9faafc;
@@ -1747,13 +1747,13 @@ details summary {
   filter: grayscale(0.3);
   opacity: 0.85;
 }
-.tree-btn[aria-pressed='true'] img,
-.rune-pick[aria-pressed='true'] img,
-.shard-pick[aria-pressed='true'] img {
+.tree-btn[aria-pressed="true"] img,
+.rune-pick[aria-pressed="true"] img,
+.shard-pick[aria-pressed="true"] img {
   filter: none;
   opacity: 1;
 }
-.tree-btn[aria-pressed='true'] {
+.tree-btn[aria-pressed="true"] {
   background: color-mix(in srgb, var(--tree) 22%, transparent);
   box-shadow: 0 0 0 1.5px var(--tree);
 }
@@ -1770,17 +1770,17 @@ details summary {
 /* A rune or shard's own round edge: grey, in its tree's color (a shard's in the accent) when picked. */
 .rune-pick::after,
 .shard-pick::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: 50%;
   box-shadow: inset 0 0 0 1px var(--border-strong);
   pointer-events: none;
 }
-.rune-pick[aria-pressed='true']::after {
+.rune-pick[aria-pressed="true"]::after {
   box-shadow: inset 0 0 0 2px var(--tree);
 }
-.shard-pick[aria-pressed='true']::after {
+.shard-pick[aria-pressed="true"]::after {
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 /* A keystone is art, not a disc: a pick glows in its tree's color. */
@@ -1794,7 +1794,7 @@ details summary {
 .keystones .rune-pick::after {
   content: none;
 }
-.keystones .rune-pick[aria-pressed='true'] {
+.keystones .rune-pick[aria-pressed="true"] {
   background: radial-gradient(closest-side, color-mix(in srgb, var(--tree) 45%, transparent), transparent);
 }
 .rune-row.hint {

@@ -1,6 +1,6 @@
 // Damage mitigation: resistances, reduction, penetration.
 
-export type DamageType = 'physical' | 'magic' | 'true';
+export type DamageType = "physical" | "magic" | "true";
 
 /** Damage multiplier for a given (effective) resistance value. */
 export function resistMultiplier(resist: number): number {

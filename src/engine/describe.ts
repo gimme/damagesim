@@ -1,16 +1,16 @@
 // Structured descriptions of champions, items and runes (for the CLI, MCP server and UI).
 
-import type { GameData } from './gamedata.ts';
-import { findItem } from './gamedata.ts';
-import type { Sim } from './sim.ts';
-import { maxRanks } from './sim.ts';
-import type { Slot } from './effects.ts';
-import type { ComponentSpec } from './kit-types.ts';
-import { renderTooltip } from './tooltip.ts';
-import { getKit } from '../kits/index.ts';
-import { hasItemModel, ITEM_GROUPS } from './items.ts';
-import { NOT_LIVE_RUNES, hasRuneModel } from './runes.ts';
-import { hasteCooldown } from './stats.ts';
+import type { GameData } from "./gamedata.ts";
+import { findItem } from "./gamedata.ts";
+import type { Sim } from "./sim.ts";
+import { maxRanks } from "./sim.ts";
+import type { Slot } from "./effects.ts";
+import type { ComponentSpec } from "./kit-types.ts";
+import { renderTooltip } from "./tooltip.ts";
+import { getKit } from "../kits/index.ts";
+import { hasItemModel, ITEM_GROUPS } from "./items.ts";
+import { NOT_LIVE_RUNES, hasRuneModel } from "./runes.ts";
+import { hasteCooldown } from "./stats.ts";
 
 export interface ComponentInfo {
   id: string;
@@ -36,7 +36,7 @@ function componentInfo(sim: Sim, slot: Slot, c: ComponentSpec, spellName?: strin
   } catch {
     // reported via sim warnings
   }
-  const flags = (['aoe', 'dot', 'attack', 'onHit', 'canCrit', 'pet', 'noProc', 'execute'] as const).filter((f) => (c as any)[f]);
+  const flags = (["aoe", "dot", "attack", "onHit", "canCrit", "pet", "noProc", "execute"] as const).filter((f) => (c as any)[f]);
   return {
     id: c.id,
     label: c.label,
@@ -56,14 +56,14 @@ export function describeChampion(sim: Sim) {
   const kit = sim.kit;
   const max = maxRanks(champ);
   const st = sim.stats;
-  const abilities = (['P', 'Q', 'W', 'E', 'R'] as Slot[]).map((slot) => {
+  const abilities = (["P", "Q", "W", "E", "R"] as Slot[]).map((slot) => {
     const ab = champ.abilities.find((a) => a.slot === slot);
     const spec = kit.abilities[slot] ?? {};
     const spell = sim.spellFor(slot);
     const rank = sim.abilityRank(slot);
     const cdSpell = spell.cooldown?.some((x) => x > 0) ? spell : (sim.siblingsOf(spell).find((x) => x.cooldown?.some((y) => y > 0)) ?? spell);
-    const maxRank = slot === 'P' ? 1 : max[slot as 'Q'];
-    const haste = st.abilityHaste + (slot === 'R' ? st.ultimateHaste : st.basicAbilityHaste);
+    const maxRank = slot === "P" ? 1 : max[slot as "Q"];
+    const haste = st.abilityHaste + (slot === "R" ? st.ultimateHaste : st.basicAbilityHaste);
     const comps = [...(spec.components ?? [])];
     const abilitySpell = spec.spell;
     const buffs = Array.isArray(spec.buff) ? spec.buff : spec.buff ? [spec.buff] : [];
@@ -71,26 +71,36 @@ export function describeChampion(sim: Sim) {
       if (b.empowerAttacks) comps.push(...b.empowerAttacks.components.map((c) => ({ ...c, label: `${c.label} (empowered attack)` })));
       if (b.onHit) comps.push(...b.onHit.map((c) => ({ ...c, label: `${c.label} (on-hit while active)` })));
     }
-    if (slot === 'P') {
+    if (slot === "P") {
       for (const m of kit.marks ?? []) {
-        for (const c of [...(m.onStack ?? []), ...(m.dot?.components ?? []), ...(m.atMax?.components ?? [])]) comps.push({ ...c, label: `${m.label}: ${c.label}` });
+        for (const c of [...(m.onStack ?? []), ...(m.dot?.components ?? []), ...(m.atMax?.components ?? [])])
+          comps.push({ ...c, label: `${m.label}: ${c.label}` });
       }
       for (const c of kit.attack?.onHit ?? []) comps.push({ ...c, label: `${c.label} (on-hit)` });
-      if (kit.attack?.everyNth) for (const c of kit.attack.everyNth.components) comps.push({ ...c, label: `${c.label} (every ${kit.attack.everyNth.n} attacks)` });
+      if (kit.attack?.everyNth)
+        for (const c of kit.attack.everyNth.components) comps.push({ ...c, label: `${c.label} (every ${kit.attack.everyNth.n} attacks)` });
     }
     return {
       slot,
-      name: spec.name ?? (slot === 'P' ? champ.passive.name : spell.name),
+      name: spec.name ?? (slot === "P" ? champ.passive.name : spell.name),
       rank,
       maxRank,
-      cooldown: slot === 'P' || !cdSpell.cooldown ? null : cdSpell.cooldown.slice(1, maxRank + 1).map((c) => Math.round((cdSpell.cooldownFixed ? c : hasteCooldown(c, haste)) * 100) / 100),
+      cooldown:
+        slot === "P" || !cdSpell.cooldown
+          ? null
+          : cdSpell.cooldown.slice(1, maxRank + 1).map((c) => Math.round((cdSpell.cooldownFixed ? c : hasteCooldown(c, haste)) * 100) / 100),
       cost: spell.cost?.slice(0, maxRank) ?? null,
       castTime: spec.castTime !== undefined ? sim.evalExpr(spec.castTime, { slot }) : spell.castTime,
       // What a step can set (`Q{1s}`, `R{3}`): how long it lasts or is held to charge, or how many hits it fires.
-      setting: slot === 'P' ? null : sim.castSetting({ slot }),
-      tooltip: ab ? renderTooltip(sim, slot, spell) : '',
+      setting: slot === "P" ? null : sim.castSetting({ slot }),
+      tooltip: ab ? renderTooltip(sim, slot, spell) : "",
       components: comps.map((c) => componentInfo(sim, slot, c, abilitySpell)),
-      variants: Object.entries(spec.variants ?? {}).map(([key, v]) => ({ key, label: v.label, note: v.note, components: v.components.map((c) => componentInfo(sim, slot, c, v.spell ?? spec.spell)) })),
+      variants: Object.entries(spec.variants ?? {}).map(([key, v]) => ({
+        key,
+        label: v.label,
+        note: v.note,
+        components: v.components.map((c) => componentInfo(sim, slot, c, v.spell ?? spec.spell)),
+      })),
       buffs: buffs.map((b) => ({ id: b.id, label: b.label, stats: b.stats ?? {} })),
       debuff: spec.debuff ? { id: spec.debuff.id, label: spec.debuff.label } : null,
       cc: spec.cc ?? [],
@@ -142,10 +152,24 @@ export function listChampions(data: GameData) {
 }
 
 function statLine(stats: Record<string, number>): string {
-  const pct = new Set(['attackSpeed', 'critChance', 'critDamage', 'armorPenPercent', 'magicPenPercent', 'msPercent', 'lifeSteal', 'omnivamp', 'tenacity', 'healShieldPower', 'baseHpRegen', 'baseMpRegen', 'slowResist']);
+  const pct = new Set([
+    "attackSpeed",
+    "critChance",
+    "critDamage",
+    "armorPenPercent",
+    "magicPenPercent",
+    "msPercent",
+    "lifeSteal",
+    "omnivamp",
+    "tenacity",
+    "healShieldPower",
+    "baseHpRegen",
+    "baseMpRegen",
+    "slowResist",
+  ]);
   return Object.entries(stats)
     .map(([k, v]) => `${pct.has(k) ? `${Math.round(v * 1000) / 10}%` : Math.round(v * 10) / 10} ${k}`)
-    .join(', ');
+    .join(", ");
 }
 
 export function listItems(data: GameData, search?: string) {
@@ -177,7 +201,13 @@ export function describeItem(data: GameData, query: string | number) {
     tags: i.tags,
     stats: i.stats,
     statLine: statLine(i.stats),
-    description: i.description.replace(/<br\s*\/?>/g, '\n').replace(/<[^>]+>/g, '').replace(/%i:[a-zA-Z]+%/g, '').replace(/\{\{[^}]*\}\}/g, '').replace(/[ \t]+/g, ' ').trim(),
+    description: i.description
+      .replace(/<br\s*\/?>/g, "\n")
+      .replace(/<[^>]+>/g, "")
+      .replace(/%i:[a-zA-Z]+%/g, "")
+      .replace(/\{\{[^}]*\}\}/g, "")
+      .replace(/[ \t]+/g, " ")
+      .trim(),
     dataValues: i.dataValues,
     from: i.from.map((id) => data.items[id]?.name ?? id),
     into: i.into.map((id) => data.items[id]?.name ?? id),
@@ -193,7 +223,7 @@ const shardRows = (data: GameData, id: number) =>
   data.runePage.shards
     .filter((row) => row.options.includes(id))
     .map((row) => row.label.toLowerCase())
-    .join(', ');
+    .join(", ");
 
 export function listRunes(data: GameData) {
   return data.runes
@@ -202,8 +232,11 @@ export function listRunes(data: GameData) {
       id: r.id,
       name: r.name,
       tree: r.tree,
-      slot: r.row === 0 ? 'keystone' : r.row === -1 ? `shard: ${shardRows(data, r.id)}` : `row ${r.row}`,
+      slot: r.row === 0 ? "keystone" : r.row === -1 ? `shard: ${shardRows(data, r.id)}` : `row ${r.row}`,
       modeled: hasRuneModel(r.id),
-      description: r.description.replace(/<[^>]+>/g, '').replace(/@[^@]+@/g, '…').slice(0, 300),
+      description: r.description
+        .replace(/<[^>]+>/g, "")
+        .replace(/@[^@]+@/g, "…")
+        .slice(0, 300),
     }));
 }

@@ -1,68 +1,71 @@
-import type { ChampionKit, DebuffSpec } from '../../engine/kit-types.ts';
+import type { ChampionKit, DebuffSpec } from "../../engine/kit-types.ts";
 
 // Sejuani — patch 16.20.
 // Fury of the North: targets Sejuani stuns are Frozen for the stun's duration; her next attack or
 // ability against them consumes it for % max health magic damage (wiki).
 const frozen = (duration: string): DebuffSpec => ({
-  id: 'sejuaniFrozen',
-  label: 'Frozen',
+  id: "sejuaniFrozen",
+  label: "Frozen",
   duration,
-  consume: { by: 'any', components: [{ id: 'shatter', label: 'Fury of the North', type: 'magic', amount: 'P.calc.PercentHPDamage * target.maxHp', proc: true }] },
+  consume: {
+    by: "any",
+    components: [{ id: "shatter", label: "Fury of the North", type: "magic", amount: "P.calc.PercentHPDamage * target.maxHp", proc: true }],
+  },
 });
 
 const kit: ChampionKit = {
-  id: 'Sejuani',
-  status: 'curated',
+  id: "Sejuani",
+  status: "curated",
   notes: [
-    'Permafrost stacks come from Sejuani\'s attacks and each Winter\'s Wrath swing (max 4, 5s); allied attacks are not modeled. Permafrost (E) can only be cast at 4 stacks — otherwise it does nothing — and then the target is immune to stacks for 8s.',
-    'Fury of the North: a stunned (Frozen) target takes % max health magic damage from Sejuani\'s next attack or ability during the stun.',
-    'Glacial Prison defaults to the empowered throw (traveled 25%+ of its range): the target takes only the empowered damage and a 1.5s stun. R:short is the close-range throw.',
+    "Permafrost stacks come from Sejuani's attacks and each Winter's Wrath swing (max 4, 5s); allied attacks are not modeled. Permafrost (E) can only be cast at 4 stacks — otherwise it does nothing — and then the target is immune to stacks for 8s.",
+    "Fury of the North: a stunned (Frozen) target takes % max health magic damage from Sejuani's next attack or ability during the stun.",
+    "Glacial Prison defaults to the empowered throw (traveled 25%+ of its range): the target takes only the empowered damage and a 1.5s stun. R:short is the close-range throw.",
   ],
   marks: [
     {
-      id: 'permafrost',
-      label: 'Permafrost',
-      maxStacks: 'E.dv.MaxStacks',
-      duration: 'E.dv.StackDuration',
-      appliedBy: ['attack', 'W'],
+      id: "permafrost",
+      label: "Permafrost",
+      maxStacks: "E.dv.MaxStacks",
+      duration: "E.dv.StackDuration",
+      appliedBy: ["attack", "W"],
       // Both Winter's Wrath swings apply a stack.
       oncePerCast: false,
-      slot: 'E',
+      slot: "E",
     },
   ],
   abilities: {
     Q: {
       dash: true,
       // Busy for the dash: to the target at its speed.
-      lockout: 'reach / missileSpeed',
-      cc: [{ kind: 'immobilize', duration: 'dv.KnockupDurationTOOLTIPONLY' }],
-      components: [{ id: 'charge', label: 'Arctic Assault', type: 'magic', amount: 'calc.TotalDamageTooltip', aoe: true, travel: true }],
+      lockout: "reach / missileSpeed",
+      cc: [{ kind: "immobilize", duration: "dv.KnockupDurationTOOLTIPONLY" }],
+      components: [{ id: "charge", label: "Arctic Assault", type: "magic", amount: "calc.TotalDamageTooltip", aoe: true, travel: true }],
     },
     W: {
-      notes: ['The swing 0.25s into the 1s cast time, the lash at its end (wiki).'],
-      cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
+      notes: ["The swing 0.25s into the 1s cast time, the lash at its end (wiki)."],
+      cc: [{ kind: "slow", duration: "dv.SlowDuration" }],
       components: [
-        { id: 'swing', label: "Winter's Wrath (swing)", type: 'physical', amount: 'calc.FirstHitDamageTooltip', aoe: true, delay: '0.25 - castTime' },
-        { id: 'lash', label: "Winter's Wrath (lash)", type: 'physical', amount: 'calc.SecondHitDamageTooltip', aoe: true },
+        { id: "swing", label: "Winter's Wrath (swing)", type: "physical", amount: "calc.FirstHitDamageTooltip", aoe: true, delay: "0.25 - castTime" },
+        { id: "lash", label: "Winter's Wrath (lash)", type: "physical", amount: "calc.SecondHitDamageTooltip", aoe: true },
       ],
     },
     E: {
-      cc: [{ kind: 'immobilize', duration: 'dv.CCDuration' }],
-      debuff: frozen('E.dv.CCDuration'),
-      components: [{ id: 'freeze', label: 'Permafrost', type: 'magic', amount: 'calc.TotalDamage', hits: 'stacks.permafrost >= dv.MaxStacks ? 1 : 0' }],
+      cc: [{ kind: "immobilize", duration: "dv.CCDuration" }],
+      debuff: frozen("E.dv.CCDuration"),
+      components: [{ id: "freeze", label: "Permafrost", type: "magic", amount: "calc.TotalDamage", hits: "stacks.permafrost >= dv.MaxStacks ? 1 : 0" }],
     },
     R: {
-      cc: [{ kind: 'immobilize', duration: 'dv.EmpoweredStunDuration' }],
-      debuff: frozen('R.dv.EmpoweredStunDuration'),
+      cc: [{ kind: "immobilize", duration: "dv.EmpoweredStunDuration" }],
+      debuff: frozen("R.dv.EmpoweredStunDuration"),
       // Empowered: it flew at least 425 units (wiki).
-      components: [{ id: 'prison', label: 'Glacial Prison', type: 'magic', amount: 'calc.TotalDamageTooltip', travel: 'max(425, reach) / missileSpeed' }],
+      components: [{ id: "prison", label: "Glacial Prison", type: "magic", amount: "calc.TotalDamageTooltip", travel: "max(425, reach) / missileSpeed" }],
       variants: {
         short: {
-          label: 'short range',
-          cc: [{ kind: 'immobilize', duration: 'dv.BaseStunDuration' }],
-          debuff: frozen('R.dv.BaseStunDuration'),
+          label: "short range",
+          cc: [{ kind: "immobilize", duration: "dv.BaseStunDuration" }],
+          debuff: frozen("R.dv.BaseStunDuration"),
           // Unempowered: it hit within its first 425 units (wiki).
-          components: [{ id: 'prison', label: 'Glacial Prison', type: 'magic', amount: 'calc.MinorDamageTooltip', travel: 'min(425, reach) / missileSpeed' }],
+          components: [{ id: "prison", label: "Glacial Prison", type: "magic", amount: "calc.MinorDamageTooltip", travel: "min(425, reach) / missileSpeed" }],
         },
       },
     },
@@ -70,9 +73,9 @@ const kit: ChampionKit = {
   hooks: {
     // Permafrost consumes the stacks; the target can't gain stacks for PerChampionCD seconds.
     afterDamage(sim, inst) {
-      if (inst.source !== 'E' || inst.fromMark) return;
-      sim.setMarkStacks('permafrost', 0);
-      sim.setMarkCooldown('permafrost', sim.evalExpr('E.dv.PerChampionCD', { slot: 'E' }));
+      if (inst.source !== "E" || inst.fromMark) return;
+      sim.setMarkStacks("permafrost", 0);
+      sim.setMarkCooldown("permafrost", sim.evalExpr("E.dv.PerChampionCD", { slot: "E" }));
     },
   },
 };

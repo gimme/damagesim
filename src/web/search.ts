@@ -1,6 +1,6 @@
 // The champion and item pickers' search: which names match what's typed, best first.
 
-const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 /** Whether `q`'s letters all appear in `s` in order, with any letters between: "rfc" is in "rapidfirecannon". */
 const hasInOrder = (s: string, q: string) => {
@@ -10,7 +10,7 @@ const hasInOrder = (s: string, q: string) => {
 };
 
 /** Words an abbreviation can pass over without skipping anything: "ibl" is all of Ionian Boots of Lucidity. */
-const MINOR_WORDS = new Set(['a', 'an', 'and', 'at', 'for', 'in', 'of', 'on', 'the', 'to']);
+const MINOR_WORDS = new Set(["a", "an", "and", "at", "for", "in", "of", "on", "the", "to"]);
 
 type Piece = { word: number; length: number };
 
@@ -41,7 +41,10 @@ const matchRank = (name: string, q: string) => {
   const n = norm(name);
   if (!hasInOrder(n, q)) return -1;
   if (!q) return 0;
-  const words = name.split(/[\s-]+/).map(norm).filter(Boolean);
+  const words = name
+    .split(/[\s-]+/)
+    .map(norm)
+    .filter(Boolean);
   let best = -1;
   for (let w = 0; w < words.length; w++)
     for (const pieces of abbreviations(words, q, w)) {
@@ -54,7 +57,7 @@ const matchRank = (name: string, q: string) => {
       best = Math.max(best, 300 + 100 * tier - 10 * skipped - after);
     }
   if (best >= 0) return best;
-  return n.includes(q) ? 200 : words.some((w, i) => w[0] === q[0] && hasInOrder(words.slice(i).join(''), q)) ? 100 : 0;
+  return n.includes(q) ? 200 : words.some((w, i) => w[0] === q[0] && hasInOrder(words.slice(i).join(""), q)) ? 100 : 0;
 };
 
 /** The things whose names match a search, best first. */

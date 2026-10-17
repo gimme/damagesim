@@ -11,8 +11,8 @@
 // shows what fits there. Picking a rune in a row replaces what the tree remembers for it, and
 // unpicking one forgets it.
 
-import type { RuneData } from './data-types.ts';
-import type { GameData } from './gamedata.ts';
+import type { RuneData } from "./data-types.ts";
+import type { GameData } from "./gamedata.ts";
 
 export interface RunePage {
   primary: string;
@@ -28,7 +28,7 @@ export interface RunePage {
 const runeById = (data: GameData, id: number) => data.runes.find((r) => r.id === id);
 
 /** "a, b and c". */
-const listJoin = (xs: string[], last = 'and') => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} ${last} ${xs[xs.length - 1]}` : xs.join(''));
+const listJoin = (xs: string[], last = "and") => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} ${last} ${xs[xs.length - 1]}` : xs.join(""));
 
 /** The page's picks in a tree, oldest first. */
 export function treePicks(data: GameData, page: RunePage, tree: string): number[] {
@@ -96,7 +96,10 @@ function arrange(data: GameData, page: RunePage, primary: string, secondary: str
   const treeOf = (id: number) => runeById(data, id)?.tree;
   const picks: number[] = [];
   let held = page.held;
-  for (const [tree, was, isPrimary] of [[primary, page.primary, true], [secondary, page.secondary, false]] as const) {
+  for (const [tree, was, isPrimary] of [
+    [primary, page.primary, true],
+    [secondary, page.secondary, false],
+  ] as const) {
     const shown = treePicks(data, page, tree);
     if (tree === was) {
       picks.push(...shown);
@@ -115,7 +118,14 @@ function arrange(data: GameData, page: RunePage, primary: string, secondary: str
 function shardsFit(shards: number[], rows: number[][]): boolean {
   if (!shards.length) return true;
   const [first, ...rest] = shards;
-  return rows.some((row, i) => row.includes(first) && shardsFit(rest, rows.filter((_, j) => j !== i)));
+  return rows.some(
+    (row, i) =>
+      row.includes(first) &&
+      shardsFit(
+        rest,
+        rows.filter((_, j) => j !== i),
+      ),
+  );
 }
 
 /** Problems in the primary tree's rows and the secondary tree's picks. */
@@ -139,7 +149,7 @@ function treeProblems(runes: RuneData[], primary: string, secondary?: string): s
 /** What keeps a list of runes (a scenario's) off any rune page, as warnings; empty if a page holds them. */
 export function runePageProblems(data: GameData, runes: RuneData[]): string[] {
   const out: string[] = [];
-  const treeRunes = runes.filter((r) => r.tree !== 'Shards');
+  const treeRunes = runes.filter((r) => r.tree !== "Shards");
   const unique = treeRunes.filter((r, i) => treeRunes.findIndex((x) => x.id === r.id) === i);
   for (const r of unique) if (treeRunes.filter((x) => x.id === r.id).length > 1) out.push(`${r.name} is listed twice`);
   const keystones = unique.filter((r) => r.row === 0);
@@ -153,10 +163,17 @@ export function runePageProblems(data: GameData, runes: RuneData[]): string[] {
     out.push(...readings.map(([p, s]) => treeProblems(unique, p, s)).reduce((a, b) => (b.length < a.length ? b : a)));
   }
   const rows = data.runePage.shards;
-  const shards = runes.filter((r) => r.tree === 'Shards');
+  const shards = runes.filter((r) => r.tree === "Shards");
   const names = (ids: number[]) => ids.map((id) => runeById(data, id)?.name ?? String(id));
   if (shards.length > rows.length) out.push(`${shards.length} shards: a rune page has ${rows.length}, one from each row`);
-  else if (!shardsFit(shards.filter((s) => rows.some((row) => row.options.includes(s.id))).map((s) => s.id), rows.map((row) => row.options)))
-    out.push(`no rune page has the shards ${listJoin(shards.map((s) => s.name))}: it takes one from each row (${rows.map((row) => `${row.label}: ${listJoin(names(row.options), 'or')}`).join('; ')})`);
+  else if (
+    !shardsFit(
+      shards.filter((s) => rows.some((row) => row.options.includes(s.id))).map((s) => s.id),
+      rows.map((row) => row.options),
+    )
+  )
+    out.push(
+      `no rune page has the shards ${listJoin(shards.map((s) => s.name))}: it takes one from each row (${rows.map((row) => `${row.label}: ${listJoin(names(row.options), "or")}`).join("; ")})`,
+    );
   return out;
 }

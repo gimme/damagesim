@@ -1,48 +1,54 @@
-import type { ChampionKit } from '../../engine/kit-types.ts';
+import type { ChampionKit } from "../../engine/kit-types.ts";
 
 // Kled — patch 16.20.
 const rDamage = (charge: string) =>
   `calc.MinimumDamageTooltip * target.maxHp * (1 + (calc.MaximumChargeDamage / calc.MinimumDamageTooltip - 1) * clamp(${charge} / dv.SecondsToMaxPower, 0, 1))`;
 
 const kit: ChampionKit = {
-  id: 'Kled',
-  status: 'curated',
+  id: "Kled",
+  status: "curated",
   options: [
-    { key: 'dismounted', label: 'Dismounted', default: 0, toggle: true, description: 'Attacks deal P.calc.DismountedAttackPenalty less damage; use Q:pistol for Pocket Pistol.' },
+    {
+      key: "dismounted",
+      label: "Dismounted",
+      default: 0,
+      toggle: true,
+      description: "Attacks deal P.calc.DismountedAttackPenalty less damage; use Q:pistol for Pocket Pistol.",
+    },
   ],
   notes: [
-    'Violent Tendencies (W passive) is automatic (hook): the first attack while W is ready triggers it and counts as hit 1; the 4th hit deals the bonus damage; +attack speed until then (max 4s). Each attack on a champion while W is on cooldown reduces it by W.dv.ChampCooldownRefund s.',
-    'Courage, remounting and Skaarl\'s health are not modelled.',
+    "Violent Tendencies (W passive) is automatic (hook): the first attack while W is ready triggers it and counts as hit 1; the 4th hit deals the bonus damage; +attack speed until then (max 4s). Each attack on a champion while W is on cooldown reduces it by W.dv.ChampCooldownRefund s.",
+    "Courage, remounting and Skaarl's health are not modelled.",
   ],
-  attack: { damageMult: 'opt.dismounted ? 1 - P.calc.DismountedAttackPenalty : 1' },
+  attack: { damageMult: "opt.dismounted ? 1 - P.calc.DismountedAttackPenalty : 1" },
   abilities: {
     Q: {
-      notes: ['Mounted: trap hit + yank after 1.75s if Kled stays close (disable with Q{yank:0}). Dismounted: Q:pistol.'],
+      notes: ["Mounted: trap hit + yank after 1.75s if Kled stays close (disable with Q{yank:0}). Dismounted: Q:pistol."],
       // Pull (short displacement, duration estimated) and slow land with the yank.
       cc: [
-        { kind: 'immobilize', duration: 0.25, delay: 'dv.TetherPopTime' },
-        { kind: 'slow', duration: 'dv.SlowDuration', delay: 'dv.TetherPopTime' },
+        { kind: "immobilize", duration: 0.25, delay: "dv.TetherPopTime" },
+        { kind: "slow", duration: "dv.SlowDuration", delay: "dv.TetherPopTime" },
       ],
       components: [
-        { id: 'trap', label: 'Bear Trap on a Rope', type: 'physical', amount: 'calc.TotalDamage', travel: true },
+        { id: "trap", label: "Bear Trap on a Rope", type: "physical", amount: "calc.TotalDamage", travel: true },
         // TetherPopTime after the trap lands.
-        { id: 'yank', label: 'Bear Trap on a Rope (yank)', type: 'physical', amount: 'calc.TotalYankDamage', delay: 'dv.TetherPopTime', travel: true },
+        { id: "yank", label: "Bear Trap on a Rope (yank)", type: "physical", amount: "calc.TotalYankDamage", delay: "dv.TetherPopTime", travel: true },
       ],
       variants: {
         pistol: {
-          label: 'Pocket Pistol',
-          spell: 'KledRiderQ',
-          note: 'Dismounted shotgun: 5 pellets, each pellet after the first deals 20%. Assumes all 5 hit an adjacent target.',
+          label: "Pocket Pistol",
+          spell: "KledRiderQ",
+          note: "Dismounted shotgun: 5 pellets, each pellet after the first deals 20%. Assumes all 5 hit an adjacent target.",
           // Kled recoils 300 units at ~1025 speed (wiki, estimated) after the cast time, unable to act.
-          lockout: 'castTime + 300 / 1025',
+          lockout: "castTime + 300 / 1025",
           cc: [],
           components: [
             {
-              id: 'pellet',
-              label: 'Pocket Pistol',
-              type: 'physical',
+              id: "pellet",
+              label: "Pocket Pistol",
+              type: "physical",
               // Rank-scaled damage lives on KledQ (the rider spell only carries rank 1 values).
-              amount: 'Q.calc.DismountedQDamage * (hit == 0 ? 1 : dv.FalloffPerMissile)',
+              amount: "Q.calc.DismountedQDamage * (hit == 0 ? 1 : dv.FalloffPerMissile)",
               hits: 5,
               maxHits: 5,
               travel: true,
@@ -53,7 +59,7 @@ const kit: ChampionKit = {
     },
     W: {
       noTarget: true,
-      notes: ['Passive only (handled automatically on attacks); casting W does nothing.'],
+      notes: ["Passive only (handled automatically on attacks); casting W does nothing."],
       components: [],
     },
     E: {
@@ -63,62 +69,62 @@ const kit: ChampionKit = {
       // No dash speed in the data: ~0.3s to arrive. Bear Trap on a Rope and Chaaaaaaaarge!!! can be
       // cast during the dashes (wiki).
       attackLockout: 0.3,
-      components: [{ id: 'joust', label: 'Jousting', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 0.3 }],
+      components: [{ id: "joust", label: "Jousting", type: "physical", amount: "calc.TotalDamage", aoe: true, delay: 0.3 }],
     },
     R: {
       dash: true,
       // The seconds charging toward the target: the damage grows to its maximum over SecondsToMaxPower.
-      charge: { default: 0, max: 'dv.SecondsToMaxPower' },
-      castTime: 'charge',
-      cc: [{ kind: 'immobilize', duration: 0.25 }], // brief knockback (150 units), duration estimated
-      notes: ['Damage scales with the seconds charging (R{3s} for a fully charged ram); default an immediate ram.'],
-      components: [{ id: 'ram', label: 'Chaaaaaaaarge!!!', type: 'magic', amount: rDamage('charge') }],
+      charge: { default: 0, max: "dv.SecondsToMaxPower" },
+      castTime: "charge",
+      cc: [{ kind: "immobilize", duration: 0.25 }], // brief knockback (150 units), duration estimated
+      notes: ["Damage scales with the seconds charging (R{3s} for a fully charged ram); default an immediate ram."],
+      components: [{ id: "ram", label: "Chaaaaaaaarge!!!", type: "magic", amount: rDamage("charge") }],
     },
   },
   hooks: {
     // Violent Tendencies: passive trigger, attack speed for 4 attacks/4s, 4th hit bonus damage, cooldown refunds.
     onAttack(sim, atk) {
-      if (atk.fromAbility || atk.phantom || sim.rankOf('W') <= 0) return;
-      const w = sim.spellFor('W');
-      const rank = sim.rankOf('W');
+      if (atk.fromAbility || atk.phantom || sim.rankOf("W") <= 0) return;
+      const w = sim.spellFor("W");
+      const rank = sim.rankOf("W");
       const dv = (n: string) => sim.dataValue(w, n, rank);
       const st = sim.stats;
       const startCd = (at: number) => {
-        const cd = (dv('WCooldown') * 100) / (100 + st.abilityHaste + st.basicAbilityHaste);
-        sim.startCooldown('kledW', Math.max(0, at + cd - sim.time));
+        const cd = (dv("WCooldown") * 100) / (100 + st.abilityHaste + st.basicAbilityHaste);
+        sim.startCooldown("kledW", Math.max(0, at + cd - sim.time));
       };
-      if (sim.counter('kledW.hits') > 0 && !sim.getBuff('kledW')) {
+      if (sim.counter("kledW.hits") > 0 && !sim.getBuff("kledW")) {
         // Expired before the 4th hit: the cooldown started at expiry.
-        sim.setCounter('kledW.hits', 0);
-        startCd(sim.counter('kledW.expires'));
+        sim.setCounter("kledW.hits", 0);
+        startCd(sim.counter("kledW.expires"));
       }
-      if (sim.getBuff('kledW')) {
-        const n = sim.counter('kledW.hits') + 1;
-        sim.setCounter('kledW.hits', n);
+      if (sim.getBuff("kledW")) {
+        const n = sim.counter("kledW.hits") + 1;
+        sim.setCounter("kledW.hits", n);
         if (n < 4) return;
         atk.extra.push({
-          source: 'W',
-          sourceLabel: 'Violent Tendencies',
-          label: 'Violent Tendencies (4th hit)',
-          type: 'physical',
-          amount: dv('BaseFlatDamage') + sim.evalExpr('W.calc.PercentDamage', { slot: 'W' }) * sim.target.maxHp,
+          source: "W",
+          sourceLabel: "Violent Tendencies",
+          label: "Violent Tendencies (4th hit)",
+          type: "physical",
+          amount: dv("BaseFlatDamage") + sim.evalExpr("W.calc.PercentDamage", { slot: "W" }) * sim.target.maxHp,
           castId: atk.castId,
-          flags: { kind: 'ability', slot: 'W', onHit: true, ability: true },
+          flags: { kind: "ability", slot: "W", onHit: true, ability: true },
         });
-        sim.removeBuff('kledW');
-        sim.setCounter('kledW.hits', 0);
+        sim.removeBuff("kledW");
+        sim.setCounter("kledW.hits", 0);
         startCd(sim.time);
         return;
       }
-      if (sim.isReady('kledW')) {
-        const expires = sim.time + dv('ActiveDuration');
-        sim.addBuff({ id: 'kledW', label: 'Violent Tendencies', expires, mods: { attackSpeed: dv('AttackSpeed') } });
-        sim.setCounter('kledW.hits', 1);
-        sim.setCounter('kledW.expires', expires);
+      if (sim.isReady("kledW")) {
+        const expires = sim.time + dv("ActiveDuration");
+        sim.addBuff({ id: "kledW", label: "Violent Tendencies", expires, mods: { attackSpeed: dv("AttackSpeed") } });
+        sim.setCounter("kledW.hits", 1);
+        sim.setCounter("kledW.expires", expires);
         return;
       }
       // On cooldown: hits on champions refund part of it.
-      sim.startCooldown('kledW', Math.max(0, sim.cooldownReadyAt('kledW') - sim.time - dv('ChampCooldownRefund')));
+      sim.startCooldown("kledW", Math.max(0, sim.cooldownReadyAt("kledW") - sim.time - dv("ChampCooldownRefund")));
     },
   },
 };

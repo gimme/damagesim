@@ -1,40 +1,40 @@
 // Item value: what each legendary or pair of boots would add to the current build, ranked by damage
 // per gold or total damage, as a list or a gold-vs-damage map. Recomputed live as the build changes.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
-import { DATA } from '../data.ts';
-import { Icon, ItemIcon, sourceMark } from './icons.tsx';
-import { ItemTip, useHoverCard } from './hover.tsx';
-import { useItemSlots } from './drag.tsx';
-import { Card, fmt } from './common.tsx';
-import { GoldScatter, useTooltip, type GoldPoint } from './charts.tsx';
-import { rankItems, defaultCandidates } from '../../engine/analysis.ts';
-import type { Scenario, Sim } from '../../engine/sim.ts';
-import type { Set, UIState } from '../state.ts';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { DATA } from "../data.ts";
+import { Icon, ItemIcon, sourceMark } from "./icons.tsx";
+import { ItemTip, useHoverCard } from "./hover.tsx";
+import { useItemSlots } from "./drag.tsx";
+import { Card, fmt } from "./common.tsx";
+import { GoldScatter, useTooltip, type GoldPoint } from "./charts.tsx";
+import { rankItems, defaultCandidates } from "../../engine/analysis.ts";
+import type { Scenario, Sim } from "../../engine/sim.ts";
+import type { Set, UIState } from "../state.ts";
 
 type Ranking = ReturnType<typeof rankItems>;
-type Row = Ranking['items'][number];
-type By = 'perGold' | 'damage';
+type Row = Ranking["items"][number];
+type By = "perGold" | "damage";
 
 const DEFAULT_IDS = defaultCandidates(DATA).map((i) => i.id);
 const SHOWN = 8;
 /** How far ahead of the next best an item has to be, per gold, to stand out. */
 const STANDOUT = 1.15;
-const signed = (v: number) => `${v >= 0 ? '+' : '−'}${fmt(Math.abs(v))}`;
+const signed = (v: number) => `${v >= 0 ? "+" : "−"}${fmt(Math.abs(v))}`;
 
 /** The parts of an item's bar: base, what it adds to your other damage (its stats, Rabadon's-style
  *  multipliers); effect, the damage it deals itself (its procs, burns); procs, the hits of your other
  *  damage that land only with it (Electrocute it procs, an execute it brings the target into range of). */
-const PARTS = ['base', 'effect', 'procs'] as const;
+const PARTS = ["base", "effect", "procs"] as const;
 type Part = (typeof PARTS)[number];
 
 /** A row's bar: a segment per entry of its card, the base, each of the item's hits and each proc,
  *  largest first within each part; a negative or negligible one is left out. */
 function segments(r: Row): { part: Part; key: string; damage: number }[] {
   return [
-    { part: 'base' as const, key: 'base', damage: r.gain - r.itemDamage - r.procDamage },
-    ...r.itemHits.map((h) => ({ part: 'effect' as const, key: `effect|${h.name}`, damage: h.damage })),
-    ...r.procs.map((p) => ({ part: 'procs' as const, key: `procs|${p.source}|${p.name}`, damage: p.damage })),
+    { part: "base" as const, key: "base", damage: r.gain - r.itemDamage - r.procDamage },
+    ...r.itemHits.map((h) => ({ part: "effect" as const, key: `effect|${h.name}`, damage: h.damage })),
+    ...r.procs.map((p) => ({ part: "procs" as const, key: `procs|${p.source}|${p.name}`, damage: p.damage })),
   ].filter((s) => s.damage > 0.5);
 }
 
@@ -54,8 +54,8 @@ function standouts(rows: Row[]): ReadonlySet<number> {
 }
 
 export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; set: Set; scenario: Scenario; sim: Sim | null }) {
-  const [by, setBy] = useState<By>('perGold');
-  const [view, setView] = useState<'list' | 'map'>('list');
+  const [by, setBy] = useState<By>("perGold");
+  const [view, setView] = useState<"list" | "map">("list");
   const [showAll, setShowAll] = useState(false);
   // The slot being ranked: the first empty one, or the one picked, empty or with an item to reconsider.
   const [chosen, setChosen] = useState<number | null>(null);
@@ -107,7 +107,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   const ranking = res?.ranking;
   const rows = useMemo(() => {
     const useful = (ranking?.items ?? []).filter((r) => r.gain > 0.5 || r.id === current);
-    useful.sort((a, b) => (by === 'perGold' ? b.gainPerGold - a.gainPerGold : b.gain - a.gain));
+    useful.sort((a, b) => (by === "perGold" ? b.gainPerGold - a.gainPerGold : b.gain - a.gain));
     return useful;
   }, [ranking, by, current]);
   const lead = useMemo(() => standouts(rows), [rows]);
@@ -131,10 +131,10 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
       title="Item value"
       right={
         <div className="segmented small" role="group" aria-label="View">
-          <button aria-pressed={view === 'list'} onClick={() => setView('list')}>
+          <button aria-pressed={view === "list"} onClick={() => setView("list")}>
             List
           </button>
-          <button aria-pressed={view === 'map'} onClick={() => setView('map')}>
+          <button aria-pressed={view === "map"} onClick={() => setView("map")}>
             Gold map
           </button>
         </div>
@@ -146,24 +146,24 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
         <div className="slots compact" ref={slots.box} role="group" aria-label="Slot to rank items for">
           {state.items.map((id, i) => {
             const name = id != null ? DATA.items[id]?.name : null;
-            const foot = i === slot ? undefined : 'Click to rank what could take its place.';
+            const foot = i === slot ? undefined : "Click to rank what could take its place.";
             return (
               <div
                 key={i}
                 aria-pressed={i === slot}
                 aria-label={name ? `In place of ${name}. Arrow keys move it, Delete sells it.` : `Next item, in slot ${i + 1}`}
-                title={id == null && i !== slot ? 'Rank items for this slot' : undefined}
+                title={id == null && i !== slot ? "Rank items for this slot" : undefined}
                 {...slots.slot(i, {
                   ...(id != null ? hover.bind(<ItemTip id={id} sim={sim} foot={foot} />) : {}),
                   onClick: () => setChosen(i),
                   onKeyDown: (e: KeyboardEvent) => {
-                    if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+                    if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
                     e.preventDefault();
                     setChosen(i);
                   },
                 })}
               >
-                {id != null ? <ItemIcon id={id} /> : '+'}
+                {id != null ? <ItemIcon id={id} /> : "+"}
                 {slots.remove(i)}
               </div>
             );
@@ -176,7 +176,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
               In place of <strong>{DATA.items[current]?.name}</strong>
             </>
           ) : (
-            'Next item'
+            "Next item"
           )}
         </div>
       </div>
@@ -187,12 +187,41 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
         <div className="iv-body" style={{ opacity: stale ? 0.55 : 1 }} aria-busy={stale}>
           {!rows.length ? (
             <div className="muted small">No legendary item or pair of boots adds damage to this combo.</div>
-          ) : view === 'list' ? (
-            <RankList rows={rows} shown={SHOWN} expanded={showAll} onExpand={setShowAll} by={by} setBy={setBy} current={current} lead={lead} slotLabel={slotLabel} onPick={pick} sim={sim} champion={state.champion} />
+          ) : view === "list" ? (
+            <RankList
+              rows={rows}
+              shown={SHOWN}
+              expanded={showAll}
+              onExpand={setShowAll}
+              by={by}
+              setBy={setBy}
+              current={current}
+              lead={lead}
+              slotLabel={slotLabel}
+              onPick={pick}
+              sim={sim}
+              champion={state.champion}
+            />
           ) : (
             <GoldScatter
-              points={rows.map((r): GoldPoint => ({ id: r.id, label: r.item, gold: r.gold, gain: r.gain, perGold: r.gainPerGold, highlight: r.id === current, standout: lead.has(r.id) }))}
-              tip={(p, touch) => <RowTip row={rows.find((r) => r.id === p.id)!} current={current} champion={state.champion} view="map" action={p.id === current || touch ? undefined : 'Click to buy'} />}
+              points={rows.map((r): GoldPoint => ({
+                id: r.id,
+                label: r.item,
+                gold: r.gold,
+                gain: r.gain,
+                perGold: r.gainPerGold,
+                highlight: r.id === current,
+                standout: lead.has(r.id),
+              }))}
+              tip={(p, touch) => (
+                <RowTip
+                  row={rows.find((r) => r.id === p.id)!}
+                  current={current}
+                  champion={state.champion}
+                  view="map"
+                  action={p.id === current || touch ? undefined : "Click to buy"}
+                />
+              )}
               onPick={(p) => pick(p.id)}
             />
           )}
@@ -253,12 +282,12 @@ function RankList({
   // The legend has the parts the bars listed have.
   const drawn = PARTS.filter((p) => [...top, ...rest].some((r) => segments(r).some((s) => s.part === p)));
   const hidden = all.length - shown - (rank > shown ? 1 : 0);
-  const max = Math.max(1e-9, ...all.map((r) => (by === 'perGold' ? r.gainPerGold : r.gain)));
+  const max = Math.max(1e-9, ...all.map((r) => (by === "perGold" ? r.gainPerGold : r.gain)));
   // A click on a row buys its item. The item shows its details, the rest of the row where its damage
   // comes from; a card from hovering says a click buys, one from a tap has the Buy button.
-  const show = (e: { clientX: number; clientY: number; pointerType?: string }, r: Row, col: string, how: 'hover' | 'hold' | 'tap') => {
+  const show = (e: { clientX: number; clientY: number; pointerType?: string }, r: Row, col: string, how: "hover" | "hold" | "tap") => {
     const buy =
-      r.id === current || how === 'hold' ? null : how === 'tap' ? (
+      r.id === current || how === "hold" ? null : how === "tap" ? (
         <button
           className="btn small primary iv-tip-buy"
           aria-label={`Buy ${r.item} ${slotLabel}`}
@@ -276,7 +305,7 @@ function RankList({
     tt.show(
       e,
       <>
-        {col === 'iv-item' ? <ItemTip id={r.id} sim={sim} /> : <RowTip row={r} current={current} champion={champion} view="list" />}
+        {col === "iv-item" ? <ItemTip id={r.id} sim={sim} /> : <RowTip row={r} current={current} champion={champion} view="list" />}
         {buy}
       </>,
     );
@@ -289,7 +318,7 @@ function RankList({
   const [tapped, setTapped] = useState<string | null>(null);
   const hold = useRef<{ timer?: ReturnType<typeof setTimeout>; on: boolean }>({ on: false });
   // What the last press on a row was, as the click that follows a tap opens a card rather than buying.
-  const pointer = useRef('');
+  const pointer = useRef("");
   const endHold = () => {
     clearTimeout(hold.current.timer);
     if (hold.current.on) tt.hide();
@@ -305,14 +334,14 @@ function RankList({
     if (tapped === key) close();
     else {
       setTapped(key);
-      show(e, r, col, 'tap');
+      show(e, r, col, "tap");
     }
   };
   useEffect(() => {
     if (tapped == null) return;
     const outside = (e: globalThis.PointerEvent) => !tt.ref.current?.contains(e.target as Node) && close();
-    document.addEventListener('pointerdown', outside);
-    return () => document.removeEventListener('pointerdown', outside);
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
   }, [tapped]);
   const sortBy = (key: By, label: string) => (
     <button className="iv-sort" onClick={() => setBy(key)}>
@@ -321,7 +350,7 @@ function RankList({
     </button>
   );
   const row = (r: Row) => {
-    const v = by === 'perGold' ? r.gainPerGold : r.gain;
+    const v = by === "perGold" ? r.gainPerGold : r.gain;
     const isCurrent = r.id === current;
     const width = (Math.max(0, v) / max) * 100;
     const ahead = lead.has(r.id);
@@ -340,36 +369,36 @@ function RankList({
         key={r.id}
         role="row"
         aria-current={isCurrent || undefined}
-        className={`iv-row ${isCurrent ? 'current' : ''} ${ahead ? 'standout' : ''}`}
+        className={`iv-row ${isCurrent ? "current" : ""} ${ahead ? "standout" : ""}`}
         onPointerDown={(e) => {
           pointer.current = e.pointerType;
-          if (e.pointerType !== 'touch') return;
+          if (e.pointerType !== "touch") return;
           const at = { clientX: e.clientX, clientY: e.clientY, pointerType: e.pointerType };
           const col = nearestColumn(e);
           clearTimeout(hold.current.timer);
           hold.current.timer = setTimeout(() => {
             hold.current.on = true;
             setTapped(null);
-            show(at, r, col, 'hold');
+            show(at, r, col, "hold");
           }, 200);
         }}
         onPointerMove={(e) => {
-          if (e.pointerType !== 'touch') {
+          if (e.pointerType !== "touch") {
             setTapped(null);
-            show(e, r, nearestColumn(e), 'hover');
-          } else if (hold.current.on) show(e, r, nearestColumn(e), 'hold');
+            show(e, r, nearestColumn(e), "hover");
+          } else if (hold.current.on) show(e, r, nearestColumn(e), "hold");
         }}
-        onPointerLeave={(e) => e.pointerType !== 'touch' && tt.hide()}
-        onPointerUp={(e) => e.pointerType === 'touch' && !hold.current.on && tap(e, r)}
+        onPointerLeave={(e) => e.pointerType !== "touch" && tt.hide()}
+        onPointerUp={(e) => e.pointerType === "touch" && !hold.current.on && tap(e, r)}
         // A keyboard's click (detail 0) on the item's button buys too.
-        onClick={(e) => !isCurrent && (e.detail === 0 || pointer.current !== 'touch') && onPick(r.id)}
+        onClick={(e) => !isCurrent && (e.detail === 0 || pointer.current !== "touch") && onPick(r.id)}
       >
         <span role="cell" className="iv-item">
           {isCurrent ? (
             item
           ) : (
             // For the keyboard; its click reaches the row, which buys.
-            <button type="button" className="iv-buy" aria-label={`Buy ${r.item} ${slotLabel}${ahead ? ', far more damage per gold than the rest' : ''}`}>
+            <button type="button" className="iv-buy" aria-label={`Buy ${r.item} ${slotLabel}${ahead ? ", far more damage per gold than the rest" : ""}`}>
               {item}
             </button>
           )}
@@ -381,10 +410,10 @@ function RankList({
             ))}
           </span>
         </span>
-        <span role="cell" className={`iv-pg num ${by === 'perGold' ? 'on' : ''}`}>
+        <span role="cell" className={`iv-pg num ${by === "perGold" ? "on" : ""}`}>
           {fmt(r.gainPerGold)}
         </span>
-        <span role="cell" className={`iv-dmg num ${by === 'damage' ? 'on' : ''}`}>
+        <span role="cell" className={`iv-dmg num ${by === "damage" ? "on" : ""}`}>
           {signed(r.gain)}
         </span>
       </div>
@@ -393,7 +422,14 @@ function RankList({
   return (
     <div className="chart-wrap" ref={tt.ref}>
       <div className="iv-list">
-        <div className="iv-grid" role="table" aria-label="Items ranked by the damage they add" onPointerCancel={endHold} onTouchEnd={endHold} onTouchCancel={endHold}>
+        <div
+          className="iv-grid"
+          role="table"
+          aria-label="Items ranked by the damage they add"
+          onPointerCancel={endHold}
+          onTouchEnd={endHold}
+          onTouchCancel={endHold}
+        >
           <div className="iv-row iv-head" role="row">
             <span role="columnheader" className="iv-item">
               Item
@@ -407,16 +443,20 @@ function RankList({
               ))}
             </span>
             {/* The numbers' headings sort by them; where only one number fits, its heading switches it */}
-            <span role="columnheader" className={`iv-pg ${by === 'perGold' ? 'on' : ''}`} aria-sort={by === 'perGold' ? 'descending' : undefined}>
-              {sortBy('perGold', 'per 1000g')}
+            <span role="columnheader" className={`iv-pg ${by === "perGold" ? "on" : ""}`} aria-sort={by === "perGold" ? "descending" : undefined}>
+              {sortBy("perGold", "per 1000g")}
             </span>
-            <span role="columnheader" className={`iv-dmg ${by === 'damage' ? 'on' : ''}`} aria-sort={by === 'damage' ? 'descending' : undefined}>
-              {sortBy('damage', 'damage')}
+            <span role="columnheader" className={`iv-dmg ${by === "damage" ? "on" : ""}`} aria-sort={by === "damage" ? "descending" : undefined}>
+              {sortBy("damage", "damage")}
             </span>
             <span role="columnheader" className="iv-swap on" aria-sort="descending">
-              <button className="iv-sort" aria-label={`Ranked ${by === 'perGold' ? 'per 1000 gold' : 'by damage'}; rank ${by === 'perGold' ? 'by damage' : 'per 1000 gold'}`} onClick={() => setBy(by === 'perGold' ? 'damage' : 'perGold')}>
+              <button
+                className="iv-sort"
+                aria-label={`Ranked ${by === "perGold" ? "per 1000 gold" : "by damage"}; rank ${by === "perGold" ? "by damage" : "per 1000 gold"}`}
+                onClick={() => setBy(by === "perGold" ? "damage" : "perGold")}
+              >
                 <SwapIcon />
-                {by === 'perGold' ? 'per 1000g' : 'damage'}
+                {by === "perGold" ? "per 1000g" : "damage"}
               </button>
             </span>
           </div>
@@ -428,7 +468,7 @@ function RankList({
                 <button className="iv-more" aria-expanded={expanded} onClick={() => onExpand(!expanded)}>
                   <span>
                     <Chevron />
-                    {expanded ? 'Show less' : 'Show all'}
+                    {expanded ? "Show less" : "Show all"}
                   </span>
                 </button>
               </div>
@@ -439,7 +479,7 @@ function RankList({
       </div>
       {/* A tapped card takes taps itself, so a tap on it closes it instead of reaching the row under
           it; on click, as closing it earlier would let the click land on the row. */}
-      <div className={tapped ? 'iv-tapped' : undefined} onClick={tapped ? close : undefined}>
+      <div className={tapped ? "iv-tapped" : undefined} onClick={tapped ? close : undefined}>
         {tt.node}
       </div>
     </div>
@@ -449,7 +489,7 @@ function RankList({
 /** The column of a row the pointer is over or nearest to. Nearest, so the row's padding and the gaps
  *  between columns don't switch between the cards. */
 function nearestColumn(e: PointerEvent<HTMLElement>): string {
-  let best = '';
+  let best = "";
   let bestDist = Infinity;
   for (const cell of Array.from(e.currentTarget.children)) {
     const r = cell.getBoundingClientRect();
@@ -464,15 +504,15 @@ function nearestColumn(e: PointerEvent<HTMLElement>): string {
 /** A row's card shows what its view doesn't: in the list, which already has the numbers, how the bar
  *  splits between base, effect and procs damage, the parts it has, the hits by name; on the map,
  *  whose dots only have positions, the numbers. Both name what the item procs. */
-function RowTip({ row: r, current, champion, view, action }: { row: Row; current: number | null; champion: string; view: 'list' | 'map'; action?: ReactNode }) {
+function RowTip({ row: r, current, champion, view, action }: { row: Row; current: number | null; champion: string; view: "list" | "map"; action?: ReactNode }) {
   const base = r.gain - r.itemDamage - r.procDamage;
   const procs = r.procs.map((p) => <SourceRow key={`${p.source}|${p.name}`} part="procs" {...p} champion={champion} />);
   return (
     <>
       <div className="tt-title">
-        {r.item} · {fmt(r.gold)}g{r.id === current ? ' (current)' : ''}
+        {r.item} · {fmt(r.gold)}g{r.id === current ? " (current)" : ""}
       </div>
-      {view === 'list' ? (
+      {view === "list" ? (
         <>
           {Math.abs(base) >= 0.5 && (
             <div className="tt-row">
@@ -538,6 +578,13 @@ const Chevron = () => (
 
 const SwapIcon = () => (
   <svg className="chevron" viewBox="0 0 10 10" aria-hidden>
-    <path d="M3 1.5v7M1.2 3.3 3 1.5l1.8 1.8M7 8.5v-7M5.2 6.7 7 8.5l1.8-1.8" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    <path
+      d="M3 1.5v7M1.2 3.3 3 1.5l1.8 1.8M7 8.5v-7M5.2 6.7 7 8.5l1.8-1.8"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </svg>
 );

@@ -1,27 +1,34 @@
 // The Runes card: a rune page as in the client.
 
-import type { CSSProperties } from 'react';
-import { DATA, runeIcon } from '../data.ts';
-import { Icon } from './icons.tsx';
-import { RuneTip, useHoverCard } from './hover.tsx';
-import { Card } from './common.tsx';
-import type { Set, UIState } from '../state.ts';
-import type { Sim } from '../../engine/sim.ts';
-import { runeText } from '../../engine/tooltip.ts';
-import { choosePrimary, chooseSecondary, pickRune, type RunePage } from '../../engine/rune-page.ts';
-import type { RuneData, RuneTreeData } from '../../engine/data-types.ts';
+import type { CSSProperties } from "react";
+import { DATA, runeIcon } from "../data.ts";
+import { Icon } from "./icons.tsx";
+import { RuneTip, useHoverCard } from "./hover.tsx";
+import { Card } from "./common.tsx";
+import type { Set, UIState } from "../state.ts";
+import type { Sim } from "../../engine/sim.ts";
+import { runeText } from "../../engine/tooltip.ts";
+import { choosePrimary, chooseSecondary, pickRune, type RunePage } from "../../engine/rune-page.ts";
+import type { RuneData, RuneTreeData } from "../../engine/data-types.ts";
 
 const TREES = DATA.runePage.trees;
 const treeRow = (tree: string, row: number) => DATA.runes.filter((r) => r.tree === tree && r.row === row);
 /** Sets --tree to a tree's color, for what's inside. */
-const treeColor = (tree: string) => ({ '--tree': `var(--tree-${tree.toLowerCase()})` }) as CSSProperties;
+const treeColor = (tree: string) => ({ "--tree": `var(--tree-${tree.toLowerCase()})` }) as CSSProperties;
 
 export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim: Sim | null }) {
   const page = state.runes;
   const hover = useHoverCard();
   const change = (fn: (p: RunePage) => RunePage) => set((s) => ({ ...s, runes: fn(s.runes) }));
   const pick = (r: RuneData) => (
-    <button key={r.id} className="rune-pick" aria-pressed={page.picks.includes(r.id)} aria-label={r.name} onClick={() => change((p) => pickRune(DATA, p, r.id))} {...hover.bind(<RuneTip id={r.id} sim={sim} />)}>
+    <button
+      key={r.id}
+      className="rune-pick"
+      aria-pressed={page.picks.includes(r.id)}
+      aria-label={r.name}
+      onClick={() => change((p) => pickRune(DATA, p, r.id))}
+      {...hover.bind(<RuneTip id={r.id} sim={sim} />)}
+    >
       <Icon src={runeIcon(r.icon)} label={r.name} />
     </button>
   );
@@ -29,7 +36,7 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
   const shardText = (id: number) => {
     const rune = DATA.runes.find((r) => r.id === id);
     if (!rune) return String(id);
-    return runeText(rune, sim).body.replace(/<[^>]+>/g, '') || rune.name;
+    return runeText(rune, sim).body.replace(/<[^>]+>/g, "") || rune.name;
   };
   return (
     <Card title="Runes">
@@ -46,7 +53,12 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
           ))}
         </div>
         <div className="rune-tree" style={treeColor(page.secondary)}>
-          <TreePicker label="Secondary" value={page.secondary} trees={TREES.filter((t) => t.key !== page.primary)} onPick={(t) => change((p) => chooseSecondary(DATA, p, t))} />
+          <TreePicker
+            label="Secondary"
+            value={page.secondary}
+            trees={TREES.filter((t) => t.key !== page.primary)}
+            onPick={(t) => change((p) => chooseSecondary(DATA, p, t))}
+          />
           <div className="rune-row keystones hint small muted">Two, from different rows</div>
           {[1, 2, 3].map((row) => (
             <div key={row} className="rune-row" role="group" aria-label={`${page.secondary} row ${row}`}>
@@ -59,7 +71,7 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
         {DATA.runePage.shards.map((row, i) => (
           <div key={row.label} className="shard-row" role="group" aria-label={`${row.label} shard`}>
             <span className="small secondary">{row.label}</span>
-            <div className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
+            <div className="row" style={{ gap: 6, flexWrap: "nowrap" }}>
               {row.options.map((id) => {
                 const r = DATA.runes.find((x) => x.id === id)!;
                 return (
@@ -95,7 +107,15 @@ function TreePicker({ label, value, trees, onPick }: { label: string; value: str
       </div>
       <div className="tree-picker" role="group" aria-label={`${label} tree`}>
         {trees.map((t) => (
-          <button key={t.key} className="tree-btn" style={treeColor(t.key)} aria-pressed={t.key === value} aria-label={t.name} title={`${t.name}: ${t.description}`} onClick={() => onPick(t.key)}>
+          <button
+            key={t.key}
+            className="tree-btn"
+            style={treeColor(t.key)}
+            aria-pressed={t.key === value}
+            aria-label={t.name}
+            title={`${t.name}: ${t.description}`}
+            onClick={() => onPick(t.key)}
+          >
             <Icon src={runeIcon(t.icon)} label={t.name} />
           </button>
         ))}

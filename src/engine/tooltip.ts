@@ -1,12 +1,12 @@
 // Render ability tooltips with numbers filled in, for display and for checking against the client.
 
-import type { CalcNode, ItemData, RuneData, SpellData } from './data-types.ts';
-import type { Sim } from './sim.ts';
-import type { Slot } from './effects.ts';
-import { adaptiveDamageType, runeScriptValues } from './runes.ts';
+import type { CalcNode, ItemData, RuneData, SpellData } from "./data-types.ts";
+import type { Sim } from "./sim.ts";
+import type { Slot } from "./effects.ts";
+import { adaptiveDamageType, runeScriptValues } from "./runes.ts";
 
 export function formatNumber(v: number, precision?: number): string {
-  if (!Number.isFinite(v)) return '?';
+  if (!Number.isFinite(v)) return "?";
   if (precision !== undefined && precision >= 0) return String(Number(v.toFixed(precision)));
   const abs = Math.abs(v);
   if (abs >= 100) return String(Math.round(v));
@@ -19,7 +19,7 @@ export function formatNumber(v: number, precision?: number): string {
 function formatCalc(calcs: Record<string, CalcNode>, name: string, v: number): string {
   const display = (n: string, depth = 0): { pct?: boolean; precision?: number } => {
     const node = calcs[n];
-    if (node?.t !== 'mod' || depth > 5) return node ?? {};
+    if (node?.t !== "mod" || depth > 5) return node ?? {};
     const of = display(node.of, depth + 1);
     return { pct: node.pct ?? of.pct, precision: node.precision ?? of.precision };
   };
@@ -32,14 +32,14 @@ export function renderTooltip(sim: Sim, slot: Slot, spell: SpellData, rank?: num
   const r = rank ?? sim.abilityRank(slot);
   const all = sim.champ.abilities.flatMap((a) => a.spells);
   const text = spell.tooltip.replace(/@([^@]+)@/g, (_m, ref: string) => {
-    let [name, multStr] = ref.split('*');
+    let [name, multStr] = ref.split("*");
     const mult = multStr ? Number(multStr) : 1;
     let target = spell;
     let targetRank = r;
     const m = /^spell\.([^:]+):(.+)$/.exec(name);
     if (m) {
       const s = all.find((x) => x.scriptName.toLowerCase() === m[1].toLowerCase());
-      if (!s) return '?';
+      if (!s) return "?";
       target = s;
       targetRank = sim.abilityRank(sim.slotOfSpell(s));
       name = m[2];
@@ -52,20 +52,20 @@ export function renderTooltip(sim: Sim, slot: Slot, spell: SpellData, rank?: num
     const eff = /^Effect(\d+)Amount$/i.exec(name);
     if (eff) {
       const arr = target.effects?.[Number(eff[1]) - 1];
-      return arr ? formatNumber((arr[Math.min(targetRank, arr.length - 1)] ?? 0) * mult) : '?';
+      return arr ? formatNumber((arr[Math.min(targetRank, arr.length - 1)] ?? 0) * mult) : "?";
     }
-    if (lower === 'cooldown') return formatNumber(target.cooldown?.[targetRank] ?? 0);
-    if (lower === 'cost') return formatNumber(target.cost?.[targetRank - 1] ?? 0);
+    if (lower === "cooldown") return formatNumber(target.cooldown?.[targetRank] ?? 0);
+    if (lower === "cost") return formatNumber(target.cost?.[targetRank - 1] ?? 0);
     return `[${name}]`;
   });
   if (opts.html) return text;
   return text
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<li>/gi, '\n• ')
-    .replace(/<[^>]+>/g, '')
-    .replace(/\{\{[^}]*\}\}/g, '')
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<li>/gi, "\n• ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\{\{[^}]*\}\}/g, "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
@@ -75,11 +75,12 @@ export function renderTooltip(sim: Sim, slot: Slot, spell: SpellData, rank?: num
 const rangeSide = (text: string, ranged: boolean) =>
   text
     .replace(/\{\{\s*Item_Range_Mod_@ChampRange@(?:_Dynamic)?(?:_(B|C|D|Perc))?\s*\}\}/gi, (_m, suffix?: string) => {
-      const side = ranged ? 'Ranged' : 'Melee';
-      return suffix?.toLowerCase() === 'perc' ? `@${side}Value*100@%` : `@${side}ItemCalcValue${suffix?.toUpperCase() ?? ''}@`;
+      const side = ranged ? "Ranged" : "Melee";
+      return suffix?.toLowerCase() === "perc" ? `@${side}Value*100@%` : `@${side}ItemCalcValue${suffix?.toUpperCase() ?? ""}@`;
     })
-    .replace(/%i:meleeActive%\s*(@[^@]+@)\s*(%?)\s*\/\s*%i:rangedActive%\s*(@[^@]+@)\s*(%?)/gi, (_m, melee: string, meleePct: string, rangedRef: string, rangedPct: string) =>
-      ranged ? rangedRef + rangedPct : melee + meleePct,
+    .replace(
+      /%i:meleeActive%\s*(@[^@]+@)\s*(%?)\s*\/\s*%i:rangedActive%\s*(@[^@]+@)\s*(%?)/gi,
+      (_m, melee: string, meleePct: string, rangedRef: string, rangedPct: string) => (ranged ? rangedRef + rangedPct : melee + meleePct),
     );
 
 /** Fill an item text's @Placeholders@ from the item's data values and, with a simulator, its
@@ -88,7 +89,7 @@ const rangeSide = (text: string, ranged: boolean) =>
 function fillItemValues(text: string, item: ItemData, sim?: Sim | null): { text: string; resolved: boolean } {
   let resolved = true;
   const filled = (sim ? rangeSide(text, sim.stats.ranged) : text).replace(/@([^@]+)@/g, (_m, ref: string) => {
-    let [name, multStr] = ref.split('*');
+    let [name, multStr] = ref.split("*");
     const mult = multStr ? Number(multStr) : 1;
     const split = Object.entries(item.rangeSplits ?? {}).find(([k]) => k.toLowerCase() === name.toLowerCase())?.[1];
     if (split && sim) name = sim.stats.ranged ? split.ranged : split.melee;
@@ -101,25 +102,25 @@ function fillItemValues(text: string, item: ItemData, sim?: Sim | null): { text:
     const ev = eff ? item.effects?.[Number(eff[1]) - 1] : undefined;
     if (ev !== undefined) return formatNumber(ev * mult);
     if (!/^f\d+$/i.test(name)) resolved = false;
-    return '';
+    return "";
   });
   return { text: filled, resolved };
 }
 
 const cleanItemMarkup = (markup: string) =>
   markup
-    .replace(/<\/?mainText>/gi, '')
-    .replace(/\{\{\s*Item_Keyword_OnHit\s*\}\}/g, 'On-Hit')
-    .replace(/\{\{[^}]*\}\}/g, '')
+    .replace(/<\/?mainText>/gi, "")
+    .replace(/\{\{\s*Item_Keyword_OnHit\s*\}\}/g, "On-Hit")
+    .replace(/\{\{[^}]*\}\}/g, "")
     // The client draws an icon on its own line before an active; the text doesn't always break there.
-    .replace(/(<br\s*\/?>|\s)*%i:activeEffect%/gi, '<br><br>')
+    .replace(/(<br\s*\/?>|\s)*%i:activeEffect%/gi, "<br><br>")
     // Values that scale with an ally's level: "100 - 250 (ally %i:scaleLevel%)".
-    .replace(/%i:scaleLevel%/gi, 'level')
-    .replace(/%i:\w+%/g, '')
-    .replace(/\s*\((\s|<[^>]+>)*\)/g, '')
-    .replace(/ {2,}/g, ' ')
-    .replace(/<li>/gi, '<br>• ')
-    .replace(/^(\s|<br\s*\/?>)+|(\s|<br\s*\/?>)+$/gi, '');
+    .replace(/%i:scaleLevel%/gi, "level")
+    .replace(/%i:\w+%/g, "")
+    .replace(/\s*\((\s|<[^>]+>)*\)/g, "")
+    .replace(/ {2,}/g, " ")
+    .replace(/<li>/gi, "<br>• ")
+    .replace(/^(\s|<br\s*\/?>)+|(\s|<br\s*\/?>)+$/gi, "");
 
 /**
  * What an item's hover card shows, as tooltip markup: the shop text's stat lines, and its passive and
@@ -128,15 +129,15 @@ const cleanItemMarkup = (markup: string) =>
  * blank, or words them away ("a percentage of damage taken").
  */
 export function itemText(item: ItemData, sim?: Sim | null): { stats: string[]; body: string; live: boolean } {
-  const stats = /<stats>([\s\S]*?)<\/stats>/i.exec(item.description)?.[1] ?? '';
-  const shop = item.description.replace(/<stats>[\s\S]*?<\/stats>/i, '');
+  const stats = /<stats>([\s\S]*?)<\/stats>/i.exec(item.description)?.[1] ?? "";
+  const shop = item.description.replace(/<stats>[\s\S]*?<\/stats>/i, "");
   const live = sim && item.tooltip ? fillItemValues(item.tooltip, item, sim) : null;
-  const useLive = !!live?.resolved && !live.text.includes('{{');
+  const useLive = !!live?.resolved && !live.text.includes("{{");
   return {
     stats: fillItemValues(stats, item, sim)
       .text.split(/<br\s*\/?>/i)
       .map(cleanItemMarkup)
-      .filter((s) => /\d/.test(s.replace(/<[^>]+>/g, ''))),
+      .filter((s) => /\d/.test(s.replace(/<[^>]+>/g, ""))),
     body: cleanItemMarkup(useLive ? live.text : fillItemValues(shop, item, sim).text),
     live: useLive,
   };
@@ -170,33 +171,41 @@ function fillRuneValues(text: string, rune: RuneData, sim?: Sim | null, script: 
 const meleeRanged = (text: string, ranged?: boolean) =>
   text.replace(/\[([^\][|]*)\|\|([^\][|]*)\]/g, (_m, melee: string, rangedText: string) => {
     if (ranged === undefined) return `${melee.trim()} / ${rangedText.trim()}`;
-    return (ranged ? rangedText : melee).trim().replace(/\s*\b(Melee|Ranged)$/i, '');
+    return (ranged ? rangedText : melee).trim().replace(/\s*\b(Melee|Ranged)$/i, "");
   });
 
 /** Riot's "adaptive damage" keyword and highlight color as the damage type the rune deals for the
  *  attacker, or highlighted values when it deals none (or there's no attacker). Damage a script value
  *  chose the type of (Dark Harvest's "<scaleAP>45 magic damage</scaleAP>") takes that type, and the
  *  "Adaptive Force" keyword the color of what it gives (AD: physical, AP: magic). */
-const markAdaptive = (markup: string, type: 'physical' | 'magic' | null, force: 'physical' | 'magic' | null) => {
-  const tag = type ? `${type}Damage` : 'attention';
+const markAdaptive = (markup: string, type: "physical" | "magic" | null, force: "physical" | "magic" | null) => {
+  const tag = type ? `${type}Damage` : "attention";
   return markup
-    .replace(/<lol-uikit-tooltipped-keyword key=['"]LinkTooltip_Description_AdaptiveDmg['"]>([\s\S]*?)<\/lol-uikit-tooltipped-keyword>/gi, (_m, inner: string) => (type ? `<${tag}>${inner.replace(/<\/?font[^>]*>/gi, '')}</${tag}>` : inner))
-    .replace(/<lol-uikit-tooltipped-keyword key=['"]LinkTooltip_Description_Adaptive['"]>([\s\S]*?)<\/lol-uikit-tooltipped-keyword>/gi, (_m, inner: string) => (force ? `<${force}Damage>${inner.replace(/<\/?font[^>]*>/gi, '')}</${force}Damage>` : inner))
+    .replace(
+      /<lol-uikit-tooltipped-keyword key=['"]LinkTooltip_Description_AdaptiveDmg['"]>([\s\S]*?)<\/lol-uikit-tooltipped-keyword>/gi,
+      (_m, inner: string) => (type ? `<${tag}>${inner.replace(/<\/?font[^>]*>/gi, "")}</${tag}>` : inner),
+    )
+    .replace(/<lol-uikit-tooltipped-keyword key=['"]LinkTooltip_Description_Adaptive['"]>([\s\S]*?)<\/lol-uikit-tooltipped-keyword>/gi, (_m, inner: string) =>
+      force ? `<${force}Damage>${inner.replace(/<\/?font[^>]*>/gi, "")}</${force}Damage>` : inner,
+    )
     .replace(/<font color=['"]#48C4B7['"]>([^<]*)<\/font>/gi, (_m, inner: string) => `<${tag}>${inner}</${tag}>`)
-    .replace(/<(scaleAD|scaleAP)>([^<]*\b(physical|magic) damage)<\/\1>/gi, (_m, _t, inner: string, dt: string) => `<${dt.toLowerCase()}Damage>${inner}</${dt.toLowerCase()}Damage>`);
+    .replace(
+      /<(scaleAD|scaleAP)>([^<]*\b(physical|magic) damage)<\/\1>/gi,
+      (_m, _t, inner: string, dt: string) => `<${dt.toLowerCase()}Damage>${inner}</${dt.toLowerCase()}Damage>`,
+    );
 };
 
 const cleanRuneMarkup = (markup: string) =>
   markup
-    .replace(/%i:\w+%/g, '')
-    .replace(/\{\{[^}]*\}\}/g, '')
-    .replace(/<\/?lol-uikit-tooltipped-keyword[^>]*>/gi, '')
-    .replace(/\s*\((\s|<[^>]+>)*\)/g, '')
-    .replace(/ {2,}/g, ' ')
-    .replace(/<hr\s*\/?>/gi, '<br>')
-    .replace(/<li>/gi, '<br>• ')
-    .replace(/(<br\s*\/?>\s*){3,}/gi, '<br><br>')
-    .replace(/^(\s|<br\s*\/?>)+|(\s|<br\s*\/?>)+$/gi, '');
+    .replace(/%i:\w+%/g, "")
+    .replace(/\{\{[^}]*\}\}/g, "")
+    .replace(/<\/?lol-uikit-tooltipped-keyword[^>]*>/gi, "")
+    .replace(/\s*\((\s|<[^>]+>)*\)/g, "")
+    .replace(/ {2,}/g, " ")
+    .replace(/<hr\s*\/?>/gi, "<br>")
+    .replace(/<li>/gi, "<br>• ")
+    .replace(/(<br\s*\/?>\s*){3,}/gi, "<br><br>")
+    .replace(/^(\s|<br\s*\/?>)+|(\s|<br\s*\/?>)+$/gi, "");
 
 /**
  * The in-game tooltip with numbers for the simulator's champion, level and stats, and the values the
@@ -211,9 +220,9 @@ function liveRuneTooltip(rune: RuneData, sim: Sim) {
     .replace(/\{\{\s*(\w+)@(f\d+)@\s*\}\}/gi, (m, prefix: string, f: string) => rune.includes?.[`${prefix}${script[f.toLowerCase()]}`.toLowerCase()] ?? m);
   const unknown = (line: string) => [...line.matchAll(/@\s*(f\d+)[^@]*@/gi)].some((m) => !(m[1].toLowerCase() in script)) || /\{\{[^}]*@[^}]*\}\}/.test(line);
   const lines = text.split(/<br\s*\/?>|<hr\s*\/?>/i);
-  const first = lines.find((l) => l.replace(/<[^>]+>/g, '').trim());
+  const first = lines.find((l) => l.replace(/<[^>]+>/g, "").trim());
   if (!first || unknown(first)) return null;
-  const kept = lines.filter((l) => !unknown(l)).join('<br>');
+  const kept = lines.filter((l) => !unknown(l)).join("<br>");
   const live = fillRuneValues(meleeRanged(kept, sim.stats.ranged), rune, sim, script);
   return live.resolved ? live : null;
 }
@@ -225,11 +234,14 @@ function liveRuneTooltip(rune: RuneData, sim: Sim) {
  * damage and Adaptive Force are colored by the type they take at the simulator's stats.
  */
 export function runeText(rune: RuneData, sim?: Sim | null): { body: string; live: boolean } {
-  const result = (body: string, live: boolean) => ({ body: cleanRuneMarkup(markAdaptive(body, sim ? adaptiveDamageType(rune, sim) : null, sim?.stats.adaptiveType ?? null)), live });
+  const result = (body: string, live: boolean) => ({
+    body: cleanRuneMarkup(markAdaptive(body, sim ? adaptiveDamageType(rune, sim) : null, sim?.stats.adaptiveType ?? null)),
+    live,
+  });
   const live = sim && rune.tooltip ? liveRuneTooltip(rune, sim) : null;
   if (live) return result(live.text, live.live);
   // A value only the game knows: dropped with its parentheses (Unsealed Spellbook's first cooldown).
-  const text = meleeRanged(rune.description, sim?.stats.ranged).replace(/\s*\([^()]*@\s*f\d+[^@]*@[^()]*\)/gi, '');
+  const text = meleeRanged(rune.description, sim?.stats.ranged).replace(/\s*\([^()]*@\s*f\d+[^@]*@[^()]*\)/gi, "");
   const desc = fillRuneValues(text, rune, sim);
-  return result(desc.text.replace(/@[^@]+@/g, '…'), desc.live);
+  return result(desc.text.replace(/@[^@]+@/g, "…"), desc.live);
 }

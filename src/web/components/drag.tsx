@@ -1,8 +1,8 @@
 // Drag and drop: a box's children reordered with a pointer or the keyboard, and a build's item slots built on it.
 
-import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
-import { DATA } from '../data.ts';
-import { mergeProps } from './common.tsx';
+import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
+import { DATA } from "../data.ts";
+import { mergeProps } from "./common.tsx";
 
 /** Where a box's child is laid out in it. */
 export type Place = { x: number; y: number; w: number; h: number };
@@ -11,7 +11,21 @@ export type Place = { x: number; y: number; w: number; h: number };
  *  pointer moves: what was pressed, where the pointer went down (x, y) and is (px, py), where it holds
  *  the child (fx, fy, fractions of its size), the child's transform, the index it would drop at (null
  *  until it moves), and whether a brought child is away from the box, where it lands nowhere. */
-type Grab = { el: HTMLElement; from: number; x: number; y: number; px: number; py: number; fx: number; fy: number; tx: number; ty: number; to: number | null; bring?: (on: boolean) => void; away?: boolean };
+type Grab = {
+  el: HTMLElement;
+  from: number;
+  x: number;
+  y: number;
+  px: number;
+  py: number;
+  fx: number;
+  fy: number;
+  tx: number;
+  ty: number;
+  to: number | null;
+  bring?: (on: boolean) => void;
+  away?: boolean;
+};
 
 /**
  * The first `count` children of a box, dragged to new places with a mouse or a finger: a pointer that
@@ -92,7 +106,16 @@ export function useDragOrder({
     // land from where it's laid out among them.
     const away = !!g.bring && !(g.px >= b.left && g.px < b.right && g.py >= b.top && g.py < b.bottom);
     const [lx, ly] = byPointer ? [g.px - b.left, g.py - b.top] : [x + home.w / 2, y + home.h / 2];
-    const to = away || g.away ? g.from : landAt(lx, ly, laidOut(g.from, g.to).map((j) => homes.current[j]), makeWay ? g.to : g.from, g.from);
+    const to =
+      away || g.away
+        ? g.from
+        : landAt(
+            lx,
+            ly,
+            laidOut(g.from, g.to).map((j) => homes.current[j]),
+            makeWay ? g.to : g.from,
+            g.from,
+          );
     if (to !== g.to || away !== !!g.away) reorder(to, away);
   };
   const reorder = (to: number, away = false) => {
@@ -128,7 +151,7 @@ export function useDragOrder({
     if (!el) return;
     const to = keep ? g.to : g.from;
     glide.current = { from: onScreen(arrange(g.from, to)), settle: { at: to, lift: lift(el) } };
-    el.style.transform = '';
+    el.style.transform = "";
     if (to === g.from && !g.bring) return;
     if (el.contains(document.activeElement)) refocus.current = to;
     move(g.from, to);
@@ -145,7 +168,7 @@ export function useDragOrder({
     glide.current = null;
     if (!g || !box.current) return;
     const b = box.current.getBoundingClientRect();
-    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
     for (let k = 0; k < count; k++) {
       const el = child(k);
       if (!el) continue;
@@ -158,7 +181,13 @@ export function useDragOrder({
       const settle = g.settle?.at === k;
       if (still || !f || (!settle && Math.abs(dx) + Math.abs(dy) < 0.5)) continue;
       const [a, z] = settle ? [g.settle!.lift, lift(el)] : [{}, {}];
-      el.animate([{ transform: `translate(${dx}px, ${dy}px)`, ...a }, { transform: 'none', ...z }], { duration: settle ? 180 : 160, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
+      el.animate(
+        [
+          { transform: `translate(${dx}px, ${dy}px)`, ...a },
+          { transform: "none", ...z },
+        ],
+        { duration: settle ? 180 : 160, easing: "cubic-bezier(0.2, 0, 0, 1)" },
+      );
     }
     track();
   });
@@ -171,7 +200,7 @@ export function useDragOrder({
   const press = (from: number, bring?: (on: boolean) => void) => ({
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
       moved.current = false;
-      if (e.button !== 0 || !box.current || (!bring && !movable(from)) || (e.target as Element).closest('input, select, textarea, [role=listbox]')) return;
+      if (e.button !== 0 || !box.current || (!bring && !movable(from)) || (e.target as Element).closest("input, select, textarea, [role=listbox]")) return;
       const r = e.currentTarget.getBoundingClientRect();
       const [x, y] = [e.clientX, e.clientY];
       grab.current = { el: e.currentTarget, from, x, y, px: x, py: y, fx: (x - r.left) / r.width, fy: (y - r.top) / r.height, tx: 0, ty: 0, to: null, bring };
@@ -204,7 +233,7 @@ export function useDragOrder({
       e.stopPropagation();
     },
   });
-  const cancel = (e: KeyboardEvent<HTMLElement>) => e.key === 'Escape' && grab.current?.to != null && (drop(false), true);
+  const cancel = (e: KeyboardEvent<HTMLElement>) => e.key === "Escape" && grab.current?.to != null && (drop(false), true);
   const placed = drag && makeWay ? arrange(drag.from, drag.to) : null;
   /** Props for child i. */
   const item = (i: number) => ({
@@ -212,7 +241,7 @@ export function useDragOrder({
     ...press(i),
     onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
       if (cancel(e) || !movable(i) || e.target !== e.currentTarget) return;
-      const to = e.key === 'ArrowLeft' ? i - 1 : e.key === 'ArrowRight' ? i + 1 : null;
+      const to = e.key === "ArrowLeft" ? i - 1 : e.key === "ArrowRight" ? i + 1 : null;
       if (to == null || to < 0 || to >= count) return;
       e.preventDefault();
       shift(i, to);
@@ -244,7 +273,11 @@ type Slots = (number | null)[];
  * - `vacated`: while an item is dragged, the empty slot it left, to render after the slots.
  * - `onMove(from, to)`, `onSell(i)`: after a move, before a sale, for what goes with the slots.
  */
-export function useItemSlots(items: Slots, change: (fn: (items: Slots) => Slots) => void, { onPick, onMove, onSell }: { onPick?: () => void; onMove?: (from: number, to: number) => void; onSell?: (i: number) => void } = {}) {
+export function useItemSlots(
+  items: Slots,
+  change: (fn: (items: Slots) => Slots) => void,
+  { onPick, onMove, onSell }: { onPick?: () => void; onMove?: (from: number, to: number) => void; onSell?: (i: number) => void } = {},
+) {
   const swap = (from: number, to: number) => {
     const next = items.map((_, j) => j);
     [next[from], next[to]] = [next[to], next[from]];
@@ -274,20 +307,20 @@ export function useItemSlots(items: Slots, change: (fn: (items: Slots) => Slots)
     onSell?.(i);
     change((xs) => xs.map((x, j) => (j === i ? null : x)));
   };
-  const slot = (i: number, { className = '', ...own }: { className?: string } & Record<string, unknown> = {}) => ({
+  const slot = (i: number, { className = "", ...own }: { className?: string } & Record<string, unknown> = {}) => ({
     ...mergeProps(
       order.item(i),
       {
         onKeyDown: (e: KeyboardEvent) => {
-          if (e.target !== e.currentTarget || items[i] == null || (e.key !== 'Delete' && e.key !== 'Backspace')) return;
+          if (e.target !== e.currentTarget || items[i] == null || (e.key !== "Delete" && e.key !== "Backspace")) return;
           e.preventDefault();
           sell(i);
         },
       },
       own,
     ),
-    className: `slot ${items[i] != null ? 'filled' : ''} ${order.drag?.from === i ? 'dragging' : ''} ${landing === i ? 'landing' : ''} ${className}`,
-    role: 'button',
+    className: `slot ${items[i] != null ? "filled" : ""} ${order.drag?.from === i ? "dragging" : ""} ${landing === i ? "landing" : ""} ${className}`,
+    role: "button",
     tabIndex: 0,
   });
   const remove = (i: number) => {

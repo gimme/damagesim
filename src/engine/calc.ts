@@ -3,7 +3,7 @@
 // The trees come straight from the game files, so evaluating them with the right ranks, levels
 // and stats reproduces the in-game numbers exactly. See data-types.ts for the node shapes.
 
-import type { CalcNode, CalcPart } from './data-types.ts';
+import type { CalcNode, CalcPart } from "./data-types.ts";
 
 /** Stat ids used by mStat in the game data (verified against tooltips; see README "Data"). */
 export const STAT = {
@@ -77,94 +77,94 @@ function evalBreakpoints(level: number, l1: number, init: number, bps: { level: 
 
 export function evalPart(p: CalcPart, env: CalcEnv): number {
   switch (p.t) {
-    case 'num':
+    case "num":
       return p.v;
-    case 'dv':
+    case "dv":
       return env.dataValue(p.name);
-    case 'stat':
+    case "stat":
       return env.stat(p.stat, p.formula, !!p.target) * p.coef;
-    case 'statdv':
+    case "statdv":
       return env.stat(p.stat, p.formula, !!p.target) * env.dataValue(p.dv);
-    case 'statsub':
+    case "statsub":
       return env.stat(p.stat, p.formula, !!p.target) * evalPart(p.sub, env);
-    case 'sum':
+    case "sum":
       return p.parts.reduce((s, q) => s + evalPart(q, env), 0);
-    case 'prod':
+    case "prod":
       return evalPart(p.a, env) * evalPart(p.b, env);
-    case 'lerp': {
+    case "lerp": {
       const f = p.statProgression ? statProgression(env.level) : (env.level - 1) / 17;
       return p.start + (p.end - p.start) * f;
     }
-    case 'bp':
+    case "bp":
       return evalBreakpoints(env.level, p.l1, p.init, p.bps);
-    case 'lvltable':
+    case "lvltable":
       // Index = champion level (index 0 is level 0); verified against the wiki for 10 calcs.
       return p.values[Math.min(Math.max(env.level, 0), p.values.length - 1)] ?? 0;
-    case 'effect':
+    case "effect":
       return env.effect(p.idx);
-    case 'cdmult':
+    case "cdmult":
       return 100 / (100 + env.abilityHaste);
-    case 'resource':
+    case "resource":
       return env.resource(p.resource, p.formula) * p.coef;
-    case 'buff':
+    case "buff":
       return env.buffStacks(p.buff) * p.coef;
-    case 'buffdv':
+    case "buffdv":
       return env.buffStacks(p.buff) * env.dataValue(p.dv);
-    case 'clamp': {
+    case "clamp": {
       const v = p.parts.reduce((s, q) => s + evalPart(q, env), 0);
       let r = v;
       if (p.floor != null) r = Math.max(r, p.floor);
       if (p.ceil != null) r = Math.min(r, p.ceil);
       return r;
     }
-    case 'pow': {
+    case "pow": {
       const base = p.parts.reduce((s, q) => s + evalPart(q, env), 0);
-      return Math.pow(base, typeof p.exp === 'number' ? p.exp : 1);
+      return Math.pow(base, typeof p.exp === "number" ? p.exp : 1);
     }
-    case 'ref':
+    case "ref":
       return env.calc(p.name);
-    case 'extdv':
+    case "extdv":
       return env.externalDataValue(p.spell, p.name);
-    case 'lerpdv':
+    case "lerpdv":
       return env.dataValue(p.start) + (env.dataValue(p.end) - env.dataValue(p.start)) * ((env.level - 1) / 17);
-    case 'bpdv':
+    case "bpdv":
       return evalBreakpoints(
         env.level,
         env.dataValue(p.l1),
         p.init ? env.dataValue(p.init) : 0,
         p.bps.map((b) => ({ level: b.level, perLevel: b.perLevel ? env.dataValue(b.perLevel) : 0, add: b.add ? env.dataValue(b.add) : 0 })),
       );
-    case 'lvldv':
+    case "lvldv":
       return env.dataValue(p.base) + env.dataValue(p.perLevel) * (env.level - 1);
-    case 'buffelapsed':
+    case "buffelapsed":
       return env.buffElapsed(p.buff) * p.coef;
-    case 'itemcount':
+    case "itemcount":
       return env.itemCount(p.epicness) * p.coef;
-    case 'unknown':
+    case "unknown":
       return 0;
   }
 }
 
 export function evalCalcNode(node: CalcNode, env: CalcEnv, lookup: (name: string) => CalcNode | undefined, depth = 0): number {
-  if (depth > 20) throw new Error('calculation reference cycle');
+  if (depth > 20) throw new Error("calculation reference cycle");
   switch (node.t) {
-    case 'calc': {
+    case "calc": {
       let v = node.parts.reduce((s, p) => s + evalPart(p, env), 0);
       if (node.mult) v *= evalPart(node.mult, env);
       if (node.rangedMult && env.ranged) v *= evalPart(node.rangedMult, env);
       return v;
     }
-    case 'mod': {
+    case "mod": {
       const inner = lookup(node.of);
       if (!inner) return 0;
       const innerEnv = node.rank !== undefined ? { ...env, rank: node.rank } : env;
       return evalCalcNode(inner, innerEnv, lookup, depth + 1) * evalPart(node.mult, env);
     }
-    case 'cond': {
+    case "cond": {
       // Conditions are buff checks the simulator can't see in general; callers can override via
       // buffStacks(requirement.buff) > 0. Ranged checks are resolved directly.
       let useConditional = false;
-      if (node.requirement.type === 'IsRangedCastRequirement') useConditional = env.ranged;
+      if (node.requirement.type === "IsRangedCastRequirement") useConditional = env.ranged;
       else if (node.requirement.buff) useConditional = env.buffStacks(node.requirement.buff) > 0;
       const name = useConditional ? node.conditional : node.default;
       const target = name ? lookup(name) : undefined;

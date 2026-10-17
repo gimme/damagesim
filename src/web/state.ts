@@ -1,10 +1,10 @@
 // UI state ⇄ engine Scenario, plus URL-hash persistence (shareable links) and the last state in
 // localStorage (reloads where the page can't write its URL, e.g. the artifact frame).
 
-import type { Scenario, SimSettings, TargetSpec } from '../engine/sim.ts';
-import type { TargetPreset } from '../engine/presets.ts';
-import { pageRunes, type RunePage } from '../engine/rune-page.ts';
-import { DATA } from './data.ts';
+import type { Scenario, SimSettings, TargetSpec } from "../engine/sim.ts";
+import type { TargetPreset } from "../engine/presets.ts";
+import { pageRunes, type RunePage } from "../engine/rune-page.ts";
+import { DATA } from "./data.ts";
 
 /** Health, armor and magic resist. */
 export interface TargetStats {
@@ -14,9 +14,9 @@ export interface TargetStats {
 }
 
 /** Who you hit: a preset whose stats follow its level, a champion with items, or custom numbers. */
-export type TargetMode = TargetPreset | 'champion' | 'custom';
+export type TargetMode = TargetPreset | "champion" | "custom";
 
-export const TARGET_MODES: TargetMode[] = ['squishy', 'bruiser', 'tank', 'champion', 'custom'];
+export const TARGET_MODES: TargetMode[] = ["squishy", "bruiser", "tank", "champion", "custom"];
 
 export interface TargetState {
   mode: TargetMode;
@@ -48,27 +48,27 @@ export interface UIState {
   options: Record<string, number>;
   combo: string;
   target: TargetState;
-  settings: Required<Pick<SimSettings, 'finishDots'>>;
+  settings: Required<Pick<SimSettings, "finishDots">>;
 }
 
 /** How a card changes the state: from the state as it is. */
 export type Set = (fn: (s: UIState) => UIState) => void;
 
 export const DEFAULT_STATE: UIState = {
-  champion: 'Ahri',
+  champion: "Ahri",
   level: 11,
   ranks: null,
-  skillOrder: 'QWE',
+  skillOrder: "QWE",
   items: [6655, 3020, null, null, null, null],
   // Electrocute, Cheap Shot, Grisly Mementos, Ultimate Hunter; Absolute Focus, Scorch.
-  runes: { primary: 'Domination', secondary: 'Sorcery', picks: [8112, 8126, 8140, 8106, 8233, 8237], held: [], shards: [5008, 5008, 5001] },
+  runes: { primary: "Domination", secondary: "Sorcery", picks: [8112, 8126, 8140, 8106, 8233, 8237], held: [], shards: [5008, 5008, 5001] },
   options: {},
-  combo: 'E Q W R AA R',
+  combo: "E Q W R AA R",
   target: {
-    mode: 'squishy',
+    mode: "squishy",
     levelDiff: 0,
     builds: {},
-    champion: 'Jinx',
+    champion: "Jinx",
     items: [3031],
     base: { hp: 1600, armor: 60, mr: 40 },
     bonus: { hp: 400, armor: 20, mr: 10 },
@@ -95,8 +95,8 @@ export function toScenario(s: UIState): Scenario {
 
 export function toTargetSpec(t: TargetState): TargetSpec {
   const hp = { hpPercent: t.hpPercent, damageReduction: t.damageReduction };
-  if (t.mode === 'champion') return { champion: t.champion, levelDiff: t.levelDiff, items: t.items, ...hp };
-  if (t.mode === 'custom')
+  if (t.mode === "champion") return { champion: t.champion, levelDiff: t.levelDiff, items: t.items, ...hp };
+  if (t.mode === "custom")
     return {
       maxHp: t.base.hp + t.bonus.hp,
       bonusHp: t.bonus.hp,
@@ -112,12 +112,15 @@ export function toTargetSpec(t: TargetState): TargetSpec {
 
 export function encodeState(s: UIState): string {
   const json = JSON.stringify(s);
-  return btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return btoa(unescape(encodeURIComponent(json)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 export function decodeState(hash: string): UIState | null {
   try {
-    const b64 = hash.replace(/^#/, '').replace(/-/g, '+').replace(/_/g, '/');
+    const b64 = hash.replace(/^#/, "").replace(/-/g, "+").replace(/_/g, "/");
     if (!b64) return null;
     const parsed = JSON.parse(decodeURIComponent(escape(atob(b64))));
     const target: TargetState = TARGET_MODES.includes(parsed.target?.mode) ? { ...DEFAULT_STATE.target, ...parsed.target } : DEFAULT_STATE.target;
@@ -129,13 +132,15 @@ export function decodeState(hash: string): UIState | null {
 }
 
 const isRunePage = (p: any): p is RunePage =>
-  typeof p?.primary === 'string' && typeof p.secondary === 'string' && [p.picks, p.held, p.shards].every((xs) => Array.isArray(xs) && xs.every((x: unknown) => typeof x === 'number'));
+  typeof p?.primary === "string" &&
+  typeof p.secondary === "string" &&
+  [p.picks, p.held, p.shards].every((xs) => Array.isArray(xs) && xs.every((x: unknown) => typeof x === "number"));
 
-const STORAGE_KEY = 'damagesim:state';
+const STORAGE_KEY = "damagesim:state";
 
 export function loadSavedState(): UIState | null {
   try {
-    return decodeState(localStorage.getItem(STORAGE_KEY) ?? '');
+    return decodeState(localStorage.getItem(STORAGE_KEY) ?? "");
   } catch {
     return null;
   }

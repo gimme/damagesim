@@ -1,22 +1,22 @@
 // Summoner spells that deal damage (Ignite).
 
-import type { Effect, SetupCtx } from './effects.ts';
-import type { Sim } from './sim.ts';
-import { evalCalcNode, type CalcEnv } from './calc.ts';
+import type { Effect, SetupCtx } from "./effects.ts";
+import type { Sim } from "./sim.ts";
+import { evalCalcNode, type CalcEnv } from "./calc.ts";
 
-export function createSummonerEffect(name: 'ignite', setup: SetupCtx): Effect {
+export function createSummonerEffect(name: "ignite", setup: SetupCtx): Effect {
   return {
-    id: 'summoner:ignite',
-    label: 'Ignite',
-    source: 'summoner',
-    description: 'True damage over 5 seconds, dealt in 5 one-second ticks.',
+    id: "summoner:ignite",
+    label: "Ignite",
+    source: "summoner",
+    description: "True damage over 5 seconds, dealt in 5 one-second ticks.",
     active: {
-      label: 'Ignite',
+      label: "Ignite",
       cooldown: 0,
       cast(sim: Sim, castId: number) {
         const spell = sim.data.summoners.SummonerDot;
         if (!spell) {
-          sim.warn('Ignite data missing');
+          sim.warn("Ignite data missing");
           return;
         }
         const env = {
@@ -30,14 +30,14 @@ export function createSummonerEffect(name: 'ignite', setup: SetupCtx): Effect {
         for (let i = 1; i <= ticks; i++) {
           sim.schedule(i, () =>
             sim.deal({
-              source: 'summoner:ignite',
-              sourceLabel: 'Ignite',
+              source: "summoner:ignite",
+              sourceLabel: "Ignite",
               label: `Burn tick ${i}`,
-              type: 'true',
+              type: "true",
               amount: total / ticks,
               castId,
               // Ignite isn't affected by damage-dealt modifiers; it still counts for Electrocute etc.
-              flags: { kind: 'summoner', dot: true, unamplified: true },
+              flags: { kind: "summoner", dot: true, unamplified: true },
             }),
           );
         }

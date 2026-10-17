@@ -1,0 +1,7 @@
+# Generated
+src/kits/all.ts
+test/snapshots/
+data/
+package-lock.json
+# Prettier pads tables to their widest cell, which makes the wide ones unreadable in source
+*.md

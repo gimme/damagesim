@@ -1,15 +1,15 @@
 // Hook interface shared by item passives, runes, summoner spells and champion kit mechanics.
 
-import type { DamageType } from './damage.ts';
-import type { StatMods } from './stats.ts';
-import type { Sim } from './sim.ts';
-import type { ComponentSpec, KitOption } from './kit-types.ts';
+import type { DamageType } from "./damage.ts";
+import type { StatMods } from "./stats.ts";
+import type { Sim } from "./sim.ts";
+import type { ComponentSpec, KitOption } from "./kit-types.ts";
 
-export type Slot = 'P' | 'Q' | 'W' | 'E' | 'R';
+export type Slot = "P" | "Q" | "W" | "E" | "R";
 
 export interface DamageFlags {
   /** What produced the damage. */
-  kind: 'ability' | 'attack' | 'item' | 'rune' | 'summoner';
+  kind: "ability" | "attack" | "item" | "rune" | "summoner";
   slot?: Slot;
   /** Counts as ability damage (Liandry's, Luden's, Electrocute ability hits, spell vamp…). */
   ability: boolean;
@@ -67,7 +67,7 @@ export interface DamageInstance {
    * (Shadowflame) multiply. `id` is the source as a damage instance's `source` names it
    * ('item:3165', 'rune:8005', 'R'); `source` is its name.
    */
-  amps: { id?: string; source: string; value: number; kind?: 'dealt' | 'taken' | 'multiplier' }[];
+  amps: { id?: string; source: string; value: number; kind?: "dealt" | "taken" | "multiplier" }[];
   /** Filled in when applied. */
   effectiveResist?: number;
   resistMult?: number;
@@ -86,7 +86,7 @@ export interface DamageRequest {
   source: string;
   sourceLabel: string;
   label: string;
-  type: DamageType | 'adaptive';
+  type: DamageType | "adaptive";
   amount: number;
   flags?: Partial<DamageFlags>;
   castId?: number;
@@ -199,7 +199,15 @@ export interface CastInfo {
  * and what Arcane Comet, Hexoptics C44 and Horizon Focus read. Unset, your attack range (the
  * simulation sets it; `default` is only a fallback).
  */
-export const DISTANCE = { key: 'distance', label: 'Distance to target (units)', default: 550, min: 0, max: 2000, step: 25, description: 'Where the target stands, edge to edge: your attack range unless set. Attacks, missiles and dashes at it fly this far.' };
+export const DISTANCE = {
+  key: "distance",
+  label: "Distance to target (units)",
+  default: 550,
+  min: 0,
+  max: 2000,
+  step: 25,
+  description: "Where the target stands, edge to edge: your attack range unless set. Attacks, missiles and dashes at it fly this far.",
+};
 
 /**
  * Your own health, shared by Last Stand, Absolute Focus, Immortal Path, Overlord's Bloodmail, Olaf,
@@ -207,7 +215,15 @@ export const DISTANCE = { key: 'distance', label: 'Distance to target (units)', 
  * or stops ramping at a multiple of 10% (Absolute Focus 70, Immortal Path 50, Last Stand 60 to 30,
  * the rest 30, Tryndamere 10), so it steps by 10.
  */
-export const SELF_HP: KitOption = { key: 'self.hpPercent', label: 'Your current HP (%)', default: 100, min: 10, max: 100, step: 10, description: 'Your health as a percentage of your maximum health.' };
+export const SELF_HP: KitOption = {
+  key: "self.hpPercent",
+  label: "Your current HP (%)",
+  default: 100,
+  min: 10,
+  max: 100,
+  step: 10,
+  description: "Your health as a percentage of your maximum health.",
+};
 
 /**
  * Seconds you've already been fighting when the combo starts, shared by what builds up over a fight:
@@ -215,13 +231,13 @@ export const SELF_HP: KitOption = { key: 'self.hpPercent', label: 'Your current 
  * charge. None takes more than 4 seconds.
  */
 export const IN_COMBAT: KitOption = {
-  key: 'combat.seconds',
-  label: 'Seconds already in combat',
+  key: "combat.seconds",
+  label: "Seconds already in combat",
   default: 0,
   min: 0,
   max: 4,
   step: 1,
-  description: 'Starts the combo as if you had been fighting the target this long, so what builds up over a fight starts partway.',
+  description: "Starts the combo as if you had been fighting the target this long, so what builds up over a fight starts partway.",
 };
 
 /** Your current health as a fraction of your maximum (the option is a percentage). */
@@ -259,7 +275,7 @@ export interface EffectHooks {
   /** React to damage that was dealt (procs, burns, stack counters). */
   afterDamage?(sim: Sim, inst: DamageInstance): void;
   /** The target was crowd-controlled by an ability (immobilize: stun/root/knock-up/charm…). */
-  onCrowdControl?(sim: Sim, cc: { kind: 'immobilize' | 'slow' | 'impair'; castId: number; slot?: Slot; duration: number }): void;
+  onCrowdControl?(sim: Sim, cc: { kind: "immobilize" | "slow" | "impair"; castId: number; slot?: Slot; duration: number }): void;
   /** Resist reductions this effect currently applies to the target. */
   targetResist?(sim: Sim): { armorFlat?: number; armorPercent?: number; mrFlat?: number; mrPercent?: number } | void;
 }
@@ -267,7 +283,7 @@ export interface EffectHooks {
 export interface Effect extends EffectHooks {
   id: string;
   label: string;
-  source: 'item' | 'rune' | 'kit' | 'summoner';
+  source: "item" | "rune" | "kit" | "summoner";
   /** Short human-readable description of what the simulator models. */
   description?: string;
   /** Things the simulator does not model for this effect. */

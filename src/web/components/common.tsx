@@ -1,7 +1,7 @@
 // What every card shares: its frame, a number field, number formatting, prop merging and undo.
 // Icons, pickers, hover cards and drag and drop have their own files.
 
-import { useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from "react";
 
 export function Card({ title, right, children }: { title: ReactNode; right?: ReactNode; children: ReactNode }) {
   return (
@@ -15,16 +15,40 @@ export function Card({ title, right, children }: { title: ReactNode; right?: Rea
   );
 }
 
-export function NumberField({ label, value, onChange, step = 1, min, max, width }: { label: string; value: number; onChange: (v: number) => void; step?: number; min?: number; max?: number; width?: number }) {
+export function NumberField({
+  label,
+  value,
+  onChange,
+  step = 1,
+  min,
+  max,
+  width,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  step?: number;
+  min?: number;
+  max?: number;
+  width?: number;
+}) {
   return (
     <label className="field">
       {label}
-      <input type="number" value={Number.isFinite(value) ? value : 0} step={step} min={min} max={max} style={width ? { width } : undefined} onChange={(e) => onChange(Number(e.target.value))} />
+      <input
+        type="number"
+        value={Number.isFinite(value) ? value : 0}
+        step={step}
+        min={min}
+        max={max}
+        style={width ? { width } : undefined}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
     </label>
   );
 }
 
-export const fmt = (v: number, d = 0) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: d, minimumFractionDigits: d }) : '–');
+export const fmt = (v: number, d = 0) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: d, minimumFractionDigits: d }) : "–");
 
 /** One element's props from several sources: the handlers for the same event all run, in order. */
 export function mergeProps(...all: Record<string, unknown>[]) {
@@ -32,7 +56,7 @@ export function mergeProps(...all: Record<string, unknown>[]) {
   for (const props of all)
     for (const [k, v] of Object.entries(props)) {
       const was = out[k];
-      out[k] = /^on[A-Z]/.test(k) && typeof was === 'function' && typeof v === 'function' ? (...a: unknown[]) => (was(...a), v(...a)) : v;
+      out[k] = /^on[A-Z]/.test(k) && typeof was === "function" && typeof v === "function" ? (...a: unknown[]) => (was(...a), v(...a)) : v;
     }
   return out;
 }

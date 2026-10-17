@@ -1,15 +1,26 @@
 // Hover cards: the hook that shows one beside its element, and the item, rune and markup cards shown in them.
 
-import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type FocusEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
-import { DATA } from '../data.ts';
-import { ItemIcon, RuneIcon } from './icons.tsx';
-import { fmt } from './common.tsx';
-import type { ItemData } from '../../engine/data-types.ts';
-import { hasItemModel } from '../../engine/items.ts';
-import { hasRuneModel } from '../../engine/runes.ts';
-import { itemText, runeText } from '../../engine/tooltip.ts';
-import type { Sim } from '../../engine/sim.ts';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
+import { DATA } from "../data.ts";
+import { ItemIcon, RuneIcon } from "./icons.tsx";
+import { fmt } from "./common.tsx";
+import type { ItemData } from "../../engine/data-types.ts";
+import { hasItemModel } from "../../engine/items.ts";
+import { hasRuneModel } from "../../engine/runes.ts";
+import { itemText, runeText } from "../../engine/tooltip.ts";
+import type { Sim } from "../../engine/sim.ts";
 
 /**
  * A card shown while the pointer is over (or keyboard focus is on) an element: beside the panel the
@@ -61,11 +72,11 @@ export function useHoverCard() {
   useLayoutEffect(() => {
     const node = el.current;
     if (!card || !node) return;
-    node.style.left = '0px';
-    node.style.top = '0px';
+    node.style.left = "0px";
+    node.style.top = "0px";
     const { width: w, height: h } = node.getBoundingClientRect();
     const a = card.anchor.getBoundingClientRect();
-    const panel = (card.anchor.closest('section.card') ?? card.anchor).getBoundingClientRect();
+    const panel = (card.anchor.closest("section.card") ?? card.anchor).getBoundingClientRect();
     const vw = document.documentElement.clientWidth;
     const vh = window.innerHeight;
     const m = 8;
@@ -84,11 +95,11 @@ export function useHoverCard() {
 
   useEffect(() => {
     if (!card) return;
-    window.addEventListener('scroll', hide, true);
-    window.addEventListener('resize', hide);
+    window.addEventListener("scroll", hide, true);
+    window.addEventListener("resize", hide);
     return () => {
-      window.removeEventListener('scroll', hide, true);
-      window.removeEventListener('resize', hide);
+      window.removeEventListener("scroll", hide, true);
+      window.removeEventListener("resize", hide);
     };
   }, [card]);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -100,13 +111,13 @@ export function useHoverCard() {
     const end = () => {
       scrubbing.current = false;
     };
-    node.addEventListener('touchmove', move, { passive: false });
-    node.addEventListener('touchend', end);
-    node.addEventListener('touchcancel', end);
+    node.addEventListener("touchmove", move, { passive: false });
+    node.addEventListener("touchend", end);
+    node.addEventListener("touchcancel", end);
     return () => {
-      node.removeEventListener('touchmove', move);
-      node.removeEventListener('touchend', end);
-      node.removeEventListener('touchcancel', end);
+      node.removeEventListener("touchmove", move);
+      node.removeEventListener("touchend", end);
+      node.removeEventListener("touchcancel", end);
       if (shownFor.current === node) hide();
     };
   }, []);
@@ -117,11 +128,11 @@ export function useHoverCard() {
   // and the long-press menu isn't prevented, as Android vibrates when a page prevents it.
   const bind = (content: ReactNode) => ({
     ref: attach,
-    'data-hovercard': '',
-    onPointerEnter: (e: PointerEvent<HTMLElement>) => enter(e.currentTarget, content, e.pointerType === 'touch'),
+    "data-hovercard": "",
+    onPointerEnter: (e: PointerEvent<HTMLElement>) => enter(e.currentTarget, content, e.pointerType === "touch"),
     onPointerLeave: leave,
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
-      pressed.current = e.pointerType === 'touch' ? e.timeStamp : 0;
+      pressed.current = e.pointerType === "touch" ? e.timeStamp : 0;
       if (pressed.current) (e.target as Element).releasePointerCapture(e.pointerId);
       else hide();
     },
@@ -137,7 +148,7 @@ export function useHoverCard() {
       pressed.current = 0;
     },
     onFocus: (e: FocusEvent<HTMLElement>) => {
-      if (!e.currentTarget.matches(':focus-visible')) return;
+      if (!e.currentTarget.matches(":focus-visible")) return;
       show(e.currentTarget, content);
       focused.current = e.currentTarget;
     },
@@ -157,23 +168,23 @@ export function useHoverCard() {
 // Riot tooltip markup (from itemText: tags, <br>, no icons or {{keys}}) as React elements. Unknown
 // tags keep their text; nothing is injected as HTML.
 const EMPHASIS: Record<string, string> = {
-  passive: 'it-name',
-  active: 'it-name',
-  unique: 'it-name',
-  keywordmajor: 'it-name',
-  spellname: 'it-name',
-  attention: 'it-value',
-  magicdamage: 'it-value magic',
-  physicaldamage: 'it-value physical',
-  truedamage: 'it-value true',
-  rules: 'it-rules',
-  b: 'it-name',
-  i: 'it-em',
+  passive: "it-name",
+  active: "it-name",
+  unique: "it-name",
+  keywordmajor: "it-name",
+  spellname: "it-name",
+  attention: "it-value",
+  magicdamage: "it-value magic",
+  physicaldamage: "it-value physical",
+  truedamage: "it-value true",
+  rules: "it-rules",
+  b: "it-name",
+  i: "it-em",
 };
 
 export function Markup({ text }: { text: string }) {
   type Frame = { tag: string; kids: ReactNode[] };
-  const stack: Frame[] = [{ tag: '', kids: [] }];
+  const stack: Frame[] = [{ tag: "", kids: [] }];
   const top = () => stack[stack.length - 1];
   let key = 0;
   const close = () => {
@@ -194,7 +205,7 @@ export function Markup({ text }: { text: string }) {
     if (m.index > last) top().kids.push(text.slice(last, m.index));
     last = m.index + m[0].length;
     const [, closing, tag] = m;
-    if (tag.toLowerCase() === 'br') top().kids.push(<br key={key++} />);
+    if (tag.toLowerCase() === "br") top().kids.push(<br key={key++} />);
     else if (!closing) stack.push({ tag, kids: [] });
     else {
       const i = stack.findLastIndex((f) => f.tag === tag);

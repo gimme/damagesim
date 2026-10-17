@@ -1,14 +1,14 @@
 // Higher-level analyses built on simulate(): compare builds, rank items, optimize item sets,
 // order combos, and sweep target resistances. Used by the CLI, the MCP server and the web UI.
 
-import type { GameData } from './gamedata.ts';
-import { findItem } from './gamedata.ts';
-import { simulate, isLegendary, Sim, type Scenario, type SimResult } from './sim.ts';
-import { parseCombo, formatCombo, type ComboStep } from './combo.ts';
-import { ITEM_GROUPS } from './items.ts';
-import type { ItemData } from './data-types.ts';
+import type { GameData } from "./gamedata.ts";
+import { findItem } from "./gamedata.ts";
+import { simulate, isLegendary, Sim, type Scenario, type SimResult } from "./sim.ts";
+import { parseCombo, formatCombo, type ComboStep } from "./combo.ts";
+import { ITEM_GROUPS } from "./items.ts";
+import type { ItemData } from "./data-types.ts";
 
-export type Metric = 'damage' | 'burst' | 'percentHp' | 'damagePerGold' | 'killTime' | 'dps';
+export type Metric = "damage" | "burst" | "percentHp" | "damagePerGold" | "killTime" | "dps";
 
 export interface Summary {
   label: string;
@@ -22,7 +22,7 @@ export interface Summary {
   dps: number;
   gold: number;
   items: string[];
-  byType: SimResult['byType'];
+  byType: SimResult["byType"];
   warnings: string[];
 }
 
@@ -46,18 +46,18 @@ export function summarize(r: SimResult, label: string): Summary {
 
 export function metricValue(r: SimResult, metric: Metric): number {
   switch (metric) {
-    case 'damage':
+    case "damage":
       return r.totalDamage;
-    case 'burst':
+    case "burst":
       return r.comboDamage;
-    case 'percentHp':
+    case "percentHp":
       return r.percentOfHp;
-    case 'damagePerGold':
+    case "damagePerGold":
       return r.gold > 0 ? r.totalDamage / r.gold : r.totalDamage;
-    case 'killTime':
+    case "killTime":
       // Lower is better: return negative time (kills first), unkilled ranked by damage.
       return r.killTime !== undefined ? 1e6 - r.killTime : r.totalDamage;
-    case 'dps':
+    case "dps":
       return r.dps;
   }
 }
@@ -76,7 +76,7 @@ export interface Variant {
   changes: Partial<Scenario>;
 }
 
-export function compare(data: GameData, base: Scenario, variants: Variant[], metric: Metric = 'damage') {
+export function compare(data: GameData, base: Scenario, variants: Variant[], metric: Metric = "damage") {
   const results = variants.map((v, i) => {
     const sc: Scenario = { ...base, ...v.changes, options: { ...base.options, ...v.changes.options } };
     const r = simulate(data, sc);
@@ -88,18 +88,18 @@ export function compare(data: GameData, base: Scenario, variants: Variant[], met
 
 function describeVariant(v: Variant, i: number): string {
   const parts: string[] = [];
-  if (v.changes.items) parts.push(v.changes.items.join(' + '));
-  if (v.changes.runes) parts.push(`runes: ${v.changes.runes.join(', ')}`);
-  if (v.changes.combo) parts.push(`combo: ${typeof v.changes.combo === 'string' ? v.changes.combo : formatCombo(v.changes.combo)}`);
+  if (v.changes.items) parts.push(v.changes.items.join(" + "));
+  if (v.changes.runes) parts.push(`runes: ${v.changes.runes.join(", ")}`);
+  if (v.changes.combo) parts.push(`combo: ${typeof v.changes.combo === "string" ? v.changes.combo : formatCombo(v.changes.combo)}`);
   if (v.changes.level) parts.push(`level ${v.changes.level}`);
-  return parts.join(' | ') || `variant ${i + 1}`;
+  return parts.join(" | ") || `variant ${i + 1}`;
 }
 
 // -----------------------------------------------------------------------------
 // Item ranking: marginal value of adding one item to the current build.
 
 export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (number | string)[]; metric?: Metric; limit?: number } = {}) {
-  const metric = opts.metric ?? 'damage';
+  const metric = opts.metric ?? "damage";
   const baseRes = simulate(data, base);
   const baseScore = metricValue(baseRes, metric);
   const baseHits = hitCounts(baseRes);
@@ -132,27 +132,27 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
       killed: r.killed,
       ...(r.killTime !== undefined ? { killTime: round(r.killTime, 2) } : {}),
       // Per gold ranks the item's own efficiency (gain ÷ its cost), not the whole build's damage per gold.
-      score: metric === 'damagePerGold' ? perGold : metricValue(r, metric) - baseScore,
+      score: metric === "damagePerGold" ? perGold : metricValue(r, metric) - baseScore,
     });
   }
   rows.sort((a, b) => b.score - a.score);
   return {
     metric,
-    base: summarize(baseRes, 'current build'),
+    base: summarize(baseRes, "current build"),
     items: rows.slice(0, opts.limit ?? 25),
-    note: 'gainPerGold is damage gained per 1000 gold of the item. itemDamage is the part of the gain the item deals itself; procDamage the part dealt by hits of your other damage that land only with the item (procs lists it by source, e.g. Electrocute).',
+    note: "gainPerGold is damage gained per 1000 gold of the item. itemDamage is the part of the gain the item deals itself; procDamage the part dealt by hits of your other damage that land only with the item (procs lists it by source, e.g. Electrocute).",
   };
 }
 
 /** A hit's name without its variant (Luden's Echo and its repeats, Varus's detonation at any stacks). */
-const hitName = (label: string) => label.replace(/ \(.*\)$/, '');
+const hitName = (label: string) => label.replace(/ \(.*\)$/, "");
 
 /** Damage by name, largest first, leaving out what rounds to nothing. */
 const byName = (named: Map<string, { source: string; damage: number }>) =>
   [...named]
     .filter(([, n]) => n.damage >= 0.5)
     .sort((a, b) => b[1].damage - a[1].damage)
-    .map(([key, n]) => ({ source: n.source, name: key.slice(key.indexOf('|') + 1), damage: round(n.damage) }));
+    .map(([key, n]) => ({ source: n.source, name: key.slice(key.indexOf("|") + 1), damage: round(n.damage) }));
 
 /** The damage of an item's own hits by their name (Squall, Spellblade, Echo), largest first. */
 function ownHits(r: SimResult, item: string) {
@@ -206,7 +206,7 @@ function newHits(r: SimResult, base: ReturnType<typeof hitCounts>, item: string)
     if (n <= 0) continue;
     const damage = Math.max(0, Math.min((k.damage / k.hits) * n, k.damage - (was?.damage ?? 0)));
     // A part of its source keeps its name (Super Scorcher Breath (execute)); a hit of its own drops its variant.
-    const name = k.source.includes(':') ? k.label : k.hit.startsWith(`${k.label} (`) ? k.hit : hitName(k.hit);
+    const name = k.source.includes(":") ? k.label : k.hit.startsWith(`${k.label} (`) ? k.hit : hitName(k.hit);
     found.push({ id: `${k.source}|${k.label}`, source: k.source, name, hits: n, damage });
   }
   const named = new Map<string, { source: string; damage: number }>();
@@ -216,18 +216,18 @@ function newHits(r: SimResult, base: ReturnType<typeof hitCounts>, item: string)
     if (!named.has(key)) named.set(key, { source: f.source, damage: 0 });
     named.get(key)!.damage += f.damage * Math.min(1, more.get(f.id)! / hits);
   }
-  return [...named].map(([key, n]) => ({ source: n.source, name: key.slice(key.indexOf('|') + 1), damage: n.damage }));
+  return [...named].map(([key, n]) => ({ source: n.source, name: key.slice(key.indexOf("|") + 1), damage: n.damage }));
 }
 
 /** Legendary items + boots on Summoner's Rift (excluding champion-specific ones). */
 export function defaultCandidates(data: GameData, base?: Scenario): ItemData[] {
-  return Object.values(data.items).filter((i) => i.inStore && !i.requiredChampion && (isLegendary(i) || (i.tags.includes('Boots') && i.depth >= 2)));
+  return Object.values(data.items).filter((i) => i.inStore && !i.requiredChampion && (isLegendary(i) || (i.tags.includes("Boots") && i.depth >= 2)));
 }
 
 /** Item-group conflicts (only one Spellblade, Hydra, Fatality, Blight… item; one pair of boots). */
 export function conflicts(build: ItemData[], it: ItemData): string | null {
-  if (build.some((b) => b.id === it.id)) return 'duplicate';
-  if (it.tags.includes('Boots') && build.some((b) => b.tags.includes('Boots'))) return 'boots';
+  if (build.some((b) => b.id === it.id)) return "duplicate";
+  if (it.tags.includes("Boots") && build.some((b) => b.tags.includes("Boots"))) return "boots";
   for (const [group, ids] of Object.entries(ITEM_GROUPS)) {
     if (ids.includes(it.id) && build.some((b) => ids.includes(b.id))) return group;
   }
@@ -242,7 +242,7 @@ export function optimizeItems(
   base: Scenario,
   opts: { pool?: (number | string)[]; slots: number; fixed?: (number | string)[]; metric?: Metric; maxEvaluations?: number; top?: number },
 ) {
-  const metric = opts.metric ?? 'damage';
+  const metric = opts.metric ?? "damage";
   const fixed = (opts.fixed ?? base.items ?? []).map((q) => findItem(data, q));
   let pool = (opts.pool?.length ? opts.pool.map((q) => findItem(data, q)) : defaultCandidates(data, base)).filter((p) => !fixed.some((f) => f.id === p.id));
   const maxEval = opts.maxEvaluations ?? 20000;
@@ -266,7 +266,12 @@ export function optimizeItems(
     if (picked.length === opts.slots) {
       const ids = [...fixed, ...picked].map((i) => i.id);
       const r = simulate(data, { ...base, items: ids });
-      results.push({ items: [...fixed, ...picked].map((i) => i.name), ids, score: metricValue(r, metric), summary: summarize(r, picked.map((p) => p.name).join(' + ')) });
+      results.push({
+        items: [...fixed, ...picked].map((i) => i.name),
+        ids,
+        score: metricValue(r, metric),
+        summary: summarize(r, picked.map((p) => p.name).join(" + ")),
+      });
       return;
     }
     for (let i = start; i < pool.length; i++) {
@@ -286,8 +291,8 @@ export function optimizeItems(
 // Combo ordering: try permutations of the given steps.
 
 export function optimizeCombo(data: GameData, base: Scenario, opts: { metric?: Metric; keepFirst?: number; maxPermutations?: number; top?: number } = {}) {
-  const metric = opts.metric ?? 'damage';
-  const steps = typeof base.combo === 'string' ? parseCombo(base.combo) : base.combo;
+  const metric = opts.metric ?? "damage";
+  const steps = typeof base.combo === "string" ? parseCombo(base.combo) : base.combo;
   const keep = opts.keepFirst ?? 0;
   const head = steps.slice(0, keep);
   const tail = steps.slice(keep);
@@ -315,18 +320,24 @@ export function optimizeCombo(data: GameData, base: Scenario, opts: { metric?: M
 // -----------------------------------------------------------------------------
 // Resistance sweep: damage vs. target armor/MR (for charts and breakpoints).
 
-export function resistSweep(data: GameData, base: Scenario, opts: { stat: 'armor' | 'mr'; from?: number; to?: number; step?: number }) {
+export function resistSweep(data: GameData, base: Scenario, opts: { stat: "armor" | "mr"; from?: number; to?: number; step?: number }) {
   const from = opts.from ?? 0;
   const to = opts.to ?? 300;
   const step = opts.step ?? 10;
   // The target keeps its base resist (lowered where the sweep goes below it); the rest is bonus.
   const t = new Sim(data, base).target;
-  const baseResist = opts.stat === 'armor' ? t.baseArmor : t.baseMr;
+  const baseResist = opts.stat === "armor" ? t.baseArmor : t.baseMr;
   const points = [];
   for (let v = from; v <= to + 1e-9; v += step) {
-    const target = { ...(base.target ?? {}), [opts.stat]: v, [opts.stat === 'armor' ? 'bonusArmor' : 'bonusMr']: Math.max(0, v - baseResist) };
+    const target = { ...(base.target ?? {}), [opts.stat]: v, [opts.stat === "armor" ? "bonusArmor" : "bonusMr"]: Math.max(0, v - baseResist) };
     const r = simulate(data, { ...base, target });
-    points.push({ [opts.stat]: v, totalDamage: round(r.totalDamage), physical: round(r.byType.physical), magic: round(r.byType.magic), true: round(r.byType.true) });
+    points.push({
+      [opts.stat]: v,
+      totalDamage: round(r.totalDamage),
+      physical: round(r.byType.physical),
+      magic: round(r.byType.magic),
+      true: round(r.byType.true),
+    });
   }
   return points;
 }

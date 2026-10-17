@@ -2,31 +2,31 @@
 
 /** One node of a Riot "GameCalculation" formula tree (see calc.ts for semantics). */
 export type CalcPart =
-  | { t: 'dv'; name: string }
-  | { t: 'stat'; stat: number; formula: number; coef: number; target?: boolean }
-  | { t: 'statdv'; stat: number; formula: number; dv: string; target?: boolean }
-  | { t: 'statsub'; stat: number; formula: number; sub: CalcPart; target?: boolean }
-  | { t: 'num'; v: number }
-  | { t: 'sum'; parts: CalcPart[] }
-  | { t: 'prod'; a: CalcPart; b: CalcPart }
-  | { t: 'lerp'; start: number; end: number; statProgression?: boolean }
-  | { t: 'bp'; l1: number; init: number; bps: { level: number; perLevel: number; add: number }[] }
-  | { t: 'lvltable'; values: number[] }
-  | { t: 'effect'; idx: number }
-  | { t: 'cdmult' }
-  | { t: 'resource'; coef: number; formula: number; resource: number }
-  | { t: 'buff'; buff: string; coef: number }
-  | { t: 'buffdv'; buff: string; dv: string }
-  | { t: 'clamp'; floor: number | null; ceil: number | null; parts: CalcPart[] }
-  | { t: 'pow'; parts: CalcPart[]; exp: any }
-  | { t: 'ref'; name: string }
-  | { t: 'extdv'; spell: string; name: string }
-  | { t: 'lerpdv'; start: string; end: string }
-  | { t: 'bpdv'; l1: string; init: string; bps: { level: number; perLevel: string; add: string }[] }
-  | { t: 'lvldv'; base: string; perLevel: string }
-  | { t: 'buffelapsed'; buff: string; coef: number }
-  | { t: 'itemcount'; epicness: number; coef: number }
-  | { t: 'unknown'; type: string };
+  | { t: "dv"; name: string }
+  | { t: "stat"; stat: number; formula: number; coef: number; target?: boolean }
+  | { t: "statdv"; stat: number; formula: number; dv: string; target?: boolean }
+  | { t: "statsub"; stat: number; formula: number; sub: CalcPart; target?: boolean }
+  | { t: "num"; v: number }
+  | { t: "sum"; parts: CalcPart[] }
+  | { t: "prod"; a: CalcPart; b: CalcPart }
+  | { t: "lerp"; start: number; end: number; statProgression?: boolean }
+  | { t: "bp"; l1: number; init: number; bps: { level: number; perLevel: number; add: number }[] }
+  | { t: "lvltable"; values: number[] }
+  | { t: "effect"; idx: number }
+  | { t: "cdmult" }
+  | { t: "resource"; coef: number; formula: number; resource: number }
+  | { t: "buff"; buff: string; coef: number }
+  | { t: "buffdv"; buff: string; dv: string }
+  | { t: "clamp"; floor: number | null; ceil: number | null; parts: CalcPart[] }
+  | { t: "pow"; parts: CalcPart[]; exp: any }
+  | { t: "ref"; name: string }
+  | { t: "extdv"; spell: string; name: string }
+  | { t: "lerpdv"; start: string; end: string }
+  | { t: "bpdv"; l1: string; init: string; bps: { level: number; perLevel: string; add: string }[] }
+  | { t: "lvldv"; base: string; perLevel: string }
+  | { t: "buffelapsed"; buff: string; coef: number }
+  | { t: "itemcount"; epicness: number; coef: number }
+  | { t: "unknown"; type: string };
 
 interface CalcCommon {
   /** Tooltip shows this value ×100 with a % sign. */
@@ -37,9 +37,9 @@ interface CalcCommon {
 }
 
 export type CalcNode =
-  | ({ t: 'calc'; parts: CalcPart[]; mult?: CalcPart; rangedMult?: CalcPart } & CalcCommon)
-  | ({ t: 'mod'; of: string; mult: CalcPart; rank?: number } & CalcCommon)
-  | ({ t: 'cond'; default: string | null; conditional: string; requirement: { type: string; buff?: string } } & CalcCommon);
+  | ({ t: "calc"; parts: CalcPart[]; mult?: CalcPart; rangedMult?: CalcPart } & CalcCommon)
+  | ({ t: "mod"; of: string; mult: CalcPart; rank?: number } & CalcCommon)
+  | ({ t: "cond"; default: string | null; conditional: string; requirement: { type: string; buff?: string } } & CalcCommon);
 
 export interface SpellData {
   path: string;
@@ -72,7 +72,7 @@ export interface SpellData {
 export interface AbilityData {
   name: string;
   /** P = passive, X = not bound to a slot (alternate forms, sub-spells). */
-  slot: 'P' | 'Q' | 'W' | 'E' | 'R' | 'X';
+  slot: "P" | "Q" | "W" | "E" | "R" | "X";
   spells: SpellData[];
 }
 
@@ -117,12 +117,12 @@ export interface ChampionData {
   tags: string[];
   partype: string;
   icon: string;
-  attackType: 'melee' | 'ranged';
-  adaptive: 'physical' | 'magic';
+  attackType: "melee" | "ranged";
+  adaptive: "physical" | "magic";
   stats: ChampionBaseStats;
   passive: { name: string; description: string };
   /** HUD icon of the passive and each ability slot, as a path under CommunityDragon's game folder. */
-  abilityIcons: Partial<Record<'P' | 'Q' | 'W' | 'E' | 'R', string>>;
+  abilityIcons: Partial<Record<"P" | "Q" | "W" | "E" | "R", string>>;
   abilities: AbilityData[];
 }
 
@@ -133,8 +133,8 @@ export interface ChampionIndexEntry {
   title: string;
   tags: string[];
   icon: string;
-  attackType: 'melee' | 'ranged';
-  adaptive: 'physical' | 'magic';
+  attackType: "melee" | "ranged";
+  adaptive: "physical" | "magic";
   resource: string;
 }
 

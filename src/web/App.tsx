@@ -1,37 +1,37 @@
-import { useEffect, useMemo, useState } from 'react';
-import { DATA, loadBundledIcons } from './data.ts';
-import { DEFAULT_STATE, decodeState, encodeState, loadSavedState, saveState, toScenario, type UIState } from './state.ts';
-import { simulate, Sim, type SimResult } from '../engine/sim.ts';
-import { clampCombo, formatCombo, parseCombo } from '../engine/combo.ts';
-import { AttackerPanel } from './components/attacker.tsx';
-import { ItemsPanel } from './components/items.tsx';
-import { RunesPanel } from './components/runes.tsx';
-import { TargetPanel } from './components/target.tsx';
-import { SettingsPanel } from './components/settings.tsx';
-import { ComboBuilder } from './components/combo.tsx';
-import { Details, Summary } from './components/results.tsx';
-import { ItemValueCard } from './components/item-value.tsx';
+import { useEffect, useMemo, useState } from "react";
+import { DATA, loadBundledIcons } from "./data.ts";
+import { DEFAULT_STATE, decodeState, encodeState, loadSavedState, saveState, toScenario, type UIState } from "./state.ts";
+import { simulate, Sim, type SimResult } from "../engine/sim.ts";
+import { clampCombo, formatCombo, parseCombo } from "../engine/combo.ts";
+import { AttackerPanel } from "./components/attacker.tsx";
+import { ItemsPanel } from "./components/items.tsx";
+import { RunesPanel } from "./components/runes.tsx";
+import { TargetPanel } from "./components/target.tsx";
+import { SettingsPanel } from "./components/settings.tsx";
+import { ComboBuilder } from "./components/combo.tsx";
+import { Details, Summary } from "./components/results.tsx";
+import { ItemValueCard } from "./components/item-value.tsx";
 
 function useTheme() {
-  const [theme, setTheme] = useState<'light' | 'dark' | null>(() => {
+  const [theme, setTheme] = useState<"light" | "dark" | null>(() => {
     try {
-      return (localStorage.getItem('theme') as 'light' | 'dark' | null) ?? null;
+      return (localStorage.getItem("theme") as "light" | "dark" | null) ?? null;
     } catch {
       return null;
     }
   });
   useEffect(() => {
-    if (theme) document.documentElement.setAttribute('data-theme', theme);
-    else document.documentElement.removeAttribute('data-theme');
+    if (theme) document.documentElement.setAttribute("data-theme", theme);
+    else document.documentElement.removeAttribute("data-theme");
     try {
-      if (theme) localStorage.setItem('theme', theme);
-      else localStorage.removeItem('theme');
+      if (theme) localStorage.setItem("theme", theme);
+      else localStorage.removeItem("theme");
     } catch {
       // storage unavailable
     }
   }, [theme]);
-  const dark = theme ? theme === 'dark' : typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches;
-  return { dark, toggle: () => setTheme(dark ? 'light' : 'dark') };
+  const dark = theme ? theme === "dark" : typeof matchMedia !== "undefined" && matchMedia("(prefers-color-scheme: dark)").matches;
+  return { dark, toggle: () => setTheme(dark ? "light" : "dark") };
 }
 
 /** The combo with its numbers within what `sim`'s build allows (see clampCombo); unchanged, as typed, when they are. */
@@ -57,7 +57,7 @@ export function App() {
   const [copied, setCopied] = useState<string | null>(null);
   const [, setIconsReady] = useState(false);
   const theme = useTheme();
-  const embedded = typeof window !== 'undefined' && window.self !== window.top;
+  const embedded = typeof window !== "undefined" && window.self !== window.top;
 
   useEffect(() => {
     loadBundledIcons().then((ok) => ok && setIconsReady(true));
@@ -68,14 +68,14 @@ export function App() {
       setCopied(what);
       setTimeout(() => setCopied(null), 1500);
     };
-    navigator.clipboard?.writeText(text).then(done, () => setCopied('Copy failed'));
+    navigator.clipboard?.writeText(text).then(done, () => setCopied("Copy failed"));
   };
 
   useEffect(() => {
     saveState(state);
-    const h = '#' + encodeState(state);
+    const h = "#" + encodeState(state);
     try {
-      if (location.hash !== h) history.replaceState(null, '', h);
+      if (location.hash !== h) history.replaceState(null, "", h);
     } catch {
       // Sandboxed frames may refuse history changes; the state just isn't mirrored to the URL.
     }
@@ -99,7 +99,7 @@ export function App() {
 
   const pin = () => {
     const items = state.items.filter((x) => x != null).map((id) => DATA.items[id!]?.name);
-    const label = `${DATA.champions[state.champion].name} ${state.level}${items.length ? ': ' + items.slice(0, 3).join(', ') + (items.length > 3 ? '…' : '') : ''} · ${state.combo}`;
+    const label = `${DATA.champions[state.champion].name} ${state.level}${items.length ? ": " + items.slice(0, 3).join(", ") + (items.length > 3 ? "…" : "") : ""} · ${state.combo}`;
     setPinned((p) => [...p, { label, state }]);
   };
 
@@ -110,18 +110,22 @@ export function App() {
         <span className="badge">patch {DATA.meta.patch}</span>
         <span className="spacer" />
         {!embedded && (
-          <button className="btn small" onClick={() => copy(location.href, 'Link copied')}>
-            {copied === 'Link copied' ? copied : 'Copy link'}
+          <button className="btn small" onClick={() => copy(location.href, "Link copied")}>
+            {copied === "Link copied" ? copied : "Copy link"}
           </button>
         )}
-        <button className="btn small" title="Scenario JSON for the CLI (--scenario) or the MCP simulate tool" onClick={() => copy(JSON.stringify(scenario, null, 2), 'Scenario copied')}>
-          {copied && copied !== 'Link copied' ? copied : 'Copy scenario'}
+        <button
+          className="btn small"
+          title="Scenario JSON for the CLI (--scenario) or the MCP simulate tool"
+          onClick={() => copy(JSON.stringify(scenario, null, 2), "Scenario copied")}
+        >
+          {copied && copied !== "Link copied" ? copied : "Copy scenario"}
         </button>
         <button className="btn small" onClick={() => setState(DEFAULT_STATE)}>
           Reset
         </button>
         <button className="btn small" onClick={theme.toggle} aria-label="Toggle dark mode">
-          {theme.dark ? '☀' : '☾'}
+          {theme.dark ? "☀" : "☾"}
         </button>
       </header>
       <div className="layout">
@@ -139,14 +143,25 @@ export function App() {
             <>
               <Summary r={result} />
               <ItemValueCard state={state} set={setState} scenario={scenario} sim={sim} />
-              <Details r={result} scenario={scenario} sim={sim} state={state} pinned={pinned} onPin={pin} onUnpin={(i) => setPinned((p) => p.filter((_, j) => j !== i))} />
+              <Details
+                r={result}
+                scenario={scenario}
+                sim={sim}
+                state={state}
+                pinned={pinned}
+                onPin={pin}
+                onUnpin={(i) => setPinned((p) => p.filter((_, j) => j !== i))}
+              />
             </>
           )}
           <p className="muted small">
-            Numbers come from the patch {DATA.meta.patch} game files ({DATA.meta.cdragonVersion}). Champions marked “auto kit” have abilities mapped from tooltips automatically: per-hit values are exact, hit counts and
-            conditions may not be.
+            Numbers come from the patch {DATA.meta.patch} game files ({DATA.meta.cdragonVersion}). Champions marked “auto kit” have abilities mapped from
+            tooltips automatically: per-hit values are exact, hit counts and conditions may not be.
           </p>
-          <p className="muted small">damagesim isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing League of Legends. League of Legends and Riot Games are trademarks or registered trademarks of Riot Games, Inc.</p>
+          <p className="muted small">
+            damagesim isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or
+            managing League of Legends. League of Legends and Riot Games are trademarks or registered trademarks of Riot Games, Inc.
+          </p>
         </div>
       </div>
     </div>

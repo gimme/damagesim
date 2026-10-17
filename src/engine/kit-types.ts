@@ -18,18 +18,18 @@
 //   recast          1-based index of the cast within a recast chain (Riven Q1/Q2/Q3)
 //   charge          seconds the slot's cast was held to charge (AbilitySpec.charge; its default before a cast)
 
-import type { DamageType } from './damage.ts';
-import type { StatMods } from './stats.ts';
+import type { DamageType } from "./damage.ts";
+import type { StatMods } from "./stats.ts";
 
 export type Expr = string | number;
 
 /** Seconds from a cast's start: for every ability, or per slot (see AbilitySpec.castLockout). */
-export type CastLockout = Expr | Partial<Record<'Q' | 'W' | 'E' | 'R', Expr>>;
+export type CastLockout = Expr | Partial<Record<"Q" | "W" | "E" | "R", Expr>>;
 
 export interface ComponentSpec {
   id: string;
   label: string;
-  type: DamageType | 'adaptive';
+  type: DamageType | "adaptive";
   /** Raw (pre-mitigation) damage of one hit. */
   amount: Expr;
   /** Number of hits in a default cast (user can override per combo step). */
@@ -99,7 +99,7 @@ export interface ComponentSpec {
    * The basic ability whose passive deals this hit of the kit's `attack` (Ekko W's Parallel
    * Convergence): shown under that ability, and `calc.`/`dv.` are its spell's.
    */
-  slot?: 'Q' | 'W' | 'E' | 'R';
+  slot?: "Q" | "W" | "E" | "R";
   /** Extra percent armor/MR penetration for this hit only (fraction), e.g. Gangplank barrels 0.4. */
   penPercent?: Expr;
   /** For attack/onHit components: fraction of item on-hit damage applied (Azir soldiers 0.5, Akshan E 0.25). */
@@ -182,12 +182,12 @@ export interface DebuffSpec {
    * the components are dealt and the mark is removed.
    */
   /** `slot`: which slot the detonation counts as (default: the slot that applied the debuff; Lux passive uses 'P'). */
-  consume?: { by: ConsumeBy | ConsumeBy[]; components: ComponentSpec[]; slot?: 'P' | 'Q' | 'W' | 'E' | 'R' };
+  consume?: { by: ConsumeBy | ConsumeBy[]; components: ComponentSpec[]; slot?: "P" | "Q" | "W" | "E" | "R" };
   /**
    * Delayed detonation when the debuff expires (Zed R, Tahm…): deals the components plus
    * `storeFraction` × the post-mitigation damage you dealt to the target while it was active.
    */
-  detonate?: { components: ComponentSpec[]; storeFraction?: Expr; storeType?: 'physical' | 'magic' | 'true'; label?: string };
+  detonate?: { components: ComponentSpec[]; storeFraction?: Expr; storeType?: "physical" | "magic" | "true"; label?: string };
 }
 
 /**
@@ -201,7 +201,7 @@ export interface MarkSpec {
   /** Seconds; refreshed whenever a stack is added. */
   duration: Expr;
   /** Which hits add a stack: 'attack' (basic attacks), 'ability' (any ability), or slots. */
-  appliedBy: ('attack' | 'ability' | 'onhit' | 'P' | 'Q' | 'W' | 'E' | 'R')[];
+  appliedBy: ("attack" | "ability" | "onhit" | "P" | "Q" | "W" | "E" | "R")[];
   /** Stacks added per qualifying hit (default 1). Expression may use `hit` context. */
   stacksPerHit?: Expr;
   /** Count at most one stack per cast (default true). */
@@ -213,18 +213,18 @@ export interface MarkSpec {
   /** When stacks reach maxStacks: deal components, optionally consume all stacks, optional cooldown. */
   atMax?: { components: ComponentSpec[]; consume?: boolean; cooldown?: Expr; buff?: BuffSpec; debuff?: DebuffSpec; cc?: CCSpec[] };
   /** Slot whose spell provides calc./dv. context for this mark's expressions (default 'P'). */
-  slot?: 'P' | 'Q' | 'W' | 'E' | 'R';
+  slot?: "P" | "Q" | "W" | "E" | "R";
   /** Percent armor / magic resist reduction per stack while the mark is active (fractions). */
   armorReductionPerStack?: Expr;
   mrReductionPerStack?: Expr;
 }
 
-export type ConsumeBy = 'attack' | 'ability' | 'any' | 'Q' | 'W' | 'E' | 'R';
+export type ConsumeBy = "attack" | "ability" | "any" | "Q" | "W" | "E" | "R";
 
 /** Crowd control applied to the target when the ability first hits. */
 export interface CCSpec {
   /** immobilize = stun/root/knock-up/charm/fear/taunt/suppress/sleep; impair = silence/blind/ground/polymorph/disarm. */
-  kind: 'immobilize' | 'slow' | 'impair';
+  kind: "immobilize" | "slow" | "impair";
   /** Seconds; ≤ 0 means no CC (lets an expression make it conditional). */
   duration: Expr;
   /** Seconds after the first hit before the CC lands (delayed stuns/roots). */
@@ -329,7 +329,7 @@ export interface AbilitySpec {
   /** Seconds during which the next recast is allowed; afterwards the chain ends and the cooldown applies. */
   recastWindow?: Expr;
   /** Measure recastWindow from the first cast (default) or from the previous cast (Aatrox Q, Riven Q). */
-  recastWindowFrom?: 'first' | 'previous';
+  recastWindowFrom?: "first" | "previous";
   /** Doesn't hit the target (self buff) — still counts as an ability cast for Sheen etc. */
   noTarget?: boolean;
   /** Sets off a hit that can crit outside its components (Viego R's second strike), so a crit mark (R!) applies to it. */
@@ -350,7 +350,12 @@ export interface KitOption {
 }
 
 /** Static stat modifications from a champion's passive (e.g. stacking AP, bonus AD from crit). */
-export type KitStatsFn = (ctx: { level: number; opt: Record<string, number>; ranks: Record<string, number>; evalExpr: (e: Expr, slot?: string) => number }) => Partial<StatMods>;
+export type KitStatsFn = (ctx: {
+  level: number;
+  opt: Record<string, number>;
+  ranks: Record<string, number>;
+  evalExpr: (e: Expr, slot?: string) => number;
+}) => Partial<StatMods>;
 
 export interface ChampionKit {
   id: string;
@@ -359,10 +364,10 @@ export interface ChampionKit {
    * curated  – hand-written mapping of game formulas to damage instances
    * auto     – generated from tooltips (damage values exact, semantics best-effort)
    */
-  status: 'verified' | 'curated' | 'auto';
+  status: "verified" | "curated" | "auto";
   notes?: string[];
   options?: KitOption[];
-  abilities: Partial<Record<'P' | 'Q' | 'W' | 'E' | 'R', AbilitySpec>>;
+  abilities: Partial<Record<"P" | "Q" | "W" | "E" | "R", AbilitySpec>>;
   /** Basic attack modifications. */
   attack?: {
     /** Extra components on every attack (passive on-hits). */
@@ -370,7 +375,7 @@ export interface ChampionKit {
     /** Multiplier on the basic attack's AD portion (e.g. Kalista 0.9?). */
     damageMult?: Expr;
     /** Every Nth attack gets these components (Jhin 4th shot, Vayne W, Diana P…). */
-    everyNth?: { n: number; components: ComponentSpec[]; label: string; counts?: 'attacks' | 'hits'; resetAfter?: number };
+    everyNth?: { n: number; components: ComponentSpec[]; label: string; counts?: "attacks" | "hits"; resetAfter?: number };
     /** Damage type of the basic attack itself (default physical). */
     type?: DamageType;
     /** Can this champion's basic attack critically strike (default true). */
@@ -388,5 +393,5 @@ export interface ChampionKit {
   /** Map buff-hash references in game formulas (BuffCounter parts) to expressions, e.g. option values. */
   buffStacks?: Record<string, Expr>;
   /** Free-form hooks for mechanics the declarative format can't express. */
-  hooks?: import('./effects.ts').EffectHooks;
+  hooks?: import("./effects.ts").EffectHooks;
 }

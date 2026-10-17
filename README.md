@@ -30,7 +30,8 @@ npm install
 npm run dev                 # web UI on http://localhost:5173
 npm run sim -- simulate -c Ahri -l 11 -i "Luden's Echo,Sorcerer's Shoes" -r Electrocute \
   --combo "E Q W R AA" --target squishy --events
-npm test                    # typecheck, then engine tests
+npm test                    # typecheck, engine tests, then a formatting check
+npm run fmt                 # format the code (Prettier)
 ```
 
 Requires Node ≥ 22.18 (runs the TypeScript sources directly; no build step for CLI/MCP).
@@ -126,7 +127,8 @@ Only the stats of a target's items count: it never fights back, so their passive
    * a snapshot of three standard combos for every champion, so engine changes can't move numbers
      unnoticed (`node scripts/update-snapshots.ts` after an intended change).
 
-   `node scripts/check-kits.ts` validates every kit's formulas at several levels.
+   `node scripts/check-kits.ts` validates every kit's formulas at several levels. `npm test` also checks
+   that the code is formatted; `npm run fmt` formats it (Prettier, configured in `.prettierrc`).
 6. **Behaviour the game files don't encode** is checked against the wiki. The files hold the
    numbers, but not whether an ability applies on-hit effects or triggers on-attack effects, or
    whether it can crit. `npm run wiki` downloads the wiki pages damagesim is checked against: every

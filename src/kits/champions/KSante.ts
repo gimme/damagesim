@@ -1,75 +1,84 @@
-import type { ChampionKit, DebuffSpec } from '../../engine/kit-types.ts';
+import type { ChampionKit, DebuffSpec } from "../../engine/kit-types.ts";
 
 // K'Sante — patch 16.20.
 // Dauntless Instinct: damaging abilities mark the target for 4s; K'Sante's next attack consumes
 // the mark for bonus physical damage (a separate instance after the attack).
 const mark: DebuffSpec = {
-  id: 'ksanteMark',
-  label: 'Dauntless Instinct',
-  duration: 'P.dv.MarkDuration',
+  id: "ksanteMark",
+  label: "Dauntless Instinct",
+  duration: "P.dv.MarkDuration",
   consume: {
-    by: 'attack',
-    slot: 'P',
+    by: "attack",
+    slot: "P",
     // The wiki: "The mark deals proc damage in sequence after the basic attack."
-    components: [{ id: 'mark', label: 'Dauntless Instinct', type: 'physical', amount: 'P.dv.FlatDamage + P.calc.PercentHealthDamage * target.maxHp', proc: true }],
+    components: [
+      { id: "mark", label: "Dauntless Instinct", type: "physical", amount: "P.dv.FlatDamage + P.calc.PercentHealthDamage * target.maxHp", proc: true },
+    ],
   },
 };
-const wDamage = 'dv.BaseDamage + calc.TotalMaxHealthDamage * target.maxHp';
+const wDamage = "dv.BaseDamage + calc.TotalMaxHealthDamage * target.maxHp";
 /** Path Maker's charge, from the minimum to the full charge. */
-const W_POWER = 'clamp((charge - dv.MinChargeTime) / (dv.TimeToFullCharge - dv.MinChargeTime), 0, 1)';
+const W_POWER = "clamp((charge - dv.MinChargeTime) / (dv.TimeToFullCharge - dv.MinChargeTime), 0, 1)";
 
 const kit: ChampionKit = {
-  id: 'KSante',
-  status: 'curated',
+  id: "KSante",
+  status: "curated",
   notes: [
-    'All Out (R, 15s): +attack speed, bonus armor penetration, and every physical attack/ability/passive hit is increased by P.calc.MaxHealthDamagePercent of the target\'s max health (same instance, hook).',
-    'All Out\'s health/resistance loss is not modelled: it comes out of base resistances and does not change K\'Sante\'s damage scalings. Omnivamp and shields are ignored.',
-    'W charge: default minimum (0.4s); set the seconds held (W{0.9s} for the full charge). While All Out use W:allout (bonus true damage, no stun). Casting R refreshes W\'s cooldown (hook); All Out\'s Q/E cooldown reductions are not modelled.',
+    "All Out (R, 15s): +attack speed, bonus armor penetration, and every physical attack/ability/passive hit is increased by P.calc.MaxHealthDamagePercent of the target's max health (same instance, hook).",
+    "All Out's health/resistance loss is not modelled: it comes out of base resistances and does not change K'Sante's damage scalings. Omnivamp and shields are ignored.",
+    "W charge: default minimum (0.4s); set the seconds held (W{0.9s} for the full charge). While All Out use W:allout (bonus true damage, no stun). Casting R refreshes W's cooldown (hook); All Out's Q/E cooldown reductions are not modelled.",
   ],
   abilities: {
     Q: {
       resetsAttack: true,
       debuff: mark,
-      cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      notes: ['Third cast (2 stacks) is Q:q3: same damage, pull + stun.'],
-      components: [{ id: 'strike', label: 'Ntofo Strikes', type: 'physical', amount: 'calc.BaseDamage', aoe: true }],
+      cc: [{ kind: "slow", duration: "dv.SlowDuration" }],
+      notes: ["Third cast (2 stacks) is Q:q3: same damage, pull + stun."],
+      components: [{ id: "strike", label: "Ntofo Strikes", type: "physical", amount: "calc.BaseDamage", aoe: true }],
       variants: {
         q3: {
-          label: 'shockwave',
+          label: "shockwave",
           resetsAttack: true,
           debuff: mark,
           cc: [
-            { kind: 'immobilize', duration: 'dv.StunDuration' },
-            { kind: 'slow', duration: 'dv.SlowDuration' },
+            { kind: "immobilize", duration: "dv.StunDuration" },
+            { kind: "slow", duration: "dv.SlowDuration" },
           ],
-          components: [{ id: 'strike', label: 'Ntofo Strikes (shockwave)', type: 'physical', amount: 'calc.BaseDamage', aoe: true }],
+          components: [{ id: "strike", label: "Ntofo Strikes (shockwave)", type: "physical", amount: "calc.BaseDamage", aoe: true }],
         },
       },
     },
     W: {
       dash: true,
       // Charged for MinChargeTime to MaxDuration; stun and All Out's true damage grow until TimeToFullCharge.
-      charge: { default: 'dv.MinChargeTime', min: 'dv.MinChargeTime', max: 'dv.MaxDuration' },
-      castTime: 'charge',
+      charge: { default: "dv.MinChargeTime", min: "dv.MinChargeTime", max: "dv.MaxDuration" },
+      castTime: "charge",
       // Then dashes its range at 1500, through the target (wiki; the data's speed is the knock back's).
       // Ntofo Strikes and All Out can be cast during the dash (wiki).
-      attackLockout: 'charge + castRange / 1500',
-      castLockout: { E: 'charge + castRange / 1500' },
+      attackLockout: "charge + castRange / 1500",
+      castLockout: { E: "charge + castRange / 1500" },
       debuff: mark,
-      cc: [{ kind: 'immobilize', duration: `lerp(dv.MinKnockbackDuration, dv.MaxKnockbackDuration, ${W_POWER})` }],
-      components: [{ id: 'ram', label: 'Path Maker', type: 'physical', amount: wDamage, aoe: true, travel: 'reach / 1500' }],
+      cc: [{ kind: "immobilize", duration: `lerp(dv.MinKnockbackDuration, dv.MaxKnockbackDuration, ${W_POWER})` }],
+      components: [{ id: "ram", label: "Path Maker", type: "physical", amount: wDamage, aoe: true, travel: "reach / 1500" }],
       variants: {
         allout: {
-          label: 'All Out',
+          label: "All Out",
           dash: true,
           // All Out dashes at 1800 (wiki).
-          attackLockout: 'charge + castRange / 1800',
-          castLockout: { E: 'charge + castRange / 1800' },
+          attackLockout: "charge + castRange / 1800",
+          castLockout: { E: "charge + castRange / 1800" },
           debuff: mark,
           cc: [],
           components: [
-            { id: 'ram', label: 'Path Maker', type: 'physical', amount: wDamage, aoe: true, travel: 'reach / 1800' },
-            { id: 'true', label: 'Path Maker (All Out)', type: 'true', amount: `(${wDamage}) * lerp(dv.RDamageIncreaseMin, dv.RDamageIncreaseMax, ${W_POWER})`, aoe: true, travel: 'reach / 1800' },
+            { id: "ram", label: "Path Maker", type: "physical", amount: wDamage, aoe: true, travel: "reach / 1800" },
+            {
+              id: "true",
+              label: "Path Maker (All Out)",
+              type: "true",
+              amount: `(${wDamage}) * lerp(dv.RDamageIncreaseMin, dv.RDamageIncreaseMax, ${W_POWER})`,
+              aoe: true,
+              travel: "reach / 1800",
+            },
           ],
         },
       },
@@ -79,29 +88,41 @@ const kit: ChampionKit = {
       noTarget: true,
       // No dash speed in the data: ~0.4s. He can cast any ability during the dash (wiki).
       attackLockout: 0.4,
-      notes: ['Dash + shield, no damage.'],
+      notes: ["Dash + shield, no damage."],
       components: [],
     },
     R: {
       dash: true,
       debuff: mark,
-      cc: [{ kind: 'immobilize', duration: 'dv.NoWallStunDuration' }],
-      buff: { id: 'ksanteR', label: 'All Out', duration: 'dv.AllOutDuration', stats: { attackSpeed: 'dv.AttackSpeed' }, bonusArmorPenPercent: 'dv.ArmorPenPercent' },
-      notes: ['R:wall when the target is knocked through a wall (second strike, longer stun).'],
+      cc: [{ kind: "immobilize", duration: "dv.NoWallStunDuration" }],
+      buff: {
+        id: "ksanteR",
+        label: "All Out",
+        duration: "dv.AllOutDuration",
+        stats: { attackSpeed: "dv.AttackSpeed" },
+        bonusArmorPenPercent: "dv.ArmorPenPercent",
+      },
+      notes: ["R:wall when the target is knocked through a wall (second strike, longer stun)."],
       // Damage near the end of the 300-unit pull, at its speed (wiki).
-      components: [{ id: 'tackle', label: 'All Out', type: 'physical', amount: 'dv.BaseDamage', travel: 'castRange / missileSpeed' }],
+      components: [{ id: "tackle", label: "All Out", type: "physical", amount: "dv.BaseDamage", travel: "castRange / missileSpeed" }],
       variants: {
         wall: {
-          label: 'through a wall',
+          label: "through a wall",
           dash: true,
           debuff: mark,
-          cc: [{ kind: 'immobilize', duration: 'dv.WallStunDuration' }],
-          buff: { id: 'ksanteR', label: 'All Out', duration: 'dv.AllOutDuration', stats: { attackSpeed: 'dv.AttackSpeed' }, bonusArmorPenPercent: 'dv.ArmorPenPercent' },
+          cc: [{ kind: "immobilize", duration: "dv.WallStunDuration" }],
+          buff: {
+            id: "ksanteR",
+            label: "All Out",
+            duration: "dv.AllOutDuration",
+            stats: { attackSpeed: "dv.AttackSpeed" },
+            bonusArmorPenPercent: "dv.ArmorPenPercent",
+          },
           // The pull over a wall has no fixed length: the damage as the target emerges (~0.3s), the
           // strike 0.125s into the 0.25s airborne after the pull (~0.8s, wiki).
           components: [
-            { id: 'tackle', label: 'All Out', type: 'physical', amount: 'dv.BaseDamage', delay: 0.3 },
-            { id: 'slam', label: 'All Out (wall strike)', type: 'physical', amount: 'calc.TotalDamageSlamDown', delay: 0.8 },
+            { id: "tackle", label: "All Out", type: "physical", amount: "dv.BaseDamage", delay: 0.3 },
+            { id: "slam", label: "All Out (wall strike)", type: "physical", amount: "calc.TotalDamageSlamDown", delay: 0.8 },
           ],
         },
       },
@@ -110,16 +131,19 @@ const kit: ChampionKit = {
   hooks: {
     // Going All Out refreshes Path Maker's cooldown.
     onCast(sim, cast) {
-      if (cast.slot === 'R') sim.startCooldown('ability:W', 0);
+      if (cast.slot === "R") sim.startCooldown("ability:W", 0);
     },
     // All Out: K'Sante's attacks, abilities and passive deal extra % max health inside the same instance
     // (the passive's mark consumption too, though it is proc damage).
     beforeDamage(sim, inst) {
-      if (inst.type !== 'physical' || !sim.getBuff('ksanteR')) return;
-      const own = inst.fromMark === 'ksanteMark' || (!inst.flags.proc && (inst.flags.kind === 'attack' || (inst.flags.kind === 'ability' && !!inst.flags.slot && inst.flags.slot !== 'P' && !inst.fromMark)));
+      if (inst.type !== "physical" || !sim.getBuff("ksanteR")) return;
+      const own =
+        inst.fromMark === "ksanteMark" ||
+        (!inst.flags.proc &&
+          (inst.flags.kind === "attack" || (inst.flags.kind === "ability" && !!inst.flags.slot && inst.flags.slot !== "P" && !inst.fromMark)));
       if (!own) return;
-      inst.raw += sim.evalExpr('P.calc.MaxHealthDamagePercent', { slot: 'P' }) * sim.target.maxHp;
-      inst.note = (inst.note ? inst.note + '; ' : '') + 'All Out';
+      inst.raw += sim.evalExpr("P.calc.MaxHealthDamagePercent", { slot: "P" }) * sim.target.maxHp;
+      inst.note = (inst.note ? inst.note + "; " : "") + "All Out";
     },
   },
 };
