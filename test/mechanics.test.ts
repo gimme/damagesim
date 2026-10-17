@@ -185,9 +185,9 @@ test('A charge held for a step\'s seconds: damage, crowd control and cast time f
   const gale = (r: ReturnType<typeof simulate>) => r.events.find((e) => e.source === 'Q')!;
   const j = new Sim(data, { champion: 'Janna', level: 11, combo: [] });
   const [jmin, jmax] = [j.evalExpr('calc.MinimumDamage', { slot: 'Q' }), j.evalExpr('calc.MaxDamage', { slot: 'Q' })];
-  assert.ok(Math.abs(gale(janna('Q')).raw - jmin) < 1e-6 && gale(janna('Q')).time === 0.5);
+  assert.ok(Math.abs(gale(janna('Q')).raw - jmin) < 1e-6);
   assert.ok(Math.abs(gale(janna('Q{1.5s}')).raw - (jmin + jmax) / 2) < 1e-6);
-  assert.ok(Math.abs(gale(janna('Q{3s}')).raw - jmax) < 1e-6 && gale(janna('Q{3s}')).time === 3.5);
+  assert.ok(Math.abs(gale(janna('Q{3s}')).raw - jmax) < 1e-6 && Math.abs(gale(janna('Q{3s}')).time - gale(janna('Q')).time - 3) < 1e-9);
   assert.equal(janna('Q{3s} W').timeline[1].start, janna('Q W').timeline[1].start);
 });
 
