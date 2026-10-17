@@ -64,30 +64,40 @@ export function AttackerPanel({ state, set, sim }: { state: UIState; set: Set; s
           </strong>
         </div>
         <div className="row" style={{ gap: 6 }}>
-          {(["Q", "W", "E", "R"] as const).map((k) => (
-            <label key={k} className="field" style={{ alignItems: "center" }}>
-              {/* The ability's card on hover: its name, cooldown and cost, and its tooltip at its rank */}
+          {(["P", "Q", "W", "E", "R"] as const).map((k) => {
+            // The ability's card on hover: its name, cooldown and cost, and its tooltip at its rank
+            const key = (
               <span
                 className="row"
                 style={{ gap: 4 }}
                 tabIndex={0}
-                aria-label={champ.abilities.find((a) => a.slot === k)?.spells[0]?.name ?? k}
+                aria-label={k === "P" ? champ.passive.name : (champ.abilities.find((a) => a.slot === k)?.spells[0]?.name ?? k)}
                 {...(sim && described ? hover.bind(<AbilityTip sim={sim} ability={described.find((a) => a.slot === k)!} />) : {})}
               >
                 <Icon src={abilityIcon(state.champion, k)} label={k} size="xs" />
                 <span className="kbd">{k}</span>
               </span>
-              <input
-                type="number"
-                min={0}
-                max={max[k]}
-                value={ranks[k]}
-                style={{ width: 52 }}
-                aria-label={`${k} rank`}
-                onChange={(e) => setRank(k, Number(e.target.value))}
-              />
-            </label>
-          ))}
+            );
+            // The passive has no rank: its key alone, in line with the others'.
+            return k === "P" ? (
+              <div key={k} style={{ alignSelf: "flex-start" }}>
+                {key}
+              </div>
+            ) : (
+              <label key={k} className="field" style={{ alignItems: "center" }}>
+                {key}
+                <input
+                  type="number"
+                  min={0}
+                  max={max[k]}
+                  value={ranks[k]}
+                  style={{ width: 52 }}
+                  aria-label={`${k} rank`}
+                  onChange={(e) => setRank(k, Number(e.target.value))}
+                />
+              </label>
+            );
+          })}
           <div className="stack" style={{ gap: 2, marginLeft: "auto" }}>
             <label className="field">
               Max order
@@ -117,9 +127,9 @@ export function AttackerPanel({ state, set, sim }: { state: UIState; set: Set; s
 }
 
 /** An ability's hover card: its name, rank, cooldown and cost there, and its tooltip with the numbers
- *  for your rank, level and stats (rank 1's while it has no points). */
+ *  for your rank, level and stats (rank 1's while it has no points). The passive's has no rank. */
 function AbilityTip({ sim, ability: a }: { sim: Sim; ability: ReturnType<typeof describeChampion>["abilities"][number] }) {
-  const slot = a.slot as "Q" | "W" | "E" | "R";
+  const slot = a.slot as "P" | "Q" | "W" | "E" | "R";
   const rank = Math.max(1, a.rank);
   const cooldown = a.cooldown?.[rank - 1];
   const cost = a.cost?.[rank - 1];
@@ -129,6 +139,13 @@ function AbilityTip({ sim, ability: a }: { sim: Sim; ability: ReturnType<typeof 
     .replace(/<li>/gi, "<br>• ")
     .replace(/\{\{[^}]*\}\}|%i:\w+%/g, "")
     .replace(/^(\s|<br\s*\/?>)+|(\s|<br\s*\/?>)+$/gi, "");
+  const facts = [
+    slot === "P" ? "" : a.rank ? `Rank ${a.rank}/${a.maxRank}` : "No points: rank 1 shown",
+    cooldown ? `${fmt(cooldown, 2)}s cooldown` : "",
+    cost && resource ? `${fmt(cost)} ${resource}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <div className="item-tip">
       <div className="it-head">
@@ -136,15 +153,7 @@ function AbilityTip({ sim, ability: a }: { sim: Sim; ability: ReturnType<typeof 
         <strong>{a.name}</strong>
         <span className="kbd">{slot}</span>
       </div>
-      <div className="secondary">
-        {[
-          a.rank ? `Rank ${a.rank}/${a.maxRank}` : "No points: rank 1 shown",
-          cooldown ? `${fmt(cooldown, 2)}s cooldown` : "",
-          cost && resource ? `${fmt(cost)} ${resource}` : "",
-        ]
-          .filter(Boolean)
-          .join(" · ")}
-      </div>
+      {facts && <div className="secondary">{facts}</div>}
       {text && (
         <div className="it-body">
           <Markup text={text} />

@@ -252,6 +252,19 @@ test("ability cards and parameters", async ({ ui }) => {
     () => key("W").hover(),
     async () => expect(ui.hovercard).toContainText(await named("W")),
   );
+  // The passive's key, before Q's, with no rank field.
+  const passive = card.locator("span[tabindex]").filter({ has: page.locator(".kbd", { hasText: /^P$/ }) });
+  await step(
+    "hover P: its card names the passive, without a rank",
+    () => passive.hover(),
+    async () => {
+      await expect(passive).toHaveAttribute("aria-label", "Essence Theft");
+      await expect(ui.hovercard).toContainText("Essence Theft");
+      await expect(ui.hovercard).toContainText("Essence Fragment");
+      await expect(ui.hovercard).not.toContainText("Rank");
+      await expect(card.getByRole("spinbutton", { name: "P rank" })).toHaveCount(0);
+    },
+  );
   await step("the pointer away closes it", () => ui.unhover());
   await step(
     "Tab to the Q key: its card",
