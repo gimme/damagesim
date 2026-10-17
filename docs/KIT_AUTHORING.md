@@ -108,7 +108,7 @@ comparisons, `&& || !` and `cond ? a : b`. Names that aren't identifiers use bra
 | `type` | `physical`, `magic`, `true`, or `adaptive` |
 | `amount` | raw damage of **one** hit |
 | `hits`, `interval`, `delay` | number of hits in a default cast, seconds between hits, seconds after the cast time (a wait the wiki documents: arming, a heft, a detonation) |
-| `travel` | seconds a hit flies after it's fired: `true` for the ability's max range at its missile's speed (`castRange / missileSpeed`, from the data), or an expression (`'750 / missileSpeed'`) |
+| `travel` | seconds a hit flies after it's fired: `true` to the target at its missile's speed (`reach / missileSpeed`, from the data), or an expression (`'reach / 2200'`) |
 | `maxHits` | the most hits a longer duration or a step's count fires (default `hits`) |
 | `optional: true` | off unless the combo enables it (`Q+bonus` / `enable: ['bonus']`) |
 | `aoe`, `dot`, `pet` | damage tags (affect items/runes: Deathfire Touch duration, Aery, etc.) |
@@ -180,7 +180,10 @@ Q: { resetsAttack: true, buff: { id: 'garenQ', label: 'Decisive Strike', duratio
      empowerAttacks: { count: 1, replaceBase: true, components: [{ id: 'strike', label: 'Decisive Strike', type: 'physical', amount: 'Q.calc.TotalDamage' }] } } },
 ```
 `replaceBase: true` when the tooltip's damage *is* the attack's damage ("his next attack deals X");
-leave it false when it's *bonus* damage ("deals X bonus damage"). Write combos as `Q AA`.
+leave it false when it's *bonus* damage ("deals X bonus damage"). Write combos as `Q AA`. Either way
+the results show the attack's normal damage as the attack's and only the extra as the ability's: a
+replaced attack is recorded in two parts (`AttackInfo.replacedBy`, hooks add theirs: Galio's
+passive), unless someone else attacks instead (`otherAttacker: true`, Azir's soldiers).
 An attack the components replace is the ability's spell damage as well as basic damage (the wiki's
 "basic damage, but also tagged as spell damage"), unless `noProc`. When the wiki says the same of an
 attack that keeps its own damage (Wukong Q, Kayle E, Vayne Q), set `empowerAttacks.spell: true`.
@@ -251,15 +254,18 @@ other on-hit effects apply, but Guinsoo's/Lethal Tempo/Energize charges don't st
 * `dv.Effect5Amount` reads legacy effect amounts (`effects` arrays in inspect output).
 * `castTime` (ability or variant) may be an expression, e.g. `'calc.TotalCastTime'`. The data's cast
   times are the wiki's (none for instant casts like Garen Q, Darius W, dashes), else the game files'.
-* Timing: a hit lands `castTime + delay + travel` after the cast starts. Travel is the ability's max
-  range at its missile's (or dash's) speed, the wiki's: expressions read `castRange`, `missileSpeed`
-  and `castTime` (the cast's own, the kit's when it sets one; `Q.castRange`, `spell['X'].missileSpeed`
-  read the data). A dash is busy for its flight (`lockout: 'castTime + castRange / missileSpeed'`);
-  without a speed in the data it keeps a rough duration. A missile the wiki fires as the cast time
-  starts flies `'max(0, castRange / missileSpeed - castTime)'`; an effect applied before the cast
-  time ends takes a negative delay (down to `'-castTime'`, Riven W). A returning missile turns at
-  max range, where the target stands: it hits again as it turns (Ahri Q, Sivir Q). Very long and
-  global ranges are assumed cast from 1200 units (Ezreal R).
+* Timing: a hit lands `castTime + delay + travel` after the cast starts. The target stands at
+  `distance`: your attack range as the combo starts (edge to edge), unless the `distance` option
+  places it. `reach` is how far an ability goes to it: `distance`, or its range if that's shorter.
+  Travel is that at its missile's (or dash's) speed, the wiki's: expressions read `reach`,
+  `castRange`, `missileSpeed` and `castTime` (the cast's own, the kit's when it sets one; `Q.reach`,
+  `spell['X'].missileSpeed` read the data). A dash to the target is busy for its flight
+  (`lockout: 'castTime + reach / missileSpeed'`); one of a set length (Vayne Q), or not at the
+  target, takes its range; without a speed in the data it keeps a rough duration. A missile the
+  wiki fires as the cast time starts flies `'max(0, reach / missileSpeed - castTime)'`; an effect
+  applied before the cast time ends takes a negative delay (down to `'-castTime'`, Riven W). A
+  returning missile flies out its range and passes the target on the way back (Ahri Q, Sivir Q):
+  `castRange / speed + (castRange - reach) / backSpeed`.
 * `windup` is an attack's windup at the current attack speed, for casts the wiki times by it
   (`castTime: '0.8 * windup'`, Senna Q). Hooks see a cast's cast time as `cast.castTime`.
 * `cc: [{ kind, duration, delay }]`: `delay` lands the CC later (delayed stuns); a duration ≤ 0 means no CC,
@@ -271,7 +277,8 @@ other on-hit effects apply, but Guinsoo's/Lethal Tempo/Energize charges don't st
 * `recast` in expressions = 1-based index within a recast chain (Riven Q1/Q2/Q3, Aatrox Q); `recastWindow` ends the chain (full cooldown from the first cast).
 * `onHitEffectiveness` also works on an empowered attack's components (Azir soldier stabs).
 * `lockout`: seconds the caster is busy from cast start (channels/dashes) without delaying damage;
-  `variableDuration: true` when the player can end it early (see Components).
+  `variableDuration: true` when the player can end it early (see Components). Ended early, a cast's
+  `attackLockout` and `castLockout` end with it too.
 * `attackLockout`: seconds from cast start the caster can't attack but can still cast, the wiki's
   "unable to move or attack while Rocket Grab is in flight" (Blitzcrank Q, Leona E, Sett E). "Unable to
   act" stops casting too: that is `lockout`.

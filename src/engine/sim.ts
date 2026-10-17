@@ -1792,12 +1792,14 @@ export class Sim {
     const lockout = lockExpr !== undefined ? this.evalExpr(lockExpr, ectx) : 0;
     this.freeAt = span !== undefined && lockExpr !== undefined ? end + span : Math.max(end, start + lockout);
     if (resets) this.attackReadyAt = this.freeAt;
+    // A cast ended early (R{1s}) ends its lockouts with it.
+    const until = (e: Expr) => Math.min(start + this.evalExpr(e, ectx), span !== undefined ? end + span : Infinity);
     const attackLock = variant?.attackLockout ?? spec.attackLockout;
-    if (attackLock !== undefined) this.lockAttacks(start + this.evalExpr(attackLock, ectx));
+    if (attackLock !== undefined) this.lockAttacks(until(attackLock));
     const castLock = variant?.castLockout ?? spec.castLockout;
     if (castLock !== undefined) {
       const perSlot = typeof castLock === 'object' ? castLock : { Q: castLock, W: castLock, E: castLock, R: castLock };
-      for (const [s, e] of Object.entries(perSlot) as [Slot, Expr][]) this.lockCasts([s], start + this.evalExpr(e, ectx));
+      for (const [s, e] of Object.entries(perSlot) as [Slot, Expr][]) this.lockCasts([s], until(e));
     }
     timeline.push({ step: formatCombo([step]), start, end: this.freeAt });
 

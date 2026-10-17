@@ -4,13 +4,38 @@ import type { Sim } from '../../engine/sim.ts';
 // Kalista — patch 16.20.
 // Rend spears (mark): every attack and Pierce that hits adds a spear; spears last 4s (tooltip text),
 // refreshed by each new spear. Rend deals calc.NormalDamage + calc.AdditionalDamage per spear beyond
-// the first and removes them (hook).
+// the first and removes them (hook). Spears still flying when Rend goes off are Rend's too (wiki: its
+// cast empowers them to apply its effects as they hit): each deals what Rend would have dealt for it.
 // Soul-Marked: dealt on-attack of the attack that applies the second mark (wiki): as Kalista's attack
 // goes off, before it lands; as the Oathsworn's lands. Tagged proc on the wiki, but a note says it
 // benefits from her spell effects: ability damage. The "P" step procs it (not a W cast); the damage
 // is Sentinel's (W).
 
 const ARMED = 'kalistaSoulMark';
+/** When the last Rend went off, and how many spears it has ripped out (in flight ones as they land). */
+const REND_AT = 'kalistaRendAt';
+const REND_SPEARS = 'kalistaRendSpears';
+const IN_FLIGHT = 'Rend (spear in flight)';
+
+/** A spear fired before Rend went off lands after it: Rend rips it out, as one more spear. */
+function rendLanding(sim: Sim, fired: number, castId: number) {
+  if (!(fired < sim.counter(REND_AT) && sim.time >= sim.counter(REND_AT))) return;
+  // After the spear's own hit has added it.
+  sim.schedule(0, () => {
+    const spears = sim.counter(REND_SPEARS);
+    sim.setCounter(REND_SPEARS, spears + 1);
+    sim.deal({
+      source: 'E',
+      sourceLabel: 'Rend',
+      label: IN_FLIGHT,
+      type: 'physical',
+      amount: sim.evalExpr(spears > 0 ? 'E.calc.AdditionalDamage' : 'E.calc.NormalDamage', { slot: 'E' }),
+      castId,
+      flags: { kind: 'ability', slot: 'E', ability: true },
+    });
+    sim.applyCC('slow', sim.evalExpr('E.dv.SlowDuration', { slot: 'E' }), castId, 'E');
+  });
+}
 
 function soulMark(sim: Sim, castId: number) {
   sim.deal({
@@ -28,7 +53,7 @@ const kit: ChampionKit = {
   id: 'Kalista',
   status: 'curated',
   notes: [
-    'Rend only deals damage if the target has spears (attacks and Pierce add one each).',
+    'Rend only deals damage if the target has spears (attacks and Pierce add one each); spears still flying when it goes off count too, dealing their part as they land.',
     'Soul-Marked (Sentinel passive) needs the Oathsworn ally attacking the same target (10s per-target cooldown): "P AA" when Kalista\'s attack procs it (it lands as the attack goes off), "P:ally" when the Oathsworn\'s does (right away).',
     'Martial Poise hops and the Oathsworn\'s own damage are not modeled.',
   ],
@@ -53,8 +78,8 @@ const kit: ChampionKit = {
           id: 'rend',
           label: 'Rend',
           type: 'physical',
-          amount: 'calc.NormalDamage + calc.AdditionalDamage * max(0, stacks.rend - 1)',
-          hits: 'stacks.rend > 0 ? 1 : 0',
+          // The spears in the target as it goes off, after its cast time (none: nothing).
+          amount: 'stacks.rend > 0 ? calc.NormalDamage + calc.AdditionalDamage * (stacks.rend - 1) : 0',
         },
       ],
     },
@@ -68,15 +93,30 @@ const kit: ChampionKit = {
   hooks: {
     onCast(sim, cast) {
       if (cast.slot === 'P' && cast.variant?.toLowerCase() === 'ally') soulMark(sim, cast.castId);
+      // Rend goes off after its cast time, with the spears in the target (none: the first one landing).
+      if (cast.slot === 'E') {
+        sim.setCounter(REND_AT, sim.time + (cast.castTime ?? 0));
+        sim.setCounter(REND_SPEARS, 0);
+      }
+      // Pierce's spear flies from the end of its cast time.
+      if (cast.slot === 'Q') sim.setCounter(`kalistaQ.${cast.castId}`, sim.time + (cast.castTime ?? 0));
     },
     onLaunch(sim, launch) {
       if (launch.fromAbility || !sim.getBuff(ARMED)) return;
       sim.removeBuff(ARMED);
       soulMark(sim, launch.castId);
     },
+    onAttack(sim, atk) {
+      if (!atk.fromAbility && !atk.phantom && atk.launched !== undefined) rendLanding(sim, atk.launched, atk.castId);
+    },
     // Rend rips out all spears.
     afterDamage(sim, inst) {
-      if (!inst.fromMark && inst.flags.kind === 'ability' && inst.flags.slot === 'E') sim.setMarkStacks('rend', 0);
+      if (inst.fromMark) return;
+      if (inst.flags.kind === 'ability' && inst.flags.slot === 'E') {
+        if (inst.label !== IN_FLIGHT) sim.setCounter(REND_SPEARS, sim.markStacks('rend') ?? 0);
+        sim.setMarkStacks('rend', 0);
+      }
+      if (inst.flags.kind === 'ability' && inst.flags.slot === 'Q') rendLanding(sim, sim.counter(`kalistaQ.${inst.castId}`), inst.castId);
     },
   },
 };

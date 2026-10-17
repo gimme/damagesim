@@ -18,10 +18,10 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       notes: ['Hitting a champion makes the seed bloom again after 0.75 s, up to 2 extra blooms: default assumes the target stays in the area for both (e.g. rooted). Otherwise lower them, e.g. Q{rebloom:1}.'],
-      // {{Effect at cast time start}} (wiki): the seed flies its max range from the start of the cast.
+      // {{Effect at cast time start}} (wiki): the seed flies to the target from the start of the cast.
       components: [
-        { id: 'bloom', label: 'Blooming Burst', type: 'magic', amount: 'calc.ExplosionDamage', aoe: true, travel: 'max(0, castRange / missileSpeed - castTime)' },
-        { id: 'rebloom', label: 'Blooming Burst (extra bloom)', type: 'magic', amount: 'calc.SecondDamage', hits: 2, maxHits: 2, interval: 'dv.RepeatDelay', delay: 'dv.RepeatDelay', travel: 'max(0, castRange / missileSpeed - castTime)', aoe: true },
+        { id: 'bloom', label: 'Blooming Burst', type: 'magic', amount: 'calc.ExplosionDamage', aoe: true, travel: 'max(0, reach / missileSpeed - castTime)' },
+        { id: 'rebloom', label: 'Blooming Burst (extra bloom)', type: 'magic', amount: 'calc.SecondDamage', hits: 2, maxHits: 2, interval: 'dv.RepeatDelay', delay: 'dv.RepeatDelay', travel: 'max(0, reach / missileSpeed - castTime)', aoe: true },
       ],
     },
     W: {
@@ -44,10 +44,9 @@ const kit: ChampionKit = {
     },
     R: {
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-      notes: ['Winds up for 1.25 s, then knocks up for 0.6 s and crashes down (damage + stun) ≈1.85 s after the cast.'],
+      notes: ['Starts with the leap: its 1.25 s wind-up (free to act) is assumed done while closing in. Knocks up for 0.6 s and crashes down (damage + stun) as the leap ends.'],
       // Wiki: a 1.25s wind-up (free to act), then the 0.6s cast time (the leap), landing as it ends.
-      // Modeled as the cast time first and the wind-up after it: the same 1.85s, the lockout earlier.
-      components: [{ id: 'crash', label: 'Pop Blossom', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 'dv.DelayUntilReveal' }],
+      components: [{ id: 'crash', label: 'Pop Blossom', type: 'magic', amount: 'calc.TotalDamage', aoe: true }],
     },
   },
 };

@@ -15,7 +15,7 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       // Wiki: the wave flies 500 units at its 600 speed, then speeds up to 3200.
-      components: [{ id: 'bolt', label: 'Mistral Bolt', type: 'magic', amount: 'calc.QDamageCalc', aoe: true, travel: '500 / missileSpeed + (castRange - 500) / 3200' }],
+      components: [{ id: 'bolt', label: 'Mistral Bolt', type: 'magic', amount: 'calc.QDamageCalc', aoe: true, travel: 'min(reach, 500) / missileSpeed + max(0, reach - 500) / 3200' }],
     },
     W: {
       components: [{ id: 'wave', label: 'Personal Space', type: 'magic', amount: 'calc.WDamageCalc', aoe: true }],
@@ -32,18 +32,18 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
-      notes: ['Default: Shadow\'s surge plus the recast dash as soon as it lands. "R:surge" = first part only.'],
-      // The shadow flies its range; the recast (no cast time) then dashes back over it at ~2200 speed
-      // (the wiki's estimate, not in the data). Wiki: unable to attack or cast during the dash: busy
-      // until it lands.
-      lockout: 'castTime + castRange / missileSpeed + castRange / 2200',
+      recasts: 2,
+      notes: ['Two parts: "R" sends the shadow, "R R" also dashes to the marked target (the recast, once the shadow lands).'],
+      // The recast needs the shadow's mark: it lands after flying to the target.
+      recastDelay: 'castTime + reach / missileSpeed',
+      // Wiki: the recast has no cast time and dashes to the target at ~2200 speed (the wiki's estimate,
+      // not in the data), unable to attack or cast until she arrives.
+      castTime: 'recast == 2 ? 0 : castTime',
+      lockout: 'recast == 2 ? reach / 2200 : castTime',
       components: [
-        { id: 'surge', label: 'Shadow Surge', type: 'magic', amount: 'calc.RDamageCalc', travel: true },
-        { id: 'dash', label: 'Shadow Surge (dash)', type: 'magic', amount: 'calc.RecastDamageCalc', travel: 'castRange / missileSpeed + castRange / 2200', sameCast: false },
+        { id: 'surge', label: 'Shadow Surge', type: 'magic', amount: 'calc.RDamageCalc', hits: 'recast == 1 ? 1 : 0', travel: true },
+        { id: 'dash', label: 'Shadow Surge (dash)', type: 'magic', amount: 'calc.RecastDamageCalc', hits: 'recast == 2 ? 1 : 0', travel: 'reach / 2200' },
       ],
-      variants: {
-        surge: { label: 'surge', lockout: 0, components: [{ id: 'surge', label: 'Shadow Surge', type: 'magic', amount: 'calc.RDamageCalc', travel: true }] },
-      },
     },
   },
   hooks: {

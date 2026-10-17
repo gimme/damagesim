@@ -61,8 +61,9 @@ const kit: ChampionKit = {
   },
   abilities: {
     Q: {
-      // Thrown as the cast time starts (wiki: {{Effect at cast time start}}): lands its flight after the cast starts.
-      components: [{ id: 'shuriken', label: 'Thundering Shuriken', type: 'magic', amount: 'calc.TotalDamage', travel: 'max(0, castRange / missileSpeed - castTime)' }],
+      // Thrown as the cast time starts (wiki: {{Effect at cast time start}}): lands its flight to the
+      // target after the cast starts.
+      components: [{ id: 'shuriken', label: 'Thundering Shuriken', type: 'magic', amount: 'calc.TotalDamage', travel: 'max(0, reach / missileSpeed - castTime)' }],
     },
     W: {
       notes: ['Active only damages a target that has Mark of the Storm stacks or stands in Slicing Maelstrom (0 damage otherwise).'],
@@ -81,9 +82,9 @@ const kit: ChampionKit = {
       // No cast time: Kennen runs as lightning, unable to attack (wiki; he can cast), until he ends it
       // with the recast after 0.5s. The attack speed starts when the ball ends.
       attackLockout: 0.5,
-      notes: ['Assumes the ball is ended early (0.5s) after passing through the target; then +attack speed for 4s.'],
+      notes: ['Hits the target as it starts (he runs through it at once); the ball is ended as early as it can be (0.5s), then +attack speed for 4s.'],
       buff: { id: 'kennenE', label: 'Lightning Rush', duration: 'dv.DurationAfterBall + 0.5', stats: { attackSpeed: 'dv.TotalAS' } },
-      components: [{ id: 'rush', label: 'Lightning Rush', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.5 }],
+      components: [{ id: 'rush', label: 'Lightning Rush', type: 'magic', amount: 'calc.TotalDamage', aoe: true }],
     },
     R: {
       notes: ['6 bolts (every 0.5s for 3s), each 10% stronger than the previous one; adds up to 3 Mark of the Storm stacks.'],

@@ -143,11 +143,13 @@ Only the stats of a target's items count: it never fights back, so their passive
 * **One attacker against one target champion.** No minions, monsters, allies, healing or shields,
   and the target never fights back.
 * **Timing.** Casts take the wiki's cast times (instant ones, like Garen Q, none) and attacks use
-  your attack speed and windup. Every missile flies its ability's max range at its speed (an
-  attack's: your attack range), so a grenade can land after the attack that follows it or before
-  (Jhin Q then AA). Dashes take their range at their speed where the wiki gives one, a rough
-  duration otherwise. Attack-move and positioning are otherwise ignored. Items and runes that depend on distance or movement have options (`distance`,
-  `energized.start`, …).
+  your attack speed and windup. The target stands at your attack range (option `distance`), so
+  missiles and dashes at it fly that far at their speed (attacks too), and a grenade can land
+  after the attack that follows it or before (Jhin Q then AA). Dashes without a speed on the wiki
+  take a rough duration. Attack-move and positioning are otherwise ignored. Items and runes that
+  depend on movement have options (`energized.start`, …).
+* **Empowered attacks** (Garen Q, Darius W) show the attack's normal damage as the attack's and
+  only the extra as the ability's, like bonus on-hit damage (Vayne Q).
 * **On-hit vs on-attack.** Abilities the wiki lists as applying on-hit effects get item and rune
   on-hit effects. Only basic attacks and abilities that also trigger on-attack effects stack
   Guinsoo's, Lethal Tempo, Energize charges and similar. A champion's own passive on-hit applies
