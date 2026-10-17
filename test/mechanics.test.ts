@@ -665,3 +665,13 @@ test('Vex R is two parts: the recast dashes to the target once the shadow lands'
   assert.ok(Math.abs(dash.time - surge.time - sim.distance / 2200) < 1e-9);
   assert.equal(bySource(simulate(data, { champion: 'Vex', level: 11, combo: 'R', target: dummy }), 'R').length, 1);
 });
+
+test('Xayah: Bladecaller recalls feathers still flying once they land (Q E), each after the last', () => {
+  const r = simulate(data, { champion: 'Xayah', level: 11, combo: 'Q E', target: dummy });
+  const [d1, d2] = bySource(r, 'Q');
+  const [f1, f2] = bySource(r, 'E');
+  assert.equal(bySource(r, 'E').length, 2);
+  assert.ok(f1.time > d1.time && f2.time > d2.time && f2.raw < f1.raw);
+  // A Clean Cuts attack still flying counts too.
+  assert.equal(bySource(simulate(data, { champion: 'Xayah', level: 11, combo: 'W AA AA E', target: dummy }), 'E').length, 2);
+});
