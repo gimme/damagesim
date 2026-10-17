@@ -20,7 +20,7 @@
     "dev": "vite",
     "build": "node scripts/gen-kit-index.ts && vite build",
     "preview": "vite preview",
-    "test": "node --test 'test/**/*.test.ts'",
+    "test": "tsc --noEmit && node --test 'test/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
     "check-kits": "node scripts/check-kits.ts",
     "wiki": "node scripts/fetch-wiki.ts",

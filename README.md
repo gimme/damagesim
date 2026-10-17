@@ -30,7 +30,7 @@ npm install
 npm run dev                 # web UI on http://localhost:5173
 npm run sim -- simulate -c Ahri -l 11 -i "Luden's Echo,Sorcerer's Shoes" -r Electrocute \
   --combo "E Q W R AA" --target squishy --events
-npm test                    # engine tests
+npm test                    # typecheck, then engine tests
 ```
 
 Requires Node ≥ 22.18 (runs the TypeScript sources directly; no build step for CLI/MCP).
