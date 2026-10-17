@@ -711,6 +711,13 @@ test('Xayah: Bladecaller recalls feathers still flying once they land (Q E), eac
   assert.equal(bySource(simulate(data, { champion: 'Xayah', level: 11, combo: 'W AA AA E', target: dummy }), 'E').length, 2);
 });
 
+test("Zed: Death Mark lands as R's dash ends, so a shuriken landing during the dash isn't stored", () => {
+  const pop = (combo: string) => simulate(data, { champion: 'Zed', level: 11, combo, target: dummy }).events.find((e) => e.label === 'Death Mark (pop)')!;
+  const base = new Sim(data, { champion: 'Zed', level: 11, combo: [], target: dummy }).evalExpr('R.calc.RCalculatedDamage', { slot: 'R' });
+  assert.ok(Math.abs(pop('Q R').raw - base) < 1e-9);
+  assert.ok(pop('R Q').raw > base);
+});
+
 test("Voltaic Cyclosword's Firmament lands before the attack or ability that fires it (wiki)", () => {
   const order = (combo: string) => simulate(data, { champion: 'Talon', level: 11, items: ['Voltaic Cyclosword'], combo, target: dummy }).events.slice(0, 2).map((e) => e.source);
   assert.deepEqual(order('AA'), ['item:6699', 'AA']);

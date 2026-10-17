@@ -1,4 +1,4 @@
-import type { ChampionKit } from '../../engine/kit-types.ts';
+import type { ChampionKit, DebuffSpec } from '../../engine/kit-types.ts';
 import type { Sim } from '../../engine/sim.ts';
 
 // Zed — patch 16.20.
@@ -9,6 +9,8 @@ import type { Sim } from '../../engine/sim.ts';
 const MARK = 'deathMark';
 /** Wiki: Death Mark's 0.6s delay, then the 0.35s dash to the target; the mark lands as it ends. */
 const R_DASH = 0.95;
+/** Lands as the dash ends (hook): a shuriken landing during the dash isn't stored. */
+const DEATH_MARK: DebuffSpec = { id: MARK, label: 'Death Mark', duration: 'dv.RDeathMarkDuration' };
 
 function detonate(sim: Sim) {
   if (!sim.getDebuff(MARK)) return;
@@ -30,10 +32,12 @@ const kit: ChampionKit = {
   ],
   hooks: {
     onCast(sim, cast) {
-      if (cast.slot !== 'R' || cast.variant) return;
-      sim.setCounter('zedMarkStored', 0);
-      const spell = sim.spellFor('R');
-      sim.schedule(spell.castTime + R_DASH + sim.evalExpr('dv.RDeathMarkDuration', { slot: 'R' }), () => detonate(sim));
+      if (cast.slot !== 'R' || cast.variant || !cast.hitsTarget) return;
+      sim.schedule((cast.castTime ?? 0) + R_DASH, () => {
+        sim.setCounter('zedMarkStored', 0);
+        sim.applyDebuff(DEATH_MARK, 'R', sim.spellFor('R'), sim.abilityRank('R'), cast.castId);
+        sim.schedule(sim.evalExpr('dv.RDeathMarkDuration', { slot: 'R' }), () => detonate(sim));
+      });
     },
     afterDamage(sim, inst) {
       if (inst.fromMark || inst.type === 'true' || !sim.getDebuff(MARK)) return;
@@ -83,16 +87,13 @@ const kit: ChampionKit = {
       // Wiki: unable to attack or cast during the 0.6s delay and the 0.35s dash to the target.
       lockout: R_DASH,
       buff: { id: 'zedR', label: 'Death Mark Shadow', duration: 'dv.RShadowDurationDisplayed' },
-      // Applied as the cast starts (no hit to carry it), so it runs through the dash too; it pops when
-      // it ends, R_DASH + RDeathMarkDuration after the cast (hook).
-      debuff: { id: MARK, label: 'Death Mark', duration: `${R_DASH} + dv.RDeathMarkDuration` },
+      // Death Mark lands as the dash ends and pops RDeathMarkDuration later (hook).
       variants: {
         swap: {
           label: 'swap',
           dash: true,
           lockout: 0,
           buff: [],
-          debuff: null,
           components: [],
         },
       },
