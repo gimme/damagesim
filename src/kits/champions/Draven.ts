@@ -40,15 +40,15 @@ const kit: ChampionKit = {
     R: {
       // The axes fly to the target and reverse on hitting the champion, hitting it again as they turn.
       components: [
-        { id: 'out', label: 'Whirling Death (out)', type: 'physical', amount: 'calc.RCalculatedDamage', aoe: true, travel: 'reach / missileSpeed' },
-        { id: 'back', label: 'Whirling Death (return)', type: 'physical', amount: 'calc.RCalculatedDamage', aoe: true, travel: 'reach / missileSpeed' },
+        { id: 'out', label: 'Whirling Death (out)', type: 'physical', amount: 'calc.RCalculatedDamage', aoe: true, travel: true },
+        { id: 'back', label: 'Whirling Death (return)', type: 'physical', amount: 'calc.RCalculatedDamage', aoe: true, travel: true },
         {
           id: 'execute',
           label: 'Whirling Death (execute)',
           type: 'true',
           amount: 'target.hp < calc.RPassiveTrueDamage ? target.hp : 0',
           hits: 'opt.adoration > 0 ? 1 : 0',
-          travel: 'reach / missileSpeed',
+          travel: true,
           condition: 'target below Adoration stacks',
           note: 'Execute after the return hit',
         },

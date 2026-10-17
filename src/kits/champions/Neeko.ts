@@ -20,8 +20,8 @@ const kit: ChampionKit = {
       notes: ['Hitting a champion makes the seed bloom again after 0.75 s, up to 2 extra blooms: default assumes the target stays in the area for both (e.g. rooted). Otherwise lower them, e.g. Q{rebloom:1}.'],
       // {{Effect at cast time start}} (wiki): the seed flies to the target from the start of the cast.
       components: [
-        { id: 'bloom', label: 'Blooming Burst', type: 'magic', amount: 'calc.ExplosionDamage', aoe: true, travel: 'max(0, reach / missileSpeed - castTime)' },
-        { id: 'rebloom', label: 'Blooming Burst (extra bloom)', type: 'magic', amount: 'calc.SecondDamage', hits: 2, maxHits: 2, interval: 'dv.RepeatDelay', delay: 'dv.RepeatDelay', travel: 'max(0, reach / missileSpeed - castTime)', aoe: true },
+        { id: 'bloom', label: 'Blooming Burst', type: 'magic', amount: 'calc.ExplosionDamage', aoe: true, travel: 'reach / missileSpeed - castTime' },
+        { id: 'rebloom', label: 'Blooming Burst (extra bloom)', type: 'magic', amount: 'calc.SecondDamage', hits: 2, maxHits: 2, interval: 'dv.RepeatDelay', delay: 'dv.RepeatDelay', travel: 'reach / missileSpeed - castTime', aoe: true },
       ],
     },
     W: {

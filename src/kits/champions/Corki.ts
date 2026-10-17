@@ -82,7 +82,7 @@ const kit: ChampionKit = {
           aoe: true,
           // Fired at the target as the cast time starts (wiki: {{Effect at cast time start}}); the Big
           // One's range is 1500.
-          travel: 'max(0, (stacks.corkiMissile % 3 == 0 ? min(distance, 1500) : reach) / missileSpeed - castTime)',
+          travel: '(stacks.corkiMissile % 3 == 0 ? min(distance, 1500) : reach) / missileSpeed - castTime',
         },
       ],
     },

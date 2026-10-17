@@ -55,7 +55,7 @@ const kit: ChampionKit = {
         { kind: 'slow', duration: 'dv.SlowDuration' },
       ],
       // Its effects start as the cast time starts (wiki): the chain sweeps through the target at 2000.
-      components: [{ id: 'flay', label: 'Flay', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, reach / missileSpeed - castTime)' }],
+      components: [{ id: 'flay', label: 'Flay', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'reach / missileSpeed - castTime' }],
     },
     R: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],

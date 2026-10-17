@@ -37,7 +37,7 @@ const kit: ChampionKit = {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       // {{Effect at cast time start}} (wiki): the fissure runs to the target from the start of the cast.
-      components: [{ id: 'fissure', label: 'Volcanic Rupture', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, reach / missileSpeed - castTime)' }],
+      components: [{ id: 'fissure', label: 'Volcanic Rupture', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'reach / missileSpeed - castTime' }],
     },
     W: {
       // Wiki: unable to act while he marches for the breath's 0.75s.

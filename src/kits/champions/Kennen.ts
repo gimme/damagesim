@@ -63,7 +63,7 @@ const kit: ChampionKit = {
     Q: {
       // Thrown as the cast time starts (wiki: {{Effect at cast time start}}): lands its flight to the
       // target after the cast starts.
-      components: [{ id: 'shuriken', label: 'Thundering Shuriken', type: 'magic', amount: 'calc.TotalDamage', travel: 'max(0, reach / missileSpeed - castTime)' }],
+      components: [{ id: 'shuriken', label: 'Thundering Shuriken', type: 'magic', amount: 'calc.TotalDamage', travel: 'reach / missileSpeed - castTime' }],
     },
     W: {
       notes: ['Active only damages a target that has Mark of the Storm stacks or stands in Slicing Maelstrom (0 damage otherwise).'],

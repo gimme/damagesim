@@ -64,7 +64,7 @@ const kit: ChampionKit = {
           label: 'Boomerang Throw',
           type: 'physical',
           amount: 'calc.MiniTotalDamage',
-          travel: 'max(0, (2500 - sqrt(2500 * 2500 - 6000 * min(reach, 715))) / 3000 + max(0, reach - 715) / 1400 - castTime)',
+          travel: '(2500 - sqrt(2500 * 2500 - 6000 * min(reach, 715))) / 3000 + max(0, reach - 715) / 1400 - castTime',
         },
       ],
       variants: {
@@ -83,7 +83,7 @@ const kit: ChampionKit = {
               type: 'physical',
               amount: 'calc.MegaTotalDamage',
               aoe: true,
-              travel: "max(0, spell['GnarBigQ'].reach / spell['GnarBigQ'].missileSpeed - spell['GnarBigQ'].castTime)",
+              travel: "spell['GnarBigQ'].reach / spell['GnarBigQ'].missileSpeed - spell['GnarBigQ'].castTime",
             },
           ],
         },

@@ -32,7 +32,7 @@ const WEAPON_CT = [CAL, SEV, GRA, INF, CRE].map((sp) => `${sp}.castTime`);
 // Moonshot flies to the target at 1850 (wiki; no speed in the data).
 const MOONSHOT = `${CAL}.castTime + ${CAL}.reach / 1850`;
 // Moonlight Vigil is fired as its cast time starts (wiki: {{Effect at cast time start}}).
-const R_TRAVEL = 'max(0, reach / missileSpeed - castTime)';
+const R_TRAVEL = 'reach / missileSpeed - castTime';
 // Wiki: Onslaught keeps Phase and Moonlight Vigil from being cast (he can move); Duskwave keeps him
 // from attacking until its volley (0.25s after the wave) has resolved.
 const SEV_LOCK = `${SEV}.dv.Duration`;

@@ -45,8 +45,8 @@ const kit: ChampionKit = {
       attackLockout: 'max(castTime, reach / missileSpeed)',
       castLockout: { W: 'max(castTime, reach / missileSpeed)' },
       components: [
-        { id: 'lash', label: 'Tongue Lash', type: 'magic', amount: 'calc.TotalDamage', travel: 'max(0, reach / missileSpeed - castTime)' },
-        { id: 'taste', label: 'An Acquired Taste', type: 'magic', amount: 'P.calc.TotalDamage', travel: 'max(0, reach / missileSpeed - castTime)', proc: true },
+        { id: 'lash', label: 'Tongue Lash', type: 'magic', amount: 'calc.TotalDamage', travel: 'reach / missileSpeed - castTime' },
+        { id: 'taste', label: 'An Acquired Taste', type: 'magic', amount: 'P.calc.TotalDamage', travel: 'reach / missileSpeed - castTime', proc: true },
       ],
     },
     W: {

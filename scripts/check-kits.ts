@@ -34,7 +34,7 @@ function* expressions(kit: ChampionKit): Generator<{ where: string; slot: Slot; 
     for (const c of cs ?? []) {
       yield { where: `${where}.${c.id}.amount`, slot, expr: c.amount, amount: true, spell };
       for (const k of ['hits', 'interval', 'delay', 'critMultiplier', 'min', 'max'] as const) if (c[k] !== undefined) yield { where: `${where}.${c.id}.${k}`, slot, expr: c[k]!, spell };
-      if (c.travel !== undefined) yield { where: `${where}.${c.id}.travel`, slot, expr: c.travel === true ? 'castRange / missileSpeed' : c.travel, spell };
+      if (c.travel !== undefined) yield { where: `${where}.${c.id}.travel`, slot, expr: c.travel === true ? 'reach / missileSpeed' : c.travel, spell };
     }
   };
   for (const [slot, a] of Object.entries(kit.abilities) as [Slot, any][]) {

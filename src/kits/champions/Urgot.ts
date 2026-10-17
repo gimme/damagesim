@@ -78,7 +78,7 @@ const kit: ChampionKit = {
       ],
       cc: [{ kind: 'slow', duration: 'dv.RSlowDuration' }],
       // Wiki: {{Effect at cast time start}}: the drill flies during the cast time.
-      components: [{ id: 'drill', label: 'Fear Beyond Death', type: 'physical', amount: 'calc.RCalculatedDamage', travel: 'max(0, reach / missileSpeed - castTime)' }],
+      components: [{ id: 'drill', label: 'Fear Beyond Death', type: 'physical', amount: 'calc.RCalculatedDamage', travel: 'reach / missileSpeed - castTime' }],
       variants: {
         execute: {
           label: 'execute',

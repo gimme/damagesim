@@ -31,7 +31,7 @@ const kit: ChampionKit = {
     R: {
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
       // Fired as the cast time starts (wiki: {{Effect at cast time start}}).
-      components: [{ id: 'crescendo', label: 'Crescendo', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, reach / missileSpeed - castTime)' }],
+      components: [{ id: 'crescendo', label: 'Crescendo', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'reach / missileSpeed - castTime' }],
     },
   },
   hooks: {

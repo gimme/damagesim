@@ -262,8 +262,9 @@ other on-hit effects apply, but Guinsoo's/Lethal Tempo/Energize charges don't st
   `spell['X'].missileSpeed` read the data). A dash to the target is busy for its flight
   (`lockout: 'castTime + reach / missileSpeed'`); one of a set length (Vayne Q), or not at the
   target, takes its range; without a speed in the data it keeps a rough duration. A missile the
-  wiki fires as the cast time starts flies `'max(0, reach / missileSpeed - castTime)'`; an effect
-  applied before the cast time ends takes a negative delay (down to `'-castTime'`, Riven W). A
+  wiki fires as the cast time starts flies `'reach / missileSpeed - castTime'` (a close target is hit
+  before the cast time ends); an effect applied before then takes a negative delay (down to
+  `'-castTime'`, Riven W). A
   returning missile flies out its range and passes the target on the way back (Ahri Q, Sivir Q):
   `castRange / speed + (castRange - reach) / backSpeed`.
 * `windup` is an attack's windup at the current attack speed, for casts the wiki times by it

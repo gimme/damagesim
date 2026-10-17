@@ -32,7 +32,7 @@ const kit: ChampionKit = {
       notes: ['Valor dives the first enemy hit: marks it with Harrier and damages enemies around it.'],
       debuff: harrier,
       // {{Effect at cast time start}} (wiki): Valor flies to the target from the start of the cast.
-      components: [{ id: 'dive', label: 'Blinding Assault', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, reach / missileSpeed - castTime)' }],
+      components: [{ id: 'dive', label: 'Blinding Assault', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'reach / missileSpeed - castTime' }],
     },
     W: { noTarget: true, components: [] },
     E: {

@@ -64,7 +64,7 @@ const kit: ChampionKit = {
       // Fired as the cast starts (wiki: {{Effect at cast time start}}). The brambles speed up from 100
       // by 300/s to 750 (wiki): to the target while accelerating, else 650 / 300 s accelerating at an
       // average (100 + 750) / 2, then 750 for the rest.
-      components: [{ id: 'grasp', label: "Nature's Grasp", type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, (reach < (100 + 750) / 2 * 650 / 300 ? (sqrt(100 * 100 + 2 * 300 * reach) - 100) / 300 : 650 / 300 + (reach - (100 + 750) / 2 * 650 / 300) / 750) - castTime)' }],
+      components: [{ id: 'grasp', label: "Nature's Grasp", type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: '(reach < (100 + 750) / 2 * 650 / 300 ? (sqrt(100 * 100 + 2 * 300 * reach) - 100) / 300 : 650 / 300 + (reach - (100 + 750) / 2 * 650 / 300) / 750) - castTime' }],
     },
   },
 };

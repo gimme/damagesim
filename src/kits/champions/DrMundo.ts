@@ -17,7 +17,7 @@ const kit: ChampionKit = {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       components: [
         // Thrown as the cast time starts (wiki: {{Effect at cast time start}}).
-        { id: 'bonesaw', label: 'Infected Bonesaw', type: 'magic', amount: 'max(dv.CurrentHealthDamage * target.hp, dv.MinimumDamage)', travel: 'max(0, reach / missileSpeed - castTime)' },
+        { id: 'bonesaw', label: 'Infected Bonesaw', type: 'magic', amount: 'max(dv.CurrentHealthDamage * target.hp, dv.MinimumDamage)', travel: 'reach / missileSpeed - castTime' },
       ],
     },
     W: {

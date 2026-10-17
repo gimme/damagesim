@@ -68,7 +68,7 @@ const kit: ChampionKit = {
     R: {
       // The beam fires after the 1s charge, although the wiki marks it {{Effect at cast time start}},
       // and flies to the target at its speed.
-      components: [{ id: 'beam', label: 'Dawning Shadow', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'reach / missileSpeed' }],
+      components: [{ id: 'beam', label: 'Dawning Shadow', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: true }],
     },
   },
   hooks: {

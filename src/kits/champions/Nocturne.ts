@@ -23,7 +23,7 @@ const kit: ChampionKit = {
     Q: {
       notes: ["Duskbringer's own damage is not increased by the trail's bonus AD (the trail buff starts when it hits)."],
       // {{Effect at cast time start}} (wiki): the blade flies from the start of the cast, through the target.
-      components: [{ id: 'blade', label: 'Duskbringer', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, reach / missileSpeed - castTime)' }],
+      components: [{ id: 'blade', label: 'Duskbringer', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'reach / missileSpeed - castTime' }],
     },
     W: {
       noTarget: true,

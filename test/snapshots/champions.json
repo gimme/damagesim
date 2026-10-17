@@ -9,7 +9,7 @@
   "Ahri": {
    "L11 no items QWER AA": 535.4,
    "L16 AP build + Electrocute": 2100.36,
-   "L16 AD build + Conqueror": 1125.13
+   "L16 AD build + Conqueror": 1127.27
   },
   "Akali": {
    "L11 no items QWER AA": 463.26,
@@ -17,9 +17,9 @@
    "L16 AD build + Conqueror": 1570.22
   },
   "Akshan": {
-   "L11 no items QWER AA": 972.67,
-   "L16 AP build + Electrocute": 2788.35,
-   "L16 AD build + Conqueror": 3107.15
+   "L11 no items QWER AA": 966.02,
+   "L16 AP build + Electrocute": 2762.58,
+   "L16 AD build + Conqueror": 3080.97
   },
   "Alistar": {
    "L11 no items QWER AA": 515.13,
@@ -32,13 +32,13 @@
    "L16 AD build + Conqueror": 1860.75
   },
   "Amumu": {
-   "L11 no items QWER AA": 565.11,
-   "L16 AP build + Electrocute": 2078,
+   "L11 no items QWER AA": 569.41,
+   "L16 AP build + Electrocute": 2096.68,
    "L16 AD build + Conqueror": 1295.23
   },
   "Anivia": {
-   "L11 no items QWER AA": 554,
-   "L16 AP build + Electrocute": 1814.51,
+   "L11 no items QWER AA": 589.48,
+   "L16 AP build + Electrocute": 2077.85,
    "L16 AD build + Conqueror": 1162.76
   },
   "Annie": {
@@ -49,12 +49,12 @@
   "Aphelios": {
    "L11 no items QWER AA": 369.24,
    "L16 AP build + Electrocute": 1084.15,
-   "L16 AD build + Conqueror": 1095.15
+   "L16 AD build + Conqueror": 1100.3
   },
   "Ashe": {
    "L11 no items QWER AA": 453.53,
    "L16 AP build + Electrocute": 1381.45,
-   "L16 AD build + Conqueror": 1309.79
+   "L16 AD build + Conqueror": 1311.65
   },
   "AurelionSol": {
    "L11 no items QWER AA": 588.91,
@@ -64,7 +64,7 @@
   "Aurora": {
    "L11 no items QWER AA": 424.91,
    "L16 AP build + Electrocute": 1804.55,
-   "L16 AD build + Conqueror": 1011.61
+   "L16 AD build + Conqueror": 1013.75
   },
   "Azir": {
    "L11 no items QWER AA": 527.1,
@@ -74,11 +74,11 @@
   "Bard": {
    "L11 no items QWER AA": 319.29,
    "L16 AP build + Electrocute": 860.51,
-   "L16 AD build + Conqueror": 785.44
+   "L16 AD build + Conqueror": 787.58
   },
   "Belveth": {
    "L11 no items QWER AA": 583.19,
-   "L16 AP build + Electrocute": 2484.54,
+   "L16 AP build + Electrocute": 2484.75,
    "L16 AD build + Conqueror": 1712.25
   },
   "Blitzcrank": {
@@ -89,22 +89,22 @@
   "Brand": {
    "L11 no items QWER AA": 946.39,
    "L16 AP build + Electrocute": 3013.83,
-   "L16 AD build + Conqueror": 1682.66
+   "L16 AD build + Conqueror": 1684.8
   },
   "Braum": {
    "L11 no items QWER AA": 443.81,
    "L16 AP build + Electrocute": 1118.61,
-   "L16 AD build + Conqueror": 1147.72
+   "L16 AD build + Conqueror": 1152.3
   },
   "Briar": {
-   "L11 no items QWER AA": 479.1,
-   "L16 AP build + Electrocute": 1700.15,
-   "L16 AD build + Conqueror": 1568.5
+   "L11 no items QWER AA": 477.37,
+   "L16 AP build + Electrocute": 1698.19,
+   "L16 AD build + Conqueror": 1599.58
   },
   "Caitlyn": {
    "L11 no items QWER AA": 689.07,
    "L16 AP build + Electrocute": 1408.09,
-   "L16 AD build + Conqueror": 2207.82
+   "L16 AD build + Conqueror": 2209.09
   },
   "Camille": {
    "L11 no items QWER AA": 386.38,
@@ -114,7 +114,7 @@
   "Cassiopeia": {
    "L11 no items QWER AA": 475.99,
    "L16 AP build + Electrocute": 1798.46,
-   "L16 AD build + Conqueror": 1052.7
+   "L16 AD build + Conqueror": 1054.99
   },
   "Chogath": {
    "L11 no items QWER AA": 1011.97,
@@ -124,7 +124,7 @@
   "Corki": {
    "L11 no items QWER AA": 543.08,
    "L16 AP build + Electrocute": 1675.69,
-   "L16 AD build + Conqueror": 1841.27
+   "L16 AD build + Conqueror": 1839.5
   },
   "Darius": {
    "L11 no items QWER AA": 712.78,
@@ -134,26 +134,26 @@
   "Diana": {
    "L11 no items QWER AA": 539.03,
    "L16 AP build + Electrocute": 1874.05,
-   "L16 AD build + Conqueror": 1232.83
+   "L16 AD build + Conqueror": 1234.97
   },
   "DrMundo": {
-   "L11 no items QWER AA": 669.74,
-   "L16 AP build + Electrocute": 1304.53,
-   "L16 AD build + Conqueror": 1504.87
+   "L11 no items QWER AA": 684.08,
+   "L16 AP build + Electrocute": 1344.81,
+   "L16 AD build + Conqueror": 1549.61
   },
   "Draven": {
    "L11 no items QWER AA": 545.93,
    "L16 AP build + Electrocute": 901.85,
-   "L16 AD build + Conqueror": 1848.38
+   "L16 AD build + Conqueror": 1857.32
   },
   "Ekko": {
    "L11 no items QWER AA": 600.15,
    "L16 AP build + Electrocute": 2501.35,
-   "L16 AD build + Conqueror": 1190.88
+   "L16 AD build + Conqueror": 1195.46
   },
   "Elise": {
    "L11 no items QWER AA": 474.88,
-   "L16 AP build + Electrocute": 1602.81,
+   "L16 AP build + Electrocute": 1643.7,
    "L16 AD build + Conqueror": 976
   },
   "Evelynn": {
@@ -164,7 +164,7 @@
   "Ezreal": {
    "L11 no items QWER AA": 766.03,
    "L16 AP build + Electrocute": 2442.51,
-   "L16 AD build + Conqueror": 1854.46
+   "L16 AD build + Conqueror": 1849.81
   },
   "Fiddlesticks": {
    "L11 no items QWER AA": 1204.88,
@@ -184,12 +184,12 @@
   "Galio": {
    "L11 no items QWER AA": 707.61,
    "L16 AP build + Electrocute": 2998.04,
-   "L16 AD build + Conqueror": 1705.62
+   "L16 AD build + Conqueror": 1708.19
   },
   "Gangplank": {
    "L11 no items QWER AA": 949.9,
    "L16 AP build + Electrocute": 2040.28,
-   "L16 AD build + Conqueror": 1990.97
+   "L16 AD build + Conqueror": 1991.3
   },
   "Garen": {
    "L11 no items QWER AA": 816.26,
@@ -197,14 +197,14 @@
    "L16 AD build + Conqueror": 3268.57
   },
   "Gnar": {
-   "L11 no items QWER AA": 684.91,
-   "L16 AP build + Electrocute": 1303.47,
-   "L16 AD build + Conqueror": 1850.88
+   "L11 no items QWER AA": 665.51,
+   "L16 AP build + Electrocute": 1278.36,
+   "L16 AD build + Conqueror": 1815.66
   },
   "Gragas": {
    "L11 no items QWER AA": 656.2,
    "L16 AP build + Electrocute": 2257.89,
-   "L16 AD build + Conqueror": 1456.77
+   "L16 AD build + Conqueror": 1458.91
   },
   "Graves": {
    "L11 no items QWER AA": 757.69,
@@ -213,8 +213,8 @@
   },
   "Gwen": {
    "L11 no items QWER AA": 517.15,
-   "L16 AP build + Electrocute": 1651.04,
-   "L16 AD build + Conqueror": 1094.75
+   "L16 AP build + Electrocute": 1691.92,
+   "L16 AD build + Conqueror": 1097.2
   },
   "Hecarim": {
    "L11 no items QWER AA": 490.59,
@@ -224,36 +224,36 @@
   "Heimerdinger": {
    "L11 no items QWER AA": 966.93,
    "L16 AP build + Electrocute": 4179.93,
-   "L16 AD build + Conqueror": 1586.96
+   "L16 AD build + Conqueror": 1589.32
   },
   "Hwei": {
    "L11 no items QWER AA": 790.96,
    "L16 AP build + Electrocute": 2612.61,
-   "L16 AD build + Conqueror": 1460.63
+   "L16 AD build + Conqueror": 1470.02
   },
   "Illaoi": {
    "L11 no items QWER AA": 881.11,
    "L16 AP build + Electrocute": 1727.32,
-   "L16 AD build + Conqueror": 2521.43
+   "L16 AD build + Conqueror": 2366.2
   },
   "Irelia": {
-   "L11 no items QWER AA": 509.92,
-   "L16 AP build + Electrocute": 1955.08,
-   "L16 AD build + Conqueror": 1480.06
+   "L11 no items QWER AA": 535.72,
+   "L16 AP build + Electrocute": 1996.43,
+   "L16 AD build + Conqueror": 1531.05
   },
   "Ivern": {
    "L11 no items QWER AA": 811.69,
    "L16 AP build + Electrocute": 2486.55,
-   "L16 AD build + Conqueror": 1451.28
+   "L16 AD build + Conqueror": 1453.42
   },
   "Janna": {
    "L11 no items QWER AA": 302.81,
    "L16 AP build + Electrocute": 1109.93,
-   "L16 AD build + Conqueror": 848.07
+   "L16 AD build + Conqueror": 850.35
   },
   "JarvanIV": {
-   "L11 no items QWER AA": 601.44,
-   "L16 AP build + Electrocute": 1285.19,
+   "L11 no items QWER AA": 598.84,
+   "L16 AP build + Electrocute": 1260.02,
    "L16 AD build + Conqueror": 1661.4
   },
   "Jax": {
@@ -267,9 +267,9 @@
    "L16 AD build + Conqueror": 1460.16
   },
   "Jhin": {
-   "L11 no items QWER AA": 1234.84,
-   "L16 AP build + Electrocute": 2908.27,
-   "L16 AD build + Conqueror": 5464.42
+   "L11 no items QWER AA": 1219.58,
+   "L16 AP build + Electrocute": 2888.96,
+   "L16 AD build + Conqueror": 5460.44
   },
   "Jinx": {
    "L11 no items QWER AA": 510.19,
@@ -278,23 +278,23 @@
   },
   "KSante": {
    "L11 no items QWER AA": 505.76,
-   "L16 AP build + Electrocute": 801.04,
+   "L16 AP build + Electrocute": 841.92,
    "L16 AD build + Conqueror": 1373.93
   },
   "Kaisa": {
    "L11 no items QWER AA": 405.74,
    "L16 AP build + Electrocute": 1254.94,
-   "L16 AD build + Conqueror": 1469.76
+   "L16 AD build + Conqueror": 1459.34
   },
   "Kalista": {
    "L11 no items QWER AA": 358.36,
    "L16 AP build + Electrocute": 812.54,
-   "L16 AD build + Conqueror": 1268.22
+   "L16 AD build + Conqueror": 1259.78
   },
   "Karma": {
    "L11 no items QWER AA": 335.31,
    "L16 AP build + Electrocute": 1355.82,
-   "L16 AD build + Conqueror": 885.33
+   "L16 AD build + Conqueror": 887.46
   },
   "Karthus": {
    "L11 no items QWER AA": 579.79,
@@ -304,17 +304,17 @@
   "Kassadin": {
    "L11 no items QWER AA": 425.04,
    "L16 AP build + Electrocute": 1829.39,
-   "L16 AD build + Conqueror": 1063.68
+   "L16 AD build + Conqueror": 1065.96
   },
   "Katarina": {
    "L11 no items QWER AA": 635.6,
    "L16 AP build + Electrocute": 2342.36,
-   "L16 AD build + Conqueror": 2262.55
+   "L16 AD build + Conqueror": 2264.69
   },
   "Kayle": {
    "L11 no items QWER AA": 432.97,
-   "L16 AP build + Electrocute": 1549.71,
-   "L16 AD build + Conqueror": 1305.13
+   "L16 AP build + Electrocute": 1553.54,
+   "L16 AD build + Conqueror": 1326.71
   },
   "Kayn": {
    "L11 no items QWER AA": 560.51,
@@ -322,14 +322,14 @@
    "L16 AD build + Conqueror": 1614.39
   },
   "Kennen": {
-   "L11 no items QWER AA": 706.02,
-   "L16 AP build + Electrocute": 2570.11,
-   "L16 AD build + Conqueror": 1379.85
+   "L11 no items QWER AA": 783.44,
+   "L16 AP build + Electrocute": 2966.14,
+   "L16 AD build + Conqueror": 1488.49
   },
   "Khazix": {
    "L11 no items QWER AA": 367.36,
    "L16 AP build + Electrocute": 757.65,
-   "L16 AD build + Conqueror": 1240.67
+   "L16 AD build + Conqueror": 1238.97
   },
   "Kindred": {
    "L11 no items QWER AA": 543.92,
@@ -338,13 +338,13 @@
   },
   "Kled": {
    "L11 no items QWER AA": 427.62,
-   "L16 AP build + Electrocute": 778.17,
-   "L16 AD build + Conqueror": 1646.46
+   "L16 AP build + Electrocute": 819.06,
+   "L16 AD build + Conqueror": 1648.21
   },
   "KogMaw": {
    "L11 no items QWER AA": 592.36,
-   "L16 AP build + Electrocute": 2076.98,
-   "L16 AD build + Conqueror": 1535.91
+   "L16 AP build + Electrocute": 2084.02,
+   "L16 AD build + Conqueror": 1587.87
   },
   "Leblanc": {
    "L11 no items QWER AA": 769.66,
@@ -354,7 +354,7 @@
   "LeeSin": {
    "L11 no items QWER AA": 506.93,
    "L16 AP build + Electrocute": 949.44,
-   "L16 AD build + Conqueror": 1579.76
+   "L16 AD build + Conqueror": 1577.83
   },
   "Leona": {
    "L11 no items QWER AA": 418.5,
@@ -364,37 +364,37 @@
   "Lillia": {
    "L11 no items QWER AA": 453.92,
    "L16 AP build + Electrocute": 1662.79,
-   "L16 AD build + Conqueror": 1194.46
+   "L16 AD build + Conqueror": 1181.12
   },
   "Lissandra": {
    "L11 no items QWER AA": 526.15,
    "L16 AP build + Electrocute": 2044.63,
-   "L16 AD build + Conqueror": 1116.24
+   "L16 AD build + Conqueror": 1118.6
   },
   "Locke": {
    "L11 no items QWER AA": 422.95,
-   "L16 AP build + Electrocute": 1649.37,
-   "L16 AD build + Conqueror": 1058.95
+   "L16 AP build + Electrocute": 1650.64,
+   "L16 AD build + Conqueror": 1064
   },
   "Lucian": {
    "L11 no items QWER AA": 981.24,
    "L16 AP build + Electrocute": 2427.83,
-   "L16 AD build + Conqueror": 2692.94
+   "L16 AD build + Conqueror": 2692.63
   },
   "Lulu": {
    "L11 no items QWER AA": 413.06,
    "L16 AP build + Electrocute": 1296.33,
-   "L16 AD build + Conqueror": 1040.09
+   "L16 AD build + Conqueror": 1042.23
   },
   "Lux": {
    "L11 no items QWER AA": 714.76,
    "L16 AP build + Electrocute": 2525.61,
-   "L16 AD build + Conqueror": 1436.12
+   "L16 AD build + Conqueror": 1438.48
   },
   "Malphite": {
    "L11 no items QWER AA": 587.69,
    "L16 AP build + Electrocute": 1886.77,
-   "L16 AD build + Conqueror": 1252.81
+   "L16 AD build + Conqueror": 1254.95
   },
   "Malzahar": {
    "L11 no items QWER AA": 845.47,
@@ -404,7 +404,7 @@
   "Maokai": {
    "L11 no items QWER AA": 572.96,
    "L16 AP build + Electrocute": 1762.6,
-   "L16 AD build + Conqueror": 1229.52
+   "L16 AD build + Conqueror": 1231.66
   },
   "MasterYi": {
    "L11 no items QWER AA": 292.99,
@@ -412,19 +412,19 @@
    "L16 AD build + Conqueror": 1380.1
   },
   "Mel": {
-   "L11 no items QWER AA": 610.54,
-   "L16 AP build + Electrocute": 2160.1,
-   "L16 AD build + Conqueror": 1373.08
+   "L11 no items QWER AA": 624.09,
+   "L16 AP build + Electrocute": 2222.89,
+   "L16 AD build + Conqueror": 1386.87
   },
   "Milio": {
    "L11 no items QWER AA": 319.98,
    "L16 AP build + Electrocute": 1168.94,
-   "L16 AD build + Conqueror": 856.75
+   "L16 AD build + Conqueror": 859.11
   },
   "MissFortune": {
    "L11 no items QWER AA": 948.94,
    "L16 AP build + Electrocute": 2888.96,
-   "L16 AD build + Conqueror": 2813.16
+   "L16 AD build + Conqueror": 2811.64
   },
   "Mordekaiser": {
    "L11 no items QWER AA": 572.71,
@@ -432,14 +432,14 @@
    "L16 AD build + Conqueror": 1609.71
   },
   "Morgana": {
-   "L11 no items QWER AA": 823.57,
-   "L16 AP build + Electrocute": 3079.01,
-   "L16 AD build + Conqueror": 1474.51
+   "L11 no items QWER AA": 824.89,
+   "L16 AP build + Electrocute": 3094.9,
+   "L16 AD build + Conqueror": 1476.8
   },
   "Naafiri": {
-   "L11 no items QWER AA": 689.71,
-   "L16 AP build + Electrocute": 1168.56,
-   "L16 AD build + Conqueror": 2485.08
+   "L11 no items QWER AA": 690.35,
+   "L16 AP build + Electrocute": 1169.2,
+   "L16 AD build + Conqueror": 2389.13
   },
   "Nami": {
    "L11 no items QWER AA": 574.1,
@@ -459,7 +459,7 @@
   "Neeko": {
    "L11 no items QWER AA": 697.06,
    "L16 AP build + Electrocute": 2323.29,
-   "L16 AD build + Conqueror": 1338.62
+   "L16 AD build + Conqueror": 1343.43
   },
   "Nidalee": {
    "L11 no items QWER AA": 246.96,
@@ -473,8 +473,8 @@
   },
   "Nocturne": {
    "L11 no items QWER AA": 536.94,
-   "L16 AP build + Electrocute": 1254,
-   "L16 AD build + Conqueror": 1381.21
+   "L16 AP build + Electrocute": 1213.11,
+   "L16 AD build + Conqueror": 1411.14
   },
   "Nunu": {
    "L11 no items QWER AA": 1051.87,
@@ -482,17 +482,17 @@
    "L16 AD build + Conqueror": 1808.74
   },
   "Olaf": {
-   "L11 no items QWER AA": 483.34,
-   "L16 AP build + Electrocute": 815.62,
-   "L16 AD build + Conqueror": 1421.29
+   "L11 no items QWER AA": 465.54,
+   "L16 AP build + Electrocute": 837.17,
+   "L16 AD build + Conqueror": 1448.13
   },
   "Orianna": {
    "L11 no items QWER AA": 559.46,
    "L16 AP build + Electrocute": 1979.39,
-   "L16 AD build + Conqueror": 1161.85
+   "L16 AD build + Conqueror": 1166.13
   },
   "Ornn": {
-   "L11 no items QWER AA": 788.99,
+   "L11 no items QWER AA": 983.52,
    "L16 AP build + Electrocute": 1538.27,
    "L16 AD build + Conqueror": 1795.5
   },
@@ -504,7 +504,7 @@
   "Poppy": {
    "L11 no items QWER AA": 728.18,
    "L16 AP build + Electrocute": 1137.17,
-   "L16 AD build + Conqueror": 1834.87
+   "L16 AD build + Conqueror": 1835.12
   },
   "Pyke": {
    "L11 no items QWER AA": 430.06,
@@ -514,12 +514,12 @@
   "Qiyana": {
    "L11 no items QWER AA": 566.05,
    "L16 AP build + Electrocute": 1496.79,
-   "L16 AD build + Conqueror": 1749.31
+   "L16 AD build + Conqueror": 1749.09
   },
   "Quinn": {
    "L11 no items QWER AA": 325.51,
    "L16 AP build + Electrocute": 774.57,
-   "L16 AD build + Conqueror": 1266.23
+   "L16 AD build + Conqueror": 1267.17
   },
   "Rakan": {
    "L11 no items QWER AA": 503.01,
@@ -552,9 +552,9 @@
    "L16 AD build + Conqueror": 1941.02
   },
   "Rengar": {
-   "L11 no items QWER AA": 360.61,
-   "L16 AP build + Electrocute": 987.86,
-   "L16 AD build + Conqueror": 1144.01
+   "L11 no items QWER AA": 356.79,
+   "L16 AP build + Electrocute": 1019.41,
+   "L16 AD build + Conqueror": 1144.45
   },
   "Riven": {
    "L11 no items QWER AA": 328.3,
@@ -562,9 +562,9 @@
    "L16 AD build + Conqueror": 1266.37
   },
   "Rumble": {
-   "L11 no items QWER AA": 950.64,
-   "L16 AP build + Electrocute": 2909.19,
-   "L16 AD build + Conqueror": 1805.53
+   "L11 no items QWER AA": 952.47,
+   "L16 AP build + Electrocute": 2916.62,
+   "L16 AD build + Conqueror": 1811.67
   },
   "Ryze": {
    "L11 no items QWER AA": 306.49,
@@ -572,19 +572,19 @@
    "L16 AD build + Conqueror": 865.95
   },
   "Samira": {
-   "L11 no items QWER AA": 684.97,
-   "L16 AP build + Electrocute": 1116.2,
+   "L11 no items QWER AA": 684.77,
+   "L16 AP build + Electrocute": 1115.89,
    "L16 AD build + Conqueror": 2030.95
   },
   "Sejuani": {
    "L11 no items QWER AA": 782.49,
    "L16 AP build + Electrocute": 1859.26,
-   "L16 AD build + Conqueror": 1818.08
+   "L16 AD build + Conqueror": 1978.08
   },
   "Senna": {
    "L11 no items QWER AA": 651.47,
-   "L16 AP build + Electrocute": 1156.97,
-   "L16 AD build + Conqueror": 1534.08
+   "L16 AP build + Electrocute": 1158.36,
+   "L16 AD build + Conqueror": 1534.36
   },
   "Seraphine": {
    "L11 no items QWER AA": 449.59,
@@ -624,22 +624,22 @@
   "Sivir": {
    "L11 no items QWER AA": 268.82,
    "L16 AP build + Electrocute": 599.29,
-   "L16 AD build + Conqueror": 862.49
+   "L16 AD build + Conqueror": 873.13
   },
   "Skarner": {
    "L11 no items QWER AA": 567.87,
    "L16 AP build + Electrocute": 1535.22,
-   "L16 AD build + Conqueror": 2207.6
+   "L16 AD build + Conqueror": 2212.01
   },
   "Smolder": {
    "L11 no items QWER AA": 573.83,
    "L16 AP build + Electrocute": 1365.02,
-   "L16 AD build + Conqueror": 1729.57
+   "L16 AD build + Conqueror": 1728.97
   },
   "Sona": {
    "L11 no items QWER AA": 474.02,
    "L16 AP build + Electrocute": 1402.16,
-   "L16 AD build + Conqueror": 1015.69
+   "L16 AD build + Conqueror": 1020.19
   },
   "Soraka": {
    "L11 no items QWER AA": 275.13,
@@ -654,7 +654,7 @@
   "Sylas": {
    "L11 no items QWER AA": 646.73,
    "L16 AP build + Electrocute": 2091.17,
-   "L16 AD build + Conqueror": 1981.99
+   "L16 AD build + Conqueror": 1863.99
   },
   "Syndra": {
    "L11 no items QWER AA": 684.52,
@@ -709,12 +709,12 @@
   "TwistedFate": {
    "L11 no items QWER AA": 262.97,
    "L16 AP build + Electrocute": 879.51,
-   "L16 AD build + Conqueror": 835.34
+   "L16 AD build + Conqueror": 838.91
   },
   "Twitch": {
-   "L11 no items QWER AA": 297.81,
+   "L11 no items QWER AA": 294.81,
    "L16 AP build + Electrocute": 848.06,
-   "L16 AD build + Conqueror": 985.91
+   "L16 AD build + Conqueror": 1025.2
   },
   "Udyr": {
    "L11 no items QWER AA": 317.76,
@@ -724,12 +724,12 @@
   "Urgot": {
    "L11 no items QWER AA": 919.06,
    "L16 AP build + Electrocute": 1544.42,
-   "L16 AD build + Conqueror": 2935.03
+   "L16 AD build + Conqueror": 2866.73
   },
   "Varus": {
-   "L11 no items QWER AA": 581.72,
-   "L16 AP build + Electrocute": 1609.65,
-   "L16 AD build + Conqueror": 1799.14
+   "L11 no items QWER AA": 521.72,
+   "L16 AP build + Electrocute": 1361.78,
+   "L16 AD build + Conqueror": 1642.65
   },
   "Vayne": {
    "L11 no items QWER AA": 424.25,
@@ -738,18 +738,18 @@
   },
   "Veigar": {
    "L11 no items QWER AA": 704.25,
-   "L16 AP build + Electrocute": 2369.89,
+   "L16 AP build + Electrocute": 2374.63,
    "L16 AD build + Conqueror": 1326.38
   },
   "Velkoz": {
-   "L11 no items QWER AA": 1287.91,
-   "L16 AP build + Electrocute": 3713.82,
-   "L16 AD build + Conqueror": 2345.3
+   "L11 no items QWER AA": 1326.13,
+   "L16 AP build + Electrocute": 3770.4,
+   "L16 AD build + Conqueror": 2347.58
   },
   "Vex": {
-   "L11 no items QWER AA": 693.07,
-   "L16 AP build + Electrocute": 2169.31,
-   "L16 AD build + Conqueror": 1300.59
+   "L11 no items QWER AA": 531.78,
+   "L16 AP build + Electrocute": 1738.52,
+   "L16 AD build + Conqueror": 1099.37
   },
   "Vi": {
    "L11 no items QWER AA": 495.54,
@@ -758,7 +758,7 @@
   },
   "Viego": {
    "L11 no items QWER AA": 638.3,
-   "L16 AP build + Electrocute": 1392.6,
+   "L16 AP build + Electrocute": 1394.84,
    "L16 AD build + Conqueror": 1901.82
   },
   "Viktor": {
@@ -789,7 +789,7 @@
   "Xayah": {
    "L11 no items QWER AA": 463.49,
    "L16 AP build + Electrocute": 759.12,
-   "L16 AD build + Conqueror": 1512.14
+   "L16 AD build + Conqueror": 1513.87
   },
   "Xerath": {
    "L11 no items QWER AA": 1232.3,
@@ -799,7 +799,7 @@
   "XinZhao": {
    "L11 no items QWER AA": 656.2,
    "L16 AP build + Electrocute": 1826.95,
-   "L16 AD build + Conqueror": 1822.17
+   "L16 AD build + Conqueror": 1802.94
   },
   "Yasuo": {
    "L11 no items QWER AA": 445.11,
@@ -812,24 +812,24 @@
    "L16 AD build + Conqueror": 1755.45
   },
   "Yorick": {
-   "L11 no items QWER AA": 1137.69,
-   "L16 AP build + Electrocute": 2229.32,
-   "L16 AD build + Conqueror": 3013.96
+   "L11 no items QWER AA": 1135.69,
+   "L16 AP build + Electrocute": 2224.72,
+   "L16 AD build + Conqueror": 3010.19
   },
   "Yunara": {
    "L11 no items QWER AA": 289.07,
    "L16 AP build + Electrocute": 929.61,
-   "L16 AD build + Conqueror": 1003.06
+   "L16 AD build + Conqueror": 1002.73
   },
   "Yuumi": {
    "L11 no items QWER AA": 474.99,
    "L16 AP build + Electrocute": 1212.35,
-   "L16 AD build + Conqueror": 976.44
+   "L16 AD build + Conqueror": 978.8
   },
   "Zaahen": {
-   "L11 no items QWER AA": 553.43,
-   "L16 AP build + Electrocute": 991.17,
-   "L16 AD build + Conqueror": 2151.23
+   "L11 no items QWER AA": 553.16,
+   "L16 AP build + Electrocute": 990.81,
+   "L16 AD build + Conqueror": 2159.41
   },
   "Zac": {
    "L11 no items QWER AA": 684.98,
@@ -839,7 +839,7 @@
   "Zed": {
    "L11 no items QWER AA": 421.54,
    "L16 AP build + Electrocute": 826.47,
-   "L16 AD build + Conqueror": 1239.4
+   "L16 AD build + Conqueror": 1234.74
   },
   "Zeri": {
    "L11 no items QWER AA": 519.1,
@@ -849,7 +849,7 @@
   "Ziggs": {
    "L11 no items QWER AA": 771.34,
    "L16 AP build + Electrocute": 2712.74,
-   "L16 AD build + Conqueror": 1553.63
+   "L16 AD build + Conqueror": 1560.41
   },
   "Zilean": {
    "L11 no items QWER AA": 280.58,
@@ -859,7 +859,7 @@
   "Zoe": {
    "L11 no items QWER AA": 425.57,
    "L16 AP build + Electrocute": 1418.34,
-   "L16 AD build + Conqueror": 1188.37
+   "L16 AD build + Conqueror": 1190.51
   },
   "Zyra": {
    "L11 no items QWER AA": 756.31,

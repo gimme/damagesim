@@ -22,7 +22,7 @@ const kit: ChampionKit = {
           type: 'magic',
           amount: 'calc.QDamageCalc * (1 + (debuff.flux ? R.dv.OverloadDamageBonus / 100 : 0))',
           // Fired as the cast time starts (wiki: {{Effect at cast time start}}).
-          travel: 'max(0, reach / missileSpeed - castTime)',
+          travel: 'reach / missileSpeed - castTime',
         },
       ],
     },

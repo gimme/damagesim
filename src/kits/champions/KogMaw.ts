@@ -14,7 +14,7 @@ const kit: ChampionKit = {
     Q: {
       debuff: { id: 'kogQ', label: 'Caustic Spittle shred', duration: 'dv.ShredDuration', armorReduction: 'dv.ShredAmount / 100', mrReduction: 'dv.ShredAmount / 100' },
       // Spat as the cast time starts (wiki: {{Effect at cast time start}}): lands its flight after the cast starts.
-      components: [{ id: 'spittle', label: 'Caustic Spittle', type: 'magic', amount: 'calc.TotalDamage', travel: 'max(0, reach / missileSpeed - castTime)' }],
+      components: [{ id: 'spittle', label: 'Caustic Spittle', type: 'magic', amount: 'calc.TotalDamage', travel: 'reach / missileSpeed - castTime' }],
     },
     W: {
       noTarget: true,
@@ -30,7 +30,7 @@ const kit: ChampionKit = {
     E: {
       cc: [{ kind: 'slow', duration: 'dv.TrailDuration' }],
       // Spewed as the cast time starts (wiki: {{Effect at cast time start}}): lands its flight after the cast starts.
-      components: [{ id: 'ooze', label: 'Void Ooze', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, reach / missileSpeed - castTime)' }],
+      components: [{ id: 'ooze', label: 'Void Ooze', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'reach / missileSpeed - castTime' }],
     },
     R: {
       notes: ['+0.83% damage per 1% missing health (×1.5 at 40%); below 40% health the target takes double damage. Lands 0.6s after the cast.'],

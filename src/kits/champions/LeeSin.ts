@@ -24,7 +24,7 @@ const kit: ChampionKit = {
       recasts: 2,
       buff: flurry,
       // Fired as the cast time starts (wiki: {{Effect at cast time start}}): lands its flight after the cast starts.
-      components: [{ id: 'wave', label: 'Sonic Wave', type: 'physical', amount: 'calc.InitialDamage', travel: 'max(0, reach / missileSpeed - castTime)' }],
+      components: [{ id: 'wave', label: 'Sonic Wave', type: 'physical', amount: 'calc.InitialDamage', travel: 'reach / missileSpeed - castTime' }],
       variants: {
         Q2: {
           label: 'Resonating Strike',

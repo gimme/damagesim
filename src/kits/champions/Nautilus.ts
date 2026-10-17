@@ -18,7 +18,7 @@ const kit: ChampionKit = {
       lockout: 'reach / missileSpeed',
       attackLockout: 'reach / missileSpeed + 0.9',
       notes: ['Stun duration is not in the data ("briefly"); 0.5 s assumed.'],
-      components: [{ id: 'anchor', label: 'Dredge Line', type: 'magic', amount: 'calc.QDamageCalc', travel: 'max(0, reach / missileSpeed - castTime)' }],
+      components: [{ id: 'anchor', label: 'Dredge Line', type: 'magic', amount: 'calc.QDamageCalc', travel: 'reach / missileSpeed - castTime' }],
     },
     W: {
       noTarget: true,

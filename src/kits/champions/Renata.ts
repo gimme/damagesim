@@ -30,7 +30,7 @@ const kit: ChampionKit = {
       // Wiki: while the root's tether lasts Renata can't declare attacks: the flight + RootDuration
       // (the recast that ends it isn't modeled).
       attackLockout: 'reach / missileSpeed + dv.RootDuration',
-      components: [{ id: 'handshake', label: 'Handshake', type: 'magic', amount: 'calc.TotalDamage', travel: 'max(0, reach / missileSpeed - castTime)' }],
+      components: [{ id: 'handshake', label: 'Handshake', type: 'magic', amount: 'calc.TotalDamage', travel: 'reach / missileSpeed - castTime' }],
     },
     W: { noTarget: true, notes: ['Ally buff; not modeled.'], components: [] },
     E: {

@@ -34,7 +34,7 @@ const kit: ChampionKit = {
       // The dart is launched as the cast time starts ({{Effect at cast time start}}) and flies to the
       // target at its speed; the recast spikes have no speed in the data (they hit at the cast time's
       // end). The data's 0.3s cast time also applies to the recasts, which the wiki says have none.
-      components: [{ id: 'spike', label: 'Hate Spike', type: 'magic', amount: 'calc.MissileDamage', travel: 'recast == 1 ? max(0, reach / missileSpeed - castTime) : 0' }],
+      components: [{ id: 'spike', label: 'Hate Spike', type: 'magic', amount: 'calc.MissileDamage', travel: 'recast == 1 ? reach / missileSpeed - castTime : 0' }],
     },
     W: {
       noTarget: true,

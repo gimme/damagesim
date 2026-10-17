@@ -57,7 +57,7 @@ const kit: ChampionKit = {
       cc: [{ kind: 'immobilize', duration: 0.5 }],
       // Wiki: the knock-back missiles start 325 units behind him as the cast time starts
       // ({{Effect at cast time start}}) and fly to its range in front, through the target.
-      components: [{ id: 'wall', label: "Emperor's Divide", type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, (reach + 325) / missileSpeed - castTime)' }],
+      components: [{ id: 'wall', label: "Emperor's Divide", type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: '(reach + 325) / missileSpeed - castTime' }],
     },
   },
   hooks: {

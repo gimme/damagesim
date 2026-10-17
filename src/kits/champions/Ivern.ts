@@ -16,7 +16,7 @@ const kit: ChampionKit = {
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
       notes: ['The recast dash onto the rooted target is not modeled as a separate step.'],
       // {{Effect at cast time start}} (wiki): the vine flies from the start of the cast time.
-      components: [{ id: 'vine', label: 'Rootcaller', type: 'magic', amount: 'calc.TotalDamage', travel: 'max(0, reach / missileSpeed - castTime)' }],
+      components: [{ id: 'vine', label: 'Rootcaller', type: 'magic', amount: 'calc.TotalDamage', travel: 'reach / missileSpeed - castTime' }],
     },
     W: {
       noTarget: true,

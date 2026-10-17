@@ -68,7 +68,7 @@ const kit: ChampionKit = {
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
       // Wiki: lands dv.MinDetonationTime to dv.MaxDetonationTime (from 150 to 800 units away) after it's
       // hurled, at the start of the cast time ({{effect at cast time start}}).
-      components: [{ id: 'disrupt', label: 'Tectonic Disruption', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 'max(0, lerp(dv.MinDetonationTime, dv.MaxDetonationTime, clamp((reach - 150) / 650, 0, 1)) - castTime)' }],
+      components: [{ id: 'disrupt', label: 'Tectonic Disruption', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 'lerp(dv.MinDetonationTime, dv.MaxDetonationTime, clamp((reach - 150) / 650, 0, 1)) - castTime' }],
     },
     R: {
       // Busy for the 0.2s delay and 2.6s channel (wiki).

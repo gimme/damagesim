@@ -51,7 +51,7 @@ const kit: ChampionKit = {
           type: 'magic',
           amount: 'calc.SecondaryDamage',
           aoe: true,
-          travel: 'max(0, 0.585 + (2800 - sqrt(2800 * 2800 - 4000 * (castRange - reach))) / 2000 - castTime)',
+          travel: '0.585 + (2800 - sqrt(2800 * 2800 - 4000 * (castRange - reach))) / 2000 - castTime',
         },
       ],
     },
