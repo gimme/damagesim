@@ -679,6 +679,14 @@ export class Sim {
           return rank;
         case 'cooldown':
           return spell.cooldown?.[Math.min(rank, (spell.cooldown?.length ?? 1) - 1)] ?? 0;
+        case 'castTime':
+          return spell.castTime;
+        case 'castRange':
+          if (!spell.castRange) throw new Error(`${spell.name} has no range in the data`);
+          return spell.castRange[Math.min(rank, spell.castRange.length - 1)];
+        case 'missileSpeed':
+          if (!spell.missileSpeed) throw new Error(`${spell.name} has no missile speed in the data`);
+          return spell.missileSpeed;
         default:
           throw new Error(`unknown name ${p.join('.')}`);
       }
@@ -687,6 +695,9 @@ export class Sim {
       case 'calc':
       case 'dv':
       case 'cooldown':
+      case 'castTime':
+      case 'castRange':
+      case 'missileSpeed':
         return sub(ctx.spell, ctx.rank, path);
       case 'rank':
         return ctx.rank;
@@ -1102,7 +1113,7 @@ export class Sim {
     const rank = this.abilityRank(slot);
     for (const comp of comps) {
       const hits = Math.max(0, Math.round(this.evalExpr(comp.hits ?? 1, { slot, spell, rank })));
-      const delay0 = comp.delay !== undefined ? this.evalExpr(comp.delay, { slot, spell, rank }) : 0;
+      const delay0 = (comp.delay !== undefined ? this.evalExpr(comp.delay, { slot, spell, rank }) : 0) + this.travelOf(comp, { slot, spell, rank });
       const interval = comp.interval !== undefined ? this.evalExpr(comp.interval, { slot, spell, rank }) : 0;
       for (let h = 0; h < hits; h++) {
         const run = () => {
@@ -1392,7 +1403,10 @@ export class Sim {
             flags: { ...flags, onHit: true, ability: (from !== 'P' || !!comp.spell) && flags.ability, crit: !!comp.canCrit && c.crit },
           };
           // Delayed / periodic parts of an empowered attack (bleeds, lightning) land later.
-          const delay = (comp.delay !== undefined ? this.evalExpr(comp.delay, { slot, spell, rank }) : 0) + (comp.interval !== undefined ? this.evalExpr(comp.interval, { slot, spell, rank }) * h : 0);
+          const delay =
+            (comp.delay !== undefined ? this.evalExpr(comp.delay, { slot, spell, rank }) : 0) +
+            this.travelOf(comp, { slot, spell, rank }) +
+            (comp.interval !== undefined ? this.evalExpr(comp.interval, { slot, spell, rank }) * h : 0);
           if (delay > 0) this.schedule(delay, () => this.deal(req));
           else target.extra.push(req);
         }
@@ -1577,9 +1591,15 @@ export class Sim {
     return { times: times.sort((a, b) => a - b), byDefault };
   }
 
-  /** Seconds after the cast time a component's first hit is fired: its delay, less its travel. */
+  /** Seconds after the cast time a component's first hit is fired: its delay. */
   private firedAt(c: ComponentSpec, ctx: CastCtx) {
-    return (c.delay !== undefined ? this.evalExpr(c.delay, ctx) : 0) - (c.travel !== undefined ? this.evalExpr(c.travel, ctx) : 0);
+    return c.delay !== undefined ? this.evalExpr(c.delay, ctx) : 0;
+  }
+
+  /** Seconds a component's hits fly before they land (ComponentSpec.travel). */
+  private travelOf(c: ComponentSpec, ctx: { slot: Slot; spell?: SpellData; rank?: number }) {
+    if (c.travel === undefined) return 0;
+    return this.evalExpr(c.travel === true ? 'castRange / missileSpeed' : c.travel, ctx);
   }
 
   castAbility(step: AbilityStep, timeline: SimResult['timeline']) {
@@ -1748,7 +1768,7 @@ export class Sim {
       const enabled = step.enable?.includes(comp.id) || !comp.optional;
       let hits = step.hits?.[comp.id] ?? (enabled ? this.evalExpr(comp.hits ?? 1, ectx) : 0);
       hits = Math.max(0, Math.round(hits));
-      const delay = comp.delay !== undefined ? this.evalExpr(comp.delay, ectx) : 0;
+      const delay = (comp.delay !== undefined ? this.evalExpr(comp.delay, ectx) : 0) + this.travelOf(comp, ectx);
       const interval = comp.interval !== undefined ? this.evalExpr(comp.interval, ectx) : 0;
       // Ended early: the repeating hits fired by then land, and a hit at its end (Fiddlesticks W's last tick) doesn't.
       const r = repeating.find((x) => x.id === comp.id);

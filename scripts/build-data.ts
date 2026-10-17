@@ -11,6 +11,7 @@
 
 import { readFile, writeFile, mkdir, readdir, rm, rename } from 'node:fs/promises';
 import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 import type { CalcNode, CalcPart, ChampionData, ChampionIndexEntry, ItemData, RuneData, RunePageData, SpellData, AbilityData } from '../src/engine/data-types.ts';
 
 const ROOT = new URL('..', import.meta.url).pathname;
@@ -284,6 +285,12 @@ const RESOURCE_TYPES: Record<number, string> = {
   14: 'other',
 };
 
+/** The spell's range per rank, as its tooltip shows it; none for global ones (25000). */
+function castRange(sp: any): number[] | undefined {
+  const r: number[] | undefined = sp.castRangeDisplayOverride ?? sp.castRange;
+  return r?.length && r.some((x) => x > 0 && x < 5000) ? r : undefined;
+}
+
 function convSpell(path: string, obj: any): SpellData | null {
   const sp = obj?.mSpell;
   if (!sp) return null;
@@ -309,12 +316,96 @@ function convSpell(path: string, obj: any): SpellData | null {
     cooldown: sp.cooldownTime ?? [10, 10, 10, 10, 10, 10, 10],
     ...(sp.mana ? { cost: sp.mana } : {}),
     castTime: sp.mCastTime ?? sp.spellCastTime ?? 0,
+    ...(castRange(sp) ? { castRange: castRange(sp) } : {}),
     ...(sp.mChannelDuration ? { channel: sp.mChannelDuration } : {}),
     ...(sp.mMaxAmmo ? { maxAmmo: sp.mMaxAmmo, ammoRecharge: sp.mAmmoRechargeTime } : {}),
     ...(sp.mSpellTags ? { tags: sp.mSpellTags } : {}),
     ...(sp.mCooldownNotAffectedByCDR ? { cooldownFixed: true } : {}),
   };
   return spell;
+}
+
+/** The wiki's ability data templates ("Template:Data <Champion>/<Ability>") from the cache that
+ *  scripts/fetch-wiki.ts downloads, by lowercase "<champion>/<ability>" (redirects followed; a
+ *  template for "A / B" also under "A" and "B"); empty without it. */
+const WIKI_ABILITIES = new Map<string, string>();
+
+function loadWikiAbilities(pages: Record<string, { content: string }>) {
+  const PREFIX = 'Template:Data ';
+  const content = (title: string, hops = 0): string | undefined => {
+    const c = pages[title]?.content;
+    const to = c && /^#REDIRECT\s*\[\[([^\]]+)\]\]/i.exec(c.trim())?.[1];
+    return to && hops < 3 ? content(to, hops + 1) : c;
+  };
+  const alias: [string, string][] = [];
+  for (const title of Object.keys(pages)) {
+    if (!title.startsWith(PREFIX)) continue;
+    const c = content(title);
+    if (!c) continue;
+    const key = title.slice(PREFIX.length).toLowerCase();
+    WIKI_ABILITIES.set(key, c);
+    const [champ, ability] = [key.slice(0, key.indexOf('/')), key.slice(key.indexOf('/') + 1)];
+    for (const part of ability.split(' / ')) if (part !== ability) alias.push([`${champ}/${part}`, c]);
+  }
+  for (const [k, c] of alias) if (!WIKI_ABILITIES.has(k)) WIKI_ABILITIES.set(k, c);
+}
+
+/** The wiki template of a spell, by its name (or, for "A / B" names, its first form's). */
+function wikiAbility(champion: string, spell: string): string | undefined {
+  for (const name of [spell, ...spell.split(/ [\/|] /)]) {
+    const c = WIKI_ABILITIES.get(`${champion}/${name.trim()}`.toLowerCase());
+    if (c) return c;
+  }
+  return undefined;
+}
+
+/** A wiki template call's name and arguments (split at top-level |), when `s` is exactly one call. */
+function templateCall(s: string): string[] | null {
+  if (!s.startsWith('{{') || !s.endsWith('}}')) return null;
+  const args: string[] = [];
+  let depth = 0;
+  let cur = '';
+  for (let i = 2; i < s.length - 2; i++) {
+    const pair = s.slice(i, i + 2);
+    if (pair === '{{' || pair === '}}') {
+      depth += pair === '{{' ? 1 : -1;
+      if (depth < 0) return null;
+      cur += pair;
+      i++;
+    } else if (s[i] === '|' && depth === 0) {
+      args.push(cur);
+      cur = '';
+    } else cur += s[i];
+  }
+  if (depth !== 0) return null;
+  args.push(cur);
+  return args;
+}
+
+/** A field of a wiki ability template as one value: the first of several ({{dv|…}}), without
+ *  tooltips ({{tt|900|Missile range}}) or icons ({{tip|cr|icononly = true}}). */
+function wikiField(template: string, field: string): string | undefined {
+  const raw = new RegExp(`^\\|\\s*${field}\\s*=(.*)$`, 'm').exec(template)?.[1];
+  if (raw === undefined) return undefined;
+  let v = raw.replace(/<!--[\s\S]*?-->/g, '').replace(/\{\{tip\|[^{}]*icononly[^{}]*\}\}/g, '').trim();
+  for (let call = templateCall(v); call && ['dv', 'tt', 'fd'].includes(call[0].trim()); call = templateCall(v))
+    v = call[1].replace(/\{\{tip\|[^{}]*icononly[^{}]*\}\}/g, '').trim();
+  return v;
+}
+
+/** The cast time the wiki gives an ability, in seconds ("none" is 0): the first cast's when it lists
+ *  several. Null when it isn't one number (cast times that scale with attack speed, missing ones). */
+function wikiCastTime(template: string): number | null {
+  const v = wikiField(template, 'cast time');
+  if (v === undefined) return null;
+  if (/^(none|n\/a|false)$/i.test(v)) return 0;
+  return /^\d*\.?\d+$/.test(v) ? Number(v) : null;
+}
+
+/** A wiki field that is one number (a range, a missile speed), else null. */
+function wikiNumber(template: string, field: string): number | null {
+  const v = wikiField(template, field)?.replace(/,/g, '');
+  return v !== undefined && /^\d*\.?\d+$/.test(v) && Number(v) > 0 ? Number(v) : null;
 }
 
 function slotOfAbility(rec: any, abilityPath: string, rootSpell: string | undefined, mType: number | undefined): AbilityData['slot'] {
@@ -416,6 +507,22 @@ function buildChampion(dd: any, bin: any): ChampionData {
     if (s) abilities.push({ name: s.scriptName, slot: 'P', spells: [s] });
   }
   if (loose.length) abilities.push({ name: 'Other', slot: 'X', spells: loose });
+
+  // Cast times: the wiki's, for the spells it documents by name. The game files' don't tell instant
+  // casts apart (Garen Q's 0.52s, Ahri W's 0.25s are animations; the wiki: none), nor give spells
+  // without one their 0.5s default (Cho'Gath Q).
+  // Ranges and missile (or dash) speeds: the wiki's, which names the one that matters; the game
+  // files have several missiles per spell and placeholder ranges (25000 for global ones).
+  for (const sp of abilities.flatMap((a) => a.spells)) {
+    const t = wikiAbility(dd.name, sp.name);
+    if (t === undefined) continue;
+    const ct = wikiCastTime(t);
+    if (ct !== null) sp.castTime = ct;
+    const range = wikiNumber(t, 'range') ?? wikiNumber(t, 'target range');
+    if (range !== null) sp.castRange = sp.castRange?.map(() => range) ?? [range, range, range, range, range, range];
+    const speed = wikiNumber(t, 'speed');
+    if (speed !== null) sp.missileSpeed = speed;
+  }
 
   const passiveName = str(rec.passiveName) || abilities.find((a) => a.slot === 'P')?.spells[0]?.name || 'Passive';
   const passiveText = resolveIncludes(str(rec.passiveToolTip));
@@ -651,6 +758,10 @@ async function main() {
   STRINGS = (await readJson(join(raw, 'stringtable.json'))).entries;
   const meta = await readJson(join(raw, 'meta.json'));
   const ddChamps = await readJson(join(raw, 'dd_champion.json'));
+
+  const wikiCache = join(rawRoot, 'wiki', 'pages.json');
+  if (existsSync(wikiCache)) loadWikiAbilities((await readJson(wikiCache)).pages);
+  else console.warn(`no wiki cache (${wikiCache}): cast times come from the game files; run scripts/fetch-wiki.ts`);
 
   const index: ChampionIndexEntry[] = [];
   for (const dd of Object.values(ddChamps.data) as any[]) {

@@ -25,13 +25,14 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       notes: ['Bounces to other enemies; a single champion is hit once.'],
-      components: [{ id: 'grenade', label: 'Dancing Grenade', type: 'physical', amount: 'calc.TotalDamage', delay: 0.25 }],
+      components: [{ id: 'grenade', label: 'Dancing Grenade', type: 'physical', amount: 'calc.TotalDamage', travel: true }],
     },
     W: {
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
-      components: [{ id: 'flourish', label: 'Deadly Flourish', type: 'physical', amount: 'calc.TotalDamage', delay: 0.1 }],
+      // Not a missile (wiki): it hits as the 0.75s cast time ends.
+      components: [{ id: 'flourish', label: 'Deadly Flourish', type: 'physical', amount: 'calc.TotalDamage' }],
       variants: {
-        noroot: { label: 'no root', cc: [], components: [{ id: 'flourish', label: 'Deadly Flourish', type: 'physical', amount: 'calc.TotalDamage', delay: 0.1 }] },
+        noroot: { label: 'no root', cc: [], components: [{ id: 'flourish', label: 'Deadly Flourish', type: 'physical', amount: 'calc.TotalDamage' }] },
       },
     },
     E: {
@@ -57,16 +58,15 @@ const kit: ChampionKit = {
           amount: 'calc.DamageCalc * (1 + dv.PercentMissingAmp * target.missingHpPct)',
           hits: 3,
           interval: 'dv.MInimumDelayBetweenShots',
-          delay: 0.2,
-          travel: 0.2,
+          travel: true,
         },
         {
           id: 'final',
           label: 'Curtain Call (4th shot)',
           type: 'physical',
           amount: 'calc.DamageCalc * (1 + dv.PercentMissingAmp * target.missingHpPct) * max(dv.FourthShotMultiplier, critDamage)',
-          delay: '0.2 + 3 * dv.MInimumDelayBetweenShots',
-          travel: 0.2,
+          delay: '3 * dv.MInimumDelayBetweenShots',
+          travel: true,
         },
       ],
     },

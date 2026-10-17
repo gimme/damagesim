@@ -48,9 +48,9 @@ const kit: ChampionKit = {
     R: {
       noTarget: true,
       dash: true,
-      // Wiki: Gate can be cast 0.5s after Destiny and channels for 1.5s before the blink, no attacks
-      // meanwhile (Pick a Card can be cast).
-      attackLockout: 2,
+      // Wiki: Gate can be cast 0.5s after Destiny and channels for 1.5s before the blink: no moving,
+      // attacks or Wild Cards meanwhile (Pick a Card can be cast, but only readies the next attack).
+      lockout: 2,
       notes: ['Destiny + Gate teleport (counts as a blink); no damage.'],
       components: [],
     },

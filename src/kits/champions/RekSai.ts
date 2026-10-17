@@ -53,10 +53,10 @@ const kit: ChampionKit = {
       cc: [{ kind: 'immobilize', duration: "spell['RekSaiW'].dv.KnockupDuration" }],
       // Wiki: unable to move or attack for 0.15s (LockoutTime) after hitting an enemy, which happens at
       // the end of the 0.25s cast time.
-      attackLockout: "0.25 + spell['RekSaiW'].dv.LockoutTime",
+      lockout: "0.25 + spell['RekSaiW'].dv.LockoutTime",
       components: [{ id: 'unburrow', label: 'Un-burrow', type: 'magic', amount: "spell['RekSaiW'].calc.UnburrowDamage", aoe: true }],
       variants: {
-        burrow: { label: 'burrow', spell: 'RekSaiW', cc: [], attackLockout: 0, components: [] },
+        burrow: { label: 'burrow', spell: 'RekSaiW', cc: [], lockout: 0, components: [] },
       },
     },
     E: {

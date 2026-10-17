@@ -42,8 +42,9 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       cc: [{ kind: 'immobilize', duration: 'dv.TauntLength' }],
-      // Wiki: unable to move or attack while the scythe flies, then unable to declare attacks while
-      // the target is Shackled (1.5s): 0.5s cast time + the 0.35s flight + 1.5s. Casting stays possible.
+      // Wiki: unable to move or attack while the scythe flies (0.5s cast time + the 0.35s flight), then
+      // free to move and cast but unable to declare attacks while the target is Shackled (1.5s).
+      lockout: 0.85,
       attackLockout: 2.35,
       components: [{ id: 'hook', label: 'Death Sentence', type: 'magic', amount: 'calc.TotalDamage', delay: 0.35 }],
     },

@@ -66,7 +66,8 @@ test('Ability charges (ammo) limit casts: Rengar Q waits for its recharge', () =
 });
 
 test('Cooldown resets from hits apply before the next cast (Diana E on a Moonlit target)', () => {
-  const r = simulate(data, { champion: 'Diana', level: 11, combo: 'Q E E', target: dummy });
+  // E waits for Q's bolt to land (as in play), so that it consumes the Moonlight.
+  const r = simulate(data, { champion: 'Diana', level: 11, combo: 'Q wait{0.5s} E E', target: dummy });
   const es = r.timeline.filter((s) => s.step === 'E');
   assert.equal(es.length, 2);
   assert.ok(es[1].start - es[0].start < 2, `second E waited ${es[1].start - es[0].start}s`);

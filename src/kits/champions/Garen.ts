@@ -26,7 +26,9 @@ const kit: ChampionKit = {
         'Each spin can crit for +30% of bonus crit damage. 6 spins shred 25% armor for 6s.',
       ],
       // Wiki: unable to declare attacks while spinning (the full 3s; ending it early isn't modeled).
-      attackLockout: 'dv.Duration',
+      // Decisive Strike and Courage can be cast, but only ready the next attack or shield him;
+      // Demacian Justice, which would end the spin, waits for it.
+      lockout: 'dv.Duration',
       debuff: { id: 'garenE', label: 'Judgment shred', duration: 'dv.ShredDuration', armorReduction: 'dv.ShredAmount', afterHits: 6 },
       components: [
         {

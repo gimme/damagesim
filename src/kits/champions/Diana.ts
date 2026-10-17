@@ -34,7 +34,7 @@ const kit: ChampionKit = {
     Q: {
       buff: moonsilver,
       debuff: { id: 'moonlight', label: 'Moonlight', duration: 'dv.MoonlightDuration' },
-      components: [{ id: 'strike', label: 'Crescent Strike', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.3 }],
+      components: [{ id: 'strike', label: 'Crescent Strike', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true }],
     },
     W: {
       buff: moonsilver,
@@ -42,8 +42,10 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
+      // No dash speed in the data: ~0.45s to arrive. She can cast any ability during the dash (wiki).
+      attackLockout: 0.45,
       buff: moonsilver,
-      components: [{ id: 'rush', label: 'Lunar Rush', type: 'magic', amount: 'calc.TotalDamage', delay: 0.2 }],
+      components: [{ id: 'rush', label: 'Lunar Rush', type: 'magic', amount: 'calc.TotalDamage', delay: 0.45 }],
     },
     R: {
       buff: moonsilver,

@@ -142,11 +142,11 @@ Only the stats of a target's items count: it never fights back, so their passive
 
 * **One attacker against one target champion.** No minions, monsters, allies, healing or shields,
   and the target never fights back.
-* **Timing.** Casts use the game's cast times and attacks use your attack speed and windup.
-  A ranged attack's missile flies to a target at the edge of your attack range at its speed from
-  the game files, so it can land after an ability cast before it (Jhin Q then AA). Ability
-  projectile travel is approximated per component (`delay`), and attack-move and positioning are
-  otherwise ignored. Items and runes that depend on distance or movement have options (`distance`,
+* **Timing.** Casts take the wiki's cast times (instant ones, like Garen Q, none) and attacks use
+  your attack speed and windup. Every missile flies its ability's max range at its speed (an
+  attack's: your attack range), so a grenade can land after the attack that follows it or before
+  (Jhin Q then AA). Dashes take their range at their speed where the wiki gives one, a rough
+  duration otherwise. Attack-move and positioning are otherwise ignored. Items and runes that depend on distance or movement have options (`distance`,
   `energized.start`, …).
 * **On-hit vs on-attack.** Abilities the wiki lists as applying on-hit effects get item and rune
   on-hit effects. Only basic attacks and abilities that also trigger on-attack effects stack

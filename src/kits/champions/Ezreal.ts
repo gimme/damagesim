@@ -16,7 +16,7 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       notes: ['Applies on-hit effects; cannot crit.'],
-      components: [{ id: 'shot', label: 'Mystic Shot', type: 'physical', amount: 'calc.Damage', onHit: true, onAttack: true, delay: 0.15 }],
+      components: [{ id: 'shot', label: 'Mystic Shot', type: 'physical', amount: 'calc.Damage', onHit: true, onAttack: true, travel: true }],
     },
     W: {
       notes: ['The orb deals no damage itself; detonation by a later attack or ability.'],
@@ -31,11 +31,13 @@ const kit: ChampionKit = {
     E: {
       dash: true,
       notes: ['Blink, then a homing bolt at the nearest enemy (prioritizes Essence Flux targets).'],
-      components: [{ id: 'bolt', label: 'Arcane Shift', type: 'magic', amount: 'calc.Damage', delay: 0.1 }],
+      // The bolt flies up to its 750 range (wiki) at the missile's speed.
+      components: [{ id: 'bolt', label: 'Arcane Shift', type: 'magic', amount: 'calc.Damage', travel: '750 / missileSpeed' }],
     },
     R: {
       notes: ['Damage reduction per additional unit hit is ignored (single target).'],
-      components: [{ id: 'barrage', label: 'Trueshot Barrage', type: 'magic', amount: 'calc.Damage', aoe: true, delay: 0.3 }],
+      // Global: no max range to fly; assumed fired from 1200 units at the missile's speed.
+      components: [{ id: 'barrage', label: 'Trueshot Barrage', type: 'magic', amount: 'calc.Damage', aoe: true, travel: '1200 / missileSpeed' }],
     },
   },
   hooks: {

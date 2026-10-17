@@ -38,10 +38,14 @@ export interface ComponentSpec {
   maxHits?: Expr;
   /** Seconds between hits. */
   interval?: Expr;
-  /** Seconds after the cast completes before the first hit. */
+  /** Seconds after the cast completes before the first hit is fired (or lands, without travel). */
   delay?: Expr;
-  /** Seconds of the delay a hit is in flight (Xerath R's shots): a cast ended early still lands the hits fired before it ends. */
-  travel?: Expr;
+  /**
+   * Seconds a fired hit is in flight before it lands, after `delay`: `true` for the ability's max
+   * range at its missile's speed (castRange / missileSpeed, from the data). A cast ended early still
+   * lands the hits fired before it ends (Xerath R's shots).
+   */
+  travel?: Expr | true;
   /** Area damage (some items/runes treat AoE differently). */
   aoe?: boolean;
   /** Damage over time (periodic). */

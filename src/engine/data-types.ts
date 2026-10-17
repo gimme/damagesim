@@ -58,6 +58,10 @@ export interface SpellData {
   /** Cost per rank; index = rank - 1. */
   cost?: number[];
   castTime: number;
+  /** Range per rank (index = rank): the wiki's, else the game files' tooltip range. */
+  castRange?: number[];
+  /** Speed of its missile, or of the caster's dash (the wiki's). */
+  missileSpeed?: number;
   channel?: number;
   maxAmmo?: number[] | number;
   ammoRecharge?: number[] | number;

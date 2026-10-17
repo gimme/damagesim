@@ -46,7 +46,7 @@ const kit: ChampionKit = {
           amount: 'calc.TooltipTotalDamage + calc.RampDamageCalc * hit',
           hits: 'dv.NumberOfShots',
           interval: 'dv.CDPerShot',
-          delay: 0.5 + 0.627,
+          delay: 0.5,
           travel: 0.627,
           aoe: true,
           sameCast: false,

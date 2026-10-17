@@ -41,8 +41,10 @@ const kit: ChampionKit = {
         { kind: 'slow', duration: 'dv.SlowDuration' },
       ],
       notes: ['Deals Tongue Lash damage plus An Acquired Taste damage; stuns if the target already had 3 stacks.'],
-      // Wiki: unable to move or attack while the tongue flies (0.25s cast time + its travel).
+      // Wiki: unable to move, attack or cast Abyssal Dive while the tongue flies (0.25s cast time + its
+      // travel); Devour can be cast.
       attackLockout: 0.25 + Q_DELAY,
+      castLockout: { W: 0.25 + Q_DELAY },
       components: [
         { id: 'lash', label: 'Tongue Lash', type: 'magic', amount: 'calc.TotalDamage', delay: Q_DELAY },
         { id: 'taste', label: 'An Acquired Taste', type: 'magic', amount: 'P.calc.TotalDamage', delay: Q_DELAY, proc: true },

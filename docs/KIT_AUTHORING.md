@@ -107,7 +107,8 @@ comparisons, `&& || !` and `cond ? a : b`. Names that aren't identifiers use bra
 |---|---|
 | `type` | `physical`, `magic`, `true`, or `adaptive` |
 | `amount` | raw damage of **one** hit |
-| `hits`, `interval`, `delay` | number of hits in a default cast, seconds between hits, seconds after the cast time |
+| `hits`, `interval`, `delay` | number of hits in a default cast, seconds between hits, seconds after the cast time (a wait the wiki documents: arming, a heft, a detonation) |
+| `travel` | seconds a hit flies after it's fired: `true` for the ability's max range at its missile's speed (`castRange / missileSpeed`, from the data), or an expression (`'750 / missileSpeed'`) |
 | `maxHits` | the most hits a longer duration or a step's count fires (default `hits`) |
 | `optional: true` | off unless the combo enables it (`Q+bonus` / `enable: ['bonus']`) |
 | `aoe`, `dot`, `pet` | damage tags (affect items/runes: Deathfire Touch duration, Aery, etc.) |
@@ -133,8 +134,8 @@ seconds after its cast time (`E{0.5s}`, the web UI's field on the step): its rep
 within them and its lockout ends with them. It lasts its lockout by default, else as long as its
 hits take; give hits that can go on longer a `maxHits`, and a channel that can a `maxDuration`
 (Aurelion Sol Q). It lasts at least until its first hit is fired, or `minDuration` when it can only
-be ended later (a recast after 0.5s: Urgot W). Hits fired before it ends still land: give a
-missile's flight as `travel` (part of its delay, Xerath R), and a hit at the end of a full channel
+be ended later (a recast after 0.5s: Urgot W). Hits fired before it ends still land (a missile's
+`travel` comes after its firing, Xerath R), and a hit at the end of a full channel
 (Fiddlesticks W's last tick) doesn't. Don't mark what the player can't end (burns, fixed zones).
 
 When the player chooses how many hits it fires rather than for how long (Xerath R's and Jhin R's
@@ -248,7 +249,13 @@ other on-hit effects apply, but Guinsoo's/Lethal Tempo/Energize charges don't st
 ### More building blocks
 
 * `dv.Effect5Amount` reads legacy effect amounts (`effects` arrays in inspect output).
-* `castTime` (ability or variant) may be an expression, e.g. `'calc.TotalCastTime'`.
+* `castTime` (ability or variant) may be an expression, e.g. `'calc.TotalCastTime'`. The data's cast
+  times are the wiki's (none for instant casts like Garen Q, Darius W, dashes), else the game files'.
+* Timing: a hit lands `castTime + delay + travel` after the cast starts. Travel is the ability's max
+  range at its missile's (or dash's) speed, the wiki's: expressions read `castRange`, `missileSpeed`
+  and `castTime` (also `Q.castRange`, `spell['X'].missileSpeed`). A dash is busy for its flight
+  (`lockout: 'castTime + castRange / missileSpeed'`); without a speed in the data it keeps a rough
+  duration.
 * `cc: [{ kind, duration, delay }]`: `delay` lands the CC later (delayed stuns); a duration ≤ 0 means no CC,
   so `duration: 'debuff.flux ? dv.RootDuration : 0'` makes it conditional.
 * `empowerAttacks.onHitRepeats`: extra on-hit applications per empowered attack (Renekton W).

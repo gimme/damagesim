@@ -14,7 +14,7 @@ const kit: ChampionKit = {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       // Wiki: unable to move or attack while the arm flies (0.33s cast time + the 0.2s flight).
-      attackLockout: 0.53,
+      lockout: 0.53,
       variants: {
         slam: {
           label: 'slam',
@@ -48,9 +48,10 @@ const kit: ChampionKit = {
       components: [{ id: 'slingshot', label: 'Elastic Slingshot', type: 'magic', amount: 'calc.Damage', aoe: true, delay: 0.5 }],
     },
     R: {
-      // Wiki: unable to declare attacks (or cast Q/E) until the last bounce: 0.3s cast time, then a
-      // bounce every TimeBetweenBounces.
+      // Wiki: free to move, but unable to declare attacks or cast Q/E (W can be cast) until the last
+      // bounce: 0.3s cast time, then a bounce every TimeBetweenBounces.
       attackLockout: '0.3 + (dv.Bounces - 1) * dv.TimeBetweenBounces',
+      castLockout: { Q: '0.3 + (dv.Bounces - 1) * dv.TimeBetweenBounces', E: '0.3 + (dv.Bounces - 1) * dv.TimeBetweenBounces' },
       cc: [{ kind: 'immobilize', duration: 'dv.KnockupDuration' }, { kind: 'slow', duration: 'dv.SlowDuration' }],
       components: [
         { id: 'first', label: "Let's Bounce! (first)", type: 'magic', amount: 'calc.DamagePerBounce', aoe: true },
