@@ -697,6 +697,9 @@ export class Sim {
         case 'missileSpeed':
           if (!spell.missileSpeed) throw new Error(`${spell.name} has no missile speed in the data`);
           return spell.missileSpeed;
+        case 'reach':
+          // How far it goes to the target: there, or as far as its range if that's shorter.
+          return spell.castRange ? Math.min(this.distance, spell.castRange[Math.min(rank, spell.castRange.length - 1)]) : this.distance;
         default:
           throw new Error(`unknown name ${p.join('.')}`);
       }
@@ -709,6 +712,7 @@ export class Sim {
       case 'cooldown':
       case 'castRange':
       case 'missileSpeed':
+      case 'reach':
         return sub(ctx.spell, ctx.rank, path);
       case 'rank':
         return ctx.rank;
@@ -1648,10 +1652,7 @@ export class Sim {
   /** Seconds a component's hits fly before they land (ComponentSpec.travel). */
   private travelOf(c: ComponentSpec, ctx: { slot: Slot; spell?: SpellData; rank?: number }) {
     if (c.travel === undefined) return 0;
-    if (c.travel !== true) return this.evalExpr(c.travel, ctx);
-    // To the target, or as far as the ability reaches if that's shorter.
-    const spell = ctx.spell ?? this.spellFor(ctx.slot);
-    return this.evalExpr(spell.castRange ? 'min(distance, castRange) / missileSpeed' : 'distance / missileSpeed', { ...ctx, spell });
+    return this.evalExpr(c.travel === true ? 'reach / missileSpeed' : c.travel, ctx);
   }
 
   castAbility(step: AbilityStep, timeline: SimResult['timeline']) {
