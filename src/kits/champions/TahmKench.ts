@@ -41,12 +41,12 @@ const kit: ChampionKit = {
       ],
       notes: ['Deals Tongue Lash damage plus An Acquired Taste damage; stuns if the target already had 3 stacks.'],
       // Wiki: unable to move, attack or cast Abyssal Dive while the tongue flies, which it does from the
-      // start of the cast time ({{Effect at cast time start}}) over its range; Devour can be cast.
-      attackLockout: 'max(castTime, castRange / missileSpeed)',
-      castLockout: { W: 'max(castTime, castRange / missileSpeed)' },
+      // start of the cast time ({{Effect at cast time start}}) to the target; Devour can be cast.
+      attackLockout: 'max(castTime, reach / missileSpeed)',
+      castLockout: { W: 'max(castTime, reach / missileSpeed)' },
       components: [
-        { id: 'lash', label: 'Tongue Lash', type: 'magic', amount: 'calc.TotalDamage', travel: 'max(0, castRange / missileSpeed - castTime)' },
-        { id: 'taste', label: 'An Acquired Taste', type: 'magic', amount: 'P.calc.TotalDamage', travel: 'max(0, castRange / missileSpeed - castTime)', proc: true },
+        { id: 'lash', label: 'Tongue Lash', type: 'magic', amount: 'calc.TotalDamage', travel: 'max(0, reach / missileSpeed - castTime)' },
+        { id: 'taste', label: 'An Acquired Taste', type: 'magic', amount: 'P.calc.TotalDamage', travel: 'max(0, reach / missileSpeed - castTime)', proc: true },
       ],
     },
     W: {

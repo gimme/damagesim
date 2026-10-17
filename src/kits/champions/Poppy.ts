@@ -28,9 +28,9 @@ const kit: ChampionKit = {
     E: {
       dash: true,
       notes: ['Default: tackle without terrain. Variant "wall": carried into terrain — second hit and stun.'],
-      // Dashes her max range at the dash speed, then carries the target up to 400 units
+      // Dashes to the target at the dash speed, then carries it up to 400 units
       // (dv.MaxEnemyPushbackDistance; at the dash speed, assumed), into terrain for the wall hit.
-      lockout: 'castTime + (castRange + dv.MaxEnemyPushbackDistance) / missileSpeed',
+      lockout: 'castTime + (reach + dv.MaxEnemyPushbackDistance) / missileSpeed',
       variants: {
         wall: {
           label: 'into terrain',
@@ -38,7 +38,7 @@ const kit: ChampionKit = {
           cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
           components: [
             { id: 'tackle', label: 'Heroic Charge', type: 'physical', amount: 'calc.TackleDamage', travel: true },
-            { id: 'wall', label: 'Heroic Charge (terrain)', type: 'physical', amount: 'calc.TackleDamage', travel: '(castRange + dv.MaxEnemyPushbackDistance) / missileSpeed' },
+            { id: 'wall', label: 'Heroic Charge (terrain)', type: 'physical', amount: 'calc.TackleDamage', travel: '(reach + dv.MaxEnemyPushbackDistance) / missileSpeed' },
           ],
         },
       },
@@ -52,8 +52,8 @@ const kit: ChampionKit = {
       castTime: `charge + (charge >= ${CHARGED} ? 0.35 : 0.25)`,
       cc: [{ kind: 'immobilize', duration: `charge >= ${CHARGED} ? dv.KnockupDurationCharged : dv.KnockupDurationSnap` }],
       notes: ['Default: charged release (full damage, knock back). Set the seconds held (R{0s}): under 0.5s it is the uncharged swing (half damage, 1s knock-up).'],
-      // Uncharged, it hits around Poppy. Charged, the shockwave flies its range at the missile's speed:
-      // 500 + 175 per 0.25s held, up to 1200 (wiki).
+      // Uncharged, it hits around Poppy. Charged, the shockwave flies to the target at the missile's
+      // speed, within its range: 500 + 175 per 0.25s held, up to 1200 (wiki).
       components: [
         {
           id: 'verdict',
@@ -61,7 +61,7 @@ const kit: ChampionKit = {
           type: 'physical',
           amount: `charge >= ${CHARGED} ? calc.Damage : calc.HalfDamage`,
           aoe: true,
-          travel: `charge >= ${CHARGED} ? min(1200, castRange + 700 * charge) / missileSpeed : 0`,
+          travel: `charge >= ${CHARGED} ? min(distance, 1200, castRange + 700 * charge) / missileSpeed : 0`,
         },
       ],
     },

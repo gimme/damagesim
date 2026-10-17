@@ -32,7 +32,7 @@ const kit: ChampionKit = {
     W: {
       dash: true,
       // Busy for the dash; the damage on arrival.
-      lockout: 'castTime + castRange / missileSpeed',
+      lockout: 'castTime + reach / missileSpeed',
       components: [{ id: 'distortion', label: 'Distortion', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true }],
     },
     E: {
@@ -50,20 +50,20 @@ const kit: ChampionKit = {
         Q: {
           label: 'Mimic: Sigil of Malice',
           debuff: mimicSigil,
-          components: [{ id: 'sigil', label: 'Mimic: Sigil of Malice', type: 'magic', amount: 'calc.RQ1Damage', travel: 'Q.castRange / Q.missileSpeed' }],
+          components: [{ id: 'sigil', label: 'Mimic: Sigil of Malice', type: 'magic', amount: 'calc.RQ1Damage', travel: 'Q.reach / Q.missileSpeed' }],
         },
         W: {
           label: 'Mimic: Distortion',
           dash: true,
-          lockout: 'castTime + W.castRange / W.missileSpeed',
-          components: [{ id: 'distortion', label: 'Mimic: Distortion', type: 'magic', amount: 'calc.RWDamage', aoe: true, travel: 'W.castRange / W.missileSpeed' }],
+          lockout: 'castTime + W.reach / W.missileSpeed',
+          components: [{ id: 'distortion', label: 'Mimic: Distortion', type: 'magic', amount: 'calc.RWDamage', aoe: true, travel: 'W.reach / W.missileSpeed' }],
         },
         E: {
           label: 'Mimic: Ethereal Chains',
           cc: [{ kind: 'immobilize', duration: 'E.dv.RootDuration', delay: 'E.dv.TetherDuration' }],
           components: [
-            { id: 'chain', label: 'Mimic: Ethereal Chains', type: 'magic', amount: 'calc.RE1Damage', travel: 'E.castRange / E.missileSpeed' },
-            { id: 'root', label: 'Mimic: Ethereal Chains (root)', type: 'magic', amount: 'calc.RE2Damage', delay: 'E.dv.TetherDuration', travel: 'E.castRange / E.missileSpeed' },
+            { id: 'chain', label: 'Mimic: Ethereal Chains', type: 'magic', amount: 'calc.RE1Damage', travel: 'E.reach / E.missileSpeed' },
+            { id: 'root', label: 'Mimic: Ethereal Chains (root)', type: 'magic', amount: 'calc.RE2Damage', delay: 'E.dv.TetherDuration', travel: 'E.reach / E.missileSpeed' },
           ],
         },
       },

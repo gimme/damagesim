@@ -31,13 +31,13 @@ const kit: ChampionKit = {
     E: {
       dash: true,
       notes: ['Blink, then a homing bolt at the nearest enemy (prioritizes Essence Flux targets).'],
-      // The bolt flies up to its 750 range (wiki) at the missile's speed.
-      components: [{ id: 'bolt', label: 'Arcane Shift', type: 'magic', amount: 'calc.Damage', travel: '750 / missileSpeed' }],
+      // The bolt flies to the target (in its 750 range, wiki) at the missile's speed.
+      components: [{ id: 'bolt', label: 'Arcane Shift', type: 'magic', amount: 'calc.Damage', travel: 'min(distance, 750) / missileSpeed' }],
     },
     R: {
       notes: ['Damage reduction per additional unit hit is ignored (single target).'],
-      // Global: no max range to fly; assumed fired from 1200 units at the missile's speed.
-      components: [{ id: 'barrage', label: 'Trueshot Barrage', type: 'magic', amount: 'calc.Damage', aoe: true, travel: '1200 / missileSpeed' }],
+      // Global: flies to the target at the missile's speed.
+      components: [{ id: 'barrage', label: 'Trueshot Barrage', type: 'magic', amount: 'calc.Damage', aoe: true, travel: 'distance / missileSpeed' }],
     },
   },
   hooks: {

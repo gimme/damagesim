@@ -42,8 +42,8 @@ const kit: ChampionKit = {
         burrowed: {
           label: 'burrowed (Prey Seeker)',
           spell: 'RekSaiQBurrowed',
-          // The bolt flies 1500 units at 1950 speed (wiki; not in the data for the burrowed spell).
-          components: [{ id: 'seeker', label: 'Prey Seeker', type: 'magic', amount: 'Q.calc.BurrowDamageTooltip', aoe: true, travel: '1500 / 1950' }],
+          // The bolt flies to the target (range 1500) at 1950 speed (wiki; not in the data for the burrowed spell).
+          components: [{ id: 'seeker', label: 'Prey Seeker', type: 'magic', amount: 'Q.calc.BurrowDamageTooltip', aoe: true, travel: 'min(distance, 1500) / 1950' }],
         },
       },
     },

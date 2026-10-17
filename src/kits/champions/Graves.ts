@@ -37,7 +37,7 @@ const kit: ChampionKit = {
       cc: [{ kind: 'slow', duration: 'dv.SmokeDuration' }],
       notes: ['Slows while the target stays in the smoke; nearsight not modeled.'],
       // Wiki: the canister starts flying at the start of the cast time.
-      components: [{ id: 'impact', label: 'Smoke Screen', type: 'magic', amount: 'calc.ImpactDamage', aoe: true, travel: 'max(0, castRange / missileSpeed - castTime)' }],
+      components: [{ id: 'impact', label: 'Smoke Screen', type: 'magic', amount: 'calc.ImpactDamage', aoe: true, travel: 'max(0, reach / missileSpeed - castTime)' }],
     },
     E: {
       dash: true,

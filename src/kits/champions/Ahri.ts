@@ -11,8 +11,8 @@ const kit: ChampionKit = {
     Q: {
       components: [
         { id: 'out', label: 'Orb (out)', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true },
-        // The target stands at max range, where the orb turns: the return hits it as it turns.
-        { id: 'back', label: 'Orb (return)', type: 'true', amount: 'calc.TotalDamage', aoe: true, travel: true },
+        // Wiki: the orb turns at its range and flies back from 60 speed, accelerating at 1900/s², past the target.
+        { id: 'back', label: 'Orb (return)', type: 'true', amount: 'calc.TotalDamage', aoe: true, travel: 'castRange / missileSpeed + (sqrt(60 * 60 + 2 * 1900 * (castRange - reach)) - 60) / 1900' },
       ],
     },
     W: {
@@ -20,8 +20,8 @@ const kit: ChampionKit = {
       // Wiki: the flames fire at prioritized targets up to 725 away (BonusAcquisitionRange) at 1400
       // speed, after the data's InitialDelay / SecondaryDelay.
       components: [
-        { id: 'first', label: 'Fox-fire', type: 'magic', amount: 'calc.SingleFireDamage', delay: 'dv.InitialDelay', travel: 'dv.BonusAcquisitionRange / 1400' },
-        { id: 'extra', label: 'Fox-fire (repeat)', type: 'magic', amount: 'calc.MultiFireDamage', hits: 2, maxHits: 2, interval: 0.15, delay: 'dv.SecondaryDelay', travel: 'dv.BonusAcquisitionRange / 1400' },
+        { id: 'first', label: 'Fox-fire', type: 'magic', amount: 'calc.SingleFireDamage', delay: 'dv.InitialDelay', travel: 'min(distance, dv.BonusAcquisitionRange) / 1400' },
+        { id: 'extra', label: 'Fox-fire (repeat)', type: 'magic', amount: 'calc.MultiFireDamage', hits: 2, maxHits: 2, interval: 0.15, delay: 'dv.SecondaryDelay', travel: 'min(distance, dv.BonusAcquisitionRange) / 1400' },
       ],
     },
     E: {
@@ -36,8 +36,9 @@ const kit: ChampionKit = {
       attackLockout: R_DASH,
       castLockout: { Q: R_DASH, E: R_DASH },
       notes: ['Each cast fires bolts at up to 3 targets; a single target is hit once per cast. Use "R R R" for all three dashes.'],
-      // Bolts fire once the dash ends, at enemies up to 600 away (RAcquisitionRange) at 1400 speed (wiki).
-      components: [{ id: 'bolt', label: 'Essence bolt', type: 'magic', amount: 'calc.RCalculatedDamage', delay: R_DASH, travel: 'dv.RAcquisitionRange / 1400' }],
+      // Bolts fire once the dash ends, at enemies up to 600 away (RAcquisitionRange) at 1400 speed (wiki);
+      // the target is assumed still at the distance.
+      components: [{ id: 'bolt', label: 'Essence bolt', type: 'magic', amount: 'calc.RCalculatedDamage', delay: R_DASH, travel: 'min(distance, dv.RAcquisitionRange) / 1400' }],
     },
   },
 };

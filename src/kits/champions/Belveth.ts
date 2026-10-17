@@ -34,10 +34,10 @@ const kit: ChampionKit = {
     P: { notes: ['Attack speed after abilities (hook) and from Lavender stacks (option).'] },
     Q: {
       dash: true,
-      // Its fixed 400 range at 850 + movement speed (wiki; BaseDashSpeed).
+      // Its fixed 400 range at 850 + movement speed (wiki; BaseDashSpeed), through the target.
       lockout: 'castRange / (dv.BaseDashSpeed + ms)',
       notes: ['Each of the 4 directions has its own cooldown; applies on-hit and can crit against the first target.'],
-      components: [{ id: 'surge', label: 'Void Surge', type: 'physical', amount: 'calc.BaseDamage', canCrit: true, onHit: true, travel: 'castRange / (dv.BaseDashSpeed + ms)' }],
+      components: [{ id: 'surge', label: 'Void Surge', type: 'physical', amount: 'calc.BaseDamage', canCrit: true, onHit: true, travel: 'reach / (dv.BaseDashSpeed + ms)' }],
     },
     W: {
       cc: [

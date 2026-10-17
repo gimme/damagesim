@@ -65,7 +65,7 @@ const kit: ChampionKit = {
     Q: {
       notes: ['The kicked target is knocked back (stunned ~1s, wiki) and takes the explosion dv.FallTime later.'],
       // No cast time: Milio kicks the fireball after a 0.25s delay, unable to cast other abilities
-      // until then (wiki). It flies its max range, then the explosion comes dv.FallTime later.
+      // until then (wiki). It flies to the target, then the explosion comes dv.FallTime later.
       castLockout: 0.25,
       cc: [
         { kind: 'immobilize', duration: 1 },

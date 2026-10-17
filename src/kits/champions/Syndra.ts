@@ -58,7 +58,7 @@ const kit: ChampionKit = {
     E: {
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
       notes: ['Assumes a Dark Sphere is pushed into the target (Q→E): stun. A champion takes E damage only once (wave or sphere).'],
-      // The wave's damage, over its range.
+      // The wave's damage, as it reaches the target.
       components: [{ id: 'scatter', label: 'Scatter the Weak', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true }],
     },
     R: {

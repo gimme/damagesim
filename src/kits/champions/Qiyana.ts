@@ -41,7 +41,7 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       notes: ['Rock: the bonus damage (Q+tremor) applies only if the target is below 50% health when the rocks explode (0.4s later).'],
-      // The enchanted Q is hurled its max range at the missile's speed (the vanilla slash isn't a missile).
+      // The enchanted Q is hurled to the target at the missile's speed (the vanilla slash isn't a missile).
       components: [
         { id: 'blast', label: 'Edge of Ixtal (rock)', type: 'physical', amount: 'calc.EnchantedDamage', aoe: true, travel: true },
         {
@@ -86,8 +86,9 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
-      // Dashes her max range at 600 + her movement speed, capped at 1200 (wiki; not the data's
-      // missile speed). She can cast any of her abilities during the dash (wiki).
+      // Dashes her fixed range toward the target at 600 + her movement speed, capped at 1200, and hits
+      // it on arrival (wiki; not the data's missile speed). She can cast any of her abilities during
+      // the dash (wiki).
       attackLockout: 'castTime + castRange / min(dv.DashSpeedMax, dv.DashSpeed + ms)',
       components: [{ id: 'dash', label: 'Audacity', type: 'physical', amount: 'calc.Damage', travel: 'castRange / min(dv.DashSpeedMax, dv.DashSpeed + ms)' }],
     },
@@ -97,8 +98,8 @@ const kit: ChampionKit = {
         'A second explosion from river/brush along the path is not modeled (one explosion per target).',
       ],
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-      // The windblast flies its max range at the missile's speed and pins the target against the
-      // terrain there, where the shockwave starts.
+      // The windblast flies to the target at the missile's speed and pins it against the terrain
+      // right behind it, where the shockwave starts.
       components: [
         { id: 'explosion', label: 'Supreme Display of Talent', type: 'physical', amount: 'calc.Damage + calc.MissingHealthDamageRock * target.maxHp', aoe: true, travel: true },
       ],

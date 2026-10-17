@@ -42,12 +42,12 @@ const kit: ChampionKit = {
     W: { noTarget: true, components: [] },
     E: {
       dash: true,
-      // Wiki: he dashes at 800 (DashBonusSpeed) + his movement speed; Twilight Assault and Spirit's
-      // Refuge can be cast during the dash.
+      // Wiki: he dashes his range at 800 (DashBonusSpeed) + his movement speed, through the target;
+      // Twilight Assault and Spirit's Refuge can be cast during the dash.
       attackLockout: 'castRange / (dv.DashBonusSpeed + ms)',
       castLockout: { R: 'castRange / (dv.DashBonusSpeed + ms)' },
       cc: [{ kind: 'immobilize', duration: 'dv.CCDuration' }],
-      components: [{ id: 'dash', label: 'Shadow Dash', type: 'physical', amount: 'calc.TauntDamage', aoe: true, travel: 'castRange / (dv.DashBonusSpeed + ms)' }],
+      components: [{ id: 'dash', label: 'Shadow Dash', type: 'physical', amount: 'calc.TauntDamage', aoe: true, travel: 'reach / (dv.DashBonusSpeed + ms)' }],
     },
     R: { noTarget: true, components: [] },
   },

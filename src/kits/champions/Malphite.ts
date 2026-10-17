@@ -39,10 +39,10 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
-      // No dash speed in the data: ~0.3s to arrive.
-      lockout: 0.3,
+      // Dashes to the target at 1500 + movement speed (wiki; no dash speed in the data).
+      lockout: 'reach / (1500 + ms)',
       cc: [{ kind: 'immobilize', duration: 'dv.KnockupDuration' }],
-      components: [{ id: 'force', label: 'Unstoppable Force', type: 'magic', amount: 'calc.TotalDamage', delay: 0.3, aoe: true }],
+      components: [{ id: 'force', label: 'Unstoppable Force', type: 'magic', amount: 'calc.TotalDamage', delay: 'reach / (1500 + ms)', aoe: true }],
     },
   },
 };

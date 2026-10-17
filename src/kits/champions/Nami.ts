@@ -21,8 +21,9 @@ const kit: ChampionKit = {
       variants: {
         bounced: {
           label: 'after bouncing off an ally',
-          // To the ally, then the bounce: up to 800 units at 1500 speed (wiki).
-          components: [{ id: 'bounce', label: 'Ebb and Flow (bounce)', type: 'magic', amount: 'calc.TotalDamage * (1 + calc.BounceScaling)', travel: 'castRange / missileSpeed + 800 / 1500' }],
+          // To the ally, then the bounce to the target: up to 800 units at 1500 speed (wiki). The ally
+          // is assumed as far from both.
+          components: [{ id: 'bounce', label: 'Ebb and Flow (bounce)', type: 'magic', amount: 'calc.TotalDamage * (1 + calc.BounceScaling)', travel: 'reach / missileSpeed + min(distance, 800) / 1500' }],
         },
       },
       components: [{ id: 'stream', label: 'Ebb and Flow', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
@@ -42,8 +43,8 @@ const kit: ChampionKit = {
       },
     },
     R: {
-      cc: [{ kind: 'immobilize', duration: 'dv.KnockupDuration' }, { kind: 'slow', duration: 'dv.MaxSlowDuration' }],
-      notes: ['Slow assumed at max duration (long travel).'],
+      cc: [{ kind: 'immobilize', duration: 'dv.KnockupDuration' }, { kind: 'slow', duration: 'min(dv.MaxSlowDuration, dv.MinSlowDuration + dv.DistToSlowRatio * reach)' }],
+      notes: ['The slow lasts longer the farther the wave travelled to the target (data: +2s per 1000 units, up to 4s).'],
       components: [{ id: 'wave', label: 'Tidal Wave', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true }],
     },
   },

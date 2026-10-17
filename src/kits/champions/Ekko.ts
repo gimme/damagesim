@@ -43,11 +43,11 @@ const kit: ChampionKit = {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.ExpandDuration' }],
       components: [
-        // The device flies 700 units at its speed (wiki), then expands on the target for
+        // The device flies to the target (up to 700 units) at its speed (wiki), then expands on it for
         // dv.ExpandDuration and is recalled through it.
-        { id: 'out', label: 'Timewinder (out)', type: 'magic', amount: 'calc.InitialDamage', aoe: true, travel: '700 / missileSpeed' },
+        { id: 'out', label: 'Timewinder (out)', type: 'magic', amount: 'calc.InitialDamage', aoe: true, travel: 'min(distance, 700) / missileSpeed' },
         // Separate pass: its own Resonance stack.
-        { id: 'back', label: 'Timewinder (return)', type: 'magic', amount: 'calc.RecallDamage', aoe: true, delay: 'dv.ExpandDuration', travel: '700 / missileSpeed', sameCast: false },
+        { id: 'back', label: 'Timewinder (return)', type: 'magic', amount: 'calc.RecallDamage', aoe: true, delay: 'dv.ExpandDuration', travel: 'min(distance, 700) / missileSpeed', sameCast: false },
       ],
     },
     W: {

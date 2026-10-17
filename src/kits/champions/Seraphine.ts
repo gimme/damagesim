@@ -40,8 +40,8 @@ function echo(sim: Sim, slot: Slot, castTime: number) {
   sim.schedule(delay, () => addNote(sim));
   const comp = slot === 'Q' ? highNote : slot === 'E' ? beatDrop : undefined;
   if (!comp) return; // Surround Sound: shield only
-  // Its missile flies its max range, as the first cast's does.
-  sim.schedule(delay + sim.evalExpr('castRange / missileSpeed', { slot }), () => {
+  // Its missile flies to the target, as the first cast's does.
+  sim.schedule(delay + sim.evalExpr('reach / missileSpeed', { slot }), () => {
     sim.deal({
       source: slot,
       sourceLabel: `${comp.label} (echo)`,

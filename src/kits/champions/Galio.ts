@@ -18,8 +18,8 @@ const kit: ChampionKit = {
   ],
   abilities: {
     Q: {
-      // The windblasts fly the range at their speed to the target location, where they form the
-      // tornado, which ticks every 0.5s (wiki).
+      // The windblasts fly to the target at their speed and form the tornado there, which ticks
+      // every 0.5s (wiki).
       components: [
         { id: 'windblast', label: 'Windblast', type: 'magic', amount: 'calc.QMissileDamage', aoe: true, travel: true },
         {
@@ -47,8 +47,8 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
-      // Wiki: steps back over the cast time, then dashes the range at its speed; busy until he lands.
-      lockout: 'castTime + castRange / missileSpeed',
+      // Wiki: steps back over the cast time, then dashes at its speed until he hits the target; busy until then.
+      lockout: 'castTime + reach / missileSpeed',
       cc: [{ kind: 'immobilize', duration: 'dv.KnockupDuration' }],
       components: [{ id: 'punch', label: 'Justice Punch', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },

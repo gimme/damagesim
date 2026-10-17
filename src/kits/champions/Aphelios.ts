@@ -29,10 +29,10 @@ const WEAPON_CD = [`${CAL}.calc.CalibrumQCD`, `${SEV}.calc.SeverumQCD`, `${GRA}.
 
 // Each weapon's Q has its own cast time (its spell's).
 const WEAPON_CT = [CAL, SEV, GRA, INF, CRE].map((sp) => `${sp}.castTime`);
-// Moonshot flies its range at 1850 (wiki; no speed in the data).
-const MOONSHOT = `${CAL}.castTime + ${CAL}.castRange / 1850`;
+// Moonshot flies to the target at 1850 (wiki; no speed in the data).
+const MOONSHOT = `${CAL}.castTime + ${CAL}.reach / 1850`;
 // Moonlight Vigil is fired as its cast time starts (wiki: {{Effect at cast time start}}).
-const R_TRAVEL = 'max(0, castRange / missileSpeed - castTime)';
+const R_TRAVEL = 'max(0, reach / missileSpeed - castTime)';
 // Wiki: Onslaught keeps Phase and Moonlight Vigil from being cast (he can move); Duskwave keeps him
 // from attacking until its volley (0.25s after the wave) has resolved.
 const SEV_LOCK = `${SEV}.dv.Duration`;
@@ -43,7 +43,7 @@ const weaponQ = (w: number, gate: boolean): ComponentSpec[] => {
   const hits = (h: string | number) => (gate ? `stacks.aphMain == ${w} ? ${h} : 0` : h);
   switch (w) {
     case 1:
-      return [{ id: 'moonshot', label: 'Moonshot', type: 'physical', amount: `${CAL}.calc.SpellDamage`, hits: hits(1), travel: `${CAL}.castRange / 1850` }];
+      return [{ id: 'moonshot', label: 'Moonshot', type: 'physical', amount: `${CAL}.calc.SpellDamage`, hits: hits(1), travel: `${CAL}.reach / 1850` }];
     case 2:
       return [
         {

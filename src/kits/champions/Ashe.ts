@@ -51,9 +51,9 @@ const kit: ChampionKit = {
     R: {
       cc: [{ kind: 'immobilize', duration: 'dv.MinStunDuration' }],
       notes: ['Stun 1–3.5s depending on distance travelled; the minimum is used.'],
-      // Global: assumed fired from 1200 units, at 1500 speed accelerating by 200/s, launched as the
-      // cast time starts (wiki: {{Effect at cast time start}}).
-      components: [{ id: 'arrow', label: 'Enchanted Crystal Arrow', type: 'magic', amount: 'calc.RMainDamage', travel: 'max(0, (sqrt(1500 * 1500 + 2 * 200 * 1200) - 1500) / 200 - castTime)' }],
+      // Flies to the target at 1500 speed accelerating by 200/s, launched as the cast time starts
+      // (wiki: {{Effect at cast time start}}).
+      components: [{ id: 'arrow', label: 'Enchanted Crystal Arrow', type: 'magic', amount: 'calc.RMainDamage', travel: 'max(0, (sqrt(1500 * 1500 + 2 * 200 * distance) - 1500) / 200 - castTime)' }],
     },
   },
   hooks: {

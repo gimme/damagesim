@@ -18,10 +18,10 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       notes: ['Both daggers hit a single target for full damage.'],
-      // Each dagger forms for its delay, then flies the 1100 range at its speed (data).
+      // Each dagger forms for its delay, then flies through the target at its speed (data), on to its 1100 range.
       components: [
-        { id: 'dagger1', label: 'Double Daggers', type: 'physical', amount: 'calc.TotalDamage', delay: 'dv.Missile1DelayTime', travel: 'castRange / dv.Missile1DelaySpeed' },
-        { id: 'dagger2', label: 'Double Daggers', type: 'physical', amount: 'calc.TotalDamage', delay: 'dv.Missile2DelayTime', travel: 'castRange / dv.Missile2DelaySpeed' },
+        { id: 'dagger1', label: 'Double Daggers', type: 'physical', amount: 'calc.TotalDamage', delay: 'dv.Missile1DelayTime', travel: 'reach / dv.Missile1DelaySpeed' },
+        { id: 'dagger2', label: 'Double Daggers', type: 'physical', amount: 'calc.TotalDamage', delay: 'dv.Missile2DelayTime', travel: 'reach / dv.Missile2DelaySpeed' },
       ],
     },
     W: {
@@ -49,9 +49,10 @@ const kit: ChampionKit = {
           hits: 'stacks.xayahEFeathers',
           maxHits: 20,
           interval: 0.03,
-          // The feathers set off after dv.FeatherReturnDelay and fly the range at their speed.
+          // The feathers set off after dv.FeatherReturnDelay from where they lie, ~1000 units out behind
+          // the target (wiki), and pass it at their speed.
           delay: 'dv.FeatherReturnDelay',
-          travel: true,
+          travel: 'max(0, 1000 - distance) / missileSpeed',
         },
       ],
     },

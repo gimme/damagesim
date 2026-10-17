@@ -1,8 +1,8 @@
 import type { ChampionKit } from '../../engine/kit-types.ts';
 
 // Corki — patch 16.20.
-// Valkyrie's dash: its range at 650 + movement speed (DashSpeedBase, DashSpeedRatio).
-const W_DASH = 'castRange / (dv.DashSpeedBase + dv.DashSpeedRatio * ms)';
+// Valkyrie's dash: to the target at 650 + movement speed (DashSpeedBase, DashSpeedRatio).
+const W_DASH = 'reach / (dv.DashSpeedBase + dv.DashSpeedRatio * ms)';
 const kit: ChampionKit = {
   id: 'Corki',
   status: 'curated',
@@ -80,8 +80,9 @@ const kit: ChampionKit = {
           type: 'physical',
           amount: 'stacks.corkiMissile % 3 == 0 ? calc.RBigMissileDamage : calc.RSmallMissileDamage',
           aoe: true,
-          // Fired as the cast time starts (wiki: {{Effect at cast time start}}); the Big One flies 1500.
-          travel: 'max(0, (stacks.corkiMissile % 3 == 0 ? 1500 : castRange) / missileSpeed - castTime)',
+          // Fired at the target as the cast time starts (wiki: {{Effect at cast time start}}); the Big
+          // One's range is 1500.
+          travel: 'max(0, (stacks.corkiMissile % 3 == 0 ? min(distance, 1500) : reach) / missileSpeed - castTime)',
         },
       ],
     },
