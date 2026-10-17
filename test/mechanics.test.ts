@@ -625,3 +625,41 @@ test('A cast lockout holds only the abilities it lists (Darius R: Q and E, not a
   const [r, aa] = steps('R AA');
   assert.ok(Math.abs(aa.start - r.end) < 1e-9);
 });
+
+test('The target stands at your attack range unless the distance option places it: missiles fly there, at most their range, and range gained later leaves it (Twitch R)', () => {
+  const lands = (champion: string, combo: string, options = {}) => bySource(simulate(data, { champion, level: 11, combo, options, target: dummy }), 'Q')[0].time;
+  const ezreal = new Sim(data, { champion: 'Ezreal', level: 11, combo: 'Q', target: dummy });
+  const speed = ezreal.evalExpr('Q.missileSpeed', { slot: 'Q' });
+  assert.equal(ezreal.distance, 550);
+  assert.ok(Math.abs(lands('Ezreal', 'Q', { distance: 1000 }) - lands('Ezreal', 'Q') - 450 / speed) < 1e-9);
+  // Jhin Q reaches 550: no further.
+  assert.ok(Math.abs(lands('Jhin', 'Q', { distance: 1000 }) - lands('Jhin', 'Q')) < 1e-9);
+  const flight = (combo: string) => {
+    const r = simulate(data, { champion: 'Twitch', level: 11, combo, target: dummy });
+    return bySource(r, 'AA')[0].time - r.timeline.find((s) => s.step === 'AA')!.end;
+  };
+  assert.ok(flight('AA') > 0);
+  assert.ok(Math.abs(flight('R AA') - flight('AA')) < 1e-9);
+});
+
+test("Kalista: Rend counts the spears that land during its cast; those still flying when it goes off are ripped out as they land", () => {
+  const rend = (combo: string, distance?: number) => bySource(simulate(data, { champion: 'Kalista', level: 11, combo, ...(distance ? { options: { distance } } : {}), target: dummy }), 'E');
+  const sim = new Sim(data, { champion: 'Kalista', level: 11, combo: [], target: dummy });
+  const [one] = rend('AA E');
+  assert.ok(Math.abs(one.raw - sim.evalExpr('E.calc.NormalDamage', { slot: 'E' })) < 1e-9);
+  // From 1100 units the second spear is still flying when Rend goes off: the same damage, part later.
+  const flying = rend('AA AA E', 1100);
+  const total = (hits: ReturnType<typeof rend>) => hits.reduce((s, e) => s + e.raw, 0);
+  assert.equal(flying.length, 2);
+  assert.ok(flying[1].time > flying[0].time);
+  assert.ok(Math.abs(total(flying) - total(rend('AA AA wait{1s} E', 1100))) < 1e-9);
+});
+
+test('Vex R is two parts: the recast dashes to the target once the shadow lands', () => {
+  const r = simulate(data, { champion: 'Vex', level: 11, combo: 'R R', target: dummy });
+  const sim = new Sim(data, { champion: 'Vex', level: 11, combo: [], target: dummy });
+  const [surge, dash] = bySource(r, 'R');
+  assert.ok(Math.abs(r.timeline[1].start - surge.time) < 1e-9);
+  assert.ok(Math.abs(dash.time - surge.time - sim.distance / 2200) < 1e-9);
+  assert.equal(bySource(simulate(data, { champion: 'Vex', level: 11, combo: 'R', target: dummy }), 'R').length, 1);
+});
