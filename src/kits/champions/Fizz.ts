@@ -7,6 +7,13 @@ import type { Sim } from '../../engine/sim.ts';
 // attaches, before the shark (the cast's first hit).
 
 const W_ACTIVE_LABEL = 'Seastone Trident (active)';
+// Chum the Waters: the fish flies to the target at its speed, as far as its shark's size says (wiki:
+// under 455 units, 455 to 910, over 910).
+const R_FLIGHT: Record<string, string> = {
+  '': 'min(reach, 455) / missileSpeed',
+  medium: 'clamp(reach, 455, 910) / missileSpeed',
+  large: 'max(reach, 910) / missileSpeed',
+};
 
 const kit: ChampionKit = {
   id: 'Fizz',
@@ -71,21 +78,21 @@ const kit: ChampionKit = {
     },
     R: {
       notes: ['Shark erupts dv.DetonationTime s after the fish attaches; the attached champion is knocked up for 1s (tooltip).'],
-      // The fish flies its max range at its speed, then the shark erupts dv.DetonationTime later.
+      // The fish flies to the target, then the shark erupts dv.DetonationTime later.
       cc: [{ kind: 'immobilize', duration: 1 }],
-      components: [{ id: 'shark', label: 'Chum the Waters', type: 'magic', amount: 'calc.SmallSharkDamage', aoe: true, delay: 'dv.DetonationTime', travel: true }],
+      components: [{ id: 'shark', label: 'Chum the Waters', type: 'magic', amount: 'calc.SmallSharkDamage', aoe: true, delay: 'dv.DetonationTime', travel: R_FLIGHT[''] }],
       variants: {
         medium: {
           label: 'medium',
-          note: 'Fish travelled a medium distance (×dv.MidDamageMulti).',
+          note: 'Fish travelled a medium distance, 455 to 910 units (×dv.MidDamageMulti).',
           cc: [{ kind: 'immobilize', duration: 1 }],
-          components: [{ id: 'shark', label: 'Chum the Waters', type: 'magic', amount: "calc['{262c3c02}']", aoe: true, delay: 'dv.DetonationTime', travel: true }],
+          components: [{ id: 'shark', label: 'Chum the Waters', type: 'magic', amount: "calc['{262c3c02}']", aoe: true, delay: 'dv.DetonationTime', travel: R_FLIGHT.medium }],
         },
         large: {
           label: 'large',
-          note: 'Fish travelled the maximum distance (×dv.LargeDamageMulti).',
+          note: 'Fish travelled over 910 units (×dv.LargeDamageMulti).',
           cc: [{ kind: 'immobilize', duration: 1 }],
-          components: [{ id: 'shark', label: 'Chum the Waters', type: 'magic', amount: 'calc.BigSharkDamage', aoe: true, delay: 'dv.DetonationTime', travel: true }],
+          components: [{ id: 'shark', label: 'Chum the Waters', type: 'magic', amount: 'calc.BigSharkDamage', aoe: true, delay: 'dv.DetonationTime', travel: R_FLIGHT.large }],
         },
       },
     },
@@ -95,7 +102,7 @@ const kit: ChampionKit = {
       if (cast.slot !== 'R' || !cast.hitsTarget) return;
       const castId = cast.castId;
       // The slow applies as the fish attaches, after its flight.
-      sim.schedule(sim.evalExpr('castTime + castRange / missileSpeed', { slot: 'R' }), () => sim.applyCC('slow', sim.evalExpr('R.dv.SlowDuration', { slot: 'R' }), castId, 'R'));
+      sim.schedule(sim.evalExpr(`castTime + ${R_FLIGHT[cast.variant ?? ''] ?? R_FLIGHT['']}`, { slot: 'R' }), () => sim.applyCC('slow', sim.evalExpr('R.dv.SlowDuration', { slot: 'R' }), castId, 'R'));
     },
     onAttack(sim: Sim, atk) {
       if (atk.fromAbility || atk.phantom) return;

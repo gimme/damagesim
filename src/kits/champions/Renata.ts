@@ -26,19 +26,19 @@ const kit: ChampionKit = {
     Q: {
       notes: ['Root on the first enemy hit. The recast throws the target; its damage only hits the enemies it is thrown into, so it is not modeled against a single target.'],
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
-      // {{Effect at cast time start}} (wiki): the hook flies its max range from the start of the cast.
+      // {{Effect at cast time start}} (wiki): the hook flies to the target from the start of the cast.
       // Wiki: while the root's tether lasts Renata can't declare attacks: the flight + RootDuration
       // (the recast that ends it isn't modeled).
-      attackLockout: 'castRange / missileSpeed + dv.RootDuration',
-      components: [{ id: 'handshake', label: 'Handshake', type: 'magic', amount: 'calc.TotalDamage', travel: 'max(0, castRange / missileSpeed - castTime)' }],
+      attackLockout: 'reach / missileSpeed + dv.RootDuration',
+      components: [{ id: 'handshake', label: 'Handshake', type: 'magic', amount: 'calc.TotalDamage', travel: 'max(0, reach / missileSpeed - castTime)' }],
     },
     W: { noTarget: true, notes: ['Ally buff; not modeled.'], components: [] },
     E: {
       notes: ['A single target is damaged once by the pair of missiles.'],
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       // Wiki: the rockets launch as the cast time starts ({{Effect at cast time start}}), converge after
-      // 0.4s, then fly to the target location at the missile's speed, from up to 200 units ahead.
-      components: [{ id: 'missiles', label: 'Loyalty Program', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 'max(0, 0.4 - castTime)', travel: '(castRange - 200) / missileSpeed' }],
+      // 0.4s, then fly to the target at the missile's speed, from up to 200 units ahead.
+      components: [{ id: 'missiles', label: 'Loyalty Program', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 'max(0, 0.4 - castTime)', travel: 'max(0, reach - 200) / missileSpeed' }],
     },
     R: {
       notes: ['Berserk (forced attacks) is treated as an immobilizing crowd control; no damage.'],

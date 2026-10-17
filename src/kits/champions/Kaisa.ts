@@ -55,8 +55,8 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
-      // She can cast any ability during the dash (wiki).
-      attackLockout: 'castTime + castRange / missileSpeed',
+      // Dashes to the target; she can cast any ability during the dash (wiki).
+      attackLockout: 'castTime + reach / missileSpeed',
       notes: ['Dash + shield, no damage.'],
       components: [],
     },

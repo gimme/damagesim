@@ -5,11 +5,11 @@ import type { ChampionKit } from '../../engine/kit-types.ts';
 // (BleedDamageOverDurationTooltip = it × BleedDuration); each stack beyond the first adds BleedPercentAdd.
 /** Chilling Scream's damage by the seconds charged: 2.5% of the full damage uncharged, all of it at 1s (wiki). */
 const SCREAM = 'calc.Damage * lerp(0.025, 1, min(1, charge))';
-/** The scream flies its range, 400 to 600 by the seconds charged (wiki), at its speed. */
-const SCREAM_TRAVEL = 'lerp(dv.MinMissileRange, dv.MaxMissileRange, min(1, charge)) / missileSpeed';
-// Certain Death: the hemolith is kicked after the 1s cast time; global (12000 range), so assumed
-// fired from 1200 units. On the hit she takes 1.25s (wiki) before dashing over IdealDashTime.
-const R_HIT = '1200 / missileSpeed';
+/** The scream flies to the target at its speed, as far as its range: 400 to 600 by the seconds charged (wiki). */
+const SCREAM_TRAVEL = 'min(distance, lerp(dv.MinMissileRange, dv.MaxMissileRange, min(1, charge))) / missileSpeed';
+// Certain Death: the hemolith is kicked after the 1s cast time and flies to the target. On the hit
+// she takes 1.25s (wiki) before dashing over IdealDashTime.
+const R_HIT = 'reach / missileSpeed';
 const R_DASH = '1.25 + dv.IdealDashTime';
 
 const kit: ChampionKit = {
@@ -47,13 +47,13 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       dash: true,
-      // Its range at 600 + 300 over the range (wiki: DashSpeedBase + ExtraDashSpeedBasedOnDistance).
-      lockout: 'castRange / (dv.DashSpeedBase + dv.ExtraDashSpeedBasedOnDistance)',
+      // To the target, faster the further it is: 600, + 300 over the range (wiki: DashSpeedBase + ExtraDashSpeedBasedOnDistance).
+      lockout: 'reach / (dv.DashSpeedBase + dv.ExtraDashSpeedBasedOnDistance * reach / castRange)',
       // Resets the attack timer; applies on-hit effects and triggers on-attack effects (wiki).
       resetsAttack: true,
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
       debuff: { id: 'briarQ', label: 'Head Rush shred', duration: 'dv.ShredDuration', armorReduction: 'dv.ShredPercent', mrReduction: 'dv.ShredPercent' },
-      components: [{ id: 'headRush', label: 'Head Rush', type: 'physical', amount: 'calc.TotalDamage', onHit: true, onAttack: true, travel: 'castRange / (dv.DashSpeedBase + dv.ExtraDashSpeedBasedOnDistance)' }],
+      components: [{ id: 'headRush', label: 'Head Rush', type: 'physical', amount: 'calc.TotalDamage', onHit: true, onAttack: true, travel: 'reach / (dv.DashSpeedBase + dv.ExtraDashSpeedBasedOnDistance * reach / castRange)' }],
     },
     W: {
       dash: true,

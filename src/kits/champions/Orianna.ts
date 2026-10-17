@@ -15,9 +15,9 @@ const kit: ChampionKit = {
   },
   abilities: {
     Q: {
-      // The Ball flies its max range at the missile's speed. Wiki: she can't cast Command: Protect
+      // The Ball flies to the target at the missile's speed. Wiki: she can't cast Command: Protect
       // while it's in transit, and Dissonance and Shockwave wait until it arrives (she can move and attack).
-      castLockout: { W: 'castRange / missileSpeed', E: 'castRange / missileSpeed', R: 'castRange / missileSpeed' },
+      castLockout: { W: 'reach / missileSpeed', E: 'reach / missileSpeed', R: 'reach / missileSpeed' },
       components: [{ id: 'ball', label: 'Command: Attack', type: 'magic', amount: 'calc.TotalDamageTooltip', aoe: true, travel: true }],
     },
     W: {
@@ -26,9 +26,9 @@ const kit: ChampionKit = {
     },
     E: {
       notes: ['Shields an ally (or Orianna). Damage only if the Ball passes through the enemy on its way: optional component "pass" (E+pass).'],
-      // The Ball flies its max range at the missile's speed; she can't cast her other abilities while
-      // it moves (wiki).
-      castLockout: { Q: 'castRange / missileSpeed', W: 'castRange / missileSpeed', R: 'castRange / missileSpeed' },
+      // The Ball flies between the target and her (or an ally there) at the missile's speed; she can't
+      // cast her other abilities while it moves (wiki).
+      castLockout: { Q: 'reach / missileSpeed', W: 'reach / missileSpeed', R: 'reach / missileSpeed' },
       components: [{ id: 'pass', label: 'Command: Protect', type: 'magic', amount: 'calc.TotalDamageTooltip', optional: true, condition: 'if the Ball passes through the enemy', travel: true }],
     },
     R: {

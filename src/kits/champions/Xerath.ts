@@ -26,8 +26,8 @@ const kit: ChampionKit = {
       },
     },
     E: {
-      notes: ['Stun scales with travel distance; the average of the minimum and maximum duration is assumed.'],
-      cc: [{ kind: 'immobilize', duration: '(dv.MinStunDuration + dv.MaxStunDuration) / 2' }],
+      notes: ['Stun scales with the distance the orb travels to the target (wiki: up to the maximum at 1050 units).'],
+      cc: [{ kind: 'immobilize', duration: 'lerp(dv.MinStunDuration, dv.MaxStunDuration, min(1, reach / 1050))' }],
       components: [{ id: 'orb', label: 'Shocking Orb', type: 'magic', amount: 'calc.TooltipTotalDamage', travel: true }],
     },
     R: {

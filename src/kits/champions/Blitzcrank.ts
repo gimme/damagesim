@@ -33,7 +33,7 @@ const kit: ChampionKit = {
       cc: [{ kind: 'immobilize', duration: 0.5 }],
       // Wiki: unable to move or attack while the hand flies and for ~0.25s after it hits: unable to
       // act (casting Power Fist only readies the attack).
-      lockout: 'castTime + castRange / missileSpeed + 0.25',
+      lockout: 'castTime + reach / missileSpeed + 0.25',
       notes: ['Pull duration approximated as 0.5s.'],
       components: [{ id: 'grab', label: 'Rocket Grab', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },

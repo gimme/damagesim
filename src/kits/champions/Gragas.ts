@@ -18,7 +18,7 @@ const kit: ChampionKit = {
       charge: { default: 0, max: 'dv.BarrelMaxDuration' },
       notes: ['Default: detonated as it lands. Set the seconds it ferments first (Q{2s} for the fully cooked ×1.5 damage).'],
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      // Rolls its max range at its speed, then ferments for the step's seconds.
+      // Rolls to the target at its speed, then ferments for the step's seconds.
       components: [{ id: 'cask', label: 'Barrel Roll', type: 'magic', amount: 'lerp(calc.MinDamage, calc.MaxDamage, min(1, charge / dv.BarrelCookMaxTime))', aoe: true, delay: 'charge', travel: true }],
     },
     W: {
@@ -38,8 +38,8 @@ const kit: ChampionKit = {
     E: {
       dash: true,
       // Wiki: Barrel Roll and Explosive Cask can be cast during the dash; no attacks or W.
-      attackLockout: 'castTime + castRange / missileSpeed',
-      castLockout: { W: 'castTime + castRange / missileSpeed' },
+      attackLockout: 'castTime + reach / missileSpeed',
+      castLockout: { W: 'castTime + reach / missileSpeed' },
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
       components: [{ id: 'slam', label: 'Body Slam', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true }],
     },

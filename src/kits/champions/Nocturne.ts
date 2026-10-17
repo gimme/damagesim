@@ -22,8 +22,8 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       notes: ["Duskbringer's own damage is not increased by the trail's bonus AD (the trail buff starts when it hits)."],
-      // {{Effect at cast time start}} (wiki): the blade flies its max range from the start of the cast.
-      components: [{ id: 'blade', label: 'Duskbringer', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, castRange / missileSpeed - castTime)' }],
+      // {{Effect at cast time start}} (wiki): the blade flies from the start of the cast, through the target.
+      components: [{ id: 'blade', label: 'Duskbringer', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, reach / missileSpeed - castTime)' }],
     },
     W: {
       noTarget: true,
@@ -46,8 +46,8 @@ const kit: ChampionKit = {
     R: {
       dash: true,
       notes: ['Modeled as the recast (dash) hit; the map-darkening first cast is assumed done beforehand.'],
-      // Dashes its max range at the dash speed. He can cast any of his abilities during the dash (wiki).
-      attackLockout: 'castTime + castRange / missileSpeed',
+      // Dashes to the target at the dash speed. He can cast any of his abilities during the dash (wiki).
+      attackLockout: 'castTime + reach / missileSpeed',
       components: [{ id: 'dash', label: 'Paranoia', type: 'physical', amount: 'calc.Damage', travel: true }],
     },
   },

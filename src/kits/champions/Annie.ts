@@ -4,7 +4,7 @@ import type { ChampionKit } from '../../engine/kit-types.ts';
 // Pyromania: every ability cast adds a stack; with 4 stacks the next Q, W or R stuns (counter
 // 'annieStacks', starting from the 'pyromania' option).
 // When each stunning ability's hit lands, from the cast's start.
-const STUNNING: Record<string, string> = { Q: 'castTime + castRange / missileSpeed', W: 'castTime', R: 'castTime' };
+const STUNNING: Record<string, string> = { Q: 'castTime + reach / missileSpeed', W: 'castTime', R: 'castTime' };
 
 const kit: ChampionKit = {
   id: 'Annie',

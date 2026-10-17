@@ -12,13 +12,13 @@ const kit: ChampionKit = {
     Q: {
       dash: true,
       cc: [{ kind: 'immobilize', duration: 0.5 }],
-      // {{Effect at cast time start}} (wiki): the anchor flies its max range from the start of the
+      // {{Effect at cast time start}} (wiki): the anchor flies to the target from the start of the
       // cast. Unable to move or attack while it flies; he can cast any ability during the 0.9s dash
       // that follows (wiki), but not attack.
-      lockout: 'castRange / missileSpeed',
-      attackLockout: 'castRange / missileSpeed + 0.9',
+      lockout: 'reach / missileSpeed',
+      attackLockout: 'reach / missileSpeed + 0.9',
       notes: ['Stun duration is not in the data ("briefly"); 0.5 s assumed.'],
-      components: [{ id: 'anchor', label: 'Dredge Line', type: 'magic', amount: 'calc.QDamageCalc', travel: 'max(0, castRange / missileSpeed - castTime)' }],
+      components: [{ id: 'anchor', label: 'Dredge Line', type: 'magic', amount: 'calc.QDamageCalc', travel: 'max(0, reach / missileSpeed - castTime)' }],
     },
     W: {
       noTarget: true,
@@ -37,8 +37,8 @@ const kit: ChampionKit = {
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
       notes: ['Damage to other enemies on the path is not modeled.'],
       // No speed in the data. Wiki: the charge starts at 275 speed and gains 466.67 per second, so it
-      // covers the cast range in (sqrt(275² + 2·466.67·range) − 275) / 466.67 ≈ 1.38s.
-      components: [{ id: 'charge', label: 'Depth Charge', type: 'magic', amount: 'calc.PrimaryTargetDamage', travel: '(sqrt(275 ^ 2 + 2 * 466.67 * castRange) - 275) / 466.67' }],
+      // reaches the target in (sqrt(275² + 2·466.67·reach) − 275) / 466.67 (≈1.38s at max range).
+      components: [{ id: 'charge', label: 'Depth Charge', type: 'magic', amount: 'calc.PrimaryTargetDamage', travel: '(sqrt(275 ^ 2 + 2 * 466.67 * reach) - 275) / 466.67' }],
     },
   },
   hooks: {

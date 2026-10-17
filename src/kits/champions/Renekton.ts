@@ -55,16 +55,16 @@ const kit: ChampionKit = {
       recasts: 2,
       recastDelay: 0.25,
       notes: ['Slice, then recast for Dice ("E E"); "E E:fury" for the empowered Dice (more damage and armor shred).'],
-      // Dashes its max range at dv.BaseDashSpeed + his movement speed (wiki: 760 + 100% movement
-      // speed; no speed in the data), through the target.
+      // Dashes its full range at dv.BaseDashSpeed + his movement speed (wiki: 760 + 100% movement
+      // speed; no speed in the data), hitting the target as he passes through it.
       lockout: 'castTime + castRange / (dv.BaseDashSpeed + ms)',
-      components: [{ id: 'dash', label: 'Slice and Dice', type: 'physical', amount: 'calc.BasicDamage', aoe: true, travel: 'castRange / (dv.BaseDashSpeed + ms)' }],
+      components: [{ id: 'dash', label: 'Slice and Dice', type: 'physical', amount: 'calc.BasicDamage', aoe: true, travel: 'reach / (dv.BaseDashSpeed + ms)' }],
       variants: {
         fury: {
           label: 'fury',
           dash: true,
           debuff: { id: 'renektonShred', label: 'Dice armor shred', duration: 'dv.ShredTimer', armorReduction: 'dv.EnragedArmorShred / 100' },
-          components: [{ id: 'dash', label: 'Dice (Fury)', type: 'physical', amount: 'calc.EmpDamage', aoe: true, travel: 'castRange / (dv.BaseDashSpeed + ms)' }],
+          components: [{ id: 'dash', label: 'Dice (Fury)', type: 'physical', amount: 'calc.EmpDamage', aoe: true, travel: 'reach / (dv.BaseDashSpeed + ms)' }],
         },
       },
     },

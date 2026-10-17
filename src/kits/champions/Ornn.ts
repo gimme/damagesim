@@ -9,10 +9,12 @@ import type { Sim } from '../../engine/sim.ts';
 const brittle: DebuffSpec = { id: 'brittle', label: 'Brittle', duration: 'W.dv.BrittleDuration' };
 const brittleR: DebuffSpec = { ...brittle, duration: 'R.dv.BrittleDurationTOOLTIPONLY' };
 
-// Seconds from R's cast start until the elemental reaches Ornn: it rises dv.RCastRange away as the
-// cast starts ({{Effect at cast time start}}) and charges at 450 speed, reaching its max speed in
-// ~0.6s (wiki), then runs the rest at dv.RMissileMaxSpeed.
-const ELEMENTAL = '0.6 + (dv.RCastRange - 0.6 * (450 + dv.RMissileMaxSpeed) / 2) / dv.RMissileMaxSpeed';
+// Seconds from R's cast start until the elemental has run `run` units toward Ornn: it rises
+// dv.RCastRange away as the cast starts ({{Effect at cast time start}}) and charges at 450 speed,
+// reaching its max speed in ~0.6s (wiki), then runs the rest at dv.RMissileMaxSpeed.
+const elementalAfter = (run: string) => `0.6 + (${run} - 0.6 * (450 + dv.RMissileMaxSpeed) / 2) / dv.RMissileMaxSpeed`;
+/** Until it reaches Ornn. */
+const ELEMENTAL = elementalAfter('dv.RCastRange');
 
 const kit: ChampionKit = {
   id: 'Ornn',
@@ -34,8 +36,8 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      // {{Effect at cast time start}} (wiki): the fissure runs its max range from the start of the cast.
-      components: [{ id: 'fissure', label: 'Volcanic Rupture', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, castRange / missileSpeed - castTime)' }],
+      // {{Effect at cast time start}} (wiki): the fissure runs to the target from the start of the cast.
+      components: [{ id: 'fissure', label: 'Volcanic Rupture', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, reach / missileSpeed - castTime)' }],
     },
     W: {
       // Wiki: unable to act while he marches for the breath's 0.75s.
@@ -57,20 +59,23 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
-      // Charges its 650 dash distance (dv.DashRange; the data's range is the 800 targeting range) at the
-      // dash speed. Wiki: unable to act for 0.5s after the dash ends.
-      lockout: 'castTime + dv.DashRange / missileSpeed + 0.5',
+      // Charges at the dash speed in the target direction, up to his 650 dash distance (dv.DashRange;
+      // the data's range is the 800 targeting range), passing through the target; terrain stops him,
+      // here just behind it. Wiki: unable to act for 0.5s after the dash ends.
+      lockout: 'castTime + min(distance, dv.DashRange) / missileSpeed + 0.5',
       cc: [{ kind: 'immobilize', duration: 'dv.KnockupDuration' }],
       notes: ['Default: Ornn rams terrain (e.g. his Q pillar) and knocks up. Variant "noWall": no terrain, no knock-up. The target takes the damage once either way.'],
       variants: {
         noWall: {
           label: 'no terrain',
           dash: true,
+          // The whole dash distance.
+          lockout: 'castTime + dv.DashRange / missileSpeed + 0.5',
           cc: [],
-          components: [{ id: 'charge', label: 'Searing Charge', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'dv.DashRange / missileSpeed' }],
+          components: [{ id: 'charge', label: 'Searing Charge', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'min(distance, dv.DashRange) / missileSpeed' }],
         },
       },
-      components: [{ id: 'charge', label: 'Searing Charge', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'dv.DashRange / missileSpeed' }],
+      components: [{ id: 'charge', label: 'Searing Charge', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'min(distance, dv.DashRange) / missileSpeed' }],
     },
     R: {
       recasts: 2,
@@ -86,7 +91,7 @@ const kit: ChampionKit = {
           label: 'first pass',
           cc: [{ kind: 'slow', duration: 'dv.RSlowDuration' }],
           debuff: brittleR,
-          components: [{ id: 'elemental', label: 'Call of the Forge God', type: 'magic', amount: 'calc.RDamageCalc', aoe: true, travel: `${ELEMENTAL} - castTime` }],
+          components: [{ id: 'elemental', label: 'Call of the Forge God', type: 'magic', amount: 'calc.RDamageCalc', aoe: true, travel: `${elementalAfter('dv.RCastRange - distance')} - castTime` }],
         },
         recast: {
           label: 'recast',

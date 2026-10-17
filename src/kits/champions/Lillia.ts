@@ -44,7 +44,7 @@ const kit: ChampionKit = {
     },
     E: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      // Lobbed to its max range at its speed, detonating on the target as it lands.
+      // Lobbed at the target at its speed, detonating on it as it lands.
       components: [{ id: 'seed', label: 'Swirlseed', type: 'magic', amount: 'calc.ImpactDamageTotal', aoe: true, travel: true }],
     },
     R: {

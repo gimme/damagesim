@@ -36,9 +36,9 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
-      cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
-      // Wiki: unable to move or attack while the blade flies its max range; she can cast any ability
-      // during the dash that follows.
+      // Wiki: unable to move or attack while the blade flies its max range, passing the target on the
+      // way; then she dashes, rooting it, and can cast any ability during the dash.
+      cc: [{ kind: 'immobilize', duration: 'dv.RootDuration', delay: '(castRange - reach) / missileSpeed' }],
       lockout: 'castTime + castRange / missileSpeed',
       components: [{ id: 'blade', label: 'Zenith Blade', type: 'magic', amount: 'calc.TotalDamageTooltip', aoe: true, travel: true }],
     },

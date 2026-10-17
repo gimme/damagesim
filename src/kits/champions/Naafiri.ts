@@ -117,11 +117,12 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
-      // Dashes her max range at the dash speed; the target is met at the end, where the flurry bursts.
-      lockout: 'castTime + castRange / missileSpeed',
+      // Dashes to the target at the dash speed (at least dv.MinDashDistance), slashing it on the way;
+      // the flurry bursts where she lands.
+      lockout: 'castTime + max(dv.MinDashDistance, reach) / missileSpeed',
       components: [
         { id: 'slash', label: 'Eviscerate (dash)', type: 'physical', amount: 'calc.TotalDamageFirstSlash', travel: true },
-        { id: 'flurry', label: 'Eviscerate (flurry)', type: 'physical', amount: 'calc.TotalDamageSecondSlash', travel: true, aoe: true },
+        { id: 'flurry', label: 'Eviscerate (flurry)', type: 'physical', amount: 'calc.TotalDamageSecondSlash', travel: 'max(dv.MinDashDistance, reach) / missileSpeed', aoe: true },
       ],
     },
     R: {
@@ -129,7 +130,7 @@ const kit: ChampionKit = {
       notes: ['Each packmate dashing alongside deals dv.PackmateModifier of the damage. The data\'s ArmorShred/ShredDuration values aren\'t in the tooltip and are not modeled.'],
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       // Wiki: a 0.75s channel (unable to act), then the dash to the target at the dash speed.
-      lockout: '0.75 + castRange / missileSpeed',
+      lockout: '0.75 + reach / missileSpeed',
       components: [
         { id: 'pursuit', label: "Hounds' Pursuit", type: 'physical', amount: 'calc.TotalDamage', delay: 0.75, travel: true },
         { id: 'pack', label: "Hounds' Pursuit (packmate)", type: 'physical', amount: 'calc.PackmateDamage', hits: PACK, delay: 0.75, travel: true, pet: true },

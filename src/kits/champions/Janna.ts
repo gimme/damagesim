@@ -20,8 +20,9 @@ const kit: ChampionKit = {
         'Default: sent immediately (minimum damage and knock-up). Set the seconds it grows first (Q{3s} for the maximum damage and knock-up).',
       ],
       cc: [{ kind: 'immobilize', duration: 'lerp(dv.BaseKnockup, calc.MaxKnockup, min(1, charge / dv.MaxDuration))' }],
-      // Sent after it grows; it always flies its full range over 1.25s (wiki).
-      components: [{ id: 'gale', label: 'Howling Gale', type: 'magic', amount: 'lerp(calc.MinimumDamage, calc.MaxDamage, min(1, charge / dv.MaxDuration))', aoe: true, delay: 'charge', travel: 1.25 }],
+      // Sent after it grows; it always flies its full range over 1.25s (wiki), a range that grows 20%
+      // a second charged, passing the target on the way.
+      components: [{ id: 'gale', label: 'Howling Gale', type: 'magic', amount: 'lerp(calc.MinimumDamage, calc.MaxDamage, min(1, charge / dv.MaxDuration))', aoe: true, delay: 'charge', travel: 'dv.MissileTravelTime * min(1, distance / (dv.BaseRange * (1 + dv.ChargeDistancePercent / 100 * charge)))' }],
     },
     W: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],

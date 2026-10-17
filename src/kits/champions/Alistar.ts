@@ -40,11 +40,11 @@ const kit: ChampionKit = {
     },
     W: {
       dash: true,
-      // Wiki: at its max range he dashes at ~1544 speed (faster the further the target), arriving
-      // in 0.429s; Pulverize can only be buffered for when the dash ends.
-      lockout: 'castRange / 1544',
+      // Wiki: he dashes to the target, crossing the gap to it at 1200 speed (~1544 over the whole
+      // dash at max range); Pulverize can only be buffered for when the dash ends.
+      lockout: 'reach / 1200',
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-      components: [{ id: 'headbutt', label: 'Headbutt', type: 'magic', amount: 'calc.TotalDamage', travel: 'castRange / 1544' }],
+      components: [{ id: 'headbutt', label: 'Headbutt', type: 'magic', amount: 'calc.TotalDamage', travel: 'reach / 1200' }],
     },
     E: {
       notes: [

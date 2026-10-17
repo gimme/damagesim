@@ -28,7 +28,8 @@ const kit: ChampionKit = {
       cc: [{ kind: 'slow', duration: 'dv.FieldDuration' }],
     },
     E: {
-      // The beam sweeps its 500 range at its speed; the path explodes 1s (dv.Delay) after it passes (wiki).
+      // The beam sweeps to the target at its speed (its range is 500); the path explodes 1s (dv.Delay)
+      // after it passes (wiki).
       components: [
         { id: 'laser', label: 'Hextech Ray', type: 'magic', amount: 'calc.LaserDamage', aoe: true, travel: true },
         { id: 'aftershock', label: 'Hextech Ray (aftershock)', type: 'magic', amount: 'calc.AftershockDamage', aoe: true, hits: 'opt.augE', maxHits: 1, delay: 'dv.Delay', travel: true },

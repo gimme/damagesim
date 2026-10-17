@@ -27,8 +27,8 @@ const kit: ChampionKit = {
           label: 'Javelin Toss',
           debuff: hunted,
           note: 'Thrown from ≤525 units: minimum damage.',
-          // {{Effect at cast time start}} (wiki): the javelin flies from the start of the cast, here 525 units.
-          components: [{ id: 'javelin', label: 'Javelin Toss', type: 'magic', amount: 'calc.HumanMinimumDamage', travel: 'max(0, dv.RangeThreshold / missileSpeed - castTime)' }],
+          // {{Effect at cast time start}} (wiki): the javelin flies to the target from the start of the cast, here at most 525 units.
+          components: [{ id: 'javelin', label: 'Javelin Toss', type: 'magic', amount: 'calc.HumanMinimumDamage', travel: 'max(0, min(reach, dv.RangeThreshold) / missileSpeed - castTime)' }],
         },
         max: {
           label: 'Javelin Toss (max range)',
