@@ -836,7 +836,7 @@ const ITEMS: Record<number, Factory> = {
   6676: (item) =>
     effect(item, {
       description: 'Your damage executes champions below 5% health.',
-      limitations: ['The execute counts as 5% of the target\'s max health the first time it falls below 5%, also when the hit that took it there killed: what the rest of a bigger health bar would no longer need.'],
+      limitations: ['The execute counts as 5% of the target\'s max health the first time it falls below 5%, also when the hit that took it there killed: what the rest of a bigger health bar would no longer need. A larger execute (Smolder\'s, Pyke\'s…) counts instead of it.'],
       afterDamage(sim) {
         const t = sim.target;
         const line = dv(item, 'ExecuteThreshold') * t.maxHp;

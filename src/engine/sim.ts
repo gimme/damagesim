@@ -230,8 +230,8 @@ export class Sim {
   private nextInstId = 1;
   /** Hits whose hooks are running: an execute they ask for waits. */
   private dealing = 0;
-  /** An execute has counted (the target dies once). */
-  private executed = false;
+  /** The execute that counts: the largest (the target dies once). */
+  private execution: DamageInstance | undefined;
   private staticMods: StatMods;
   private statsCache: Stats | null = null;
   private attackIndex = 0;
@@ -949,17 +949,18 @@ export class Sim {
   /**
    * Deal one damage request: amps, mitigation, HP update, hooks. An execute (flags.execute) kills the
    * target. Like any damage counted past the kill, it counts for its full value (the health it
-   * executes below) as true damage, with no amps or mitigation, and sets off nothing. Only the first
-   * counts: the target dies once. One a hit's hooks ask for lands after the rest of this instant's
-   * damage (what the hit procs too). Nothing is dealt (undefined) when it waits or doesn't count.
+   * executes below) as true damage, with no amps or mitigation, and sets off nothing. The target dies
+   * once: only the largest execute counts, whenever it lands, and takes the place of a smaller one
+   * before it. One a hit's hooks ask for lands after the rest of this instant's damage (what the hit
+   * procs too). Nothing is dealt (undefined) when it waits or doesn't count.
    */
   deal(req: DamageRequest): DamageInstance | undefined {
     const st = this.stats;
     const execute = !!req.flags?.execute;
     if (execute) {
       if (this.dealing) this.schedule(0, () => this.deal(req));
-      if (this.dealing || this.executed) return undefined;
-      this.executed = true;
+      if (this.dealing || req.amount <= (this.execution?.final ?? 0)) return undefined;
+      if (this.execution) this.takeBack(this.execution);
     }
     let type: DamageType = execute ? 'true' : req.type === 'adaptive' ? (st.adaptiveType === 'physical' ? 'physical' : 'magic') : req.type;
     const flags: DamageFlags = {
@@ -1031,7 +1032,7 @@ export class Sim {
     if (this.target.hp <= 0 && this.target.killTime === undefined) this.target.killTime = this.time;
     if (!inst.flags.aura) this.lastCombatTime = this.time;
     this.events.push(inst);
-    if (execute) return inst;
+    if (execute) return (this.execution = inst);
     for (const d of this.debuffs.values()) if (d.spec?.detonate && d.expires >= this.time && !inst.fromMark) d.stored = (d.stored ?? 0) + final;
 
     this.dealing++;
@@ -1042,6 +1043,19 @@ export class Sim {
     }
     this.dealing--;
     return inst;
+  }
+
+  /** Take back an execute a larger one replaces: the hits after it find the health it took, and the
+   *  kill is when they take it. */
+  private takeBack(ex: DamageInstance) {
+    const at = this.events.indexOf(ex);
+    this.events.splice(at, 1);
+    for (const e of this.events.slice(at)) {
+      e.targetHpBefore = e.targetHpBefore! + ex.final!;
+      e.targetHpAfter = e.targetHpAfter! + ex.final!;
+    }
+    this.target.hp += ex.final!;
+    this.target.killTime = this.events.find((e) => e.targetHpAfter! <= 0)?.time;
   }
 
   // ---------------------------------------------------------------------------

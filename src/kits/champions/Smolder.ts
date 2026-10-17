@@ -81,16 +81,14 @@ const kit: ChampionKit = {
     },
   },
   hooks: {
-    onCast(sim, cast) {
-      if (cast.slot !== 'Q' || !cast.hitsTarget) return;
-      const q = { slot: 'Q' as const };
-      if (sim.opt.stacks >= sim.evalExpr('Q.dv.StackTier3', q))
-        sim.setCounter('smolderBurnUntil', sim.time + (sim.spellFor('Q').castTime ?? 0) + 0.15 + sim.evalExpr('Q.dv.Tier3_DotLength', q));
-    },
-    // 225 stacks: Smolder's damage executes a burning target below the threshold.
+    // 225 stacks: Smolder's damage executes a burning target below the threshold. The burn starts
+    // with Q's hit, not its cast: a W landing in between doesn't execute.
     afterDamage(sim, inst) {
+      const q = { slot: 'Q' as const };
+      if (inst.source === 'Q' && inst.label === 'Super Scorcher Breath' && sim.opt.stacks >= sim.evalExpr('Q.dv.StackTier3', q))
+        sim.setCounter('smolderBurnUntil', sim.time + sim.evalExpr('Q.dv.Tier3_DotLength', q));
       if (sim.time > sim.counter('smolderBurnUntil')) return;
-      const line = sim.evalExpr('Q.calc.Tier3_ExecuteThreshold', { slot: 'Q' }) * sim.target.maxHp;
+      const line = sim.evalExpr('Q.calc.Tier3_ExecuteThreshold', q) * sim.target.maxHp;
       if (sim.target.hp >= line) return;
       sim.deal({ source: 'Q', sourceLabel: 'Super Scorcher Breath', label: 'Execute', type: 'true', amount: line, castId: inst.castId, flags: { kind: 'ability', slot: 'Q', execute: true } });
     },
