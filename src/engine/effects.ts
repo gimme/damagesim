@@ -33,6 +33,9 @@ export interface DamageFlags {
   basic?: boolean;
   /** On-hit damage that reduced on-hit effectiveness doesn't scale (Grasp, Heartsteel, Electrospark). */
   fullOnHit?: boolean;
+  /** What an ability or passive adds to the attack it empowers (Garen Q, Vayne Q): the results show
+   *  that attack as its. */
+  empowered?: boolean;
 }
 
 export interface DamageInstance {

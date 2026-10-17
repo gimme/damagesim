@@ -1089,27 +1089,29 @@ export class Sim {
   }
 
   /** A hit as the results show it: in two when part of it is what a normal attack would have dealt
-   *  (DamageRequest.normalAttack), that part as the attack's hit. Effects saw it whole. */
+   *  (DamageRequest.normalAttack), the rest first, then that part as the attack's hit. Effects saw it
+   *  whole. */
   private recorded(inst: DamageInstance, req: DamageRequest): DamageInstance[] {
     const normal = req.normalAttack;
     if (!normal || !(normal.amount > 0) || !(req.amount > 0)) return [inst];
     const share = Math.min(1, normal.amount / req.amount);
     const final = inst.final ?? 0;
-    const hpBefore = inst.targetHpBefore ?? 0;
     const flags: DamageFlags = { ...inst.flags, kind: 'attack', attack: true, ability: false, onHit: false };
     delete flags.slot;
+    delete flags.empowered;
+    const rest: DamageInstance = { ...inst, raw: inst.raw * (1 - share), final: final * (1 - share), targetHpAfter: (inst.targetHpBefore ?? 0) - final * (1 - share) };
     const attack: DamageInstance = {
       ...inst,
+      id: share >= 1 ? inst.id : this.nextInstId++,
       source: normal.source,
       sourceLabel: normal.sourceLabel,
       label: normal.label,
       raw: inst.raw * share,
       final: final * share,
-      targetHpAfter: hpBefore - final * share,
+      targetHpBefore: share >= 1 ? inst.targetHpBefore : rest.targetHpAfter,
       flags,
     };
-    if (share >= 1) return [attack];
-    return [attack, { ...inst, id: this.nextInstId++, raw: inst.raw * (1 - share), final: final * (1 - share), targetHpBefore: attack.targetHpAfter }];
+    return share >= 1 ? [attack] : [rest, attack];
   }
 
   // ---------------------------------------------------------------------------
@@ -1416,7 +1418,7 @@ export class Sim {
 
     // Champion passive on-hits, every-Nth procs and empowered attacks from buffs.
     const kitAtk = this.kit.attack;
-    const pushCompsTo = (target: AttackInfo, comps: ComponentSpec[], sourceLabel: string, from: Slot = 'P') => {
+    const pushCompsTo = (target: AttackInfo, comps: ComponentSpec[], sourceLabel: string, from: Slot = 'P', empowered = false) => {
       for (const comp of comps) {
         if (comp.optional && !o.enable?.includes(comp.id)) continue;
         const slot = comp.slot ?? from;
@@ -1444,7 +1446,7 @@ export class Sim {
             castId: o.castId,
             // Empowered-attack damage from an ability counts as ability damage; passive on-hits don't,
             // unless marked spell damage.
-            flags: { ...flags, onHit: true, ability: (from !== 'P' || !!comp.spell) && flags.ability, crit: !!comp.canCrit && c.crit },
+            flags: { ...flags, onHit: true, ability: (from !== 'P' || !!comp.spell) && flags.ability, crit: !!comp.canCrit && c.crit, ...(empowered ? { empowered } : {}) },
           };
           // Delayed / periodic parts of an empowered attack (bleeds, lightning) land later.
           const delay =
@@ -1456,7 +1458,7 @@ export class Sim {
         }
       }
     };
-    const pushComps = (comps: ComponentSpec[], sourceLabel: string, slot: Slot = 'P') => pushCompsTo(atk, comps, sourceLabel, slot);
+    const pushComps = (comps: ComponentSpec[], sourceLabel: string, slot: Slot = 'P', empowered = false) => pushCompsTo(atk, comps, sourceLabel, slot, empowered);
     const pendingCC: (() => void)[] = [];
     let empoweredEff: number | undefined;
     /** The ability whose spell damage the attack itself also is (empowerAttacks.spell). */
@@ -1476,7 +1478,7 @@ export class Sim {
         if (onHit) pushComps(onHit, label, slot);
         if (!empower) continue;
         const before = atk.extra.length;
-        pushComps(empower.components, label, slot);
+        pushComps(empower.components, label, slot, true);
         if (empower.onHitRepeats !== undefined) {
           const n = Math.round(this.evalExpr(empower.onHitRepeats, { slot: slot ?? 'P' }));
           if (n > 0) addOnHitRepeat(atk, n);

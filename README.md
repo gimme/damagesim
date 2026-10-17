@@ -149,7 +149,8 @@ Only the stats of a target's items count: it never fights back, so their passive
   take a rough duration. Attack-move and positioning are otherwise ignored. Items and runes that
   depend on movement have options (`energized.start`, …).
 * **Empowered attacks** (Garen Q, Darius W) show the attack's normal damage as the attack's and
-  only the extra as the ability's, like bonus on-hit damage (Vayne Q).
+  only the extra as the ability's, like bonus on-hit damage (Vayne Q). The health bar names such an
+  attack after the ability, listed first.
 * **On-hit vs on-attack.** Abilities the wiki lists as applying on-hit effects get item and rune
   on-hit effects. Only basic attacks and abilities that also trigger on-attack effects stack
   Guinsoo's, Lethal Tempo, Energize charges and similar. A champion's own passive on-hit applies

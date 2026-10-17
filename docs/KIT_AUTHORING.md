@@ -183,7 +183,9 @@ Q: { resetsAttack: true, buff: { id: 'garenQ', label: 'Decisive Strike', duratio
 leave it false when it's *bonus* damage ("deals X bonus damage"). Write combos as `Q AA`. Either way
 the results show the attack's normal damage as the attack's and only the extra as the ability's: a
 replaced attack is recorded in two parts (`AttackInfo.replacedBy`, hooks add theirs: Galio's
-passive), unless someone else attacks instead (`otherAttacker: true`, Azir's soldiers).
+passive), unless someone else attacks instead (`otherAttacker: true`, Azir's soldiers). What
+`empowerAttacks` adds is flagged `empowered` (a hook's own hits set it), and the health bar names
+the attack after it.
 An attack the components replace is the ability's spell damage as well as basic damage (the wiki's
 "basic damage, but also tagged as spell damage"), unless `noProc`. When the wiki says the same of an
 attack that keeps its own damage (Wukong Q, Kayle E, Vayne Q), set `empowerAttacks.spell: true`.

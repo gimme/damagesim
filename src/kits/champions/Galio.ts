@@ -74,7 +74,7 @@ const kit: ChampionKit = {
         amount: total - ad + ad * atk.critFactor,
         castId: atk.castId,
         // The wiki: basic and spell damage to the target (area proc damage only to others around it).
-        flags: { kind: 'ability', slot: 'P', attack: true, ability: true, crit: atk.crit },
+        flags: { kind: 'ability', slot: 'P', attack: true, ability: true, crit: atk.crit, empowered: true },
       };
       atk.replaceBase = true;
       atk.extra.unshift(smash);

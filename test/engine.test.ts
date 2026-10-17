@@ -233,9 +233,10 @@ test('Black Cleaver shreds armor per physical hit (max 30%)', () => {
 test('Garen Q replaces the next attack (shown as the attack for its normal damage, Q for the rest); E hits 7 + bonus attack speed spins', () => {
   const r = simulate(data, { champion: 'Garen', level: 11, combo: 'Q AA', target: dummy });
   const hits = r.events.filter((e) => e.source === 'Q' || e.source === 'AA');
-  assert.deepEqual(hits.map((e) => e.source), ['AA', 'Q']);
+  assert.deepEqual(hits.map((e) => e.source), ['Q', 'AA']);
+  assert.ok(hits[0].flags.empowered && !hits[1].flags.empowered);
   const sim = new Sim(data, { champion: 'Garen', level: 11, combo: [] });
-  near(hits[0].raw, r.stats.ad);
+  near(hits[1].raw, r.stats.ad);
   near(hits[0].raw + hits[1].raw, sim.evalExpr('calc.TotalDamage', { slot: 'Q' }));
   const e = simulate(data, { champion: 'Garen', level: 11, combo: 'E', target: dummy });
   assert.equal(e.events.length, 7 + Math.floor(e.stats.bonusAttackSpeed / 0.25));
