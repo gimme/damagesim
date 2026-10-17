@@ -42,9 +42,13 @@ export function useHoverCard() {
   // element (a long press too) moves focus, which would close the card a finger opened.
   const focused = useRef<HTMLElement | null>(null);
   // The element the open card is for. An element that's removed (a search filtering the list under
-  // the pointer) gets no pointerleave, so its unmounting closes its card.
+  // the pointer), or loses its card (an item moved off its slot), gets no pointerleave, so that
+  // closes its card.
   const shownFor = useRef<HTMLElement | null>(null);
+  // The element a card is due to show for once the delay is up; losing its card before then cancels it.
+  const pendingFor = useRef<HTMLElement | null>(null);
   const show = (anchor: HTMLElement, content: ReactNode, touch = false) => {
+    pendingFor.current = null;
     if (!anchor.isConnected) return;
     shownFor.current = anchor;
     isOpen.current = true;
@@ -54,6 +58,7 @@ export function useHoverCard() {
   };
   const hide = () => {
     clearTimeout(timer.current);
+    pendingFor.current = null;
     shownFor.current = null;
     isOpen.current = false;
     focused.current = null;
@@ -61,11 +66,16 @@ export function useHoverCard() {
   };
   const enter = (anchor: HTMLElement, content: ReactNode, touch: boolean) => {
     clearTimeout(timer.current);
+    pendingFor.current = null;
     if (isOpen.current || scrubbing.current) show(anchor, content, touch);
-    else timer.current = setTimeout(() => show(anchor, content, touch), 200);
+    else {
+      pendingFor.current = anchor;
+      timer.current = setTimeout(() => show(anchor, content, touch), 200);
+    }
   };
   const leave = () => {
     clearTimeout(timer.current);
+    pendingFor.current = null;
     timer.current = setTimeout(hide, 80);
   };
 
@@ -118,6 +128,10 @@ export function useHoverCard() {
       node.removeEventListener("touchmove", move);
       node.removeEventListener("touchend", end);
       node.removeEventListener("touchcancel", end);
+      if (pendingFor.current === node) {
+        clearTimeout(timer.current);
+        pendingFor.current = null;
+      }
       if (shownFor.current === node) hide();
     };
   }, []);
