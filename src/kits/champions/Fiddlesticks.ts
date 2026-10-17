@@ -25,6 +25,7 @@ const kit: ChampionKit = {
   ],
   abilities: {
     Q: {
+      // Wiki: the crow arrives 0.35s after the cast starts (fixed travel time), as the cast time ends.
       cc: [{ kind: 'immobilize', duration: 'dv.FearDuration' }],
       components: [
         {
@@ -32,7 +33,6 @@ const kit: ChampionKit = {
           label: 'Terrify',
           type: 'magic',
           amount: '(stacks.fiddleFeared > 0 ? 2 : 1) * max(dv.MinimumDamage, calc.TotalPercentHealthDamage * target.hp)',
-          delay: 0.35,
         },
       ],
       variants: {
@@ -41,7 +41,7 @@ const kit: ChampionKit = {
           note: 'Target was recently feared by Fiddlesticks (passive fear, Effigy): doubled damage and minimum.',
           cc: [{ kind: 'immobilize', duration: 'dv.FearDuration' }],
           components: [
-            { id: 'terrify', label: 'Terrify (feared)', type: 'magic', amount: '2 * max(dv.MinimumDamage, calc.TotalPercentHealthDamage * target.hp)', delay: 0.35 },
+            { id: 'terrify', label: 'Terrify (feared)', type: 'magic', amount: '2 * max(dv.MinimumDamage, calc.TotalPercentHealthDamage * target.hp)' },
           ],
         },
       },

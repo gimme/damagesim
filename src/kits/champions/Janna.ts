@@ -18,16 +18,16 @@ const kit: ChampionKit = {
       charge: { default: 0, max: 'dv.MaxDuration' },
       notes: [
         'Default: sent immediately (minimum damage and knock-up). Set the seconds it grows first (Q{3s} for the maximum damage and knock-up).',
-        'Travel time to the target assumed ≈0.5s.',
       ],
       cc: [{ kind: 'immobilize', duration: 'lerp(dv.BaseKnockup, calc.MaxKnockup, min(1, charge / dv.MaxDuration))' }],
-      components: [{ id: 'gale', label: 'Howling Gale', type: 'magic', amount: 'lerp(calc.MinimumDamage, calc.MaxDamage, min(1, charge / dv.MaxDuration))', aoe: true, delay: '0.5 + charge' }],
+      // Sent after it grows; it always flies its full range over 1.25s (wiki).
+      components: [{ id: 'gale', label: 'Howling Gale', type: 'magic', amount: 'lerp(calc.MinimumDamage, calc.MaxDamage, min(1, charge / dv.MaxDuration))', aoe: true, delay: 'charge', travel: 1.25 }],
     },
     W: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       components: [
-        { id: 'zephyr', label: 'Zephyr', type: 'magic', amount: 'calc.TotalDamage', delay: 0.1 },
-        { id: 'tailwind', label: 'Tailwind', type: 'magic', amount: 'P.calc.BonusDamage', delay: 0.1, proc: true },
+        { id: 'zephyr', label: 'Zephyr', type: 'magic', amount: 'calc.TotalDamage', travel: true },
+        { id: 'tailwind', label: 'Tailwind', type: 'magic', amount: 'P.calc.BonusDamage', travel: true, proc: true },
       ],
     },
     E: {

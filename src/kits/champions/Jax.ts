@@ -4,6 +4,7 @@ import type { ChampionKit } from '../../engine/kit-types.ts';
 // Grandmaster-at-Arms passive is a mark (every 3rd attack, every 2nd during R). Hooks: Relentless
 // Assault (attack speed stacks) and Empower being consumed by Leap Strike.
 const RELENTLESS_DURATION = 2.5; // P.dv.BuffDuration; stacks then fall off one every 0.25s (wiki)
+const Q_ARRIVAL = 0.25; // No dash speed in the data: Leap Strike takes ~0.25s to arrive.
 
 const kit: ChampionKit = {
   id: 'Jax',
@@ -30,12 +31,12 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       dash: true,
+      // He can cast any ability during the dash (wiki).
+      attackLockout: Q_ARRIVAL,
       notes: ['Does not apply on-hit effects.'],
-      components: [{ id: 'leap', label: 'Leap Strike', type: 'physical', amount: 'calc.TotalDamage' }],
+      components: [{ id: 'leap', label: 'Leap Strike', type: 'physical', amount: 'calc.TotalDamage', delay: Q_ARRIVAL }],
     },
     W: {
-      // Instant self-buff (wiki: no cast time); the data's 0.52s is not a real lockout.
-      castTime: 0,
       resetsAttack: true,
       // Empower lasts 10s (wiki; no data value).
       buff: {
@@ -79,11 +80,11 @@ const kit: ChampionKit = {
       return stacks > 0 ? { attackSpeed: stacks * sim.counter('jax.asPerStack') } : undefined;
     },
     onCast(sim, cast) {
-      // Empower on Leap Strike: extra magic damage when Q lands (Q has no travel delay after its cast).
+      // Empower on Leap Strike: extra magic damage when Q lands.
       if (cast.slot !== 'Q' || !cast.hitsTarget || !sim.getBuff('jaxW')) return;
       sim.removeBuff('jaxW');
       const castTime = sim.spellFor('Q').castTime ?? 0;
-      sim.schedule(castTime, () =>
+      sim.schedule(castTime + Q_ARRIVAL, () =>
         sim.deal({ source: 'W', sourceLabel: 'Empower', label: 'Empower (Leap Strike)', type: 'magic', amount: sim.evalExpr('W.calc.TotalDamage', { slot: 'W' }), castId: cast.castId, flags: { kind: 'ability', slot: 'W', ability: true } }),
       );
     },

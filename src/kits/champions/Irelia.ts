@@ -5,6 +5,8 @@ import type { ChampionKit, DebuffSpec } from '../../engine/kit-types.ts';
 // P.calc.SingleStackAS % attack speed per stack (hook) and P.calc.OnHitBonus on-hit at max stacks.
 // Unsteady (E/R) refreshes Bladesurge's cooldown when Q hits the target (hook).
 const unsteady: DebuffSpec = { id: 'unsteady', label: 'Unsteady', duration: 'dv.MarkDuration' };
+// Bladesurge dashes 100 units through the target at 1400 + her move speed (wiki; DashSpeedBonus).
+const Q_DASH = 'castTime + (castRange + 100) / (dv.DashSpeedBonus + ms)';
 
 const kit: ChampionKit = {
   id: 'Irelia',
@@ -34,21 +36,28 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       dash: true,
+      // Wiki: Flawless Duet can be cast during the dash; she attacks the target once it completes.
+      attackLockout: Q_DASH,
+      castLockout: { Q: Q_DASH, W: Q_DASH, R: Q_DASH },
       notes: ['Applies on-hit effects (wiki); cannot crit.'],
-      components: [{ id: 'surge', label: 'Bladesurge', type: 'physical', amount: 'calc.ChampionDamage', onHit: true, delay: 0.15 }],
+      // Hits on reaching the target at its max range.
+      components: [{ id: 'surge', label: 'Bladesurge', type: 'physical', amount: 'calc.ChampionDamage', onHit: true, travel: 'castRange / (dv.DashSpeedBonus + ms)' }],
     },
     W: {
       // Charged for up to MaxDuration; the damage grows to its maximum over ChargeTimeForMax.
       charge: { default: 'dv.ChargeTimeForMax', max: 'dv.MaxDuration' },
-      castTime: 'charge',
+      // The recast that releases it has a 0.25s cast time (wiki).
+      castTime: 'charge + 0.25',
       notes: ['Default: charged for dv.ChargeTimeForMax seconds (max damage). Set the seconds held (W{0s} for an instant release): the damage grows from min to max until then.'],
-      components: [{ id: 'dance', label: 'Defiant Dance', type: 'physical', amount: 'lerp(calc.MinDamageCalc, calc.MaxDamageCalc, min(1, charge / dv.ChargeTimeForMax))', aoe: true }],
+      // Wiki: the swipe's missile reaches the furthest targets 0.05s after the recast's cast time.
+      components: [{ id: 'dance', label: 'Defiant Dance', type: 'physical', amount: 'lerp(calc.MinDamageCalc, calc.MaxDamageCalc, min(1, charge / dv.ChargeTimeForMax))', aoe: true, travel: 0.05 }],
     },
     E: {
-      // One step = both casts. The step lasts until the blades meet (recast delay + blade travel) so the
-      // next step sees the stun and Unsteady.
-      castTime: 'dv.CDBetweenCast + dv.RevTime',
-      notes: ['One step = both casts (recast after dv.CDBetweenCast, blades meet dv.RevTime later).'],
+      // One step = both casts. The step lasts until the blades meet (recast delay + the second blade's
+      // flight, its max range at its speed + the blades converging) so the next step sees the stun and
+      // Unsteady.
+      castTime: 'dv.CDBetweenCast + castRange / missileSpeed + dv.RevTime',
+      notes: ['One step = both casts (recast after dv.CDBetweenCast, the second blade flies its range, blades meet dv.RevTime later).'],
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
       debuff: unsteady,
       components: [{ id: 'duet', label: 'Flawless Duet', type: 'magic', amount: 'calc.TotalDamage', aoe: true }],
@@ -57,8 +66,9 @@ const kit: ChampionKit = {
       notes: ['The cage damages and slows only an enemy that walks through the blades: R+cage.'],
       debuff: unsteady,
       components: [
-        { id: 'barrage', label: "Vanguard's Edge", type: 'magic', amount: 'calc.MissileDamage', aoe: true, delay: 0.2 },
-        { id: 'cage', label: "Vanguard's Edge (cage)", type: 'magic', amount: 'calc.ZoneDamage', aoe: true, optional: true, delay: 1, condition: 'target crosses the blade wall' },
+        { id: 'barrage', label: "Vanguard's Edge", type: 'magic', amount: 'calc.MissileDamage', aoe: true, travel: true },
+        // The cage forms around the champion hit; it's assumed crossed ~1s later.
+        { id: 'cage', label: "Vanguard's Edge (cage)", type: 'magic', amount: 'calc.ZoneDamage', aoe: true, optional: true, delay: 1, travel: true, condition: 'target crosses the blade wall' },
       ],
     },
   },

@@ -18,6 +18,9 @@ const kit: ChampionKit = {
         flag: {
           label: 'flag',
           dash: true,
+          // After the lance (0.4s cast) he dashes to the flag at E.dv.EDashSpeed, assumed at the lance's
+          // max range; he can cast any ability during the dash (wiki).
+          attackLockout: 'castTime + castRange / E.dv.EDashSpeed',
           // Knock-up duration from the tooltip text ("Knocking Up … for 0.75 seconds").
           cc: [{ kind: 'immobilize', duration: 0.75 }],
           debuff: { id: 'dragonStrike', label: 'Dragon Strike', duration: 'dv.Effect3Amount', armorReduction: 'dv.BaseARShred' },
@@ -32,12 +35,15 @@ const kit: ChampionKit = {
     },
     E: {
       notes: ['The standard also grants allies near it attack speed for 8s (not modeled).'],
-      components: [{ id: 'standard', label: 'Demacian Standard', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.25 }],
+      // The flag flies its range at 1450 (game files; no speed on the wiki).
+      components: [{ id: 'standard', label: 'Demacian Standard', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'castRange / 1450' }],
     },
     R: {
       dash: true,
+      // Wiki: leaps to the target over 0.35s, the damage on arrival.
+      lockout: 0.35,
       notes: ['Leaps to the target and builds an arena (terrain, not crowd control).'],
-      components: [{ id: 'cataclysm', label: 'Cataclysm', type: 'physical', amount: 'calc.DamageCalc', aoe: true, delay: 0.25 }],
+      components: [{ id: 'cataclysm', label: 'Cataclysm', type: 'physical', amount: 'calc.DamageCalc', aoe: true, delay: 0.35 }],
     },
   },
   hooks: {

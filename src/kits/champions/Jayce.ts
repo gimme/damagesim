@@ -31,14 +31,22 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       dash: true,
+      // Wiki: leaps to the target over 0.5s and smashes on arrival; Lightning Field can be cast
+      // during the dash (nothing else).
+      attackLockout: 0.5,
+      castLockout: { Q: 0.5, E: 0.5, R: 0.5 },
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      components: [{ id: 'skies', label: 'To the Skies!', type: 'physical', amount: 'calc.Damage', aoe: true }],
+      components: [{ id: 'skies', label: 'To the Skies!', type: 'physical', amount: 'calc.Damage', aoe: true, delay: 0.5 }],
       variants: {
         cannon: {
           label: 'cannon',
           spell: 'JayceShockBlast',
+          attackLockout: 0,
+          castLockout: {},
           cc: [],
-          components: [{ id: 'blast', label: 'Shock Blast', type: 'physical', amount: 'buff.jayceGate ? calc.EmpoweredDamage : calc.Damage', aoe: true, delay: 0.3 }],
+          // Through the gate (assumed right in front of Jayce) the bolt flies its 1600 total range at
+          // 2350 (wiki).
+          components: [{ id: 'blast', label: 'Shock Blast', type: 'physical', amount: 'buff.jayceGate ? calc.EmpoweredDamage : calc.Damage', aoe: true, travel: 'buff.jayceGate ? 1600 / 2350 : castRange / missileSpeed' }],
         },
       },
     },
@@ -85,6 +93,7 @@ const kit: ChampionKit = {
         cannon: {
           label: 'cannon',
           spell: 'JayceAccelerationGate',
+          lockout: 0, // not Thundering Blow's
           cc: [],
           note: 'Acceleration Gate: Shock Blasts cast while it stands are boosted.',
           buff: { id: 'jayceGate', label: 'Acceleration Gate', duration: "spell['JayceAccelerationGate'].dv.Duration" },

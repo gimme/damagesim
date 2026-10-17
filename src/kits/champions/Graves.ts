@@ -28,6 +28,7 @@ const kit: ChampionKit = {
     Q: {
       notes: ['The round deals its initial damage, then detonates after 1s along its path (target assumed to stay in it).'],
       components: [
+        // No missile speed in the data: ~0.15s of flight. It detonates 1s later (tooltip).
         { id: 'round', label: 'End of the Line', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 0.15 },
         { id: 'detonation', label: 'End of the Line (detonation)', type: 'physical', amount: 'calc.TotalDetonationDamage', aoe: true, delay: 1 },
       ],
@@ -35,13 +36,21 @@ const kit: ChampionKit = {
     W: {
       cc: [{ kind: 'slow', duration: 'dv.SmokeDuration' }],
       notes: ['Slows while the target stays in the smoke; nearsight not modeled.'],
-      components: [{ id: 'impact', label: 'Smoke Screen', type: 'magic', amount: 'calc.ImpactDamage', aoe: true, delay: 0.3 }],
+      // Wiki: the canister starts flying at the start of the cast time.
+      components: [{ id: 'impact', label: 'Smoke Screen', type: 'magic', amount: 'calc.ImpactDamage', aoe: true, travel: 'max(0, castRange / missileSpeed - castTime)' }],
     },
-    E: { dash: true, resetsAttack: true, noTarget: true, notes: ['Dash + attack reset (reloads a shell). Armor/MR stacks not modeled.'] },
+    E: {
+      dash: true,
+      resetsAttack: true,
+      noTarget: true,
+      // The dash's max distance at its dash speed (data; no missile speed).
+      lockout: 'dv.DashMaxDistance / dv.DashSpeed',
+      notes: ['Dash + attack reset (reloads a shell). Armor/MR stacks not modeled.'],
+    },
     R: {
       dash: true,
       notes: ['The primary target takes the impact damage only; the cone explosion (calc.FalloffDamage) hits enemies behind it.'],
-      components: [{ id: 'impact', label: 'Collateral Damage', type: 'physical', amount: 'calc.Damage', delay: 0.15 }],
+      components: [{ id: 'impact', label: 'Collateral Damage', type: 'physical', amount: 'calc.Damage', travel: true }],
     },
   },
   hooks: {

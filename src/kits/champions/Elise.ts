@@ -61,17 +61,21 @@ const kit: ChampionKit = {
   },
   abilities: {
     Q: {
-      components: [{ id: 'neurotoxin', label: 'Neurotoxin', type: 'magic', amount: 'dv.BaseDamage + calc.HumanPercentHealth * target.hp', delay: 0.25 }],
+      components: [{ id: 'neurotoxin', label: 'Neurotoxin', type: 'magic', amount: 'dv.BaseDamage + calc.HumanPercentHealth * target.hp', travel: true }],
       variants: {
         spider: {
           label: 'Venomous Bite',
           spell: 'EliseSpiderQCast',
           dash: true,
+          // Wiki: the spiderlings pounce with her upon the cast, and the bite applies as the cast time
+          // ends even if the dash is cut short. Busy until she lands (castRange at the dash speed).
+          lockout: 'castRange / missileSpeed',
           components: [{ id: 'bite', label: 'Venomous Bite', type: 'magic', amount: 'Q.dv.SpiderBaseDamage + calc.MissingHPDamage * target.missingHp', onHit: true }],
         },
       },
     },
     W: {
+      // Wiki: the spider crawls to a nearby target after a 0.75s delay (its crawl isn't modeled).
       components: [{ id: 'spiderling', label: 'Volatile Spiderling', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.75 }],
       variants: {
         spider: {
@@ -83,7 +87,8 @@ const kit: ChampionKit = {
       },
     },
     E: {
-      cc: [{ kind: 'immobilize', duration: 'calc.TotalStunDuration' }],
+      // The cocoon flies its max range at the missile's speed before it stuns.
+      cc: [{ kind: 'immobilize', duration: 'calc.TotalStunDuration', delay: 'castRange / missileSpeed' }],
       components: [],
       variants: {
         spider: {

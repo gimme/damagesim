@@ -41,10 +41,14 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       dash: true,
+      // No dash speed in the data: ~0.35s to arrive. W and R can be cast during the dash (wiki), E
+      // not for ~0.5s.
+      attackLockout: 0.35,
+      castLockout: { E: 0.5 },
       notes: ['The physical part (100% AD) applies on-hit effects; the magic part is separate.'],
       components: [
-        { id: 'strike', label: 'Urchin Strike', type: 'physical', amount: 'calc.TotalDamage', onHit: true, delay: 0.1 },
-        { id: 'magic', label: 'Urchin Strike (magic)', type: 'magic', amount: 'calc.QDamage', delay: 0.1 },
+        { id: 'strike', label: 'Urchin Strike', type: 'physical', amount: 'calc.TotalDamage', onHit: true, delay: 0.35 },
+        { id: 'magic', label: 'Urchin Strike (magic)', type: 'magic', amount: 'calc.QDamage', delay: 0.35 },
       ],
     },
     W: {
@@ -60,25 +64,28 @@ const kit: ChampionKit = {
     E: {
       dash: true,
       notes: ['Untargetable for 0.75s, then lands. The recast (second hop) deals the same damage in a smaller area without the slow.'],
+      // Wiki: dashes and balances on his trident for 0.75s, then lands; busy until then.
+      lockout: 0.75,
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       components: [{ id: 'land', label: 'Playful / Trickster', type: 'magic', amount: 'calc.EDamage', aoe: true, delay: 0.75 }],
     },
     R: {
       notes: ['Shark erupts dv.DetonationTime s after the fish attaches; the attached champion is knocked up for 1s (tooltip).'],
+      // The fish flies its max range at its speed, then the shark erupts dv.DetonationTime later.
       cc: [{ kind: 'immobilize', duration: 1 }],
-      components: [{ id: 'shark', label: 'Chum the Waters', type: 'magic', amount: 'calc.SmallSharkDamage', aoe: true, delay: 'dv.DetonationTime' }],
+      components: [{ id: 'shark', label: 'Chum the Waters', type: 'magic', amount: 'calc.SmallSharkDamage', aoe: true, delay: 'dv.DetonationTime', travel: true }],
       variants: {
         medium: {
           label: 'medium',
           note: 'Fish travelled a medium distance (×dv.MidDamageMulti).',
           cc: [{ kind: 'immobilize', duration: 1 }],
-          components: [{ id: 'shark', label: 'Chum the Waters', type: 'magic', amount: "calc['{262c3c02}']", aoe: true, delay: 'dv.DetonationTime' }],
+          components: [{ id: 'shark', label: 'Chum the Waters', type: 'magic', amount: "calc['{262c3c02}']", aoe: true, delay: 'dv.DetonationTime', travel: true }],
         },
         large: {
           label: 'large',
           note: 'Fish travelled the maximum distance (×dv.LargeDamageMulti).',
           cc: [{ kind: 'immobilize', duration: 1 }],
-          components: [{ id: 'shark', label: 'Chum the Waters', type: 'magic', amount: 'calc.BigSharkDamage', aoe: true, delay: 'dv.DetonationTime' }],
+          components: [{ id: 'shark', label: 'Chum the Waters', type: 'magic', amount: 'calc.BigSharkDamage', aoe: true, delay: 'dv.DetonationTime', travel: true }],
         },
       },
     },
@@ -87,7 +94,8 @@ const kit: ChampionKit = {
     onCast(sim: Sim, cast) {
       if (cast.slot !== 'R' || !cast.hitsTarget) return;
       const castId = cast.castId;
-      sim.schedule(sim.spellFor('R').castTime ?? 0, () => sim.applyCC('slow', sim.evalExpr('R.dv.SlowDuration', { slot: 'R' }), castId, 'R'));
+      // The slow applies as the fish attaches, after its flight.
+      sim.schedule(sim.evalExpr('castTime + castRange / missileSpeed', { slot: 'R' }), () => sim.applyCC('slow', sim.evalExpr('R.dv.SlowDuration', { slot: 'R' }), castId, 'R'));
     },
     onAttack(sim: Sim, atk) {
       if (atk.fromAbility || atk.phantom) return;

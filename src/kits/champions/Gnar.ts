@@ -55,14 +55,28 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      components: [{ id: 'boomerang', label: 'Boomerang Throw', type: 'physical', amount: 'calc.MiniTotalDamage', delay: 0.3 }],
+      // Launched as the cast time starts ({{Effect at cast time start}}); no speed in the data: the
+      // wiki's boomerang slows from 2500 to 1400 (-3000/s²), ~0.66s over its 1125 range.
+      components: [{ id: 'boomerang', label: 'Boomerang Throw', type: 'physical', amount: 'calc.MiniTotalDamage', travel: 'max(0, 0.66 - castTime)' }],
       variants: {
         mega: {
           label: 'mega',
           note: 'Boulder Toss (Mega Gnar).',
           buff: mega,
+          // Boulder Toss's own spell: 0.5s cast time; thrown as it starts ({{Effect at cast time start}}),
+          // it flies its range at its speed.
+          castTime: "spell['GnarBigQ'].castTime",
           cc: [{ kind: 'slow', duration: 'dv.MegaSlowDuration' }],
-          components: [{ id: 'boulder', label: 'Boulder Toss', type: 'physical', amount: 'calc.MegaTotalDamage', aoe: true, delay: 0.3 }],
+          components: [
+            {
+              id: 'boulder',
+              label: 'Boulder Toss',
+              type: 'physical',
+              amount: 'calc.MegaTotalDamage',
+              aoe: true,
+              travel: "max(0, spell['GnarBigQ'].castRange / spell['GnarBigQ'].missileSpeed - spell['GnarBigQ'].castTime)",
+            },
+          ],
         },
       },
     },
@@ -78,13 +92,18 @@ const kit: ChampionKit = {
       dash: true,
       notes: ['Mini: bounces off the target (damage + brief slow) and gains attack speed.'],
       buff: { id: 'gnarE', label: 'Hop', duration: 'dv.MiniASDuration', stats: { attackSpeed: 'dv.MinibAS' } },
+      // No dash speed in the data: the leap takes dv.TravelTime, then he bounces off the target as
+      // far again (assumed as long). Boomerang Throw can be cast during the dash (wiki).
+      attackLockout: '2 * dv.TravelTime',
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      components: [{ id: 'hop', label: 'Hop', type: 'physical', amount: 'calc.MiniTotalDamage', delay: 0.3 }],
+      components: [{ id: 'hop', label: 'Hop', type: 'physical', amount: 'calc.MiniTotalDamage', delay: 'dv.TravelTime' }],
       variants: {
         mega: {
           label: 'mega',
           note: 'Crunch (Mega Gnar).',
           dash: true,
+          // No dash speed in the data: the leap takes Hop's dv.TravelTime.
+          lockout: 'dv.TravelTime',
           buff: mega,
           cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
           components: [{ id: 'crunch', label: 'Crunch', type: 'physical', amount: 'calc.MegaTotalDamage', aoe: true, delay: 'dv.TravelTime' }],

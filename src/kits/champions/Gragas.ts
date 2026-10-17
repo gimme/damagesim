@@ -18,7 +18,8 @@ const kit: ChampionKit = {
       charge: { default: 0, max: 'dv.BarrelMaxDuration' },
       notes: ['Default: detonated as it lands. Set the seconds it ferments first (Q{2s} for the fully cooked ×1.5 damage).'],
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      components: [{ id: 'cask', label: 'Barrel Roll', type: 'magic', amount: 'lerp(calc.MinDamage, calc.MaxDamage, min(1, charge / dv.BarrelCookMaxTime))', aoe: true, delay: '0.5 + charge' }],
+      // Rolls its max range at its speed, then ferments for the step's seconds.
+      components: [{ id: 'cask', label: 'Barrel Roll', type: 'magic', amount: 'lerp(calc.MinDamage, calc.MaxDamage, min(1, charge / dv.BarrelCookMaxTime))', aoe: true, delay: 'charge', travel: true }],
     },
     W: {
       notes: ['Empowers the next attack with bonus magic damage (target and nearby enemies). Follow with AA.'],
@@ -36,12 +37,16 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
+      // Wiki: Barrel Roll and Explosive Cask can be cast during the dash; no attacks or W.
+      attackLockout: 'castTime + castRange / missileSpeed',
+      castLockout: { W: 'castTime + castRange / missileSpeed' },
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-      components: [{ id: 'slam', label: 'Body Slam', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.2 }],
+      components: [{ id: 'slam', label: 'Body Slam', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true }],
     },
     R: {
       cc: [{ kind: 'immobilize', duration: 0.5 }],
-      components: [{ id: 'cask', label: 'Explosive Cask', type: 'magic', amount: 'calc.DamageDone', aoe: true, delay: 0.4 }],
+      // Wiki: the cask travels to the target location over 0.5s (no speed in the data).
+      components: [{ id: 'cask', label: 'Explosive Cask', type: 'magic', amount: 'calc.DamageDone', aoe: true, travel: 0.5 }],
     },
   },
   hooks: {

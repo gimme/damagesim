@@ -15,15 +15,15 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      components: [{ id: 'flame', label: 'Inner Flame', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.3 }],
+      components: [{ id: 'flame', label: 'Inner Flame', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true }],
       variants: {
         mantra: {
           label: 'Soulflare',
           note: 'Impact deals Inner Flame + R.calc.RQImpactDamage; the field ruptures R.dv.RQSlowDuration s later for R.calc.RQFieldDamage.',
           cc: [{ kind: 'slow', duration: 'dv.SlowDuration + R.dv.RQSlowDuration' }],
           components: [
-            { id: 'flame', label: 'Soulflare (impact)', type: 'magic', amount: 'calc.TotalDamage + R.calc.RQImpactDamage', aoe: true, delay: 0.3 },
-            { id: 'field', label: 'Soulflare (field)', type: 'magic', amount: 'R.calc.RQFieldDamage', aoe: true, delay: '0.3 + R.dv.RQSlowDuration' },
+            { id: 'flame', label: 'Soulflare (impact)', type: 'magic', amount: 'calc.TotalDamage + R.calc.RQImpactDamage', aoe: true, travel: true },
+            { id: 'field', label: 'Soulflare (field)', type: 'magic', amount: 'R.calc.RQFieldDamage', aoe: true, delay: 'R.dv.RQSlowDuration', travel: true },
           ],
         },
       },

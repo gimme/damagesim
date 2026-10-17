@@ -37,7 +37,7 @@ const kit: ChampionKit = {
         QQ: {
           label: 'Devastating Fire',
           spell: 'HweiQQ',
-          components: [{ id: 'fire', label: 'Devastating Fire', type: 'magic', amount: 'calc.Damage + dv.BonusDamage / 100 * target.maxHp', aoe: true, delay: 0.25 }],
+          components: [{ id: 'fire', label: 'Devastating Fire', type: 'magic', amount: 'calc.Damage + dv.BonusDamage / 100 * target.maxHp', aoe: true, travel: true }],
         },
         QW: {
           label: 'Severing Bolt',
@@ -49,7 +49,8 @@ const kit: ChampionKit = {
               type: 'magic',
               amount: "opt.isolated || target.immobilized ? calc.Damage * (1 + (dv.BonusDamageMult - 1) * target.missingHpPct) : calc.Damage",
               aoe: true,
-              delay: 'dv.Delay',
+              // Wiki: strikes dv.Delay after the start of the cast time.
+              delay: 'dv.Delay - castTime',
             },
           ],
         },
@@ -57,8 +58,10 @@ const kit: ChampionKit = {
           label: 'Molten Fissure',
           spell: 'HweiQE',
           cc: [{ kind: 'slow', duration: 'dv.Duration' }],
+          // Wiki: the path erupts 0.6s after the start of the cast time, then one explosion every 0.2s
+          // (estimated) from the caster out: the 7th, at max range, 1.2s later.
           components: [
-            { id: 'eruption', label: 'Molten Fissure', type: 'magic', amount: 'calc.Damage', aoe: true, delay: 0.6 },
+            { id: 'eruption', label: 'Molten Fissure', type: 'magic', amount: 'calc.Damage', aoe: true, delay: '0.6 - castTime', travel: 1.2 },
             {
               id: 'lava',
               label: 'Molten Fissure (lava)',
@@ -66,7 +69,8 @@ const kit: ChampionKit = {
               amount: `calc.DamagePerSecond * ${LAVA_TICK}`,
               hits: `dv.Duration / ${LAVA_TICK}`,
               interval: LAVA_TICK,
-              delay: 0.6 + LAVA_TICK,
+              delay: `0.6 - castTime + ${LAVA_TICK}`,
+              travel: 1.2,
               aoe: true,
               dot: true,
             },
@@ -100,13 +104,15 @@ const kit: ChampionKit = {
           label: 'Grim Visage',
           spell: 'HweiEQ',
           cc: [{ kind: 'immobilize', duration: 'dv.FleeDuration' }],
-          components: [{ id: 'visage', label: 'Grim Visage', type: 'magic', amount: 'calc.Damage', delay: 0.3 }],
+          components: [{ id: 'visage', label: 'Grim Visage', type: 'magic', amount: 'calc.Damage', travel: true }],
         },
         EW: {
           label: 'Gaze of the Abyss',
           spell: 'HweiEW',
           cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
-          components: [{ id: 'gaze', label: 'Gaze of the Abyss', type: 'magic', amount: 'calc.Damage', delay: 'dv.SetupDelay + dv.FireDelay' }],
+          // The eye flies its max range, locks on after SetupDelay and launches FireDelay later (wiki;
+          // the target under it).
+          components: [{ id: 'gaze', label: 'Gaze of the Abyss', type: 'magic', amount: 'calc.Damage', delay: 'dv.SetupDelay + dv.FireDelay', travel: true }],
         },
         EE: {
           label: 'Crushing Maw',
@@ -115,7 +121,8 @@ const kit: ChampionKit = {
             { kind: 'immobilize', duration: 0.25 },
             { kind: 'slow', duration: 1.25 }, // tooltip: "Slowing … decaying over 1.25 seconds"
           ],
-          components: [{ id: 'maw', label: 'Crushing Maw', type: 'magic', amount: 'calc.Damage', aoe: true, delay: 'dv.Delay' }],
+          // Wiki: snaps dv.Delay after the start of the cast time.
+          components: [{ id: 'maw', label: 'Crushing Maw', type: 'magic', amount: 'calc.Damage', aoe: true, delay: 'dv.Delay - castTime' }],
         },
       },
     },
@@ -129,11 +136,12 @@ const kit: ChampionKit = {
           amount: `calc.DamageOverTime * ${DESPAIR_TICK}`,
           hits: `dv.Duration / ${DESPAIR_TICK}`,
           interval: DESPAIR_TICK,
-          delay: 0.3 + DESPAIR_TICK,
+          delay: DESPAIR_TICK,
+          travel: true,
           aoe: true,
           dot: true,
         },
-        { id: 'shatter', label: 'Spiraling Despair (shatter)', type: 'magic', amount: 'calc.Damage', aoe: true, delay: '0.3 + dv.Duration' },
+        { id: 'shatter', label: 'Spiraling Despair (shatter)', type: 'magic', amount: 'calc.Damage', aoe: true, delay: 'dv.Duration', travel: true },
       ],
     },
   },

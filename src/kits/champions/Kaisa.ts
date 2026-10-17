@@ -27,6 +27,7 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       notes: ['All missiles hit an isolated target: the first deals full damage, the others (5, or 11 evolved) dv.ExtraHitReduction.'],
+      // Each missile hits 0.4s after it's released (wiki); the rest follow ~0.08s apart (estimate).
       components: [
         { id: 'first', label: 'Icathian Rain', type: 'physical', amount: 'calc.TotalIndividualMissileDamage', delay: 0.4 },
         {
@@ -43,7 +44,7 @@ const kit: ChampionKit = {
     },
     W: {
       notes: ['Applies 2 Plasma stacks (3 evolved), each dealing Caustic Wounds damage, which can trigger the Plasma burst.'],
-      components: [{ id: 'blast', label: 'Void Seeker', type: 'magic', amount: 'calc.TotalDamage', delay: 0.4 }],
+      components: [{ id: 'blast', label: 'Void Seeker', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
     E: {
       // Charge time shrinks with attack speed (min 0.6s).
@@ -52,7 +53,13 @@ const kit: ChampionKit = {
       notes: ['Attack speed buff (dv.Effect5Amount) for dv.Effect2Amount s after the charge.'],
       buff: { id: 'supercharge', label: 'Supercharge', duration: 'dv.Effect2Amount', stats: { attackSpeed: 'dv.Effect5Amount' } },
     },
-    R: { dash: true, notes: ['Dash + shield, no damage.'], components: [] },
+    R: {
+      dash: true,
+      // She can cast any ability during the dash (wiki).
+      attackLockout: 'castTime + castRange / missileSpeed',
+      notes: ['Dash + shield, no damage.'],
+      components: [],
+    },
   },
   hooks: {
     onAttack(sim, atk) {

@@ -40,6 +40,7 @@ const kit: ChampionKit = {
       ],
     },
     W: {
+      // No rocket speed in the data: ~0.3s of flight.
       components: [
         { id: 'rocket', label: 'Micro-Rocket', type: 'magic', amount: 'calc.Damage', delay: 0.3 },
         { id: 'extra', label: 'Micro-Rocket (extra)', type: 'magic', amount: 'calc.ExtraHitDamage', hits: 'dv.Rockets - 1', interval: 0.05, delay: 0.35 },
@@ -51,10 +52,13 @@ const kit: ChampionKit = {
         { kind: 'immobilize', duration: 'dv.StunDuration' },
         { kind: 'slow', duration: 'dv.SlowDuration' },
       ],
-      components: [{ id: 'grenade', label: 'Electron Storm Grenade', type: 'magic', amount: 'calc.Damage', aoe: true, delay: 0.5 }],
+      components: [{ id: 'grenade', label: 'Electron Storm Grenade', type: 'magic', amount: 'calc.Damage', aoe: true, travel: true }],
     },
     R: {
       notes: ['Represents R + the upgraded ability as one step.'],
+      // UPGRADE!!! is instant; the upgraded abilities have a 0.25s cast time (wiki).
+      castTime: 0.25,
+      // No rocket speed in the data: ~0.3s of flight.
       components: [
         { id: 'rocket', label: 'Rocket Swarm', type: 'magic', amount: 'calc.WUltDamage', delay: 0.3 },
         { id: 'reduced', label: 'Rocket Swarm (2nd-5th)', type: 'magic', amount: "calc['{a8af07ef}']", hits: 4, interval: 0.05, delay: 0.35 },
@@ -86,7 +90,8 @@ const kit: ChampionKit = {
             { kind: 'immobilize', duration: 'E.dv.StunDuration' },
             { kind: 'slow', duration: 'E.dv.SlowDuration' },
           ],
-          components: [{ id: 'grenade', label: 'Lightning Grenade', type: 'magic', amount: 'calc.EUltDamage', aoe: true, delay: 0.5 }],
+          // Same range and speed as Electron Storm Grenade (wiki; not in the data).
+          components: [{ id: 'grenade', label: 'Lightning Grenade', type: 'magic', amount: 'calc.EUltDamage', aoe: true, travel: 'E.castRange / E.missileSpeed' }],
         },
       },
     },

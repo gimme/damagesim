@@ -31,7 +31,10 @@ const kit: ChampionKit = {
     Q: {
       recasts: Q_CASTS,
       notes: ['4 casts per cooldown: the dart (marks) and 3 recast spike volleys (each consumes a mark stack).'],
-      components: [{ id: 'spike', label: 'Hate Spike', type: 'magic', amount: 'calc.MissileDamage', delay: 0.15 }],
+      // The dart is launched as the cast time starts ({{Effect at cast time start}}) and flies its
+      // range at its speed; the recast spikes have no speed in the data (they hit at the cast time's
+      // end). The data's 0.3s cast time also applies to the recasts, which the wiki says have none.
+      components: [{ id: 'spike', label: 'Hate Spike', type: 'magic', amount: 'calc.MissileDamage', travel: 'recast == 1 ? max(0, castRange / missileSpeed - castTime) : 0' }],
     },
     W: {
       noTarget: true,
@@ -58,6 +61,8 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
+      // Wiki: she blinks back 0.5s after the cast time; busy until then.
+      lockout: 'castTime + 0.5',
       notes: ['Blinks backwards; damage is multiplied (calc.CritDamage) if the target is below dv.CritTreshold health when hit.'],
       components: [
         { id: 'caress', label: 'Last Caress', type: 'magic', amount: 'target.hpPct < dv.CritTreshold ? calc.CritDamage : calc.Damage', aoe: true },

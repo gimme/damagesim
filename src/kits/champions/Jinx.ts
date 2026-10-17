@@ -5,6 +5,9 @@ import type { ChampionKit } from '../../engine/kit-types.ts';
 // AD (can crit); with Pow-Pow (minigun) each attack grants a stack for Q.dv.MinigunAttackSpeedDuration s
 // (max Q.dv.MinigunAttackSpeedStacks): the first stack gives half of Q.dv.MinigunAttackSpeedMax, the
 // other two a quarter each (wiki: "later stacks are 50% as strong").
+// Zap!'s cast time (wiki): 0.6s, down to 0.4s at 250% bonus attack speed (the data has 0.25).
+const W_CAST = '(0.6 - 0.2 * min(1, bonusAs / 2.5))';
+
 const kit: ChampionKit = {
   id: 'Jinx',
   status: 'curated',
@@ -17,24 +20,29 @@ const kit: ChampionKit = {
   abilities: {
     Q: { noTarget: true, notes: ['Toggle between Pow-Pow and Fishbones.'], components: [] },
     W: {
+      castTime: W_CAST,
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      components: [{ id: 'zap', label: 'Zap!', type: 'physical', amount: 'calc.TotalDamage', delay: 0.2 }],
+      // Launched as the cast time starts (wiki: {{Effect at cast time start}}); `castTime` would read
+      // the data's.
+      components: [{ id: 'zap', label: 'Zap!', type: 'physical', amount: 'calc.TotalDamage', travel: `max(0, castRange / missileSpeed - ${W_CAST})` }],
     },
     E: {
-      notes: ['Chompers thrown at the target\'s feet: they land and arm after ≈dv.GrenadeArmTime s, then explode on contact.'],
+      notes: ['Chompers thrown at the target\'s feet: they land after 0.4s and arm dv.GrenadeArmTime s later (wiki), then explode on contact.'],
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
-      components: [{ id: 'chomp', label: 'Flame Chompers!', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 'dv.GrenadeArmTime' }],
+      components: [{ id: 'chomp', label: 'Flame Chompers!', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: '0.4 + dv.GrenadeArmTime' }],
     },
     R: {
       notes: [
-        'Default: the rocket travelled ≥1500 units (maximum damage) — about 1s of flight. R:close = minimum damage (point blank).',
+        'Default: the rocket travelled ≥1500 units (maximum damage) — about 0.85s of flight. R:close = minimum damage (point blank).',
         'The missing health part uses the target\'s health at impact.',
       ],
-      components: [{ id: 'rocket', label: 'Super Mega Death Rocket!', type: 'physical', amount: 'calc.DamageMax + dv.PercentDamage / 100 * target.missingHp', delay: 1 }],
+      // Launched as the cast time starts (wiki: {{Effect at cast time start}}); full damage takes 1500
+      // units: 1350 at missileSpeed, then 2200 (wiki).
+      components: [{ id: 'rocket', label: 'Super Mega Death Rocket!', type: 'physical', amount: 'calc.DamageMax + dv.PercentDamage / 100 * target.missingHp', travel: 'max(0, 1350 / missileSpeed + 150 / 2200 - castTime)' }],
       variants: {
         close: {
           label: 'close',
-          components: [{ id: 'rocket', label: 'Super Mega Death Rocket! (close)', type: 'physical', amount: 'calc.DamageFloor + dv.PercentDamage / 100 * target.missingHp', delay: 0.1 }],
+          components: [{ id: 'rocket', label: 'Super Mega Death Rocket! (close)', type: 'physical', amount: 'calc.DamageFloor + dv.PercentDamage / 100 * target.missingHp' }],
         },
       },
     },

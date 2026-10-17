@@ -26,7 +26,8 @@ const kit: ChampionKit = {
       // Base cooldown minus 0.75s per Rampage stack held at cast (haste applies after).
       cooldown: 'cooldown - dv.RampageCooldownReduction * stacks.rampage',
       components: [
-        { id: 'rampage', label: 'Rampage', type: 'physical', amount: 'calc.Damage * (1 + calc.RampageBonusDamagePerc / 100 * stacks.rampage)', aoe: true, delay: 0.1 },
+        // Instant (wiki: no cast time).
+        { id: 'rampage', label: 'Rampage', type: 'physical', amount: 'calc.Damage * (1 + calc.RampageBonusDamagePerc / 100 * stacks.rampage)', aoe: true },
       ],
     },
     W: {
@@ -56,9 +57,12 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
+      // Full-distance dash at the dash's (and riders') speed; the riders charge alongside him and
+      // hit the target where he lands (castRange is the riders' 1510).
+      lockout: 'castTime + dv.MaxDashRange / missileSpeed',
       notes: ['Fear assumes a full-distance charge (dv.FearDurationMax).'],
       cc: [{ kind: 'immobilize', duration: 'dv.FearDurationMax' }],
-      components: [{ id: 'onslaught', label: 'Onslaught of Shadows', type: 'magic', amount: 'calc.DamageDone', aoe: true, delay: 0.5 }],
+      components: [{ id: 'onslaught', label: 'Onslaught of Shadows', type: 'magic', amount: 'calc.DamageDone', aoe: true, travel: 'dv.MaxDashRange / missileSpeed' }],
     },
   },
 };

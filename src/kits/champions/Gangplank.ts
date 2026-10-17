@@ -26,7 +26,8 @@ const deathsDaughter: ComponentSpec = {
   label: "Death's Daughter",
   type: 'true',
   amount: 'calc.DeathsDaughterDamage',
-  delay: 'dv.CannonDelay',
+  // Wiki: lands after the first cluster of waves.
+  delay: `dv.CannonDelay + ${2 * CLUSTER_GAP}`,
   aoe: true,
   optional: true,
   condition: "Death's Daughter upgrade",
@@ -43,17 +44,19 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       notes: ['Applies on-hit effects; crits for calc.ShotCrit.'],
+      // The shot flies its range at its speed.
       components: [
-        { id: 'shot', label: 'Parrrley', type: 'physical', amount: 'calc.ShotDamage', onHit: true, onAttack: true, canCrit: true, critMultiplier: '1 + dv.CritDamageMod * (critDamage - 1)', delay: 0.15 },
+        { id: 'shot', label: 'Parrrley', type: 'physical', amount: 'calc.ShotDamage', onHit: true, onAttack: true, canCrit: true, critMultiplier: '1 + dv.CritDamageMod * (critDamage - 1)', travel: true },
       ],
       variants: {
         barrel: {
           label: 'barrel',
           note: 'Parrrley hits a Powder Keg next to the target: the explosion deals the shot\'s damage (can crit) plus the champion bonus, ignoring 40% armor. The shot itself does not hit the target (no on-hit on it).',
           cc: [{ kind: 'slow', duration: 'E.dv.DebuffDuration' }],
+          // The shot flies its range to the keg, which explodes at once.
           components: [
-            { id: 'keg', label: 'Powder Keg', type: 'physical', amount: 'calc.ShotDamage', canCrit: true, critMultiplier: '1 + dv.CritDamageMod * (critDamage - 1)', penPercent: 'E.dv.BarrelArmorPenetration / 100', aoe: true, delay: 0.15 },
-            { id: 'kegBonus', label: 'Powder Keg (champion bonus)', type: 'physical', amount: 'E.dv.BonusDamageToChampions', penPercent: 'E.dv.BarrelArmorPenetration / 100', aoe: true, delay: 0.15 },
+            { id: 'keg', label: 'Powder Keg', type: 'physical', amount: 'calc.ShotDamage', canCrit: true, critMultiplier: '1 + dv.CritDamageMod * (critDamage - 1)', penPercent: 'E.dv.BarrelArmorPenetration / 100', aoe: true, travel: true },
+            { id: 'kegBonus', label: 'Powder Keg (champion bonus)', type: 'physical', amount: 'E.dv.BonusDamageToChampions', penPercent: 'E.dv.BarrelArmorPenetration / 100', aoe: true, travel: true },
           ],
         },
       },
@@ -62,6 +65,7 @@ const kit: ChampionKit = {
     E: { noTarget: true, notes: ['Places a keg; damage is dealt by Q:barrel.'] },
     R: {
       notes: ['Waves fall in clusters of 3 every dv.CannonInterval s after dv.CannonDelay.'],
+      // Global: the barrage falls dv.CannonDelay after the cast, wherever it is.
       components: [...barrage('dv.TotalWavesTooltip', 'dv.CannonInterval'), deathsDaughter],
       variants: {
         fireAtWill: {

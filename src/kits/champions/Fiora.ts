@@ -29,22 +29,25 @@ const kit: ChampionKit = {
     },
     Q: {
       dash: true,
-      castTime: 0, // the data's cast time is negative (-0.375)
+      // No dash speed in the data: the wiki's 1100 (without bonus movement speed) over the 400-unit
+      // dash, then she stabs. She can cast any ability during the dash (wiki).
+      attackLockout: '400 / 1100',
       notes: ['Applies on-hit effects; cannot crit.'],
-      components: [{ id: 'lunge', label: 'Lunge', type: 'physical', amount: 'calc.TotalDamage', onHit: true }],
+      components: [{ id: 'lunge', label: 'Lunge', type: 'physical', amount: 'calc.TotalDamage', onHit: true, travel: '400 / 1100' }],
     },
     W: {
-      notes: ['The stab fires 0.5s into the parry. Variant W:stun if an immobilizing effect was parried.'],
+      notes: ['The shock fires 0.5s into the parry. Variant W:stun if an immobilizing effect was parried.'],
       // Wiki: unable to act during the whole 0.75s stance.
       lockout: 'dv.ParryDuration',
       cc: [{ kind: 'slow', duration: 'dv.CCDuration' }],
-      components: [{ id: 'stab', label: 'Riposte', type: 'magic', amount: 'calc.StabDamage', delay: 0.5 }],
+      // Wiki: she poises for 0.5s, then sends the shock, which flies its range at its speed.
+      components: [{ id: 'stab', label: 'Riposte', type: 'magic', amount: 'calc.StabDamage', delay: 0.5, travel: true }],
       variants: {
         stun: {
           label: 'stun',
           note: 'Parried an immobilizing effect: stuns instead of slowing.',
           cc: [{ kind: 'immobilize', duration: 'dv.CCDuration' }],
-          components: [{ id: 'stab', label: 'Riposte', type: 'magic', amount: 'calc.StabDamage', delay: 0.5 }],
+          components: [{ id: 'stab', label: 'Riposte', type: 'magic', amount: 'calc.StabDamage', delay: 0.5, travel: true }],
         },
       },
     },

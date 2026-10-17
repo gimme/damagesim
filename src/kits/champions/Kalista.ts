@@ -43,7 +43,7 @@ const kit: ChampionKit = {
       variants: { ally: { label: 'Oathsworn', note: "The Oathsworn's attack procs it.", buff: [], components: [] } },
     },
     Q: {
-      components: [{ id: 'pierce', label: 'Pierce', type: 'physical', amount: 'calc.TotalDamage', delay: 0.25 }],
+      components: [{ id: 'pierce', label: 'Pierce', type: 'physical', amount: 'calc.TotalDamage', travel: true }],
     },
     W: { noTarget: true, notes: ['Active: scouting ghost (no damage). The passive is the "P" step.'], components: [] },
     E: {

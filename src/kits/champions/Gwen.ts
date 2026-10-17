@@ -8,17 +8,18 @@ import type { Sim } from '../../engine/sim.ts';
 const MAX_SNIP_STACKS = 4; // tooltip: "max 4"
 const CUTS = 'P.calc.PercentHealth1000Cuts * target.maxHp';
 
-function snips(id: string, label: string, amount: string, hits: string, delay: string | number, center: boolean): ComponentSpec[] {
-  if (!center) return [{ id, label, type: 'magic', amount, hits, interval: 0.05, delay, aoe: true }];
+// Wiki: the snips happen over the 0.5s cast time, the final one as it ends; all land at its end here.
+function snips(id: string, label: string, amount: string, hits: string, center: boolean): ComponentSpec[] {
+  if (!center) return [{ id, label, type: 'magic', amount, hits, aoe: true }];
   return [
-    { id, label, type: 'magic', amount: `${amount} * (1 - dv.TrueDamageConversion)`, hits, interval: 0.05, delay, aoe: true },
-    { id: `${id}True`, label: `${label} (true)`, type: 'true', amount: `${amount} * dv.TrueDamageConversion`, hits, interval: 0.05, delay, aoe: true },
-    { id: `${id}Cuts`, label: 'A Thousand Cuts', type: 'magic', amount: CUTS, hits, interval: 0.05, delay, proc: true },
+    { id, label, type: 'magic', amount: `${amount} * (1 - dv.TrueDamageConversion)`, hits, aoe: true },
+    { id: `${id}True`, label: `${label} (true)`, type: 'true', amount: `${amount} * dv.TrueDamageConversion`, hits, aoe: true },
+    { id: `${id}Cuts`, label: 'A Thousand Cuts', type: 'magic', amount: CUTS, hits, proc: true },
   ];
 }
 const qSnips = (center: boolean): ComponentSpec[] => [
-  ...snips('snip', 'Snip', 'calc.MiniSwipeDamage', '1 + stacks.gwenQSnips', 0, center),
-  ...snips('final', 'Final snip', 'calc.FinalSwipeDamage', '1', 0.3, center),
+  ...snips('snip', 'Snip', 'calc.MiniSwipeDamage', '1 + stacks.gwenQSnips', center),
+  ...snips('final', 'Final snip', 'calc.FinalSwipeDamage', '1', center),
 ];
 
 const kit: ChampionKit = {
@@ -44,6 +45,8 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
+      // The dash's range at its dash speed (data; no missile speed).
+      lockout: 'dv.DashRange / dv.DashSpeed',
       resetsAttack: true,
       noTarget: true,
       notes: ['Attack reset; empowered attacks for dv.BuffDuration s (attack speed, range, magic on-hit).'],
@@ -58,10 +61,13 @@ const kit: ChampionKit = {
     R: {
       recasts: 3,
       recastDelay: 'dv.LockoutTime',
+      // Wiki: the recasts' cast times are 0.5s; each cast's needles fire from 0.25s in, 0.1s apart
+      // on the second cast and 0.0625s on the third.
+      lockout: 'recast > 1 ? 0.5 : castTime',
       cc: [{ kind: 'slow', duration: 'dv.DebuffDuration' }],
       components: [
-        { id: 'needle', label: 'Needle', type: 'magic', amount: 'calc.TotalDamage', hits: '2 * recast - 1', interval: 0.05, delay: 0.3, aoe: true },
-        { id: 'needleCuts', label: 'A Thousand Cuts', type: 'magic', amount: CUTS, hits: '2 * recast - 1', interval: 0.05, delay: 0.3, proc: true },
+        { id: 'needle', label: 'Needle', type: 'magic', amount: 'calc.TotalDamage', hits: '2 * recast - 1', interval: 'recast == 2 ? 0.1 : 0.0625', travel: true, aoe: true },
+        { id: 'needleCuts', label: 'A Thousand Cuts', type: 'magic', amount: CUTS, hits: '2 * recast - 1', interval: 'recast == 2 ? 0.1 : 0.0625', travel: true, proc: true },
       ],
     },
   },

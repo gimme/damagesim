@@ -43,17 +43,22 @@ const kit: ChampionKit = {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.ExpandDuration' }],
       components: [
-        { id: 'out', label: 'Timewinder (out)', type: 'magic', amount: 'calc.InitialDamage', aoe: true, delay: 0.3 },
+        // The device flies 700 units at its speed (wiki), then expands on the target for
+        // dv.ExpandDuration and is recalled through it.
+        { id: 'out', label: 'Timewinder (out)', type: 'magic', amount: 'calc.InitialDamage', aoe: true, travel: '700 / missileSpeed' },
         // Separate pass: its own Resonance stack.
-        { id: 'back', label: 'Timewinder (return)', type: 'magic', amount: 'calc.RecallDamage', aoe: true, delay: 'dv.ExpandDuration', sameCast: false },
+        { id: 'back', label: 'Timewinder (return)', type: 'magic', amount: 'calc.RecallDamage', aoe: true, delay: 'dv.ExpandDuration', travel: '700 / missileSpeed', sameCast: false },
       ],
     },
     W: {
-      cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
+      // The sphere forms dv.DelayBeforeDetonation after the cast; Ekko detonates it on entering.
+      cc: [{ kind: 'immobilize', duration: 'dv.StunDuration', delay: 'dv.DelayBeforeDetonation' }],
       components: [],
     },
     E: {
       dash: true,
+      // No dash speed in the data: ~0.25s to arrive. He can cast any ability during the dash (wiki).
+      attackLockout: 0.25,
       resetsAttack: true,
       buff: {
         id: 'phaseDive',
@@ -68,7 +73,8 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
-      components: [{ id: 'chronobreak', label: 'Chronobreak', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.25 }],
+      // The rewind is the 0.5s cast time (wiki: in stasis, dashes over 0.5s, explodes on arrival).
+      components: [{ id: 'chronobreak', label: 'Chronobreak', type: 'magic', amount: 'calc.TotalDamage', aoe: true }],
     },
   },
 };
