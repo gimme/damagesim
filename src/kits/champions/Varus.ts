@@ -67,7 +67,16 @@ const kit: ChampionKit = {
         'Default: fully charged (1.25s charge, maximum damage, +50% Blight detonation). Set the seconds held (Q{0.5s}): damage and detonation amp grow over the first 1.25s.',
         'After W, the next Piercing Arrow adds % missing health magic damage (more the longer it was charged).',
       ],
-      components: [{ id: 'arrow', label: 'Piercing Arrow', type: 'physical', amount: `lerp(calc.TotalDamageMinTooltip, calc.TotalDamageMax, min(1, charge / ${CHARGED}))`, delay: 0.25 }],
+      // Wiki: the arrow's range grows from 895 to 1595 over the first 1.5s of the charge.
+      components: [
+        {
+          id: 'arrow',
+          label: 'Piercing Arrow',
+          type: 'physical',
+          amount: `lerp(calc.TotalDamageMinTooltip, calc.TotalDamageMax, min(1, charge / ${CHARGED}))`,
+          travel: '(895 + 700 * min(1, charge / 1.5)) / missileSpeed',
+        },
+      ],
     },
     W: {
       noTarget: true,
@@ -76,13 +85,13 @@ const kit: ChampionKit = {
     },
     E: {
       cc: [{ kind: 'slow', duration: 'dv.GroundDuration' }],
-      notes: ['Arrows land ~0.25s after the cast (approximation).'],
-      components: [{ id: 'hail', label: 'Hail of Arrows', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 0.25 }],
+      // Wiki: the arrows land 0.5s after they're fired.
+      components: [{ id: 'hail', label: 'Hail of Arrows', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 0.5 }],
     },
     R: {
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
       notes: ['The hit detonates existing Blight; the rooted target then gains 3 Blight stacks, one every 0.5s.'],
-      components: [{ id: 'chain', label: 'Chain of Corruption', type: 'magic', amount: 'calc.TotalDamage', delay: 0.25 }],
+      components: [{ id: 'chain', label: 'Chain of Corruption', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
   },
   hooks: {

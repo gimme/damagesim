@@ -63,7 +63,8 @@ const kit: ChampionKit = {
               onHit: true,
               onAttack: true,
               aoe: true,
-              delay: 0.3,
+              // The whirlwind flies its range (data) at its speed.
+              travel: 'dv.TornadoRange / missileSpeed',
             },
           ],
         },
@@ -87,14 +88,20 @@ const kit: ChampionKit = {
       dash: true,
       // On a single target the per-target lockout is the effective cooldown (not reduced by haste).
       cooldown: 'dv.PerTargetCooldown * (1 + ah / 100)',
-      components: [{ id: 'blade', label: 'Sweeping Blade', type: 'magic', amount: 'calc.TotalDamage + calc.BonusDamagePerStack * opt.eStacks', delay: 0.2 }],
+      // Wiki: he dashes 475 units at 750 + 60% of his movement speed, hitting on impact; Last Breath can
+      // be cast during the dash.
+      attackLockout: 'castTime + castRange / (dv.BaseDashSpeed + 0.6 * ms)',
+      components: [
+        { id: 'blade', label: 'Sweeping Blade', type: 'magic', amount: 'calc.TotalDamage + calc.BonusDamagePerStack * opt.eStacks', travel: 'castRange / (dv.BaseDashSpeed + 0.6 * ms)' },
+      ],
     },
     R: {
       dash: true,
-      // Wiki: unable to act while the target is knocked up (after the 0.25s cast time).
-      lockout: '0.25 + dv.RKnockupDuration',
+      // Wiki: he blinks (no cast time) and is unable to act while the target is knocked up; the damage
+      // applies when the knock-up ends.
+      lockout: 'castTime + dv.RKnockupDuration',
       cc: [{ kind: 'immobilize', duration: 'dv.RKnockupDuration' }],
-      components: [{ id: 'breath', label: 'Last Breath', type: 'physical', amount: 'calc.Damage', aoe: true, delay: 0.5 }],
+      components: [{ id: 'breath', label: 'Last Breath', type: 'physical', amount: 'calc.Damage', aoe: true, delay: 'dv.RKnockupDuration' }],
     },
   },
 };

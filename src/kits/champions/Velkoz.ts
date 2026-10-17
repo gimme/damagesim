@@ -54,22 +54,25 @@ const kit: ChampionKit = {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       notes: ['A single target is hit by either the bolt or one split bolt (same damage).'],
-      components: [{ id: 'bolt', label: 'Plasma Fission', type: 'magic', amount: 'calc.TotalDamage', delay: 0.25 }],
+      components: [{ id: 'bolt', label: 'Plasma Fission', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
     W: {
-      notes: ['Rift opens 0.25s after the cast and erupts ~0.75s after it (wiki).'],
+      notes: ['The rift opens 0.25s after the cast, cascades out over 0.65s and collapses ~0.75s after opening (wiki).'],
       components: [
-        { id: 'initial', label: 'Void Rift', type: 'magic', amount: 'calc.InitialDamage', aoe: true, delay: 0.25 },
-        { id: 'eruption', label: 'Void Rift (eruption)', type: 'magic', amount: 'calc.SecondaryDamage', aoe: true, delay: 0.75 },
+        // The ripple sets off 0.25s after the cast and runs its range at its speed (wiki).
+        { id: 'initial', label: 'Void Rift', type: 'magic', amount: 'calc.InitialDamage', aoe: true, delay: 0.25, travel: true },
+        { id: 'eruption', label: 'Void Rift (eruption)', type: 'magic', amount: 'calc.SecondaryDamage', aoe: true, delay: '0.25 + 0.75' },
       ],
     },
     E: {
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-      components: [{ id: 'disrupt', label: 'Tectonic Disruption', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 'dv.MaxDetonationTime' }],
+      // Wiki: lands up to dv.MaxDetonationTime (0.55s) after it's hurled, at the start of the cast
+      // time ({{effect at cast time start}}).
+      components: [{ id: 'disrupt', label: 'Tectonic Disruption', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 'max(0, dv.MaxDetonationTime - castTime)' }],
     },
     R: {
-      // Busy for the 0.25s cast, 0.2s delay and 2.6s channel (wiki).
-      lockout: 0.25 + 0.2 + 2.6,
+      // Busy for the 0.2s delay and 2.6s channel (wiki).
+      lockout: 'castTime + 0.2 + 2.6',
       variableDuration: true,
       cc: [{ kind: 'slow', duration: 2.6 }],
       notes: [
@@ -91,7 +94,7 @@ const kit: ChampionKit = {
       if (inst.flags.slot !== 'R' || inst.fromMark) return;
       const start = sim.counter('velkoz.rStart');
       const n = sim.counter('velkoz.rStacks.' + start);
-      if (sim.time - start - 0.25 >= 0.7 * (n + 1) - 1e-6) {
+      if (sim.time - start - (sim.spellFor('R').castTime ?? 0) >= 0.7 * (n + 1) - 1e-6) {
         sim.setCounter('velkoz.rStacks.' + start, n + 1);
         beamStack(sim);
       }

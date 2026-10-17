@@ -30,7 +30,7 @@ const kit: ChampionKit = {
     Q: {
       debuff: MARK,
       notes: ['The active\'s damage already scales with crit chance in the game formula.'],
-      components: [{ id: 'stab', label: 'Blade of the Ruined King', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 0.1 }],
+      components: [{ id: 'stab', label: 'Blade of the Ruined King', type: 'physical', amount: 'calc.TotalDamage', aoe: true }],
     },
     W: {
       dash: true,
@@ -38,9 +38,22 @@ const kit: ChampionKit = {
       // Charged for up to MaxChargeTime; the stun grows by 0.25s per 0.25s over the first second (wiki).
       charge: { default: 0, max: 'dv.MaxChargeTime' },
       castTime: 'charge',
+      // On release he dashes 300 units at 1000 speed (data); he can cast any ability during the dash
+      // (wiki).
+      attackLockout: 'charge + dv.DashDistance / dv.DashSpeed',
       notes: ['Default: quick release (minimum stun). Set the seconds held (W{1s} for the maximum stun).'],
       cc: [{ kind: 'immobilize', duration: 'lerp(dv.StunDuration, dv.MaxStunTT, min(1, floor(charge * 4) / 4))' }],
-      components: [{ id: 'maw', label: 'Spectral Maw', type: 'magic', amount: 'calc.TotalDamage', delay: 0.2 }],
+      // Wiki: the mist flies 500 units, +100 per 0.25s charged (up to 1s), at 1300 speed (the data's
+      // speed is the dash's).
+      components: [
+        {
+          id: 'maw',
+          label: 'Spectral Maw',
+          type: 'magic',
+          amount: 'calc.TotalDamage',
+          travel: '(dv.MinMissileRange + dv.MaxBonusMissileRange * min(1, floor(charge * 4) / 4)) / 1300',
+        },
+      ],
     },
     E: {
       noTarget: true,
@@ -50,9 +63,11 @@ const kit: ChampionKit = {
     R: {
       dash: true,
       notes: [
-        'Strike on arrival (≈0.5s, approximation): an attack that applies on-hit effects (incl. the Q passive), cannot crit (crit chance is in the formula) and consumes the Q mark; the second hit that follows can crit (R!).',
+        'Strike on arrival, as the 0.5s cast time ends (a blink): an attack that applies on-hit effects (incl. the Q passive), cannot crit (crit chance is in the formula) and consumes the Q mark; the second hit that follows can crit (R!).',
       ],
       followUpCrits: true,
+      // Wiki: striking a champion puts him in a 0.25s cast time after the blink.
+      lockout: 'castTime + 0.25',
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       components: [
         {
@@ -62,9 +77,8 @@ const kit: ChampionKit = {
           amount: 'calc.TotalDamage + calc.TotalPercentHealth / 100 * target.missingHp',
           attack: true,
           canCrit: false,
-          delay: 0.5,
         },
-        { ...BLADE_ON_HIT, delay: 0.5 },
+        BLADE_ON_HIT,
       ],
     },
   },

@@ -1,6 +1,10 @@
 import type { ChampionKit } from '../../engine/kit-types.ts';
 
 // Vi — patch 16.20.
+
+/** Vault Breaker's dash: its range over its speed, both growing with the charge (wiki). */
+const DASH = '(dv.MinDashRange + dv.ExtraDashRangeAtMaxCharge * min(1, floor(charge * 8) / 10)) / (1450 + 90 * min(1, floor(charge * 8) / 10))';
+
 const kit: ChampionKit = {
   id: 'Vi',
   status: 'curated',
@@ -30,9 +34,12 @@ const kit: ChampionKit = {
       // per 0.125s (wiki).
       charge: { default: 1.25, max: 4 },
       castTime: 'charge',
+      // Wiki: on release she dashes 250 to 725 units at 1450 to 1540 speed (not in the data), both
+      // growing over the 1.25s charge; Relentless Force and Cease and Desist can be cast during it.
+      attackLockout: `charge + ${DASH}`,
       notes: ['Default: fully charged (1.25s). Set the seconds held (Q{0.5s}): the damage grows from min to max over the first 1.25s.'],
       cc: [{ kind: 'immobilize', duration: 'dv.KnockbackDuration' }],
-      components: [{ id: 'punch', label: 'Vault Breaker', type: 'physical', amount: 'lerp(calc.TotalDamage, calc.MaxDamageTooltip, min(1, floor(charge * 8) / 10))', aoe: true, delay: 0.2 }],
+      components: [{ id: 'punch', label: 'Vault Breaker', type: 'physical', amount: 'lerp(calc.TotalDamage, calc.MaxDamageTooltip, min(1, floor(charge * 8) / 10))', aoe: true, travel: DASH }],
     },
     W: { noTarget: true, components: [] },
     E: {
@@ -57,11 +64,12 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
-      // Wiki: unable to move or attack during the dash and the 1.05s grab: 0.25s cast time + the
-      // grab, cast from up close. Relentless Force can be cast, but only readies the next attack.
-      lockout: 1.3,
+      // Wiki: she dashes to within 300 units of the target at 800 speed (it ramps up; not modeled), then
+      // grabs it for 1.05s, the damage 0.75s into the grab. Unable to move or attack during the dash and
+      // the grab: Relentless Force can be cast, but only readies the next attack.
+      lockout: 'castTime + (castRange - 300) / missileSpeed + 1.05',
       cc: [{ kind: 'immobilize', duration: 'dv.RStunDuration' }],
-      components: [{ id: 'cease', label: 'Cease and Desist', type: 'physical', amount: 'calc.Damage', delay: 0.4 }],
+      components: [{ id: 'cease', label: 'Cease and Desist', type: 'physical', amount: 'calc.Damage', delay: 0.75, travel: '(castRange - 300) / missileSpeed' }],
     },
   },
 };

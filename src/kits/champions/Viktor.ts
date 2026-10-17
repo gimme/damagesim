@@ -11,7 +11,7 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       notes: ['The next attack within 4s (tooltip) deals the listed magic damage instead of normal attack damage and cannot crit (wiki). Write "Q AA".'],
-      components: [{ id: 'missile', label: 'Siphon Power', type: 'magic', amount: 'calc.TotalMissileDamage', delay: 0.2 }],
+      components: [{ id: 'missile', label: 'Siphon Power', type: 'magic', amount: 'calc.TotalMissileDamage', travel: true }],
       buff: {
         id: 'viktorQ',
         label: 'Siphon Power (discharge)',
@@ -28,9 +28,10 @@ const kit: ChampionKit = {
       cc: [{ kind: 'slow', duration: 'dv.FieldDuration' }],
     },
     E: {
+      // The beam sweeps its 500 range at its speed; the path explodes 1s (dv.Delay) after it passes (wiki).
       components: [
-        { id: 'laser', label: 'Hextech Ray', type: 'magic', amount: 'calc.LaserDamage', aoe: true, delay: 0.1 },
-        { id: 'aftershock', label: 'Hextech Ray (aftershock)', type: 'magic', amount: 'calc.AftershockDamage', aoe: true, hits: 'opt.augE', maxHits: 1, delay: '0.1 + dv.Delay' },
+        { id: 'laser', label: 'Hextech Ray', type: 'magic', amount: 'calc.LaserDamage', aoe: true, travel: true },
+        { id: 'aftershock', label: 'Hextech Ray (aftershock)', type: 'magic', amount: 'calc.AftershockDamage', aoe: true, hits: 'opt.augE', maxHits: 1, delay: 'dv.Delay', travel: true },
       ],
     },
     R: {

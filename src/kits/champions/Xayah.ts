@@ -18,9 +18,10 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       notes: ['Both daggers hit a single target for full damage.'],
+      // Each dagger forms for its delay, then flies the 1100 range at its speed (data).
       components: [
-        { id: 'dagger1', label: 'Double Daggers', type: 'physical', amount: 'calc.TotalDamage', delay: 'dv.Missile1DelayTime' },
-        { id: 'dagger2', label: 'Double Daggers', type: 'physical', amount: 'calc.TotalDamage', delay: 'dv.Missile2DelayTime' },
+        { id: 'dagger1', label: 'Double Daggers', type: 'physical', amount: 'calc.TotalDamage', delay: 'dv.Missile1DelayTime', travel: 'castRange / dv.Missile1DelaySpeed' },
+        { id: 'dagger2', label: 'Double Daggers', type: 'physical', amount: 'calc.TotalDamage', delay: 'dv.Missile2DelayTime', travel: 'castRange / dv.Missile2DelaySpeed' },
       ],
     },
     W: {
@@ -48,7 +49,9 @@ const kit: ChampionKit = {
           hits: 'stacks.xayahEFeathers',
           maxHits: 20,
           interval: 0.03,
-          delay: 'dv.FeatherReturnDelay + 0.2',
+          // The feathers set off after dv.FeatherReturnDelay and fly the range at their speed.
+          delay: 'dv.FeatherReturnDelay',
+          travel: true,
         },
       ],
     },
@@ -56,6 +59,7 @@ const kit: ChampionKit = {
       notes: ['Untargetable for 1.5s; daggers land after 1s and leave 5 feathers (wiki).'],
       // Wiki: unable to attack or cast during the 1.5s Featherstorm.
       lockout: 1.5,
+      // Shot after 1s (dv.RAttackDelay); no missile speed in the data or the wiki for their flight.
       components: [{ id: 'storm', label: 'Featherstorm', type: 'physical', amount: 'calc.Damage', aoe: true, delay: 'dv.RAttackDelay' }],
     },
   },

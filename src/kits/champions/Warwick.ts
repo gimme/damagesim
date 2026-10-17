@@ -16,12 +16,13 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       dash: true,
-      // Wiki: the lockout lasts the bite's 0.2475s delay from the start of the cast.
+      // Wiki: no cast time, but the bite lands 0.2475s after the cast starts, and the lockout lasts as
+      // long.
       lockout: 0.2475,
       notes: ['Tap: bite applying on-hit effects. Hold deals the same damage.'],
       components: [
-        { id: 'bite', label: 'Jaws of the Beast', type: 'magic', amount: 'calc.BaseBiteDamage + dv.TargetPercentHPDamage / 100 * target.maxHp', onHit: true, onAttack: true, delay: 0.15 },
-        { ...HUNGER, delay: 0.15 },
+        { id: 'bite', label: 'Jaws of the Beast', type: 'magic', amount: 'calc.BaseBiteDamage + dv.TargetPercentHPDamage / 100 * target.maxHp', onHit: true, onAttack: true, delay: 0.2475 },
+        { ...HUNGER, delay: 0.2475 },
       ],
     },
     W: {
@@ -34,8 +35,9 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
-      // Busy for the leap (~0.3s) plus the 1.5s channel.
-      lockout: '0.3 + dv.RDuration',
+      // No dash speed in the data (its range is 250% of his movement speed): ~0.3s to arrive. Busy for
+      // the leap plus the 1.5s channel.
+      lockout: 'castTime + 0.3 + dv.RDuration',
       notes: [
         '6 strikes every 0.25s during the 1.5s suppression (wiki): strikes 1/3/5 deal 2/9 of the total and apply on-hit effects, 2/4/6 deal 1/9 without on-hit.',
       ],
@@ -51,7 +53,7 @@ const kit: ChampionKit = {
     onCast(sim, cast) {
       if (cast.slot !== 'E') return;
       const id = cast.castId;
-      sim.schedule(0.25 + sim.evalExpr('E.dv.RecastDelay', { slot: 'E' }), () => sim.applyCC('immobilize', sim.evalExpr('E.dv.FearDuration', { slot: 'E' }), id, 'E'));
+      sim.schedule((sim.spellFor('E').castTime ?? 0) + sim.evalExpr('E.dv.RecastDelay', { slot: 'E' }), () => sim.applyCC('immobilize', sim.evalExpr('E.dv.FearDuration', { slot: 'E' }), id, 'E'));
     },
     dynamicStats(sim) {
       const rank = sim.abilityRank('W');

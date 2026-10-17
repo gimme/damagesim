@@ -33,6 +33,8 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
+      // Launched 0.1s after the cast time, explodes 0.3s after landing (data); no missile speed in
+      // the data for the canister's flight.
       components: [{ id: 'charge', label: 'Corrosive Charge', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 'dv.DelayOnMissileLaunch + dv.ExplosionDelayPostMissile' }],
     },
     W: {
@@ -62,7 +64,10 @@ const kit: ChampionKit = {
       dash: true,
       notes: ['The first champion hit is stunned and thrown behind Urgot (a different leg then faces it).'],
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-      components: [{ id: 'charge', label: 'Disdain', type: 'physical', amount: 'calc.EDamage', delay: 0.2 }],
+      // Wiki: after the cast time he dashes 450 units (dv.MinimumDashRange) at 1200 + his movement
+      // speed. Purge can be cast during the dash, but Disdain stops it firing for 1.25s: unable to act.
+      lockout: 'castTime + dv.MinimumDashRange / (dv.BaseDashSpeed + ms)',
+      components: [{ id: 'charge', label: 'Disdain', type: 'physical', amount: 'calc.EDamage', travel: 'dv.MinimumDashRange / (dv.BaseDashSpeed + ms)' }],
     },
     R: {
       recasts: 2,
@@ -71,11 +76,14 @@ const kit: ChampionKit = {
         'R: chem-drill hit + slow. "R:execute" is the recast (Mercy): suppresses and kills a target below the health threshold (modeled as true damage equal to its remaining health).',
       ],
       cc: [{ kind: 'slow', duration: 'dv.RSlowDuration' }],
-      components: [{ id: 'drill', label: 'Fear Beyond Death', type: 'physical', amount: 'calc.RCalculatedDamage', delay: 0.2 }],
+      // Wiki: {{Effect at cast time start}}: the drill flies during the cast time.
+      components: [{ id: 'drill', label: 'Fear Beyond Death', type: 'physical', amount: 'calc.RCalculatedDamage', travel: 'max(0, castRange / missileSpeed - castTime)' }],
       variants: {
         execute: {
           label: 'execute',
           note: 'Recast on a target below the health threshold: suppress, reel in and kill.',
+          // Mercy, the recast, has no cast time (data).
+          castTime: "spell['UrgotRRecast'].castTime",
           cc: [{ kind: 'immobilize', duration: 'dv.RChannelTimeReel' }],
           components: [
             {

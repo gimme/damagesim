@@ -32,8 +32,8 @@ const kit: ChampionKit = {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       debuff: { id: 'yorickE', label: 'Mourning Mist', duration: 'dv.MarkDuration', armorReduction: 'dv.ArmorShred' },
       components: [
-        { id: 'mist', label: 'Mourning Mist', type: 'magic', amount: 'calc.Calc_HealthDamage * target.maxHp', aoe: true, delay: 0.4 },
-        { id: 'maidenMark', label: 'Maiden mark', type: 'magic', amount: 'R.dv.RMarkDamagePercent / 100 * target.maxHp', hits: 'buff.yorickMaiden', maxHits: 1, delay: 0.4, condition: 'while the Maiden is out' },
+        { id: 'mist', label: 'Mourning Mist', type: 'magic', amount: 'calc.Calc_HealthDamage * target.maxHp', aoe: true, travel: true },
+        { id: 'maidenMark', label: 'Maiden mark', type: 'magic', amount: 'R.dv.RMarkDamagePercent / 100 * target.maxHp', hits: 'buff.yorickMaiden', maxHits: 1, travel: true, condition: 'while the Maiden is out' },
         {
           id: 'walkers',
           label: 'Mist Walkers',
@@ -41,7 +41,8 @@ const kit: ChampionKit = {
           amount: 'P.calc.YorickPassiveGhoulDamage',
           hits: 'opt.ghouls * opt.ghoulAttacks',
           interval: 'dv.MarkDuration / max(1, opt.ghouls * opt.ghoulAttacks)',
-          delay: 'P.dv.YorickGhoulSpawnDelay',
+          // Raised from the graves 1s after the mist lands.
+          delay: 'castRange / missileSpeed + P.dv.YorickGhoulSpawnDelay',
           pet: true,
           noProc: true,
         },

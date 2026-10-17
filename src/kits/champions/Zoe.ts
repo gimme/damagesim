@@ -50,13 +50,18 @@ const kit: ChampionKit = {
     Q: {
       buff: sparkles,
       variants: {
-        max: { label: 'max distance', components: [{ id: 'star', label: 'Paddle Star! (max)', type: 'magic', amount: 'calc.MaxDamageTooltip', aoe: true, delay: 1.2 }] },
+        // Wiki: the star flies its 800 range at 1200 speed, then, redirected (no cast time), at 2500 speed
+        // on to the 2550 units travelled for full damage.
+        max: {
+          label: 'max distance',
+          components: [{ id: 'star', label: 'Paddle Star! (max)', type: 'magic', amount: 'calc.MaxDamageTooltip', aoe: true, travel: 'castRange / missileSpeed + (2550 - castRange) / 2500' }],
+        },
       },
-      components: [{ id: 'star', label: 'Paddle Star!', type: 'magic', amount: 'calc.TotalDamageTooltip', aoe: true, delay: 0.5 }],
+      components: [{ id: 'star', label: 'Paddle Star!', type: 'magic', amount: 'calc.TotalDamageTooltip', aoe: true, travel: true }],
     },
     W: {
       buff: sparkles,
-      // "tosses 3 missiles" (tooltip text; not a data value).
+      // "tosses 3 missiles" (tooltip text; not a data value); no missile speed in the data or the wiki.
       components: [{ id: 'bolt', label: 'Spell Thief bolt', type: 'magic', amount: 'calc.MissileDamageTooltip', hits: 3, maxHits: 3, interval: 0.2, delay: 0.3 }],
     },
     E: {
@@ -65,7 +70,7 @@ const kit: ChampionKit = {
         { kind: 'slow', duration: 'dv.DrowsyDuration' },
         { kind: 'immobilize', duration: 'dv.SleepDuration', delay: 'dv.DrowsyDuration' },
       ],
-      components: [{ id: 'bubble', label: 'Sleepy Trouble Bubble', type: 'magic', amount: 'calc.TotalDamageTooltip', delay: 0.4 }],
+      components: [{ id: 'bubble', label: 'Sleepy Trouble Bubble', type: 'magic', amount: 'calc.TotalDamageTooltip', travel: true }],
     },
     R: {
       dash: true,

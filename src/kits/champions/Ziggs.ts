@@ -28,25 +28,31 @@ const kit: ChampionKit = {
     },
   },
   abilities: {
-    Q: { components: [{ id: 'bomb', label: 'Bouncing Bomb', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.5 }] },
+    Q: {
+      // Wiki: thrown its 850 cast range at 1700 speed, then two bounces of 0.495s each out to the 1400
+      // max range.
+      components: [{ id: 'bomb', label: 'Bouncing Bomb', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'dv.MaxRange / missileSpeed + 2 * 0.495' }],
+    },
     W: {
       // Knock-back lasts 0.5s (wiki).
       cc: [{ kind: 'immobilize', duration: 0.5 }],
-      notes: ['Assumes an immediate recast to detonate (~0.5s after the throw).'],
-      components: [{ id: 'charge', label: 'Satchel Charge', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.5 }],
+      notes: ['Assumes a recast to detonate as soon as the charge lands.'],
+      components: [{ id: 'charge', label: 'Satchel Charge', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true }],
     },
     E: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
+      // Thrown to the target location at its speed; the mines arm 0.5s later (wiki).
       components: [
-        { id: 'mine', label: 'Hexplosive Minefield', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.6 },
-        { id: 'extra', label: 'Hexplosive Minefield (extra mine)', type: 'magic', amount: 'calc.ReducedDamage', hits: 2, maxHits: 10, interval: 0.15, delay: 0.75, aoe: true },
+        { id: 'mine', label: 'Hexplosive Minefield', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.5, travel: true },
+        { id: 'extra', label: 'Hexplosive Minefield (extra mine)', type: 'magic', amount: 'calc.ReducedDamage', hits: 2, maxHits: 10, interval: 0.15, delay: 0.65, travel: true, aoe: true },
       ],
     },
     R: {
       variants: {
-        edge: { label: 'edge', components: [{ id: 'edge', label: 'Mega Inferno Bomb (edge)', type: 'magic', amount: 'calc.BlastDamage', aoe: true, delay: 1 }] },
+        edge: { label: 'edge', components: [{ id: 'edge', label: 'Mega Inferno Bomb (edge)', type: 'magic', amount: 'calc.BlastDamage', aoe: true, travel: true }] },
       },
-      components: [{ id: 'center', label: 'Mega Inferno Bomb', type: 'magic', amount: 'calc.EmpoweredDamage', aoe: true, delay: 1 }],
+      // Flies its 5000 range at its speed (wiki: 2.64s from the cast start at max range).
+      components: [{ id: 'center', label: 'Mega Inferno Bomb', type: 'magic', amount: 'calc.EmpoweredDamage', aoe: true, travel: true }],
     },
   },
 };

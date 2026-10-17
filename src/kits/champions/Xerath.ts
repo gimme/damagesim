@@ -28,7 +28,7 @@ const kit: ChampionKit = {
     E: {
       notes: ['Stun scales with travel distance; the average of the minimum and maximum duration is assumed.'],
       cc: [{ kind: 'immobilize', duration: '(dv.MinStunDuration + dv.MaxStunDuration) / 2' }],
-      components: [{ id: 'orb', label: 'Shocking Orb', type: 'magic', amount: 'calc.TooltipTotalDamage', delay: 0.4 }],
+      components: [{ id: 'orb', label: 'Shocking Orb', type: 'magic', amount: 'calc.TooltipTotalDamage', travel: true }],
     },
     R: {
       // Busy until the last recast: 0.5s ascension + one recast every CDPerShot.

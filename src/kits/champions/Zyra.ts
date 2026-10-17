@@ -27,7 +27,8 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       buff: { id: 'zyraSpitter', label: 'Thorn Spitter', duration: 'P.dv.PlantDuration' },
-      components: [{ id: 'spines', label: 'Deadly Spines', type: 'magic', amount: 'calc.InitialDamage', aoe: true, delay: 0.6 }, ...plant('spitter', 'Thorn Spitter', 'zyraLasher')],
+      // Wiki: the spines appear after a 0.625s delay.
+      components: [{ id: 'spines', label: 'Deadly Spines', type: 'magic', amount: 'calc.InitialDamage', aoe: true, delay: 0.625 }, ...plant('spitter', 'Thorn Spitter', 'zyraLasher')],
     },
     W: { noTarget: true, notes: ['Plants a Seed; no damage.'], components: [] },
     E: {
@@ -35,12 +36,13 @@ const kit: ChampionKit = {
       lockout: 0.4,
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
       buff: { id: 'zyraLasher', label: 'Vine Lasher', duration: 'P.dv.PlantDuration' },
-      components: [{ id: 'roots', label: 'Grasping Roots', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.4 }, ...plant('lasher', 'Vine Lasher', 'zyraSpitter')],
+      components: [{ id: 'roots', label: 'Grasping Roots', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true }, ...plant('lasher', 'Vine Lasher', 'zyraSpitter')],
     },
     R: {
       // "After 2 seconds, the vines snap upwards" (tooltip text).
       cc: [{ kind: 'immobilize', duration: 'dv.KnockupDuration', delay: 2 }],
       buff: { id: 'zyraR', label: 'Stranglethorns (enraged plants)', duration: 10 },
+      // Damage as the thicket expands; how long that takes isn't documented: ~0.5s.
       components: [{ id: 'thicket', label: 'Stranglethorns', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.5 }],
     },
   },

@@ -51,6 +51,9 @@ const clawBuff = (awakened: boolean): BuffSpec => ({
   onHit: [{ id: 'clawOnHit', label: 'Wilding Claw', type: 'physical', amount: 'Q.calc.OnHitDamage' }],
 });
 
+// Wiki: a Stance can be recast to Awaken it 0.25s after it's entered (the stances are instant casts).
+const AWAKEN_AFTER = 0.25;
+
 // Storm: ticks every 0.5s for dv.BuffDuration (wiki); the target is assumed to stay in it.
 const STORM_TICKS = 'dv.BuffDuration * 2';
 const storm: ComponentSpec = { id: 'storm', label: 'Wingborne Storm', type: 'magic', amount: 'calc.StormDamage / 2', hits: STORM_TICKS, interval: 0.5, delay: 0.5, dot: true, aoe: true };
@@ -69,6 +72,7 @@ const kit: ChampionKit = {
     Q: {
       noTarget: true,
       recasts: 2,
+      recastDelay: AWAKEN_AFTER,
       buff: [clawBuff(false), clawAttacks, monkTraining],
       components: [],
       variants: { awakened: { label: 'awakened', buff: [clawBuff(true), clawAttacksAwakened, lightning, monkTraining], components: [] } },
@@ -76,6 +80,7 @@ const kit: ChampionKit = {
     W: {
       noTarget: true,
       recasts: 2,
+      recastDelay: AWAKEN_AFTER,
       buff: [mantleAttacks, monkTraining],
       notes: ['Iron Mantle: shield and life steal only.'],
       components: [],
@@ -85,6 +90,7 @@ const kit: ChampionKit = {
       noTarget: true,
       dash: true,
       recasts: 2,
+      recastDelay: AWAKEN_AFTER,
       buff: [stampedeAttacks, monkTraining],
       components: [],
       variants: { awakened: { label: 'awakened', components: [] } },
@@ -92,6 +98,7 @@ const kit: ChampionKit = {
     R: {
       notUltimate: true,
       recasts: 2,
+      recastDelay: AWAKEN_AFTER,
       buff: [stormAttacks, monkTraining],
       cc: [{ kind: 'slow', duration: 'dv.BuffDuration' }],
       components: [storm],

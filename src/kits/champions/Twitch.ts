@@ -5,7 +5,6 @@ import type { Sim } from '../../engine/sim.ts';
 // Deadly Venom is tracked by hooks (counter `venom`, read as stacks.venom) because Venom Cask adds
 // stacks without dealing damage, which marks can't express. Each stack refreshes the 6s duration;
 // the poison ticks every second for P.calc.DamagePerSecond per stack (true damage).
-const CASK_DELAY = 0.3; // cask flight time (not in data)
 
 /** `castId`: the attack or cask adding the stack; the poison's ticks share the one that started it. */
 function addVenom(sim: Sim, castId: number) {
@@ -46,14 +45,15 @@ const kit: ChampionKit = {
     onCast(sim, cast) {
       if (cast.slot !== 'W' || !cast.hitsTarget) return;
       const castTime = sim.spellFor('W').castTime ?? 0;
+      // The cask flies its max range at its missile's speed.
+      const flight = sim.evalExpr('castRange / missileSpeed', { slot: 'W' });
       const cloud = sim.evalExpr('W.dv.Duration', { slot: 'W' });
-      for (let i = 0; i <= cloud; i++) sim.schedule(castTime + CASK_DELAY + i, () => addVenom(sim, cast.castId));
+      for (let i = 0; i <= cloud; i++) sim.schedule(castTime + flight + i, () => addVenom(sim, cast.castId));
     },
   },
   abilities: {
     Q: {
       noTarget: true,
-      castTime: 0,
       buff: { id: 'ambush', label: 'Ambush', duration: 'dv.AttackSpeedDuration', stats: { attackSpeed: 'dv.AttackSpeedMod' } },
       components: [],
     },
@@ -71,7 +71,6 @@ const kit: ChampionKit = {
     },
     R: {
       noTarget: true,
-      castTime: 0,
       buff: { id: 'sprayAndPray', label: 'Spray and Pray', duration: 'dv.Duration', stats: { ad: 'dv.BonusAD', range: 'dv.BonusRange' } },
       components: [],
     },

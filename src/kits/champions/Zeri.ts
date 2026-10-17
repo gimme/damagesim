@@ -50,8 +50,8 @@ const kit: ChampionKit = {
       cooldown: 'max(dv.MinCooldown, 1 / as)',
       components: [
         // onHit + canCrit rather than attack: true — kit.attack.canCrit: false (right-click) would also stop Q crits.
-        { id: 'burst', label: 'Burst Fire', type: 'physical', amount: 'calc.ActiveDamageThatCanCrit', canCrit: true, onHit: true, onAttack: true, delay: 0.1 },
-        { id: 'surge', label: 'Spark Surge', type: 'magic', amount: 'E.calc.BonusDamageTotal', hits: 'buff.zeriE', maxHits: 1, delay: 0.1, proc: true, condition: 'during Spark Surge' },
+        { id: 'burst', label: 'Burst Fire', type: 'physical', amount: 'calc.ActiveDamageThatCanCrit', canCrit: true, onHit: true, onAttack: true, travel: true },
+        { id: 'surge', label: 'Spark Surge', type: 'magic', amount: 'E.calc.BonusDamageTotal', hits: 'buff.zeriE', maxHits: 1, travel: true, proc: true, condition: 'during Spark Surge' },
       ],
     },
     W: {
@@ -64,11 +64,16 @@ const kit: ChampionKit = {
           components: [{ id: 'laser', label: 'Ultrashock Laser (laser)', type: 'physical', amount: 'calc.WallDamage', aoe: true, delay: 'dv.BeamCastTime' }],
         },
       },
-      components: [{ id: 'pulse', label: 'Ultrashock Laser', type: 'physical', amount: 'calc.TotalDamage', delay: 0.3 }],
+      // Wiki: {{Effect at cast time start}}: the pulse flies during the cast time.
+      components: [{ id: 'pulse', label: 'Ultrashock Laser', type: 'physical', amount: 'calc.TotalDamage', travel: 'max(0, castRange / missileSpeed - castTime)' }],
     },
     E: {
       dash: true,
       noTarget: true,
+      // Wiki: she dashes 300 units at 600 + her movement speed (not in the data); Ultrashock Laser and
+      // Lightning Crash can be cast during the dash, Burst Fire can't.
+      attackLockout: 'castTime + dv.MaxDistance / (600 + ms)',
+      castLockout: { Q: 'castTime + dv.MaxDistance / (600 + ms)' },
       buff: { id: 'zeriE', label: 'Spark Surge', duration: 'dv.BuffDuration' },
     },
     R: {

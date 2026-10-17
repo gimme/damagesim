@@ -12,13 +12,13 @@ const kit: ChampionKit = {
   stats: ({ opt, evalExpr }) => ({ ap: opt.stacks * evalExpr('P.calc.APPerStack') }),
   abilities: {
     Q: {
-      components: [{ id: 'bolt', label: 'Baleful Strike', type: 'magic', amount: 'calc.TotalDamage', delay: 0.2 }],
+      components: [{ id: 'bolt', label: 'Baleful Strike', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
     W: {
       // The data cooldown is 0: 8s base, -10% per 50 Phenomenal Evil stacks (start option + stacks gained).
       cooldown: 'dv.BaseCooldown * max(0.0001, 1 - P.dv.DarkMatterCDRIncrement * floor((opt.stacks + stacks.veigarStacks) / P.dv.PStacksPerDarkMatterCDR))',
-      // Impact 1.221s after the cast starts (wiki) — the delay counts from the end of the 0.25s cast.
-      components: [{ id: 'matter', label: 'Dark Matter', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 'dv.ImpactDelay - 0.25' }],
+      // Impact dv.ImpactDelay (1.2s) after the cast starts (wiki), not after the cast time.
+      components: [{ id: 'matter', label: 'Dark Matter', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 'dv.ImpactDelay - castTime' }],
     },
     E: {
       notes: ['The cage stuns 0.5s after the cast; no damage.'],
@@ -32,6 +32,7 @@ const kit: ChampionKit = {
           label: 'Primordial Burst',
           type: 'magic',
           amount: 'calc.MinDamage * (1 + (dv.MaxExecuteMult - 1) * min(1, target.missingHpPct * 1.5))',
+          // A missile, but no speed in the data or the wiki: ~0.25s flight.
           delay: 0.25,
         },
       ],

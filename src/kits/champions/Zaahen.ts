@@ -88,9 +88,10 @@ const kit: ChampionKit = {
     W: {
       notes: ['Outbound stab, then the pull at max range (both hit by default).'],
       cc: [{ kind: 'immobilize', duration: 'dv.MaximumPullDistance / dv.PullSpeed' }],
+      // The glaive extends its range at its speed; at max range (wiki) the pull hits too.
       components: [
-        { id: 'stab', label: 'Dreaded Return (stab)', type: 'physical', amount: 'calc.InitialDamage', aoe: true, delay: 0.2 },
-        { id: 'pull', label: 'Dreaded Return (pull)', type: 'physical', amount: 'calc.SecondaryDamage', aoe: true, delay: 0.5 },
+        { id: 'stab', label: 'Dreaded Return (stab)', type: 'physical', amount: 'calc.InitialDamage', aoe: true, travel: true },
+        { id: 'pull', label: 'Dreaded Return (pull)', type: 'physical', amount: 'calc.SecondaryDamage', aoe: true, travel: true },
       ],
     },
     E: {
@@ -104,19 +105,21 @@ const kit: ChampionKit = {
           label: 'edge',
           dash: true,
           components: [
-            { id: 'edge', label: 'Aureate Rush (edge)', type: 'physical', amount: 'calc.BonusDamageCalc', aoe: true, delay: 0.4 },
-            { id: 'edgeHp', label: 'Aureate Rush (edge, %HP)', type: 'magic', amount: 'dv.PercentHPDamage * target.maxHp', aoe: true, delay: 0.4 },
+            { id: 'edge', label: 'Aureate Rush (edge)', type: 'physical', amount: 'calc.BonusDamageCalc', aoe: true, travel: true },
+            { id: 'edgeHp', label: 'Aureate Rush (edge, %HP)', type: 'magic', amount: 'dv.PercentHPDamage * target.maxHp', aoe: true, travel: true },
           ],
         },
       },
-      components: [{ id: 'slice', label: 'Aureate Rush', type: 'physical', amount: 'calc.BaseDamageCalc', aoe: true, delay: 0.4 }],
+      // The flourish on arrival (wiki), after the dash's range at its speed.
+      components: [{ id: 'slice', label: 'Aureate Rush', type: 'physical', amount: 'calc.BaseDamageCalc', aoe: true, travel: true }],
     },
     R: {
       dash: true,
       // Wiki: unable to act from the start of the 0.5s cast time until the slam 0.6s after the launch
       // (sometimes up to 0.25s longer).
       lockout: 1.1,
-      components: [{ id: 'stab', label: 'Grim Deliverance', type: 'physical', amount: 'calc.DamageEndCalc', aoe: true, delay: 0.3 }],
+      // The slam, 0.6s after the launch (its 600 units at 2800 speed fit within).
+      components: [{ id: 'stab', label: 'Grim Deliverance', type: 'physical', amount: 'calc.DamageEndCalc', aoe: true, delay: 0.6 }],
     },
   },
 };

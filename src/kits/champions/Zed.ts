@@ -7,6 +7,8 @@ import type { Sim } from '../../engine/sim.ts';
 // active (wiki) and pops for physical damage; the engine's debuff.detonate stores post-mitigation
 // damage of every type, so the mark is tracked by hooks.
 const MARK = 'deathMark';
+/** Wiki: Death Mark's 0.6s delay, then the 0.35s dash to the target; the mark lands as it ends. */
+const R_DASH = 0.95;
 
 function detonate(sim: Sim) {
   if (!sim.getDebuff(MARK)) return;
@@ -31,7 +33,7 @@ const kit: ChampionKit = {
       if (cast.slot !== 'R' || cast.variant) return;
       sim.setCounter('zedMarkStored', 0);
       const spell = sim.spellFor('R');
-      sim.schedule(spell.castTime + sim.evalExpr('dv.RDeathMarkDuration', { slot: 'R' }), () => detonate(sim));
+      sim.schedule(spell.castTime + R_DASH + sim.evalExpr('dv.RDeathMarkDuration', { slot: 'R' }), () => detonate(sim));
     },
     afterDamage(sim, inst) {
       if (inst.fromMark || inst.type === 'true' || !sim.getDebuff(MARK)) return;
@@ -56,8 +58,9 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       components: [
-        { id: 'shuriken', label: 'Razor Shuriken', type: 'physical', amount: 'calc.TotalDamage', delay: 0.3 },
-        { id: 'shadow', label: 'Razor Shuriken (Shadow)', type: 'physical', amount: 'calc.TotalDamage', hits: 'buff.zedW + buff.zedR', maxHits: 2, delay: 0.35, interval: 0.05, sameCast: false },
+        { id: 'shuriken', label: 'Razor Shuriken', type: 'physical', amount: 'calc.TotalDamage', travel: true },
+        // The Shadows' shurikens fly as far, a moment apart (only to order the hits).
+        { id: 'shadow', label: 'Razor Shuriken (Shadow)', type: 'physical', amount: 'calc.TotalDamage', hits: 'buff.zedW + buff.zedR', maxHits: 2, delay: 0.05, interval: 0.05, travel: true, sameCast: false },
       ],
     },
     W: {
@@ -78,9 +81,11 @@ const kit: ChampionKit = {
       recasts: 2,
       recastDelay: 'dv.RReactivateCD',
       // Wiki: unable to attack or cast during the 0.6s delay and the 0.35s dash to the target.
-      lockout: 0.95,
+      lockout: R_DASH,
       buff: { id: 'zedR', label: 'Death Mark Shadow', duration: 'dv.RShadowDurationDisplayed' },
-      debuff: { id: MARK, label: 'Death Mark', duration: 'dv.RDeathMarkDuration' },
+      // Applied as the cast starts (no hit to carry it), so it runs through the dash too; it pops when
+      // it ends, R_DASH + RDeathMarkDuration after the cast (hook).
+      debuff: { id: MARK, label: 'Death Mark', duration: `${R_DASH} + dv.RDeathMarkDuration` },
       variants: {
         swap: {
           label: 'swap',

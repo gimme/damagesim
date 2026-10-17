@@ -19,19 +19,19 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       components: [
-        { id: 'drain', label: 'Transfusion', type: 'magic', amount: 'stacks.vladQEmpowered ? calc.EmpoweredDamageTooltip : calc.BaseDamageTooltip', delay: 0.15 },
+        { id: 'drain', label: 'Transfusion', type: 'magic', amount: 'stacks.vladQEmpowered ? calc.EmpoweredDamageTooltip : calc.BaseDamageTooltip' },
       ],
       variants: {
         empowered: {
           label: 'empowered',
-          components: [{ id: 'drain', label: 'Transfusion (empowered)', type: 'magic', amount: 'calc.EmpoweredDamageTooltip', delay: 0.15 }],
+          components: [{ id: 'drain', label: 'Transfusion (empowered)', type: 'magic', amount: 'calc.EmpoweredDamageTooltip' }],
         },
       },
     },
     W: {
       notes: ['4 ticks of 1/4 of the damage every 0.5s, the first immediately (wiki). Vladimir cannot act while in the pool.'],
-      // 0.25s cast + 2s in the pool.
-      lockout: 0.25 + 2,
+      // 2s in the pool (no cast time).
+      lockout: 2,
       cc: [{ kind: 'slow', duration: 2 }],
       components: [{ id: 'pool', label: 'Sanguine Pool', type: 'magic', amount: 'calc.TotalDamage / 4', hits: 4, interval: 0.5, aoe: true, dot: true }],
     },
@@ -41,7 +41,7 @@ const kit: ChampionKit = {
       castTime: 'charge',
       notes: ['Default: charged 1s (maximum damage, slows). Set the seconds held (E{0.5s}): the damage grows from min to max over the first second.'],
       cc: [{ kind: 'slow', duration: 'charge >= dv.TimetoRampMaxDamage ? 0.5 : 0' }],
-      components: [{ id: 'tides', label: 'Tides of Blood', type: 'magic', amount: 'lerp(calc.MinDamageTooltip, calc.MaxDamageTooltip, min(1, charge / dv.TimetoRampMaxDamage))', aoe: true, delay: 0.1 }],
+      components: [{ id: 'tides', label: 'Tides of Blood', type: 'magic', amount: 'lerp(calc.MinDamageTooltip, calc.MaxDamageTooltip, min(1, charge / dv.TimetoRampMaxDamage))', aoe: true, travel: true }],
     },
     R: {
       notes: ['Amplifies all damage the target takes by 10% for 4s, then detonates; the detonation is amplified by Hemoplague itself (wiki).'],

@@ -81,11 +81,14 @@ const kit: ChampionKit = {
       cc: [{ kind: 'slow', duration: 'calc.TotalSlowDuration' }],
       components: [
         { id: 'slash', label: 'Slash', type: 'physical', amount: 'calc.SlashDamage / dv.HitNum', hits: 'dv.HitNum', maxHits: 'dv.HitNum', interval: 'dv.DelayTime', aoe: true },
-        { id: 'thrust', label: 'Thrust', type: 'physical', amount: 'calc.ThrustDamage', delay: 0.2, aoe: true },
+        // Wiki: the thrust follows the cast time, its missile flying the range at its speed.
+        { id: 'thrust', label: 'Thrust', type: 'physical', amount: 'calc.ThrustDamage', travel: true, aoe: true },
       ],
     },
     E: {
       dash: true,
+      // Dashes its range at its speed; Three Talon Strike and Crescent Guard can be cast during it (wiki).
+      attackLockout: 'castTime + castRange / missileSpeed',
       notes: ['Attack speed: base + AP ratio + 1% per 5% bonus attack speed (PermanentASToASRatio).'],
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       buff: {
@@ -94,7 +97,7 @@ const kit: ChampionKit = {
         duration: 'dv.ASDuration',
         stats: { attackSpeed: 'dv.ASMod + dv.APToASRatio * ap + bonusAs / dv.PermanentASToASRatio' },
       },
-      components: [{ id: 'charge', label: 'Audacious Charge', type: 'magic', amount: 'calc.ChargeDamage', aoe: true, delay: 0.1 }],
+      components: [{ id: 'charge', label: 'Audacious Charge', type: 'magic', amount: 'calc.ChargeDamage', aoe: true, travel: true }],
     },
     R: {
       components: [{ id: 'sweep', label: 'Crescent Guard', type: 'physical', amount: 'calc.TotalDamage + dv.PercentCurrentHealthDamage * target.hp', aoe: true }],

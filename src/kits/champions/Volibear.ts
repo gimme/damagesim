@@ -57,12 +57,13 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
-      // Wiki: the leap takes 1s, unable to attack or cast meanwhile.
+      // Wiki: he leaps over 1s regardless of distance (not the data's 750 speed) and impacts as it
+      // ends; unable to attack or cast meanwhile.
       lockout: 1,
-      notes: ['Lands ≈0.75s after the cast (approximation); grants bonus health and attack range for the transform duration.'],
+      notes: ['Lands 1s after the cast (wiki); grants bonus health and attack range for the transform duration.'],
       buff: { id: 'voliR', label: 'Stormbringer', duration: 'dv.TransformDuration', stats: { hp: 'dv.HealthAmount', range: 'dv.BonusAttackRange' } },
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      components: [{ id: 'slam', label: 'Stormbringer', type: 'physical', amount: 'calc.SweetSpotDamageTooltip', aoe: true, delay: 0.75 }],
+      components: [{ id: 'slam', label: 'Stormbringer', type: 'physical', amount: 'calc.SweetSpotDamageTooltip', aoe: true, delay: 1 }],
     },
   },
   hooks: {

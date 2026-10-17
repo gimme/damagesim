@@ -14,12 +14,12 @@ const kit: ChampionKit = {
         unattached: {
           label: 'unattached',
           cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-          components: [{ id: 'missile', label: 'Prowling Projectile', type: 'magic', amount: 'calc.TotalMissileDamage', delay: 0.6 }],
+          components: [{ id: 'missile', label: 'Prowling Projectile', type: 'magic', amount: 'calc.TotalMissileDamage', travel: true }],
         },
       },
       cc: [{ kind: 'slow', duration: 'dv.EmpoweredSlowDuration' }],
-      // The missile accelerates after TimeToAfterburners seconds of flight.
-      components: [{ id: 'empowered', label: 'Prowling Projectile (empowered)', type: 'magic', amount: 'calc.TotalMissileDamageEmpowered', delay: 'dv.TimeToAfterburners + 0.2' }],
+      // Wiki: steered for TimeToAfterburners (1.35s), then it accelerates for 0.5s, its longest flight.
+      components: [{ id: 'empowered', label: 'Prowling Projectile (empowered)', type: 'magic', amount: 'calc.TotalMissileDamageEmpowered', travel: 'dv.TimeToAfterburners + 0.5' }],
     },
     W: { noTarget: true, notes: ['Attach to an ally; no damage.'], components: [] },
     E: {
@@ -32,8 +32,8 @@ const kit: ChampionKit = {
       notes: ['Five waves; a target already hit takes 25% damage (MultiMissileReduction) from later waves.'],
       cc: [{ kind: 'slow', duration: 'dv.CCDuration' }],
       components: [
-        { id: 'first', label: 'Final Chapter (first wave)', type: 'magic', amount: 'calc.TotalMissileDamage', aoe: true, delay: 0.3 },
-        { id: 'waves', label: 'Final Chapter (later waves)', type: 'magic', amount: 'calc.MultiMissileTotal', hits: 'dv.NumberOfWaves - 1', maxHits: 'dv.NumberOfWaves - 1', interval: 'dv.TimeBetweenWaves', delay: '0.3 + dv.TimeBetweenWaves', aoe: true },
+        { id: 'first', label: 'Final Chapter (first wave)', type: 'magic', amount: 'calc.TotalMissileDamage', aoe: true, travel: true },
+        { id: 'waves', label: 'Final Chapter (later waves)', type: 'magic', amount: 'calc.MultiMissileTotal', hits: 'dv.NumberOfWaves - 1', maxHits: 'dv.NumberOfWaves - 1', interval: 'dv.TimeBetweenWaves', delay: 'dv.TimeBetweenWaves', travel: true, aoe: true },
       ],
     },
   },

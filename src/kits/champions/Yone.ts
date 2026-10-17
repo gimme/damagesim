@@ -10,6 +10,8 @@ function passiveDv(sim: Sim, name: string): number {
 }
 
 const CRIT_Q = '(dv.BaseDamage + dv.ADRatio * critDamage * P.dv.CritDamageMod * ad) / calc.QDamage';
+/** Mortal Steel's cast time, shorter with bonus attack speed (data). */
+const Q_CAST = 'dv.QBaseCastTime * (1 - min(dv.QAttackSpeedCastReductionMax, dv.QAttackSpeedCastReductionPercent * bonusAs))';
 
 const kit: ChampionKit = {
   id: 'Yone',
@@ -48,14 +50,16 @@ const kit: ChampionKit = {
     Q: {
       // Static cooldown (spell ignores haste) reduced by bonus attack speed.
       cooldown: 'cooldown * (1 - min(dv.QAttackSpeedCDMax, dv.QAttackSpeedCDPercent * bonusAs))',
-      castTime: 'dv.QBaseCastTime * (1 - min(dv.QAttackSpeedCastReductionMax, dv.QAttackSpeedCastReductionPercent * bonusAs))',
+      castTime: Q_CAST,
       notes: ['Applies on-hit; the AD part can crit (95% crit damage). Two hits empower the third cast: write "Q Q Q:q3".'],
       variants: {
         q3: {
           label: 'Q3 dash',
           dash: true,
+          // He dashes the 450 range at its 1500 speed after the cast time, hitting on the way.
+          lockout: `${Q_CAST} + castRange / missileSpeed`,
           cc: [{ kind: 'immobilize', duration: 'dv.Q3KnockupDuration' }],
-          components: [{ id: 'q3', label: 'Mortal Steel (wind)', type: 'physical', amount: 'calc.QDamage', canCrit: true, critMultiplier: CRIT_Q, onHit: true, onAttack: true, aoe: true, delay: 0.2 }],
+          components: [{ id: 'q3', label: 'Mortal Steel (wind)', type: 'physical', amount: 'calc.QDamage', canCrit: true, critMultiplier: CRIT_Q, onHit: true, onAttack: true, aoe: true, travel: true }],
         },
       },
       components: [{ id: 'thrust', label: 'Mortal Steel', type: 'physical', amount: 'calc.QDamage', canCrit: true, critMultiplier: CRIT_Q, onHit: true, onAttack: true, aoe: true }],
@@ -71,6 +75,8 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
+      // Busy for the 300-unit dash at its 1200 speed.
+      lockout: 'castTime + castRange / missileSpeed',
       notes: ['Spirit form lasts dv.ReturnTimer seconds; put the damage you want repeated after E in the combo.'],
       debuff: {
         id: 'yoneE',

@@ -57,20 +57,32 @@ const kit: ChampionKit = {
         ruin: {
           label: 'Arc of Ruin',
           note: 'Transcendent State only.',
+          // Its own cast time, 0.6s down to 0.45s with bonus attack speed (data); the beam hits as it ends (wiki).
+          castTime: 'dv.Cast_Time_Base_Empowered - (dv.Cast_Time_Base_Empowered - dv.Cast_Time_Min_Empowered) * min(1, bonusAs * 100 / dv.Cast_Time_Attack_Speed_Cap_Empowered)',
           cc: [{ kind: 'slow', duration: 'R.dv.RW_Slow_Duration' }],
-          components: [{ id: 'laser', label: 'Arc of Ruin', type: 'magic', amount: 'R.calc.Calc_RW_Damage', aoe: true, delay: 'dv.Cast_Time_Base_Empowered - dv.Cast_Time_Base + 0.1' }],
+          components: [{ id: 'laser', label: 'Arc of Ruin', type: 'magic', amount: 'R.calc.Calc_RW_Damage', aoe: true }],
         },
       },
       components: [
-        { id: 'impact', label: 'Arc of Judgment', type: 'magic', amount: 'calc.Calc_Damage_Initial', delay: 0.2 },
-        // Linger: Calc_Damage_Per_Second spread over 0.25s ticks (wiki) for Linger_Duration seconds.
-        { id: 'linger', label: 'Arc of Judgment (linger)', type: 'magic', amount: 'calc.Calc_Damage_Per_Second / 4', hits: 'dv.Linger_Duration * 4', maxHits: 'dv.Linger_Duration * 4', interval: 0.25, delay: 0.45, aoe: true, dot: true },
+        { id: 'impact', label: 'Arc of Judgment', type: 'magic', amount: 'calc.Calc_Damage_Initial', travel: true },
+        // Linger: Calc_Damage_Per_Second spread over 0.25s ticks (wiki) for Linger_Duration seconds after the impact.
+        { id: 'linger', label: 'Arc of Judgment (linger)', type: 'magic', amount: 'calc.Calc_Damage_Per_Second / 4', hits: 'dv.Linger_Duration * 4', maxHits: 'dv.Linger_Duration * 4', interval: 0.25, delay: 0.25, travel: true, aoe: true, dot: true },
       ],
     },
     E: {
       name: "Kanmei's Steps",
       noTarget: true,
-      variants: { dash: { label: 'Untouchable Shadow', note: 'Transcendent State only.', dash: true, resetsAttack: true, components: [] } },
+      variants: {
+        dash: {
+          label: 'Untouchable Shadow',
+          note: 'Transcendent State only.',
+          dash: true,
+          resetsAttack: true,
+          // Wiki: dashes up to 450 units at R.dv.RE_Dash_Speed; Arc of Ruin can be cast during the dash.
+          attackLockout: '450 / R.dv.RE_Dash_Speed',
+          components: [],
+        },
+      },
       components: [],
     },
     R: {

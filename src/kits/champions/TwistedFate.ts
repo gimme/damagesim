@@ -31,7 +31,7 @@ const kit: ChampionKit = {
   },
   abilities: {
     Q: {
-      components: [{ id: 'card', label: 'Wild Cards', type: 'magic', amount: 'calc.TotalDamage', hits: 1, maxHits: 3, aoe: true, delay: 0.3 }],
+      components: [{ id: 'card', label: 'Wild Cards', type: 'magic', amount: 'calc.TotalDamage', hits: 1, maxHits: 3, aoe: true, travel: true }],
     },
     W: {
       resetsAttack: true,

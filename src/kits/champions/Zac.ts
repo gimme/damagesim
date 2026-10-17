@@ -13,8 +13,8 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      // Wiki: unable to move or attack while the arm flies (0.33s cast time + the 0.2s flight).
-      lockout: 0.53,
+      // Wiki: unable to move or attack while the arm flies (the cast time + its range at its speed).
+      lockout: 'castTime + castRange / missileSpeed',
       variants: {
         slam: {
           label: 'slam',
@@ -24,8 +24,9 @@ const kit: ChampionKit = {
           // The empowered attack goes to the other unit: no empowered attack on the target.
           buff: [],
           components: [
-            { id: 'arm', label: 'Stretching Strikes', type: 'magic', amount: 'calc.TotalDamage', delay: 0.2 },
-            { id: 'slam', label: 'Stretching Strikes (slam)', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 1.2 },
+            { id: 'arm', label: 'Stretching Strikes', type: 'magic', amount: 'calc.TotalDamage', travel: true },
+            // ~1s after the arm lands: the attack on the other unit, then the yank (not in the wiki).
+            { id: 'slam', label: 'Stretching Strikes (slam)', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 1, travel: true },
           ],
         },
       },
@@ -35,7 +36,7 @@ const kit: ChampionKit = {
         duration: 'dv.TetherDuration',
         empowerAttacks: { count: 1, components: [{ id: 'empowered', label: 'Stretching Strikes (attack)', type: 'magic', amount: 'Q.calc.TotalDamage' }] },
       },
-      components: [{ id: 'arm', label: 'Stretching Strikes', type: 'magic', amount: 'calc.TotalDamage', delay: 0.2 }],
+      components: [{ id: 'arm', label: 'Stretching Strikes', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
     W: {
       components: [{ id: 'erupt', label: 'Unstable Matter', type: 'magic', amount: 'dv.BaseDamage + calc.DisplayPercentDamage * target.maxHp', aoe: true }],
@@ -43,9 +44,11 @@ const kit: ChampionKit = {
     E: {
       dash: true,
       castTime: 'dv.ChannelTime',
+      // After the charge he leaps its max range (dv.MaxRange; the data's range isn't it) at the dash
+      // speed, busy until he lands.
+      lockout: 'dv.ChannelTime + dv.MaxRange / missileSpeed',
       cc: [{ kind: 'immobilize', duration: 'calc.MaxStun' }],
-      // Flight after the charge.
-      components: [{ id: 'slingshot', label: 'Elastic Slingshot', type: 'magic', amount: 'calc.Damage', aoe: true, delay: 0.5 }],
+      components: [{ id: 'slingshot', label: 'Elastic Slingshot', type: 'magic', amount: 'calc.Damage', aoe: true, travel: 'dv.MaxRange / missileSpeed' }],
     },
     R: {
       // Wiki: free to move, but unable to declare attacks or cast Q/E (W can be cast) until the last

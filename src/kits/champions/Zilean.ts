@@ -36,7 +36,8 @@ const kit: ChampionKit = {
           label: 'second bomb',
           note: 'Placed on a target already carrying a bomb: both detonate now and stun.',
           cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-          // The second bomb explodes at once: it must not stick as a new (delayed) bomb.
+          // The second bomb explodes at once: it must not stick as a new (delayed) bomb. No missile
+          // speed in the data or the wiki: ~0.4s flight.
           debuff: null,
           components: [{ id: 'bomb2', label: 'Time Bomb (second bomb)', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.4 }],
         },
