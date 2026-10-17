@@ -195,12 +195,29 @@ test("keys, drags and order", async ({ ui }) => {
   );
   const wait = card.getByRole("spinbutton", { name: "Seconds to wait" });
   await step(
+    "drag the wait step by its empty seconds field to the front",
+    async () => {
+      was = await steps();
+      const b = await box(0);
+      await ui.drag(wait, { x: b.x + 2, y: b.y + b.height / 2 });
+    },
+    async () => expect(await steps()).toEqual(moved(was, was.indexOf("wait"), 0)),
+  );
+  await step(
     "wait 2.5 seconds, Enter",
     async () => {
       await wait.fill("2.5");
       await wait.press("Enter");
     },
     async () => expect(await steps()).toContain("wait{2.5s}"),
+  );
+  await step(
+    "a drag from the field with 2.5 in it marks the text: the step stays",
+    async () => {
+      was = await steps();
+      await ui.drag(wait, chips.last());
+    },
+    async () => expect(await steps()).toEqual(was),
   );
   await step(
     "the wait emptied: 1 second, its placeholder",

@@ -28,11 +28,20 @@ type Grab = {
   away?: boolean;
 };
 
+/** Whether a press on `el` is a field's own, not a drag's: in a list, a select, or a field with text
+ *  to mark. An empty field has none, and is pressed like the rest of what it's in. */
+const inField = (el: Element) => {
+  const f = el.closest("input, select, textarea, [role=listbox]");
+  const empty =
+    (f instanceof HTMLInputElement || f instanceof HTMLTextAreaElement) && f.value === "" && !(f instanceof HTMLInputElement && f.validity.badInput);
+  return !!f && !empty;
+};
+
 /**
  * The first `count` children of a box, dragged to new places with a mouse or a finger: a pointer that
- * moves a few pixels from where it went down on one (anywhere but in a field or a list) picks it up,
- * and only then captures the pointer, so a press that doesn't move is a click on what's under it (a
- * button in the child). It follows the pointer by its transform, set on each move without rendering; with
+ * moves a few pixels from where it went down on one (anywhere but in a list or a field with text)
+ * picks it up, and only then captures the pointer, so a press that doesn't move is a click on what's
+ * under it (a button in the child, a field to type in). It follows the pointer by its transform, set on each move without rendering; with
  * `makeWay`, the others slide to where they'd be if it landed there. On release it glides into its
  * place, and the others it moved glide into theirs. While dragging, the children are laid out by flex
  * or grid `order` rather than moved in the DOM, so the dragged one keeps the pointer captured: a
@@ -201,7 +210,7 @@ export function useDragOrder({
   const press = (from: number, bring?: (on: boolean) => void) => ({
     onPointerDown: (e: PointerEvent<HTMLElement>) => {
       moved.current = false;
-      if (e.button !== 0 || !box.current || (!bring && !movable(from)) || (e.target as Element).closest("input, select, textarea, [role=listbox]")) return;
+      if (e.button !== 0 || !box.current || (!bring && !movable(from)) || inField(e.target as Element)) return;
       const r = e.currentTarget.getBoundingClientRect();
       const [x, y] = [e.clientX, e.clientY];
       // A child is held where it was pressed; one a key brings in, which isn't the key, by its middle.
