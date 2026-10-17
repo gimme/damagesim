@@ -1512,9 +1512,12 @@ export class Sim {
     for (const e of this.effects) e.onAttack?.(this, atk);
     const repeats = Math.max(0, Math.round(atk.repeatOnHit ?? 0));
     for (let i = 0; i < repeats; i++) {
-      // Extra application of on-hit effects (no base damage, no passive every-Nth counting).
+      // Extra application of on-hit effects (no base damage, no passive every-Nth counting). Unlike
+      // the attack's own, it takes the buffs' on-hits as it lands: Dusk and Dawn's after a cast while
+      // the attack flew gets Yunara's Q, which the attack doesn't.
       const again: AttackInfo = { ...atk, extra: [], phantom: true, repeatOnHit: 0 };
       if (kitAtk?.onHit && !o.fromAbility) pushCompsTo(again, kitAtk.onHit, this.champ.passive.name);
+      for (const b of this.buffs.values()) if (b.expires >= this.time && b.spec?.onHit) pushCompsTo(again, b.spec.onHit, b.label, b.slot);
       for (const e of this.effects) e.onAttack?.(this, again);
       atk.extra.push(...again.extra);
     }

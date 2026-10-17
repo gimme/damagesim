@@ -681,3 +681,12 @@ test("Voltaic Cyclosword's Firmament lands before the attack or ability that fir
   assert.deepEqual(order('AA'), ['item:6699', 'AA']);
   assert.deepEqual(order('Q'), ['item:6699', 'Q']);
 });
+
+test("On-hit effects applied again (Dusk and Dawn, Guinsoo's Phantom Hit) take the buffs active as the attack lands: Yunara AA Q AA", () => {
+  const r = simulate(data, { champion: 'Yunara', level: 11, items: ['Dusk and Dawn'], combo: 'AA Q AA', target: dummy });
+  const first = bySource(r, 'AA')[0].castId;
+  // Q, cast while the first attack flies, isn't part of it, but Spellblade's second on-hit pass gets it.
+  const active = r.events.filter((e) => e.label === 'Cultivation of Spirit (active)');
+  assert.equal(active.filter((e) => e.castId === first).length, 1);
+  assert.ok(r.events.some((e) => e.label === 'Spellblade' && e.castId === first));
+});
