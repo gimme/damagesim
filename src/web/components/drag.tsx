@@ -9,8 +9,9 @@ export type Place = { x: number; y: number; w: number; h: number };
 
 /** A press on a child (or on a key that brings a new one in, with `bring`), then a drag once the
  *  pointer moves: what was pressed, where the pointer went down (x, y) and is (px, py), where it holds
- *  the child (fx, fy, fractions of its size), the child's transform, the index it would drop at (null
- *  until it moves), and whether a brought child is away from the box, where it lands nowhere. */
+ *  the child (fx, fy, fractions of its size: where it was pressed, a brought child's middle), the
+ *  child's transform, the index it would drop at (null until it moves), and whether a brought child
+ *  is away from the box, where it lands nowhere. */
 type Grab = {
   el: HTMLElement;
   from: number;
@@ -203,7 +204,9 @@ export function useDragOrder({
       if (e.button !== 0 || !box.current || (!bring && !movable(from)) || (e.target as Element).closest("input, select, textarea, [role=listbox]")) return;
       const r = e.currentTarget.getBoundingClientRect();
       const [x, y] = [e.clientX, e.clientY];
-      grab.current = { el: e.currentTarget, from, x, y, px: x, py: y, fx: (x - r.left) / r.width, fy: (y - r.top) / r.height, tx: 0, ty: 0, to: null, bring };
+      // A child is held where it was pressed; one a key brings in, which isn't the key, by its middle.
+      const [fx, fy] = bring ? [0.5, 0.5] : [(x - r.left) / r.width, (y - r.top) / r.height];
+      grab.current = { el: e.currentTarget, from, x, y, px: x, py: y, fx, fy, tx: 0, ty: 0, to: null, bring };
     },
     onPointerMove: (e: PointerEvent<HTMLElement>) => {
       const g = grab.current;

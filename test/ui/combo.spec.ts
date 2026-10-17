@@ -91,6 +91,29 @@ test("keys, drags and order", async ({ ui }) => {
     async () => expect(await steps()).toEqual(was),
   );
   await step(
+    "the Ignite key grabbed by its corner: its step centered under the pointer, away and over the steps; Escape adds nothing",
+    async () => {
+      was = await steps();
+      const k = (await key("Ignite").boundingBox())!;
+      const seq = (await card.getByRole("list", { name: "Combo sequence" }).boundingBox())!;
+      await page.mouse.move(k.x + 3, k.y + 3);
+      await page.mouse.down();
+      for (const [x, y] of [
+        [k.x + 300, k.y - 40],
+        [seq.x + seq.width * 0.6, seq.y + seq.height / 2],
+      ]) {
+        await page.mouse.move(x, y, { steps: 8 });
+        await ui.settle();
+        const c = (await card.locator(".chip.dragging").boundingBox())!;
+        expect(Math.abs(c.x + c.width / 2 - x)).toBeLessThan(1);
+        expect(Math.abs(c.y + c.height / 2 - y)).toBeLessThan(1);
+      }
+      await page.keyboard.press("Escape");
+      await page.mouse.up();
+    },
+    async () => expect(await steps()).toEqual(was),
+  );
+  await step(
     "drag step 1 to after step 4",
     async () => {
       was = await steps();
