@@ -36,12 +36,13 @@ const kit: ChampionKit = {
         empowerAttacks: {
           count: 'dv.MaximumAttacks',
           resetsAttack: true,
-          components: [{ id: 'spikes', label: 'Vorpal Spikes', type: 'magic', amount: 'E.calc.FlatDamageCalc + E.calc.MaxHealthPercentCalc * target.maxHp' }],
+          // Wiki: the spikes are launched as the attack completes and fly their range.
+          components: [{ id: 'spikes', label: 'Vorpal Spikes', type: 'magic', amount: 'E.calc.FlatDamageCalc + E.calc.MaxHealthPercentCalc * target.maxHp', travel: 'E.castRange / E.missileSpeed' }],
         },
       },
     },
     R: {
-      components: [{ id: 'feast', label: 'Feast', type: 'true', amount: 'calc.RDamage', delay: 0.1 }],
+      components: [{ id: 'feast', label: 'Feast', type: 'true', amount: 'calc.RDamage' }],
     },
   },
 };

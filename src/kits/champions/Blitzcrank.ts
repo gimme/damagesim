@@ -31,11 +31,11 @@ const kit: ChampionKit = {
     Q: {
       // Pull airborne time isn't in the data; ~0.5s is a typical pull.
       cc: [{ kind: 'immobilize', duration: 0.5 }],
-      // Wiki: unable to move or attack while the hand flies and for ~0.25s after it hits (0.25s cast
-      // time + the 0.3s flight + 0.25s): unable to act (casting Power Fist only readies the attack).
-      lockout: 0.8,
+      // Wiki: unable to move or attack while the hand flies and for ~0.25s after it hits: unable to
+      // act (casting Power Fist only readies the attack).
+      lockout: 'castTime + castRange / missileSpeed + 0.25',
       notes: ['Pull duration approximated as 0.5s.'],
-      components: [{ id: 'grab', label: 'Rocket Grab', type: 'magic', amount: 'calc.TotalDamage', delay: 0.3 }],
+      components: [{ id: 'grab', label: 'Rocket Grab', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
     W: {
       noTarget: true,

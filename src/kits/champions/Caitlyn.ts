@@ -19,7 +19,8 @@ const kit: ChampionKit = {
   },
   abilities: {
     Q: {
-      components: [{ id: 'peacemaker', label: 'Piltover Peacemaker', type: 'physical', amount: 'calc.InitialDamage', aoe: true, delay: 0.35 }],
+      // Fired as the cast time starts (wiki: {{Effect at cast time start}}).
+      components: [{ id: 'peacemaker', label: 'Piltover Peacemaker', type: 'physical', amount: 'calc.InitialDamage', aoe: true, travel: 'max(0, castRange / missileSpeed - castTime)' }],
     },
     W: {
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
@@ -38,6 +39,9 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
+      // Wiki: recoils 390 units at 1000 speed after the cast time; she can cast her abilities during
+      // the recoil, and an attack waits for it to end.
+      attackLockout: 'castTime + 390 / 1000',
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       buff: {
         id: 'caitHeadshot',
@@ -49,11 +53,11 @@ const kit: ChampionKit = {
           components: [{ ...headshot, amount: 'P.calc.HeadShotBonusDamage + (debuff.caitTrapped ? W.calc.HeadShotBonusDamage : 0)' }],
         },
       },
-      components: [{ id: 'net', label: '90 Caliber Net', type: 'magic', amount: 'calc.NetDamage', delay: 0.15 }],
+      components: [{ id: 'net', label: '90 Caliber Net', type: 'magic', amount: 'calc.NetDamage', travel: true }],
     },
     R: {
       castTime: 1.375, // 0.375s cast + 1s channel (wiki)
-      components: [{ id: 'ace', label: 'Ace in the Hole', type: 'physical', amount: 'calc.RTotalDamage', delay: 0.3 }],
+      components: [{ id: 'ace', label: 'Ace in the Hole', type: 'physical', amount: 'calc.RTotalDamage', travel: true }],
     },
   },
 };

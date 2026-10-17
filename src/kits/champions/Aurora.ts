@@ -22,11 +22,13 @@ const kit: ChampionKit = {
     P: { notes: ['3-hit proc (mark).'] },
     Q: {
       recasts: 2,
+      // The recast needs a marked target: the bolt lands after flying its range.
+      recastDelay: 'castTime + castRange / missileSpeed',
       // The curse lasts MarkDuration; afterwards the recast fires automatically (not modeled) and the chain ends.
       recastWindow: 'dv.MarkDuration',
       notes: ['Recast damage = the first hit\'s damage increased by 0.5% per 1% missing health (up to +50%), computed when it hits.'],
       components: [
-        { id: 'hex', label: 'Twofold Hex', type: 'magic', amount: 'calc.Damage', hits: 'recast == 1 ? 1 : 0', aoe: true, delay: 0.25 },
+        { id: 'hex', label: 'Twofold Hex', type: 'magic', amount: 'calc.Damage', hits: 'recast == 1 ? 1 : 0', aoe: true, travel: true },
         {
           id: 'recall',
           label: 'Twofold Hex (recast)',
@@ -35,16 +37,27 @@ const kit: ChampionKit = {
           max: 'calc.Q2DamageMax',
           hits: 'recast == 2 ? 1 : 0',
           aoe: true,
-          delay: 0.3,
+          // Wiki: the bolts fly back from the marked target at 2000 speed.
+          travel: 'castRange / 2000',
         },
       ],
     },
-    W: { dash: true, noTarget: true, notes: ['Hop and invisibility only.'] },
+    W: {
+      dash: true,
+      noTarget: true,
+      // Wiki: no abilities during the hop; its range at movement speed + DashBonusSpeed (the wiki's
+      // speed, 350, is that bonus).
+      lockout: 'castRange / (ms + dv.DashBonusSpeed)',
+      notes: ['Hop and invisibility only.'],
+    },
     E: {
       dash: true,
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
+      // Wiki: the blast hits as the cast time ends; she then recoils 250 units at 150 + 200% movement
+      // speed, unable to cast during it.
+      lockout: 'castTime + 250 / (150 + 2 * ms)',
       notes: ['Aurora hops backwards after the blast (marked as a dash).'],
-      components: [{ id: 'blast', label: 'The Weirding', type: 'magic', amount: 'calc.DamageCalc', aoe: true, delay: 0.1 }],
+      components: [{ id: 'blast', label: 'The Weirding', type: 'magic', amount: 'calc.DamageCalc', aoe: true }],
     },
     R: {
       dash: true,
@@ -53,7 +66,8 @@ const kit: ChampionKit = {
       lockout: 0.9,
       cc: [{ kind: 'slow', duration: 2 }],
       notes: ['Leap then a pulse on landing; the border only slows (no damage).'],
-      components: [{ id: 'pulse', label: 'Between Worlds', type: 'magic', amount: 'calc.DamageCalc', aoe: true, delay: 0.4 }],
+      // Wiki: the shockwave is unleashed after the 0.4s leap and expands over 0.75s.
+      components: [{ id: 'pulse', label: 'Between Worlds', type: 'magic', amount: 'calc.DamageCalc', aoe: true, delay: 0.4, travel: 0.75 }],
     },
   },
 };

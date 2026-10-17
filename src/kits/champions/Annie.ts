@@ -3,7 +3,8 @@ import type { ChampionKit } from '../../engine/kit-types.ts';
 // Annie — patch 16.20.
 // Pyromania: every ability cast adds a stack; with 4 stacks the next Q, W or R stuns (counter
 // 'annieStacks', starting from the 'pyromania' option).
-const STUNNING: Record<string, number> = { Q: 0.25 + 0.3, W: 0.25, R: 0.25 }; // cast time + hit delay of each stunning ability
+// When each stunning ability's hit lands, from the cast's start.
+const STUNNING: Record<string, string> = { Q: 'castTime + castRange / missileSpeed', W: 'castTime', R: 'castTime' };
 
 const kit: ChampionKit = {
   id: 'Annie',
@@ -26,7 +27,7 @@ const kit: ChampionKit = {
   abilities: {
     P: { notes: ['Stun from Pyromania is applied by the hook on the 5th ability cast.'] },
     Q: {
-      components: [{ id: 'fireball', label: 'Disintegrate', type: 'magic', amount: 'calc.TotalDamage', delay: 0.3 }],
+      components: [{ id: 'fireball', label: 'Disintegrate', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
     W: {
       components: [{ id: 'cone', label: 'Incinerate', type: 'magic', amount: 'calc.TotalDamage', aoe: true }],
@@ -59,7 +60,7 @@ const kit: ChampionKit = {
         sim.setCounter('annieStacks', 0);
         if (!cast.hitsTarget) return;
         const duration = sim.evalExpr('P.calc.StunDuration', { slot: 'P' });
-        sim.schedule(STUNNING[cast.slot], () => sim.applyCC('immobilize', duration, cast.castId, cast.slot));
+        sim.schedule(sim.evalExpr(STUNNING[cast.slot], { slot: cast.slot }), () => sim.applyCC('immobilize', duration, cast.castId, cast.slot));
         return;
       }
       sim.setCounter('annieStacks', Math.min(max, stacks + 1));

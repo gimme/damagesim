@@ -19,8 +19,6 @@ const kit: ChampionKit = {
       notes: ['Empowered attack: bonus magic damage equal to a % of the target\'s max Health (see hooks).'],
     },
     Q: {
-      // Scripted windup (wiki: 0.6s cast time for each cast); data castTime is 0.
-      castTime: 0.6,
       recasts: 3,
       recastDelay: 1, // wiki: 1s static cooldown between casts
       // Each recast must follow the previous one within QExtensionTime.
@@ -43,11 +41,19 @@ const kit: ChampionKit = {
       cc: [{ kind: 'slow', duration: 'dv.WSlowDuration' }],
       notes: ['The second hit (pull back after 1.5s if the target stays in the area) is optional: W+pull.'],
       components: [
-        { id: 'chain', label: 'Infernal Chains', type: 'physical', amount: 'calc.WDamage', delay: 0.25 },
-        { id: 'pull', label: 'Infernal Chains (pull)', type: 'physical', amount: 'calc.WDamage', delay: '0.25 + dv.WSlowDuration', optional: true, condition: 'target stays in the area' },
+        { id: 'chain', label: 'Infernal Chains', type: 'physical', amount: 'calc.WDamage', travel: true },
+        // Pulled back WSlowDuration after the chain lands.
+        { id: 'pull', label: 'Infernal Chains (pull)', type: 'physical', amount: 'calc.WDamage', delay: 'dv.WSlowDuration', travel: true, optional: true, condition: 'target stays in the area' },
       ],
     },
-    E: { dash: true, noTarget: true, notes: ['Dash only; the passive spell vamp is healing (not modeled).'] },
+    E: {
+      dash: true,
+      noTarget: true,
+      // No range in the data: dashes its EMaxRange (300) at 800 speed. His abilities can be cast
+      // during the dash (wiki).
+      attackLockout: 'dv.EMaxRange / missileSpeed',
+      notes: ['Dash only; the passive spell vamp is healing (not modeled).'],
+    },
     R: {
       noTarget: true,
       notes: ['+X% total AD for the duration (evaluated from your AD when cast). Fear only affects minions.'],

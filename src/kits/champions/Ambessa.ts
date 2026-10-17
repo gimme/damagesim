@@ -15,6 +15,9 @@ const drakehoundsStep: BuffSpec = {
   },
 };
 
+// Drakehound's Step dash: its max distance at 770-950 (by level) + movement speed (wiki, P's calc).
+const STEP_DASH = "P.dv.Buffer_Dash_Distance / P.calc['{57d26a55}']";
+
 const kit: ChampionKit = {
   id: 'Ambessa',
   status: 'curated',
@@ -37,22 +40,25 @@ const kit: ChampionKit = {
         '"Q Q" = Cunning Sweep then Sundering Slam (within 4s). Default: the target is at the edge of the sweep (full damage).',
         'Q:inner = target inside the sweep (50% damage).',
       ],
+      // Wiki: both slash at the end of the lockout.
       components: [
         { id: 'sweep', label: 'Cunning Sweep', type: 'physical', amount: 'calc.Calc_Damage_1_Max + calc.Calc_Damage_1_Percent_Max * target.maxHp', hits: 'recast == 1 ? 1 : 0', aoe: true },
-        { id: 'slam', label: 'Sundering Slam', type: 'physical', amount: 'calc.Calc_Damage_2_Max + calc.Calc_Damage_2_Percent_Max * target.maxHp', hits: 'recast == 2 ? 1 : 0', aoe: true, delay: 0.1 },
+        { id: 'slam', label: 'Sundering Slam', type: 'physical', amount: 'calc.Calc_Damage_2_Max + calc.Calc_Damage_2_Percent_Max * target.maxHp', hits: 'recast == 2 ? 1 : 0', aoe: true },
       ],
       variants: {
         inner: {
           label: 'inner',
           components: [
             { id: 'sweep', label: 'Cunning Sweep (inner)', type: 'physical', amount: "calc['{a7907b77}'] + calc['{17768f39}'] * target.maxHp", hits: 'recast == 1 ? 1 : 0', aoe: true },
-            { id: 'slam', label: 'Sundering Slam', type: 'physical', amount: 'calc.Calc_Damage_2_Max + calc.Calc_Damage_2_Percent_Max * target.maxHp', hits: 'recast == 2 ? 1 : 0', aoe: true, delay: 0.1 },
+            { id: 'slam', label: 'Sundering Slam', type: 'physical', amount: 'calc.Calc_Damage_2_Max + calc.Calc_Damage_2_Percent_Max * target.maxHp', hits: 'recast == 2 ? 1 : 0', aoe: true },
           ],
         },
       },
     },
     W: {
       buff: drakehoundsStep,
+      // Wiki: unable to act for the first 0.225s of the brace; smashes when the brace ends (0.5s).
+      lockout: 0.225,
       notes: ['Default: not braced by champion damage. W:braced = braced (150% damage).'],
       components: [{ id: 'slam', label: 'Repudiation', type: 'physical', amount: 'calc.Calc_Damage_Low', aoe: true, delay: 'dv.Buff_Duration' }],
       variants: {
@@ -65,18 +71,21 @@ const kit: ChampionKit = {
     E: {
       buff: drakehoundsStep,
       dash: true,
+      // Wiki: spins at once in a 0.225s lockout, then the buffered dash (unable to act) and a second
+      // spin where it ends.
+      lockout: `0.225 + ${STEP_DASH}`,
       cc: [{ kind: 'slow', duration: 'dv.Slow_Duration' }],
       notes: ["The passive dash after Lacerate repeats the strike (same damage); E{second:0} without the dash."],
       components: [
         { id: 'whip', label: 'Lacerate', type: 'physical', amount: 'calc.Calc_Damage_Flat', aoe: true },
-        { id: 'second', label: 'Lacerate (dash)', type: 'physical', amount: 'calc.Calc_Damage_Flat', aoe: true, delay: 'P.dv.Buffer_Dash_Time' },
+        { id: 'second', label: 'Lacerate (dash)', type: 'physical', amount: 'calc.Calc_Damage_Flat', aoe: true, delay: `0.225 + ${STEP_DASH}` },
       ],
     },
     R: {
       buff: drakehoundsStep,
       dash: true,
       // Wiki: unable to act during the 0.7s cast time and while the target is suppressed.
-      lockout: '0.7 + dv.Suppress_Duration',
+      lockout: 'castTime + dv.Suppress_Duration',
       cc: [{ kind: 'immobilize', duration: 'dv.Suppress_Duration + dv.Stun_Duration' }],
       notes: ['Suppression then slam (damage after the suppression) and a short stun. Passive: % armor penetration.'],
       components: [{ id: 'slam', label: 'Public Execution', type: 'physical', amount: 'calc.Calc_Damage', delay: 'dv.Suppress_Duration' }],

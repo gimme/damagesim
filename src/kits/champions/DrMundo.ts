@@ -16,7 +16,8 @@ const kit: ChampionKit = {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       components: [
-        { id: 'bonesaw', label: 'Infected Bonesaw', type: 'magic', amount: 'max(dv.CurrentHealthDamage * target.hp, dv.MinimumDamage)', delay: 0.3 },
+        // Thrown as the cast time starts (wiki: {{Effect at cast time start}}).
+        { id: 'bonesaw', label: 'Infected Bonesaw', type: 'magic', amount: 'max(dv.CurrentHealthDamage * target.hp, dv.MinimumDamage)', travel: 'max(0, castRange / missileSpeed - castTime)' },
       ],
     },
     W: {
@@ -26,7 +27,6 @@ const kit: ChampionKit = {
       ],
     },
     E: {
-      castTime: 0, // instant self-buff in game; the data's castTime (1s) would lock Mundo for a second
       resetsAttack: true,
       buff: {
         id: 'bluntForceTrauma',

@@ -5,6 +5,12 @@ import type { ChampionKit } from '../../engine/kit-types.ts';
 // (BleedDamageOverDurationTooltip = it × BleedDuration); each stack beyond the first adds BleedPercentAdd.
 /** Chilling Scream's damage by the seconds charged: 2.5% of the full damage uncharged, all of it at 1s (wiki). */
 const SCREAM = 'calc.Damage * lerp(0.025, 1, min(1, charge))';
+/** The scream flies its range, 400 to 600 by the seconds charged (wiki), at its speed. */
+const SCREAM_TRAVEL = 'lerp(dv.MinMissileRange, dv.MaxMissileRange, min(1, charge)) / missileSpeed';
+// Certain Death: the hemolith is kicked after the 1s cast time; global (12000 range), so assumed
+// fired from 1200 units. On the hit she takes 1.25s (wiki) before dashing over IdealDashTime.
+const R_HIT = '1200 / missileSpeed';
+const R_DASH = '1.25 + dv.IdealDashTime';
 
 const kit: ChampionKit = {
   id: 'Briar',
@@ -41,20 +47,25 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       dash: true,
+      // Its range at 600 + 300 over the range (wiki: DashSpeedBase + ExtraDashSpeedBasedOnDistance).
+      lockout: 'castRange / (dv.DashSpeedBase + dv.ExtraDashSpeedBasedOnDistance)',
       // Resets the attack timer; applies on-hit effects and triggers on-attack effects (wiki).
       resetsAttack: true,
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
       debuff: { id: 'briarQ', label: 'Head Rush shred', duration: 'dv.ShredDuration', armorReduction: 'dv.ShredPercent', mrReduction: 'dv.ShredPercent' },
-      components: [{ id: 'headRush', label: 'Head Rush', type: 'physical', amount: 'calc.TotalDamage', onHit: true, onAttack: true }],
+      components: [{ id: 'headRush', label: 'Head Rush', type: 'physical', amount: 'calc.TotalDamage', onHit: true, onAttack: true, travel: 'castRange / (dv.DashSpeedBase + dv.ExtraDashSpeedBasedOnDistance)' }],
     },
     W: {
       dash: true,
       noTarget: true,
+      // The dash: its range at its speed.
+      lockout: 'castRange / missileSpeed',
       recasts: 2,
       buff: { id: 'briarFrenzy', label: 'Blood Frenzy', duration: 'dv.BerserkDuration', stats: { attackSpeed: 'dv.BerserkAS' } },
       variants: {
         snack: {
           label: 'Snack Attack',
+          lockout: 0,
           resetsAttack: true,
           note: 'Recast: the next attack deals bonus physical damage + % missing health.',
           components: [],
@@ -89,7 +100,7 @@ const kit: ChampionKit = {
       ],
       // Chilling Scream removes Blood Frenzy: overwrite the buff with an instantly expiring one.
       buff: { id: 'briarFrenzy', label: 'Blood Frenzy (ended)', duration: 0 },
-      components: [{ id: 'scream', label: 'Chilling Scream', type: 'magic', amount: SCREAM, aoe: true }],
+      components: [{ id: 'scream', label: 'Chilling Scream', type: 'magic', amount: SCREAM, aoe: true, travel: SCREAM_TRAVEL }],
       variants: {
         wall: {
           label: 'wall hit',
@@ -97,18 +108,20 @@ const kit: ChampionKit = {
           buff: { id: 'briarFrenzy', label: 'Blood Frenzy (ended)', duration: 0 },
           cc: [{ kind: 'immobilize', duration: 'charge >= 1 ? dv.WallStunDuration : 0' }],
           components: [
-            { id: 'scream', label: 'Chilling Scream', type: 'magic', amount: SCREAM, aoe: true },
-            { id: 'wall', label: 'Chilling Scream (wall)', type: 'magic', amount: 'calc.WallHitDamage', hits: 'charge >= 1 ? 1 : 0', delay: 0.25 },
+            { id: 'scream', label: 'Chilling Scream', type: 'magic', amount: SCREAM, aoe: true, travel: SCREAM_TRAVEL },
+            // ~0.25s knocked back into the wall (no distance in the data).
+            { id: 'wall', label: 'Chilling Scream (wall)', type: 'magic', amount: 'calc.WallHitDamage', hits: 'charge >= 1 ? 1 : 0', delay: 0.25, travel: SCREAM_TRAVEL },
           ],
         },
       },
     },
     R: {
-      castTime: 1.5, // 1s kick (data castTime) + ~0.5s flight (dv.IdealDashTime): she can't attack before landing
+      // Busy until she lands (locked from the cast's start, though she may act while the hemolith flies).
+      lockout: `castTime + ${R_HIT} + ${R_DASH}`,
       dash: true,
       notes: ['Empowered Blood Frenzy: gains Blood Frenzy (W attack speed) until the prey dies (HuntDuration from data, in ms).'],
       buff: { id: 'briarFrenzy', label: 'Blood Frenzy (Certain Death)', duration: 'dv.HuntDuration / 1000', stats: { attackSpeed: 'W.rank > 0 ? W.dv.BerserkAS : 0' } },
-      components: [{ id: 'certainDeath', label: 'Certain Death', type: 'magic', amount: 'calc.Damage', aoe: true }],
+      components: [{ id: 'certainDeath', label: 'Certain Death', type: 'magic', amount: 'calc.Damage', aoe: true, delay: R_DASH, travel: R_HIT }],
     },
   },
 };

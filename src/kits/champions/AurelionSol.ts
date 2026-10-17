@@ -32,17 +32,19 @@ const kit: ChampionKit = {
     W: {
       dash: true,
       noTarget: true,
-      notes: ['Flight (≈3s assumed): Breath of Light has no cooldown and +X% non-burst damage.'],
-      buff: { id: 'astralFlight', label: 'Astral Flight', duration: 3 },
+      notes: ['Flight: Breath of Light has no cooldown and +X% non-burst damage.'],
+      // Wiki: flies its range at base + 100% movement speed after the cast time; he can cast any
+      // ability during the flight, and an attack ends it.
+      buff: { id: 'astralFlight', label: 'Astral Flight', duration: 'castTime + castRange / (2 * ms - bonusMs)' },
     },
     E: {
       cc: [{ kind: 'slow', duration: 'dv.Duration' }],
       notes: [
-        'Ticks every 0.25s for 5s after a 0.5s delay (per-second damage / 4); E{tick:N} for less time in the hole.',
+        'Ticks every 0.25s for 5s from 0.5s after the cast starts (per-second damage / 4); E{tick:N} for less time in the hole.',
         'E+execute: one execute check after the pull (target in the center below the Stardust-scaled threshold).',
       ],
       components: [
-        { id: 'tick', label: 'Singularity', type: 'magic', amount: 'calc.DamagePerSecond / 4', hits: 'dv.Duration * 4', maxHits: 20, interval: 0.25, delay: 0.3, aoe: true, dot: true },
+        { id: 'tick', label: 'Singularity', type: 'magic', amount: 'calc.DamagePerSecond / 4', hits: 'dv.Duration * 4', maxHits: 20, interval: 0.25, delay: '0.5 - castTime', aoe: true, dot: true },
         {
           id: 'execute',
           label: 'Singularity (execute)',
@@ -57,7 +59,8 @@ const kit: ChampionKit = {
     R: {
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
       notes: ['R:skies = The Skies Descend (bigger hit, knock-up and a shockwave).'],
-      components: [{ id: 'star', label: 'Falling Star', type: 'magic', amount: 'calc.MaxDamageTooltip', aoe: true, delay: 0.5 }],
+      // Wiki: the star strikes after 1.25s (The Skies Descend: 2s, its shockwave expanding from there).
+      components: [{ id: 'star', label: 'Falling Star', type: 'magic', amount: 'calc.MaxDamageTooltip', aoe: true, delay: 1.25 }],
       variants: {
         skies: {
           label: 'The Skies Descend',
@@ -66,8 +69,8 @@ const kit: ChampionKit = {
             { kind: 'slow', duration: 1 },
           ],
           components: [
-            { id: 'star', label: 'The Skies Descend', type: 'magic', amount: 'calc.R2Damage', aoe: true, delay: 0.5 },
-            { id: 'shockwave', label: 'The Skies Descend (shockwave)', type: 'magic', amount: 'calc.ShockwaveDamage', aoe: true, delay: 0.6 },
+            { id: 'star', label: 'The Skies Descend', type: 'magic', amount: 'calc.R2Damage', aoe: true, delay: 2 },
+            { id: 'shockwave', label: 'The Skies Descend (shockwave)', type: 'magic', amount: 'calc.ShockwaveDamage', aoe: true, delay: 2 },
           ],
         },
       },

@@ -52,7 +52,7 @@ const kit: ChampionKit = {
           hits: 2,
           maxHits: 'dv.CloudDuration',
           interval: 1,
-          delay: 0.25,
+          travel: true,
           aoe: true,
           dot: true,
         },
@@ -65,8 +65,9 @@ const kit: ChampionKit = {
           label: 'Twin Fang',
           type: 'magic',
           amount: 'calc.BasicDamage + (debuff.cassPoison ? calc.BonusPoisonedDamage : 0)',
-          // Missile travel ~0.15s, or until a pending Noxious Blast explodes (0.125 = Twin Fang's cast time).
-          delay: 'max(0.15, stacks.cassBlastAt - time - 0.125)',
+          // Lands after flying its range, or once a pending Noxious Blast explodes.
+          delay: 'max(0, stacks.cassBlastAt - time - castTime - castRange / missileSpeed)',
+          travel: true,
           condition: 'bonus if Poisoned',
         },
       ],

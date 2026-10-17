@@ -18,7 +18,8 @@ const kit: ChampionKit = {
     Q: {
       cc: [{ kind: 'slow', duration: 1 }],
       notes: ['Needs a soldier; the target takes damage once even if several soldiers pass through it.'],
-      components: [{ id: 'sands', label: 'Conquering Sands', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.3 }],
+      // The soldiers dash its range at SoldierDashSpeed.
+      components: [{ id: 'sands', label: 'Conquering Sands', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'castRange / dv.SoldierDashSpeed' }],
     },
     W: {
       notes: ['Summons a soldier (10s). "W W AA" = two soldiers stabbing (second at 25%).'],
@@ -45,13 +46,17 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
+      // Its range at DashSpeed. Wiki: he can cast any ability during the dash, but not attack.
+      attackLockout: 'castRange / dv.DashSpeed',
       notes: ['Dash to a soldier; stops on the first champion hit. Shield not modeled.'],
-      components: [{ id: 'dash', label: 'Shifting Sands', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.2 }],
+      components: [{ id: 'dash', label: 'Shifting Sands', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'castRange / dv.DashSpeed' }],
     },
     R: {
       // Knock-back duration is not in the data (≈0.5s).
       cc: [{ kind: 'immobilize', duration: 0.5 }],
-      components: [{ id: 'wall', label: "Emperor's Divide", type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.25 }],
+      // Wiki: the knock-back missiles start 325 units behind him as the cast time starts
+      // ({{Effect at cast time start}}) and fly to its range in front.
+      components: [{ id: 'wall', label: "Emperor's Divide", type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, (castRange + 325) / missileSpeed - castTime)' }],
     },
   },
   hooks: {

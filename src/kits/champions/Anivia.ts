@@ -17,14 +17,15 @@ const kit: ChampionKit = {
       debuff: chill('chill', 'dv.SlowDuration'),
       notes: ['Default: the ice passes through the target and is detonated on it (both hits, stun). Q{detonate:0} for the pass only.'],
       components: [
-        { id: 'pass', label: 'Flash Frost', type: 'magic', amount: 'calc.TotalPassthroughDamage', aoe: true, delay: 0.3 },
-        { id: 'detonate', label: 'Flash Frost (detonation)', type: 'magic', amount: 'calc.TotalExplosionDamage', aoe: true, delay: 0.45 },
+        { id: 'pass', label: 'Flash Frost', type: 'magic', amount: 'calc.TotalPassthroughDamage', aoe: true, travel: true },
+        // Wiki: detonates by itself at its max range.
+        { id: 'detonate', label: 'Flash Frost (detonation)', type: 'magic', amount: 'calc.TotalExplosionDamage', aoe: true, travel: true },
       ],
     },
     W: { noTarget: true, notes: ['Wall only.'] },
     E: {
       notes: ['Deals double damage to Chilled targets (Flash Frost, fully formed Glacial Storm).'],
-      components: [{ id: 'frostbite', label: 'Frostbite', type: 'magic', amount: 'debuff.chill || debuff.stormChill ? calc.EmpoweredDamage : calc.TotalDamage', delay: 0.25 }],
+      components: [{ id: 'frostbite', label: 'Frostbite', type: 'magic', amount: 'debuff.chill || debuff.stormChill ? calc.EmpoweredDamage : calc.TotalDamage', travel: true }],
     },
     R: {
       // Slowed while in the storm (default 3s) plus the lingering slow.

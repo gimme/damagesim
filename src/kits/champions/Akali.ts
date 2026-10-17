@@ -13,6 +13,15 @@ const assassinsMark: BuffSpec = {
   },
 };
 
+// Shuriken Flip's dashes, at 1500 speed (wiki): the first cast flips back SelfKnockbackRange from
+// 0.15s into its cast time; the recast dashes to the target the shuriken hit at its range, from where
+// the flip left her.
+const E_DASH = "recast == 1 ? 0.15 + dv.SelfKnockbackRange / 1500 : castTime + (castRange + dv.SelfKnockbackRange) / 1500";
+// Perfect Execution's first dash: its range at its speed.
+const R1_DASH = 'castTime + castRange / missileSpeed';
+// The recast dashes at 3000 speed (wiki) through the target at its range.
+const R2_DASH = "spell['AkaliRb'].castRange / 3000";
+
 const kit: ChampionKit = {
   id: 'Akali',
   status: 'curated',
@@ -25,18 +34,24 @@ const kit: ChampionKit = {
     Q: {
       buff: assassinsMark,
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      components: [{ id: 'kunai', label: 'Five Point Strike', type: 'magic', amount: 'calc.Damage', aoe: true, delay: 0.15 }],
+      // Wiki: hits at the end of the cast time (no missile speed in the data).
+      components: [{ id: 'kunai', label: 'Five Point Strike', type: 'magic', amount: 'calc.Damage', aoe: true }],
     },
     W: { noTarget: true, notes: ['Shroud: invisibility and energy only.'] },
     E: {
       buff: assassinsMark,
       dash: true,
       recasts: 2,
-      recastDelay: 0.4,
+      // The recast needs the shuriken's mark: it lands after flying its range.
+      recastDelay: 'castTime + castRange / missileSpeed',
+      // Wiki: Twilight Shroud and Perfect Execution can be cast during either dash; Five Point Strike
+      // waits for the dash to end.
+      attackLockout: E_DASH,
+      castLockout: { Q: E_DASH },
       notes: ['First cast: shuriken (30% of the total); recast: dash to the marked target (70%).'],
       components: [
-        { id: 'shuriken', label: 'Shuriken Flip', type: 'magic', amount: 'calc.E1Damage', hits: 'recast == 1 ? 1 : 0', delay: 0.25 },
-        { id: 'dash', label: 'Shuriken Flip (recast)', type: 'magic', amount: 'calc.E2DamageCalc', hits: 'recast == 2 ? 1 : 0', delay: 0.2 },
+        { id: 'shuriken', label: 'Shuriken Flip', type: 'magic', amount: 'calc.E1Damage', hits: 'recast == 1 ? 1 : 0', travel: true },
+        { id: 'dash', label: 'Shuriken Flip (recast)', type: 'magic', amount: 'calc.E2DamageCalc', hits: 'recast == 2 ? 1 : 0', travel: '(castRange + dv.SelfKnockbackRange) / 1500' },
       ],
     },
     R: {
@@ -44,11 +59,15 @@ const kit: ChampionKit = {
       dash: true,
       recasts: 2,
       recastDelay: 'dv.CooldownBetweenCasts',
+      // Wiki: Shuriken Flip can be cast during the first dash. Nothing during the recast's.
+      attackLockout: `recast == 1 ? ${R1_DASH} : 0`,
+      castLockout: { Q: `recast == 1 ? ${R1_DASH} : 0`, W: `recast == 1 ? ${R1_DASH} : 0` },
+      lockout: `recast == 2 ? castTime + ${R2_DASH} : 0`,
       notes: [
         'First cast: vault; recast (after 2.5s): execute dash dealing up to 3× damage, scaling linearly with missing health until the target is at 30% health or less (computed when it lands).',
       ],
       components: [
-        { id: 'vault', label: 'Perfect Execution', type: 'magic', amount: 'calc.Cast1Damage', hits: 'recast == 1 ? 1 : 0', aoe: true, delay: 0.1 },
+        { id: 'vault', label: 'Perfect Execution', type: 'magic', amount: 'calc.Cast1Damage', hits: 'recast == 1 ? 1 : 0', aoe: true, travel: true },
         {
           id: 'execute',
           label: 'Perfect Execution (recast)',
@@ -57,7 +76,7 @@ const kit: ChampionKit = {
           max: 'calc.Cast2DamageMax',
           hits: 'recast == 2 ? 1 : 0',
           aoe: true,
-          delay: 0.1,
+          travel: R2_DASH,
         },
       ],
     },

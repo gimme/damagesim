@@ -28,14 +28,15 @@ const kit: ChampionKit = {
       // Wiki: unable to declare attacks or cast E/R while he hefts the axe for 0.75s. W can be cast,
       // but it only readies the next attack, which waits: in effect, unable to act.
       lockout: 0.75,
+      // The blade lands as the 0.75s heft ends (no cast time).
       variants: {
         handle: {
           label: 'handle',
           note: 'Hit only by the handle: 35% damage, no Hemorrhage stack.',
-          components: [{ id: 'handle', label: 'Decimate (handle)', type: 'physical', amount: 'calc.HandleDamage', aoe: true, delay: 0.5, noProc: false }],
+          components: [{ id: 'handle', label: 'Decimate (handle)', type: 'physical', amount: 'calc.HandleDamage', aoe: true, delay: 0.75, noProc: false }],
         },
       },
-      components: [{ id: 'blade', label: 'Decimate (blade)', type: 'physical', amount: 'calc.BladeDamage', aoe: true, delay: 0.5 }],
+      components: [{ id: 'blade', label: 'Decimate (blade)', type: 'physical', amount: 'calc.BladeDamage', aoe: true, delay: 0.75 }],
     },
     W: {
       resetsAttack: true,
@@ -56,7 +57,7 @@ const kit: ChampionKit = {
       noTarget: false,
       // Wiki: unable to move or cast Q/R for 0.4s after the 0.25s cast time (he attacks the pulled
       // target once it ends): unable to act.
-      lockout: 0.65,
+      lockout: 'castTime + 0.4',
       cc: [{ kind: 'immobilize', duration: 0.5 }, { kind: 'slow', duration: 'dv.SlowDuration' }],
       components: [],
     },
@@ -64,7 +65,7 @@ const kit: ChampionKit = {
       dash: true,
       // Wiki: unable to cast Q/E for 0.25s after the 0.3667s cast time; no attacks either (he lands
       // from the leap): unable to act.
-      lockout: 0.6167,
+      lockout: 'castTime + 0.25',
       components: [
         {
           id: 'guillotine',

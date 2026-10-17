@@ -19,8 +19,17 @@ const kit: ChampionKit = {
     Q: {
       dash: true,
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
+      // Pulled to the target (its range at DashSpeed) once the bandage lands. Wiki: Despair can be cast
+      // during the dash; he attacks the target when it ends. (Locked from the cast's start, though he
+      // can act while the bandage flies.)
+      attackLockout: 'castTime + castRange / missileSpeed + castRange / dv.DashSpeed',
+      castLockout: {
+        Q: 'castTime + castRange / missileSpeed + castRange / dv.DashSpeed',
+        E: 'castTime + castRange / missileSpeed + castRange / dv.DashSpeed',
+        R: 'castTime + castRange / missileSpeed + castRange / dv.DashSpeed',
+      },
       notes: ['Two charges (from the data): "Q Q" casts both, the second after the 3s static cooldown.'],
-      components: [{ id: 'bandage', label: 'Bandage Toss', type: 'magic', amount: 'calc.TotalDamage', delay: 0.3 }],
+      components: [{ id: 'bandage', label: 'Bandage Toss', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
     W: {
       notes: ['Toggle: ticks every 0.5s for half of the per-second damage, the first at once; default 8 ticks in range (3.5s; set the seconds, e.g. W{6s}).'],

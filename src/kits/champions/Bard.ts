@@ -34,12 +34,12 @@ const kit: ChampionKit = {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       notes: ['Default: slow only. Q:stun = the bolt also hits a wall or second enemy (stun).'],
-      components: [{ id: 'bolt', label: 'Cosmic Binding', type: 'magic', amount: 'calc.TotalDamage', delay: 0.3 }],
+      components: [{ id: 'bolt', label: 'Cosmic Binding', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
       variants: {
         stun: {
           label: 'stun',
           cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-          components: [{ id: 'bolt', label: 'Cosmic Binding', type: 'magic', amount: 'calc.TotalDamage', delay: 0.3 }],
+          components: [{ id: 'bolt', label: 'Cosmic Binding', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
         },
       },
     },

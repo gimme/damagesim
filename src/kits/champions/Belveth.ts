@@ -34,8 +34,10 @@ const kit: ChampionKit = {
     P: { notes: ['Attack speed after abilities (hook) and from Lavender stacks (option).'] },
     Q: {
       dash: true,
+      // Its fixed 400 range at 850 + movement speed (wiki; BaseDashSpeed).
+      lockout: 'castRange / (dv.BaseDashSpeed + ms)',
       notes: ['Each of the 4 directions has its own cooldown; applies on-hit and can crit against the first target.'],
-      components: [{ id: 'surge', label: 'Void Surge', type: 'physical', amount: 'calc.BaseDamage', canCrit: true, onHit: true, delay: 0.2 }],
+      components: [{ id: 'surge', label: 'Void Surge', type: 'physical', amount: 'calc.BaseDamage', canCrit: true, onHit: true, travel: 'castRange / (dv.BaseDashSpeed + ms)' }],
     },
     W: {
       cc: [
@@ -72,7 +74,7 @@ const kit: ChampionKit = {
     },
     R: {
       // Wiki: locked out of moving and attacking for 0.25s after the 1s cast time (no casting either).
-      lockout: 1.25,
+      lockout: 'castTime + 0.25',
       cc: [{ kind: 'slow', duration: 1 }],
       notes: ['Explosion (true damage + % missing health) after the 1s cast, then true form: bonus HP, range and total attack speed.'],
       buff: {

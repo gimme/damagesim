@@ -45,13 +45,15 @@ const kit: ChampionKit = {
     W: {
       cc: [{ kind: 'slow', duration: 'P.dv.SlowDuration' }],
       notes: ['A target takes damage from only one arrow.'],
-      components: [{ id: 'volley', label: 'Volley', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 0.25 }],
+      components: [{ id: 'volley', label: 'Volley', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: true }],
     },
     E: { noTarget: true, notes: ['Hawkshot: vision only.'] },
     R: {
       cc: [{ kind: 'immobilize', duration: 'dv.MinStunDuration' }],
       notes: ['Stun 1–3.5s depending on distance travelled; the minimum is used.'],
-      components: [{ id: 'arrow', label: 'Enchanted Crystal Arrow', type: 'magic', amount: 'calc.RMainDamage', delay: 0.5 }],
+      // Global: assumed fired from 1200 units, at 1500 speed accelerating by 200/s, launched as the
+      // cast time starts (wiki: {{Effect at cast time start}}).
+      components: [{ id: 'arrow', label: 'Enchanted Crystal Arrow', type: 'magic', amount: 'calc.RMainDamage', travel: 'max(0, (sqrt(1500 * 1500 + 2 * 200 * 1200) - 1500) / 200 - castTime)' }],
     },
   },
   hooks: {

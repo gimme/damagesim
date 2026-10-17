@@ -24,11 +24,16 @@ const kit: ChampionKit = {
     P: { notes: ['Second shot and 3-hit proc are automatic (see notes).'] },
     Q: {
       notes: ['Hits the target on the way out and on the way back (Q{boomerang:1} for one pass).'],
-      components: [{ id: 'boomerang', label: 'Avengerang', type: 'physical', amount: 'calc.FinalDamage', hits: 2, maxHits: 2, interval: 0.6, delay: 0.25, aoe: true }],
+      // Wiki: out its range at 1500, then 500 further for the enemy hit, then back all the way at 2400.
+      components: [{ id: 'boomerang', label: 'Avengerang', type: 'physical', amount: 'calc.FinalDamage', hits: 2, maxHits: 2, interval: '500 / missileSpeed + (castRange + 500) / 2400', travel: true, aoe: true }],
     },
     W: { noTarget: true, notes: ['Going Rogue: camouflage / revive only.'] },
     E: {
       dash: true,
+      // Wiki: Comeuppance can be cast at any point; Avengerang and Going Rogue not while the hook flies
+      // and he swings (default 6 shots), and attacking only moves on to the next cast.
+      attackLockout: 'castRange / missileSpeed + 5 * dv.AttackFrequency',
+      castLockout: { Q: 'castRange / missileSpeed + 5 * dv.AttackFrequency', W: 'castRange / missileSpeed + 5 * dv.AttackFrequency' },
       notes: [
         'One "E" = hook, swing and dismount. The swing fires every 0.2s plus a dismount shot; default 6 shots on the target (E{shot:N}).',
         'Shots can crit (+50% of bonus crit damage) and apply on-hit effects at 25% effectiveness.',
@@ -42,7 +47,9 @@ const kit: ChampionKit = {
           hits: 6,
           maxHits: 15,
           interval: 'dv.AttackFrequency',
-          delay: 0.3,
+          // The swing starts once the hook has flown its range; shots fly up to 500 at 3000 (wiki).
+          delay: 'castRange / missileSpeed',
+          travel: '500 / 3000',
           canCrit: true,
           critMultiplier: '1 + dv.CritDamageMod * (critDamage - 1)',
           onHit: true,
@@ -66,7 +73,7 @@ const kit: ChampionKit = {
           max: 'calc.MaxDamagePerBullet',
           hits: 'dv.NumberOfBullets',
           interval: 'dv.CastTimePerBullet',
-          delay: 0.1,
+          travel: true,
         },
       ],
     },

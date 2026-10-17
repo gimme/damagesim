@@ -1,6 +1,8 @@
 import type { ChampionKit } from '../../engine/kit-types.ts';
 
 // Corki — patch 16.20.
+// Valkyrie's dash: its range at 650 + movement speed (DashSpeedBase, DashSpeedRatio).
+const W_DASH = 'castRange / (dv.DashSpeedBase + dv.DashSpeedRatio * ms)';
 const kit: ChampionKit = {
   id: 'Corki',
   status: 'curated',
@@ -25,10 +27,13 @@ const kit: ChampionKit = {
   },
   abilities: {
     Q: {
-      components: [{ id: 'bomb', label: 'Phosphorus Bomb', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.4 }],
+      components: [{ id: 'bomb', label: 'Phosphorus Bomb', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true }],
     },
     W: {
       dash: true,
+      // Wiki: Gatling Gun can be cast during the dash.
+      attackLockout: W_DASH,
+      castLockout: { Q: W_DASH, R: W_DASH },
       components: [
         {
           id: 'burn',
@@ -38,7 +43,8 @@ const kit: ChampionKit = {
           hits: 3,
           maxHits: 'dv.MaximumTicks',
           interval: '1 / dv.TicksPerSecond',
-          delay: 0.25,
+          // The patch under the target is dropped as the dash ends.
+          delay: W_DASH,
           aoe: true,
           dot: true,
         },
@@ -74,7 +80,8 @@ const kit: ChampionKit = {
           type: 'physical',
           amount: 'stacks.corkiMissile % 3 == 0 ? calc.RBigMissileDamage : calc.RSmallMissileDamage',
           aoe: true,
-          delay: 0.25,
+          // Fired as the cast time starts (wiki: {{Effect at cast time start}}); the Big One flies 1500.
+          travel: 'max(0, (stacks.corkiMissile % 3 == 0 ? 1500 : castRange) / missileSpeed - castTime)',
         },
       ],
     },

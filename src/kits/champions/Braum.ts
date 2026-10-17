@@ -38,7 +38,7 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      components: [{ id: 'bite', label: "Winter's Bite", type: 'magic', amount: 'calc.TotalDamage', delay: 0.3 }],
+      components: [{ id: 'bite', label: "Winter's Bite", type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
     W: { noTarget: true, dash: true, components: [] },
     E: { noTarget: true, components: [] },
@@ -47,7 +47,7 @@ const kit: ChampionKit = {
         { kind: 'immobilize', duration: '(dv.MinKnockup + dv.MaxKnockup) / 2' },
         { kind: 'slow', duration: 'dv.SlowZoneDuration' },
       ],
-      components: [{ id: 'fissure', label: 'Glacial Fissure', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.3 }],
+      components: [{ id: 'fissure', label: 'Glacial Fissure', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true }],
     },
   },
 };

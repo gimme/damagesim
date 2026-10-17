@@ -7,6 +7,8 @@ const BLAZE_DURATION = 4; // seconds, from the tooltip text ("over 4 seconds")
 const BLAZE_TICK = 0.25; // wiki
 const DETONATION_DELAY = 2; // tooltip text ("detonate after 2 seconds")
 const DETONATION_LOCKOUT = 4; // wiki: max 1 stack for 4s after an explosion
+// Pyroclasm's flight over a distance: from 750 speed, accelerating by 500/s (wiki).
+const fireball = (d: string) => `(sqrt(750 * 750 + 2 * 500 * ${d}) - 750) / 500`;
 
 const kit: ChampionKit = {
   id: 'Brand',
@@ -14,7 +16,7 @@ const kit: ChampionKit = {
   notes: [
     'Blaze: each ability hit adds a stack (max 3, all stacks refresh to 4s); each stack burns for its own 2% max health over 4s.',
     'At 3 stacks the target explodes 2s later for P.calc.ExplosionDamage × max health, which consumes the stacks and re-applies 1 stack; for 4s afterwards the target cannot hold more than 1 stack.',
-    'Pyroclasm against a lone champion bounces champion → Brand → champion…: 3 hits on the target (wiki), ~0.75s apart (bounce delay + travel, approximated).',
+    'Pyroclasm against a lone champion bounces champion → Brand → champion…: 3 hits on the target (wiki), each bounce flying the 600 bounce range after a 0.15s delay.',
     'Sear only stuns Ablaze targets and Pyroclasm only slows Ablaze targets: both are assumed to hit an Ablaze target (cast them after another ability).',
   ],
   marks: [
@@ -78,7 +80,7 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-      components: [{ id: 'sear', label: 'Sear', type: 'magic', amount: 'calc.TotalDamage', delay: 0.3 }],
+      components: [{ id: 'sear', label: 'Sear', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
     W: {
       notes: ['Deals W.calc.EmpoweredDamage instead if the target is Ablaze when the pillar erupts.'],
@@ -89,7 +91,7 @@ const kit: ChampionKit = {
           type: 'magic',
           amount: 'stacks.blaze > 0 ? calc.EmpoweredDamage : calc.TotalDamage',
           aoe: true,
-          delay: 0.625, // eruption delay (not in data)
+          delay: 0.625, // wiki: erupts 0.625s after the cast time
         },
       ],
     },
@@ -106,8 +108,10 @@ const kit: ChampionKit = {
           amount: 'calc.TotalDamage',
           hits: 3,
           maxHits: 3,
-          interval: 0.75,
-          delay: 0.25,
+          // Flies its range to the target, then to Brand and back (at most the 600 bounce range apart),
+          // 0.15s between bounces (wiki).
+          interval: `2 * (0.15 + ${fireball('600')})`,
+          travel: fireball('castRange'),
           sameCast: false,
         },
       ],

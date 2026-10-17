@@ -27,12 +27,23 @@ const WEAPON_CD = [`${CAL}.calc.CalibrumQCD`, `${SEV}.calc.SeverumQCD`, `${GRA}.
   (cd) => `${cd} * (1 + ah / 100)`,
 );
 
+// Each weapon's Q has its own cast time (its spell's).
+const WEAPON_CT = [CAL, SEV, GRA, INF, CRE].map((sp) => `${sp}.castTime`);
+// Moonshot flies its range at 1850 (wiki; no speed in the data).
+const MOONSHOT = `${CAL}.castTime + ${CAL}.castRange / 1850`;
+// Moonlight Vigil is fired as its cast time starts (wiki: {{Effect at cast time start}}).
+const R_TRAVEL = 'max(0, castRange / missileSpeed - castTime)';
+// Wiki: Onslaught keeps Phase and Moonlight Vigil from being cast (he can move); Duskwave keeps him
+// from attacking until its volley (0.25s after the wave) has resolved.
+const SEV_LOCK = `${SEV}.dv.Duration`;
+const INF_LOCK = `${INF}.castTime + 0.25`;
+
 /** Q components per weapon; `gate` limits them to the weapon currently in the main hand. */
 const weaponQ = (w: number, gate: boolean): ComponentSpec[] => {
   const hits = (h: string | number) => (gate ? `stacks.aphMain == ${w} ? ${h} : 0` : h);
   switch (w) {
     case 1:
-      return [{ id: 'moonshot', label: 'Moonshot', type: 'physical', amount: `${CAL}.calc.SpellDamage`, hits: hits(1), delay: 0.3 }];
+      return [{ id: 'moonshot', label: 'Moonshot', type: 'physical', amount: `${CAL}.calc.SpellDamage`, hits: hits(1), travel: `${CAL}.castRange / 1850` }];
     case 2:
       return [
         {
@@ -52,8 +63,9 @@ const weaponQ = (w: number, gate: boolean): ComponentSpec[] => {
       return [{ id: 'eclipse', label: 'Binding Eclipse', type: 'magic', amount: `${GRA}.calc.Damage`, hits: hits(1) }];
     case 4:
       return [
-        { id: 'duskwave', label: 'Duskwave', type: 'physical', amount: `${INF}.calc.QWaveDamage`, hits: hits(1), aoe: true, delay: 0.1 },
-        { id: 'volley', label: 'Duskwave (off-hand attack)', type: 'physical', amount: 'ad', hits: hits(1), delay: 0.35, canCrit: true, onHit: true },
+        // Wiki: the wave sweeps the cone over the cast time; the volley follows 0.25s later.
+        { id: 'duskwave', label: 'Duskwave', type: 'physical', amount: `${INF}.calc.QWaveDamage`, hits: hits(1), aoe: true },
+        { id: 'volley', label: 'Duskwave (off-hand attack)', type: 'physical', amount: 'ad', hits: hits(1), delay: 0.25, canCrit: true, onHit: true },
       ];
     default:
       return [
@@ -64,7 +76,8 @@ const weaponQ = (w: number, gate: boolean): ComponentSpec[] => {
           amount: `${CRE}.calc.TurretDamage`,
           hits: hits(`floor(${CRE}.dv.TurretDurationActive * as)`),
           interval: '1 / as',
-          delay: 0.5,
+          // Wiki: the sentry arms 0.35s after it is deployed.
+          delay: 0.35,
           canCrit: true,
           pet: true,
         },
@@ -148,8 +161,23 @@ const kit: ChampionKit = {
         'Each weapon has its own cooldown (its *QCD calc); swapping with W keeps the other weapon\'s cooldown.',
       ],
       cooldown: `${['', ...WEAPON_CD.slice(0, 4).map((cd, i) => `stacks.aphMain == ${i + 1} ? ${cd} : `)].join('')}${WEAPON_CD[4]}`,
+      castTime: `${['', ...WEAPON_CT.slice(0, 4).map((ct, i) => `stacks.aphMain == ${i + 1} ? ${ct} : `)].join('')}${WEAPON_CT[4]}`,
+      castLockout: { W: `stacks.aphMain == 2 ? ${SEV_LOCK} : 0`, R: `stacks.aphMain == 2 ? ${SEV_LOCK} : 0` },
+      attackLockout: `stacks.aphMain == 4 ? ${INF_LOCK} : 0`,
       components: [1, 2, 3, 4, 5].flatMap((w) => weaponQ(w, true)),
-      variants: Object.fromEntries(WEAPONS.map((name, i) => [name, { label: name, cooldown: WEAPON_CD[i], components: weaponQ(i + 1, false) }])),
+      variants: Object.fromEntries(
+        WEAPONS.map((name, i) => [
+          name,
+          {
+            label: name,
+            cooldown: WEAPON_CD[i],
+            castTime: WEAPON_CT[i],
+            castLockout: i === 1 ? { W: SEV_LOCK, R: SEV_LOCK } : {},
+            attackLockout: i === 3 ? INF_LOCK : 0,
+            components: weaponQ(i + 1, false),
+          },
+        ]),
+      ),
     },
     W: { noTarget: true, notes: ['Swaps main-hand and off-hand weapons.'] },
     E: { spell: 'ApheliosE', noTarget: true, notes: ['Aphelios has no E ability (rank-ups grant stats).'] },
@@ -159,13 +187,15 @@ const kit: ChampionKit = {
         'Calibrum: empowered mark; Infernum: bonus blast damage and 110% AD attack; Gravitum: 99% slow. Severum heal / Crescendum chakrams not modeled.',
       ],
       components: [
-        { id: 'blast', label: 'Moonlight Vigil', type: 'physical', amount: 'calc.MaxDamage + (stacks.aphMain == 4 ? calc.InfernumRBonusDamage : 0)', aoe: true, delay: 0.4 },
+        { id: 'blast', label: 'Moonlight Vigil', type: 'physical', amount: 'calc.MaxDamage + (stacks.aphMain == 4 ? calc.InfernumRBonusDamage : 0)', aoe: true, travel: R_TRAVEL },
         {
           id: 'attack',
           label: 'Moonlight Vigil (attack)',
           type: 'physical',
           amount: `ad * (stacks.aphMain == 4 ? ${INF}.dv.InfernumDamageMultiplier : 1) * calc.CritDamageModCalc`,
-          delay: 0.6,
+          // Wiki: the attacks launch from the sky 0.3s after the blast.
+          delay: 0.3,
+          travel: R_TRAVEL,
           onHit: true,
         },
       ],
@@ -190,7 +220,9 @@ const kit: ChampionKit = {
       if (!cast.hitsTarget || (cast.slot !== 'Q' && cast.slot !== 'R')) return;
       const forced = cast.variant ? WEAPONS.indexOf(cast.variant.toLowerCase() as (typeof WEAPONS)[number]) + 1 : 0;
       const weapon = forced || sim.counter('aphMain');
-      weaponEffects(sim, cast.slot, weapon, cast.castId, cast.slot === 'Q' ? 0.7 : 1.2);
+      // Just after the hit that applies them: Moonshot, Binding Eclipse, Moonlight Vigil's attacks.
+      const at = cast.slot === 'R' ? `castTime + ${R_TRAVEL} + 0.3` : weapon === 1 ? MOONSHOT : `${GRA}.castTime`;
+      weaponEffects(sim, cast.slot, weapon, cast.castId, sim.evalExpr(at, { slot: cast.slot }) + 0.05);
     },
     // Gravitum attacks slow.
     onAttack(sim, atk) {
