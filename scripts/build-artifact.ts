@@ -45,7 +45,8 @@ await Promise.all(
   Array.from({ length: 12 }, async (_, worker) => {
     for (let i = worker; i < wanted.length; i += 12) {
       const [key, url, px = 64] = wanted[i];
-      const file = join(CACHE, key.replace(/[^a-zA-Z0-9.]/g, "_"));
+      // An ability's by its icon too: a slot's icon can change (another of its spell's icons).
+      const file = join(CACHE, (key.startsWith("ability/") ? `${key}/${url.slice(url.lastIndexOf("/") + 1)}` : key).replace(/[^a-zA-Z0-9.]/g, "_"));
       let buf: Buffer | null = existsSync(file) ? readFileSync(file) : null;
       if (!buf) {
         const res = await fetch(url);
