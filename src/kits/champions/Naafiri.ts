@@ -40,7 +40,7 @@ function bleedTick(sim: Sim, gen: number) {
   sim.deal({
     source: 'Q',
     sourceLabel: 'Darkin Daggers',
-    label: 'Darkin Daggers bleed',
+    label: 'Darkin Daggers (bleed)',
     type: 'physical',
     amount: sim.evalExpr('Q.calc.TotalBleedDamage * Q.dv.BleedInterval / Q.dv.BleedDuration', { slot: 'Q' }),
     // Part of the dagger's cast instance.

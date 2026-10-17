@@ -15,7 +15,7 @@ const kit: ChampionKit = {
       stacksPerHit: 'buff.noxianMight ? P.dv.MaxStacks : 1',
       appliedBy: ['attack', 'Q', 'W'],
       // Proc damage (wiki; in game the bleed adds no Conqueror stacks).
-      dot: { interval: 1.25, components: [{ id: 'bleed', label: 'Bleed', type: 'physical', amount: 'P.calc.BleedDamagePerStack / 4 * stacks.hemorrhage', dot: true, proc: true }] },
+      dot: { interval: 1.25, components: [{ id: 'bleed', label: 'Hemorrhage (bleed)', type: 'physical', amount: 'P.calc.BleedDamagePerStack / 4 * stacks.hemorrhage', dot: true, proc: true }] },
       atMax: {
         components: [],
         buff: { id: 'noxianMight', label: 'Noxian Might', duration: 'P.dv.BleedDuration', stats: { ad: 'P.calc.NoxianMightBonusAD' } },

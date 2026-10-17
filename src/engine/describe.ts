@@ -36,7 +36,7 @@ function componentInfo(sim: Sim, slot: Slot, c: ComponentSpec, spellName?: strin
   } catch {
     // reported via sim warnings
   }
-  const flags = (['aoe', 'dot', 'attack', 'onHit', 'canCrit', 'pet', 'noProc'] as const).filter((f) => (c as any)[f]);
+  const flags = (['aoe', 'dot', 'attack', 'onHit', 'canCrit', 'pet', 'noProc', 'execute'] as const).filter((f) => (c as any)[f]);
   return {
     id: c.id,
     label: c.label,

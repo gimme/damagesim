@@ -38,7 +38,7 @@ const kit: ChampionKit = {
       sim.setCounter('zoeAsleep', 0);
       if (sim.time > end + 1e-9) return;
       const cap = sim.evalExpr('E.calc.BreakDamageTooltip', { slot: 'E' });
-      sim.deal({ source: 'E', sourceLabel: 'Sleepy Trouble Bubble', label: 'Wake-up bonus', type: 'true', amount: Math.min(inst.final ?? 0, cap), castId: inst.castId, flags: { kind: 'ability', slot: 'E', ability: false, proc: true }, markSource: 'zoeSleep' });
+      sim.deal({ source: 'E', sourceLabel: 'Sleepy Trouble Bubble', label: 'Sleepy Trouble Bubble (wake-up bonus)', type: 'true', amount: Math.min(inst.final ?? 0, cap), castId: inst.castId, flags: { kind: 'ability', slot: 'E', ability: false, proc: true }, markSource: 'zoeSleep' });
     },
     targetResist(sim) {
       if (!sim.counter('zoeAsleep')) return;
@@ -62,7 +62,7 @@ const kit: ChampionKit = {
     W: {
       buff: sparkles,
       // "tosses 3 missiles" (tooltip text; not a data value); no missile speed in the data or the wiki.
-      components: [{ id: 'bolt', label: 'Spell Thief bolt', type: 'magic', amount: 'calc.MissileDamageTooltip', hits: 3, maxHits: 3, interval: 0.2, delay: 0.3 }],
+      components: [{ id: 'bolt', label: 'Spell Thief (bolt)', type: 'magic', amount: 'calc.MissileDamageTooltip', hits: 3, maxHits: 3, interval: 0.2, delay: 0.3 }],
     },
     E: {
       buff: sparkles,

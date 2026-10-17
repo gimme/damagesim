@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { DATA, abilityIcon, championIcon, runeIcon } from '../data.ts';
-import { Card, ChampIcon, ChampionPicker, Icon, ItemIcon, ItemPicker, ItemTip, Markup, NumberField, RuneTip, fmt, mergeProps, sourceMark, useDragOrder, useHistory, useHoverCard } from './common.tsx';
+import { Card, ChampIcon, ChampionPicker, Icon, ItemIcon, ItemPicker, ItemTip, Markup, NumberField, RuneTip, fmt, mergeProps, sourceMark, useDragOrder, useHistory, useHoverCard, useItemSlots } from './common.tsx';
 import { TARGET_MODES, type UIState, type TargetMode, type TargetState, type TargetStats } from '../state.ts';
 import { ITEMS_BY_LEVEL_RULE, TARGET_PRESETS, isTargetPreset, itemsAtLevel, levelForItems, presetShardHp, type TargetPreset } from '../../engine/presets.ts';
 import { maxRanks, resolveRanks, type CastSetting, type Sim, type SimResult } from '../../engine/sim.ts';
@@ -225,32 +225,13 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
     put(picking ?? 0, id);
     setPicking(null);
   };
-  // An item is dragged to another slot, whose outline shows where it will land; nothing else moves
-  // meanwhile. Dropped on an item, the two swap; on an empty slot, it moves there. Arrow keys swap a
-  // focused item with its neighbour, Delete removes it. The picker stays with what it was opened for.
-  const swap = (from: number, to: number) => {
-    const next = items.map((_, j) => j);
-    [next[from], next[to]] = [next[to], next[from]];
-    return next;
-  };
-  const order = useDragOrder({
-    count: items.length,
-    arrange: swap,
-    // The slot its middle is nearest, within a slot's size; farther away, it goes back.
-    landAt: (x, y, cells, _at, from) => {
-      const d = cells.map((c) => Math.hypot((x - c.x) / c.w - 0.5, (y - c.y) / c.h - 0.5));
-      const k = d.indexOf(Math.min(...d));
-      return d[k] < 1 ? k : from;
-    },
-    move: (from, to) => {
-      set((s) => ({ ...s, items: swap(from, to).map((j) => s.items[j]) }));
-      setPicking((p) => (p === from ? to : p === to ? from : p));
-    },
-    makeWay: false,
-    movable: (i) => !!items[i],
+  // Items are dragged between the slots and sold as in Item value's; the picker stays with what it
+  // was opened for.
+  const slots = useItemSlots(items, (fn) => set((s) => ({ ...s, items: fn(s.items) })), {
     onPick: hover.hide,
+    onMove: (from, to) => setPicking((p) => (p === from ? to : p === to ? from : p)),
+    onSell: hover.hide,
   });
-  const landing = order.drag && order.drag.to !== order.drag.from ? order.drag.to : null;
   // Every change to the items, from here or elsewhere (a buy in Item value, Reset), can be undone.
   const past = useHistory(
     items,
@@ -266,7 +247,7 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
       const k = e.key.toLowerCase();
       if (!(e.ctrlKey || e.metaKey) || e.altKey || (k !== 'z' && k !== 'y')) return;
       const el = e.target as HTMLElement;
-      if (el !== document.body && !order.box.current?.closest('.card')?.contains(el)) return;
+      if (el !== document.body && !slots.box.current?.closest('.card')?.contains(el)) return;
       if (el.matches('input, textarea, select, [contenteditable]')) return;
       e.preventDefault();
       if (k === 'z' && !e.shiftKey) past.undo();
@@ -302,49 +283,25 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
       }
     >
       <div className="picker-host">
-        <div className="slots" ref={order.box}>
+        <div className="slots" ref={slots.box}>
           {items.map((id, i) => (
             <div
               key={i}
-              className={`slot ${id ? 'filled' : ''} ${order.drag?.from === i ? 'dragging' : ''} ${landing === i ? 'landing' : ''} ${picking === i ? 'picking' : ''}`}
-              role="button"
-              tabIndex={0}
               aria-expanded={picking === i}
-              aria-label={id ? `Item slot ${i + 1}: ${DATA.items[id]?.name}. Arrow keys move it, Delete removes it.` : `Empty item slot ${i + 1}`}
+              aria-label={id ? `Item slot ${i + 1}: ${DATA.items[id]?.name}. Arrow keys move it, Delete sells it.` : `Empty item slot ${i + 1}`}
               title={id ? undefined : 'Add item'}
-              {...mergeProps(id ? hover.bind(<ItemTip id={id} sim={sim} />) : {}, order.item(i), {
+              {...slots.slot(i, {
+                className: picking === i ? 'picking' : '',
+                ...(id ? hover.bind(<ItemTip id={id} sim={sim} />) : {}),
                 onClick: () => setPicking((p) => (p === i ? null : i)),
-                onKeyDown: (e: KeyboardEvent) => {
-                  if (e.target !== e.currentTarget) return;
-                  if (e.key === 'Enter') setPicking(i);
-                  else if (id && (e.key === 'Delete' || e.key === 'Backspace')) {
-                    e.preventDefault();
-                    hover.hide();
-                    put(i, null);
-                  }
-                },
+                onKeyDown: (e: KeyboardEvent) => e.target === e.currentTarget && e.key === 'Enter' && setPicking(i),
               })}
             >
               {id ? <ItemIcon id={id} /> : '+'}
-              {id && (
-                <button
-                  className="remove"
-                  aria-label={`Remove ${DATA.items[id]?.name}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    put(i, null);
-                  }}
-                >
-                  ✕
-                </button>
-              )}
+              {slots.remove(i)}
             </div>
           ))}
-          {order.drag && (
-            <div className="slot vacated" aria-hidden style={{ gridColumn: `${order.drag.from + 1} / span 1` }}>
-              +
-            </div>
-          )}
+          {slots.vacated}
         </div>
         {picking !== null && <ItemPicker onPick={pick} onClose={() => setPicking(null)} sim={sim} />}
       </div>
@@ -821,10 +778,97 @@ function CastSettingField({ step, setting, onChange }: { step: AbilityStep; sett
   );
 }
 
+/**
+ * A step's variant: the one it casts, tinted and with a chevron, opening the ability's variants to
+ * pick from. A press on it that moves drags its step instead, as anywhere on the step.
+ */
+function VariantMenu({ label, value, options, onPick }: { label: string; value: string; options: { value: string; label: string }[]; onPick: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const button = useRef<HTMLButtonElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const id = useId();
+  // A press anywhere but in the list closes it, and on the button doesn't open it again.
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (!open) return;
+    list.current?.focus();
+    const close = (e: globalThis.PointerEvent) => !list.current?.contains(e.target as Node) && setOpen(false);
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [open]);
+  const at = Math.max(0, options.findIndex((o) => o.value === value));
+  const show = () => {
+    setActive(at);
+    setOpen(true);
+  };
+  const done = (v?: string) => {
+    setOpen(false);
+    button.current?.focus();
+    if (v != null && v !== value) onPick(v);
+  };
+  return (
+    <span className="step-variant">
+      <button
+        ref={button}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`${label}: ${options[at].label}`}
+        title="Variant"
+        onPointerDown={() => (wasOpen.current = open)}
+        onClick={() => {
+          const was = wasOpen.current;
+          wasOpen.current = false;
+          if (was) setOpen(false);
+          else show();
+        }}
+        onKeyDown={(e) => {
+          if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+          e.preventDefault();
+          show();
+        }}
+      >
+        {options[at].label}
+        <svg viewBox="0 0 10 10" aria-hidden>
+          <path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          ref={list}
+          className="step-variant-list"
+          role="listbox"
+          tabIndex={-1}
+          aria-label={label}
+          aria-activedescendant={`${id}-${active}`}
+          onKeyDown={(e) => {
+            if (e.key === 'Tab') return setOpen(false);
+            if (e.key === 'ArrowDown') setActive((a) => Math.min(options.length - 1, a + 1));
+            else if (e.key === 'ArrowUp') setActive((a) => Math.max(0, a - 1));
+            else if (e.key === 'Home') setActive(0);
+            else if (e.key === 'End') setActive(options.length - 1);
+            else if (e.key === 'Enter' || e.key === ' ') done(options[active].value);
+            else if (e.key === 'Escape') done();
+            else return;
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        >
+          {options.map((o, k) => (
+            <div key={o.value} id={`${id}-${k}`} role="option" aria-selected={k === at} className={k === active ? 'active' : undefined} onPointerEnter={() => setActive(k)} onClick={() => done(o.value)}>
+              {o.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
+
 export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; sim: Sim | null }) {
   const [text, setText] = useState(state.combo);
-  // The combo shows as steps; the pencil (or a click on the box's empty space) turns it into its
-  // shorthand, typed in place, until Enter, Escape or a click elsewhere.
+  // The combo shows as steps; the pencil turns it into its shorthand, typed in place, until Enter,
+  // Escape or a click elsewhere.
   const [typing, setTyping] = useState(false);
   const startTyping = () => {
     setText(state.combo);
@@ -885,21 +929,45 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
     }
     return null;
   };
+  // A key adds its step at the end, or dragged into the steps, where it's let go: meanwhile its step
+  // is the last one shown, and lands among the others like a step moved there.
+  const [incoming, setIncoming] = useState<ComboStep | null>(null);
+  const shown = incoming ? [...steps, incoming] : steps;
   // A step is dragged to its new place, the others sliding aside to open the gap it will land in.
   // Arrow keys move a focused step, Delete removes it; focus stays on it, or on the next one.
   const order = useDragOrder({
-    count: steps.length,
-    arrange: (from, to) => moveStep(steps.map((_, j) => j), from, to),
-    // Before the first other step it is before in reading order (above its line, or on it and left of
-    // its middle).
+    count: shown.length,
+    arrange: (from, to) => moveStep(shown.map((_, j) => j), from, to),
+    // Where it's nearest: on the line nearest its middle, however the pointer drifts up or down, after
+    // the steps there whose middle its left edge is past, or its right edge for a step after the gap
+    // it leaves on its own line. So a step it's dragged over makes way once half covered, either way.
     landAt: (x, y, cells, at) => {
-      const others = cells.filter((_, k) => k !== at);
-      const to = others.findIndex((r) => y < r.y || (y <= r.y + r.h && x < r.x + r.w / 2));
-      return to < 0 ? others.length : to;
+      const d = cells[at];
+      // The cells by line, as laid out: one left of the one before it starts a new line.
+      const lines: number[][] = [];
+      cells.forEach((c, k) => (k && c.x >= cells[k - 1].x ? lines[lines.length - 1].push(k) : lines.push([k])));
+      const top = (l: number[]) => Math.min(...l.map((k) => cells[k].y));
+      const bottom = (l: number[]) => Math.max(...l.map((k) => cells[k].y + cells[k].h));
+      let n = 0;
+      while (n < lines.length - 1 && y > (bottom(lines[n]) + top(lines[n + 1])) / 2) n++;
+      const own = lines[n].includes(at);
+      const above = lines.slice(0, n).flat().filter((k) => k !== at).length;
+      return above + lines[n].filter((k) => k !== at && (own && k > at ? x + d.w / 2 : x - d.w / 2) > cells[k].x + cells[k].w / 2).length;
     },
-    move: (from, to) => commit(moveStep(steps, from, to)),
+    move: (from, to) => {
+      setIncoming(null);
+      commit(moveStep(shown, from, to));
+    },
   });
   const drag = order.drag;
+  const keys: { key: string; step: ComboStep; title: string; icon?: ReactNode; text: string }[] = [
+    ...(['Q', 'W', 'E', 'R'] as Slot[]).map((s) => ({ key: s, step: { type: 'ability', slot: s } as ComboStep, title: spellName(s), icon: icon(s, spellName(s), 'sm'), text: s })),
+    ...(hasP ? [{ key: 'P', step: { type: 'ability', slot: 'P' } as ComboStep, title: champ.passive.name, icon: icon('P', champ.passive.name, 'sm'), text: 'P' }] : []),
+    { key: 'AA', step: { type: 'attack' }, title: 'Basic attack', icon: icon('AA', 'Basic attack', 'sm'), text: 'AA' },
+    { key: 'ignite', step: { type: 'summoner', spell: 'ignite' }, title: 'Ignite', icon: icon('summoner:ignite', 'Ignite', 'sm'), text: 'Ignite' },
+    ...actives.map((e) => ({ key: e.id, step: { type: 'item', item: e.label } as ComboStep, title: `${e.label} active`, icon: icon(e.id, e.label, 'sm'), text: e.active!.label })),
+    { key: 'wait', step: { type: 'wait' }, title: 'Wait, 1 second unless you set it', text: 'Wait' },
+  ];
 
   return (
     <Card
@@ -922,51 +990,29 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
     >
       {/* While typing, the keys add to the text without taking the focus from it */}
       <div className="combo-palette" onMouseDown={typing ? (e) => e.preventDefault() : undefined}>
-        {(['Q', 'W', 'E', 'R'] as Slot[]).map((s) => (
-          <button key={s} className="combo-key" title={spellName(s)} onClick={() => add({ type: 'ability', slot: s })}>
-            {icon(s, spellName(s), 'sm')}
-            {s}
+        {keys.map((k) => (
+          <button key={k.key} className="combo-key" title={k.title} {...order.source((on) => setIncoming(on ? follow(k.step) : null))} onClick={() => add(k.step)}>
+            {k.icon}
+            {k.text}
           </button>
         ))}
-        {hasP && (
-          <button className="combo-key" title={champ.passive.name} onClick={() => add({ type: 'ability', slot: 'P' })}>
-            {icon('P', champ.passive.name, 'sm')}
-            P
-          </button>
-        )}
-        <button className="combo-key" title="Basic attack" onClick={() => add({ type: 'attack' })}>
-          {icon('AA', 'Basic attack', 'sm')}
-          AA
-        </button>
-        <button className="combo-key" title="Ignite" onClick={() => add({ type: 'summoner', spell: 'ignite' })}>
-          {icon('summoner:ignite', 'Ignite', 'sm')}
-          Ignite
-        </button>
-        {actives.map((e) => (
-          <button key={e.id} className="combo-key" title={`${e.label} active`} onClick={() => add({ type: 'item', item: e.label })}>
-            {icon(e.id, e.label, 'sm')}
-            {e.active!.label}
-          </button>
-        ))}
-        <button className="combo-key" title="Wait, 1 second unless you set it" onClick={() => add({ type: 'wait' })}>
-          Wait
-        </button>
       </div>
       {!typing ? (
-        <div className="combo-seq" ref={order.box} style={{ marginTop: 10 }} role="list" aria-label="Combo sequence" onClick={(e) => e.target === e.currentTarget && startTyping()}>
-          {!steps.length && (
-            <span className="muted small" style={{ pointerEvents: 'none' }}>
-              Click abilities above to build a combo.
-            </span>
-          )}
-          {steps.map((st, i) => {
+        <div
+          className={`combo-seq ${incoming ? 'receiving' : ''} ${incoming && !drag?.away ? 'over' : ''}`}
+          ref={order.box}
+          style={{ marginTop: 10 }}
+          role="list"
+          aria-label="Combo sequence"
+        >
+          {shown.map((st, i) => {
             const variants = st.type === 'ability' ? Object.entries(kit.abilities[st.slot]?.variants ?? {}) : [];
             const setting = st.type === 'ability' ? sim?.castSetting(st) : null;
             const replace = (next: ComboStep) => commit(steps.map((x, j) => (j === i ? next : x)));
             return (
               <span
                 key={i}
-                className={`chip ${drag?.from === i ? 'dragging' : ''}`}
+                className={`chip ${drag?.from === i ? 'dragging' : ''} ${drag?.from === i && drag.away ? 'away' : ''}`}
                 role="listitem"
                 tabIndex={0}
                 aria-label={`Step ${i + 1} of ${steps.length}: ${label(st)}. Arrow keys move it, Delete removes it.`}
@@ -981,19 +1027,12 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
               >
                 {stepIcon(st)}
                 {variants.length > 0 && st.type === 'ability' ? (
-                  <select
-                    aria-label={`${st.slot} variant`}
+                  <VariantMenu
+                    label={`${st.slot} variant`}
                     value={st.variant ?? ''}
-                    onChange={(e) => commit(steps.map((x, j) => (j === i ? follow({ ...st, variant: e.target.value || undefined }) : x)))}
-                    style={{ padding: '1px 2px', fontWeight: 600, background: 'transparent', border: 0 }}
-                  >
-                    <option value="">{chipLabel({ ...st, variant: undefined })}</option>
-                    {variants.map(([k, v]) => (
-                      <option key={k} value={k}>
-                        {chipLabel({ ...st, variant: undefined })}: {v.label}
-                      </option>
-                    ))}
-                  </select>
+                    options={[{ value: '', label: chipLabel({ ...st, variant: undefined }) }, ...variants.map(([k, v]) => ({ value: k, label: `${chipLabel({ ...st, variant: undefined })}: ${v.label}` }))]}
+                    onPick={(v) => replace(follow({ ...st, variant: v || undefined }))}
+                  />
                 ) : (
                   <span title={st.type === 'ability' ? spellName(st.slot) : undefined}>{chipLabel(st)}</span>
                 )}
@@ -1009,13 +1048,14 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
                     onChange={(v) => replace(v === undefined ? { type: 'wait' } : { ...st, seconds: v })}
                   />
                 )}
-                <button aria-label="Remove step" tabIndex={-1} onClick={() => commit(steps.filter((_, j) => j !== i))}>
+                <button className="step-remove" aria-label="Remove step" tabIndex={-1} onClick={() => commit(steps.filter((_, j) => j !== i))}>
                   ✕
                 </button>
               </span>
             );
           })}
-          <button className="combo-edit" style={drag ? { order: steps.length } : undefined} aria-label="Edit as text" title="Edit as text" onClick={startTyping}>
+          {!steps.length && !(incoming && !drag?.away) && <span className="muted small">Click or drag abilities here to build a combo.</span>}
+          <button className="combo-edit" style={drag ? { order: shown.length } : undefined} aria-label="Edit as text" title="Edit as text" onClick={startTyping}>
             <svg viewBox="0 0 16 16" aria-hidden>
               <path d="M10.5 2.5l3 3L5.5 13.5H2.5v-3z M9 4l3 3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
             </svg>

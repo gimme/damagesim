@@ -41,7 +41,7 @@ const kit: ChampionKit = {
       components: [
         {
           id: 'knife',
-          label: 'Death Lotus knife',
+          label: 'Death Lotus (knife)',
           type: 'magic',
           amount: 'calc.DamageCalc',
           hits: 'dv.TicksPerSecond * dv.Duration',
@@ -56,7 +56,7 @@ const kit: ChampionKit = {
         },
         {
           id: 'knifeAd',
-          label: 'Death Lotus knife (AD)',
+          label: 'Death Lotus (knife, AD)',
           type: 'physical',
           amount: 'calc.ADDamageCalc',
           // No hits without bonus AD (avoids 15 zero-damage instances on AP builds).

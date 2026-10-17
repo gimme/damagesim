@@ -27,6 +27,11 @@ export interface DamageFlags {
   crit: boolean;
   /** Not affected by damage-dealt amplifiers (Ignite, First Strike bonus). */
   unamplified?: boolean;
+  /**
+   * A literal execute (Smolder Q, Pyke R, The Collector): kills the target, so it sets off nothing
+   * (no effects, runes, items, marks or detonations). See Sim.deal.
+   */
+  execute?: boolean;
   /** Persistent aura damage (Sunfire, Unending Despair): doesn't by itself keep you in combat. */
   aura?: boolean;
   /** Basic damage other than the attack itself (Kraken Slayer, attack-like ability hits). */

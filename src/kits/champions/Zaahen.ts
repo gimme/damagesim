@@ -42,7 +42,7 @@ const kit: ChampionKit = {
     },
     afterDamage(sim, inst) {
       // The recast's empowered attack knocks up.
-      if (inst.source === 'Q' && inst.label === 'Darkin Glaive (recast)')
+      if (inst.source === 'Q' && inst.label === 'The Darkin Glaive (recast)')
         sim.applyCC('immobilize', sim.evalExpr('Q.dv.KnockUpDuration', { slot: 'Q' }), inst.castId, 'Q');
     },
   },
@@ -60,7 +60,7 @@ const kit: ChampionKit = {
             label: 'The Darkin Glaive (recast)',
             duration: 'dv.RecastWindow',
             // The wiki: The Darkin Glaive's damage is basic and spell damage, the attack's too.
-            empowerAttacks: { count: 1, resetsAttack: true, spell: true, components: [{ id: 'q2', label: 'Darkin Glaive (recast)', type: 'physical', amount: 'Q.calc.SecondHitDamage' }] },
+            empowerAttacks: { count: 1, resetsAttack: true, spell: true, components: [{ id: 'q2', label: 'The Darkin Glaive (recast)', type: 'physical', amount: 'Q.calc.SecondHitDamage' }] },
           },
           components: [],
         },
@@ -77,10 +77,10 @@ const kit: ChampionKit = {
           onHitRepeats: 1,
           components: [
             // Each strike deals half of (AD + Q damage); only the AD half can crit (wiki: crits for 50% AD).
-            { id: 'strike1', label: 'Darkin Glaive (strike 1)', type: 'physical', amount: 'ad / 2', canCrit: true },
-            { id: 'strike1Bonus', label: 'Darkin Glaive (strike 1 bonus)', type: 'physical', amount: 'Q.calc.InitialDamage / 2' },
-            { id: 'strike2', label: 'Darkin Glaive (strike 2)', type: 'physical', amount: 'ad / 2', canCrit: true },
-            { id: 'strike2Bonus', label: 'Darkin Glaive (strike 2 bonus)', type: 'physical', amount: 'Q.calc.InitialDamage / 2' },
+            { id: 'strike1', label: 'The Darkin Glaive (strike 1)', type: 'physical', amount: 'ad / 2', canCrit: true },
+            { id: 'strike1Bonus', label: 'The Darkin Glaive (strike 1 bonus)', type: 'physical', amount: 'Q.calc.InitialDamage / 2' },
+            { id: 'strike2', label: 'The Darkin Glaive (strike 2)', type: 'physical', amount: 'ad / 2', canCrit: true },
+            { id: 'strike2Bonus', label: 'The Darkin Glaive (strike 2 bonus)', type: 'physical', amount: 'Q.calc.InitialDamage / 2' },
           ],
         },
       },

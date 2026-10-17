@@ -26,7 +26,7 @@ const kit: ChampionKit = {
       components: [
         { id: 'trap', label: 'Bear Trap on a Rope', type: 'physical', amount: 'calc.TotalDamage', travel: true },
         // TetherPopTime after the trap lands.
-        { id: 'yank', label: 'Bear Trap (yank)', type: 'physical', amount: 'calc.TotalYankDamage', delay: 'dv.TetherPopTime', travel: true },
+        { id: 'yank', label: 'Bear Trap on a Rope (yank)', type: 'physical', amount: 'calc.TotalYankDamage', delay: 'dv.TetherPopTime', travel: true },
       ],
       variants: {
         pistol: {

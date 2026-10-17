@@ -58,7 +58,7 @@ const kit: ChampionKit = {
       sim.deal({
         source: 'P',
         sourceLabel: 'Cursed Touch',
-        label: 'Curse',
+        label: 'Cursed Touch',
         type: 'true',
         amount: inst.raw * sim.evalExpr('P.dv.DamageAmp', { slot: 'P' }),
         castId: inst.castId,

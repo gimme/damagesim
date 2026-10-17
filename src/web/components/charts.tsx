@@ -136,8 +136,13 @@ function textWidth(text: string, font: string) {
 // -----------------------------------------------------------------------------
 // HP bar: target health as a track, damage segments by source (part-to-whole)
 
+/** A source's hits in a block of the HP bar by time, with their label while they all have one. */
+type Part = SourceTotal & { hit?: string };
 /** What one block of the HP bar by time holds: its parts by source, and when its first and last hits landed. */
-type Moment = SourceTotal & { action?: number; dot: boolean; parts: SourceTotal[]; from: number; to: number };
+type Moment = SourceTotal & { action?: number; dot: boolean; parts: Part[]; from: number; to: number };
+/** A part's name: its hits' label when they're all one part of its source (Smolder Q's burn ticks:
+ *  Super Scorcher Breath (burn)), else its source's. */
+const partName = (p: Part) => (p.hit?.startsWith(`${p.label} (`) ? p.hit : p.label);
 /** The source of a block with several sources' DoTs. */
 const DOTS = 'dots';
 /** A block's source in a few letters and its icon; several sources' DoTs show Brand's burn (Blaze), a common stand-in for damage over time. */
@@ -188,11 +193,11 @@ function moments(events: DamageInstance[]) {
     }
     let part = m.parts.find((p) => p.source === e.source && p.label === e.sourceLabel);
     if (!part) {
-      part = { source: e.source, label: e.sourceLabel, damage: 0, raw: 0, hits: 0, type: {} };
+      part = { source: e.source, label: e.sourceLabel, hit: e.label, damage: 0, raw: 0, hits: 0, type: {} };
       const at = e.flags.empowered ? m.parts.findIndex((p) => attacks.has(p)) : -1;
       m.parts.splice(at < 0 ? m.parts.length : at, 0, part);
       if (e.flags.attack && !e.flags.empowered) attacks.add(part);
-    }
+    } else if (part.hit !== e.label) part.hit = undefined;
     addHit(part, e);
     addHit(m, e);
     m.to = e.time;
@@ -373,15 +378,17 @@ export function SourceName({ source, label, champion, children = label }: { sour
 
 function SourceTip({ s, maxHp, champion }: { s: SourceTotal | Moment; maxHp: number; champion: string }) {
   // A row per source, its damage in its type's color; a block by time lists its sources in the order
-  // their hits were applied. A source dealing several types splits it, largest first; a type dealing
-  // under half a point is left out unless it's the only one. Under a rule, the total, and when a
-  // block of the HP bar by time landed. No hit count: an ability's parts aren't hits to a player
-  // (Smolder's W lands as three).
+  // their hits were applied, each named by its hits when they're one part of it (partName). A source
+  // dealing several types splits it, largest first; a type dealing under half a point is left out
+  // unless it's the only one. Under a rule, the total, and when a block of the HP bar by time landed.
+  // No hit count: an ability's parts aren't hits to a player (Smolder's W lands as three).
   return (
     <>
-      {('parts' in s ? s.parts : [s]).map((p) => (
+      {('parts' in s ? s.parts : [s]).map((p: Part) => (
         <div className="tt-row" key={`${p.source}|${p.label}`}>
-          <SourceName source={p.source} label={p.label} champion={champion} />
+          <SourceName source={p.source} label={p.label} champion={champion}>
+            {partName(p)}
+          </SourceName>
           <span>
             {typesByAmount(p.type)
               .filter((t, i) => i === 0 || (p.type[t] ?? 0) >= 0.5)

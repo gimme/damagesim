@@ -27,7 +27,7 @@ const kit: ChampionKit = {
       atk.extra.push({
         source: 'P',
         sourceLabel: 'Vow of the First Lands',
-        label: atk.crit ? 'Crit bonus' : 'Crit bonus (avg.)',
+        label: atk.crit ? 'Vow of the First Lands (crit)' : 'Vow of the First Lands (avg. crit)',
         type: 'magic',
         amount: share * sim.evalExpr('P.calc.Calc_Damage_Amp', { slot: 'P' }) * critDamage,
         castId: atk.castId,

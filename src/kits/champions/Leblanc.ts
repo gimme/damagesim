@@ -13,7 +13,7 @@ const mimicSigil: DebuffSpec = {
   id: 'mimicSigil',
   label: 'Mimic: Sigil of Malice',
   duration: 'dv.RQMarkDuration',
-  consume: { by: 'ability', components: [{ id: 'detonate', label: 'Mimic: Sigil (detonation)', type: 'magic', amount: 'R.calc.RQ2Damage' }] },
+  consume: { by: 'ability', components: [{ id: 'detonate', label: 'Mimic: Sigil of Malice (detonation)', type: 'magic', amount: 'R.calc.RQ2Damage' }] },
 };
 
 const kit: ChampionKit = {

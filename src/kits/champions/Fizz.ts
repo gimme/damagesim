@@ -26,7 +26,7 @@ const kit: ChampionKit = {
   marks: [
     {
       id: 'tridentBleed',
-      label: 'Seastone Trident bleed',
+      label: 'Seastone Trident',
       slot: 'W',
       maxStacks: 1,
       duration: 'W.dv.BleedDuration',
@@ -36,7 +36,7 @@ const kit: ChampionKit = {
         components: [
           {
             id: 'bleed',
-            label: 'Bleed',
+            label: 'Seastone Trident (bleed)',
             type: 'magic',
             amount: 'W.rank > 0 ? W.calc.DoTDamage / (W.dv.BleedDuration * W.dv.DoTTicksPerSecond) : 0',
             dot: true,

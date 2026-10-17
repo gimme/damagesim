@@ -56,9 +56,10 @@ const kit: ChampionKit = {
           id: 'execute',
           label: 'Death From Below (execute)',
           type: 'true',
-          amount: 'target.hp <= calc.RDamage ? target.hp : 0',
+          amount: 'calc.RDamage',
           hits: 'target.hp <= calc.RDamage ? 1 : 0',
           maxHits: 1,
+          execute: true,
         },
         {
           id: 'strike',

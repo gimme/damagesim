@@ -40,7 +40,7 @@ const kit: ChampionKit = {
       notes: ['Consumes Full Tilt\'s empowerment if active (explosion).'],
       components: [
         { id: 'strike', label: 'Shattering Strike', type: 'magic', amount: 'calc.Damage', aoe: true },
-        { id: 'tilt', label: 'Full Tilt explosion', type: 'magic', amount: 'E.calc.MaxHealthDamageCalc * target.maxHp', aoe: true, hits: 'stacks.rellTiltQ' },
+        { id: 'tilt', label: 'Full Tilt (explosion)', type: 'magic', amount: 'E.calc.MaxHealthDamageCalc * target.maxHp', aoe: true, hits: 'stacks.rellTiltQ' },
       ],
     },
     W: {
@@ -65,7 +65,7 @@ const kit: ChampionKit = {
             id: 'rellMountUp',
             label: 'Mount Up',
             duration: 'W.dv.MountUpSpeedDuration',
-            empowerAttacks: { count: 1, components: [{ id: 'flip', label: 'Mount Up flip', type: 'magic', amount: 'W.calc.FlipDamage' }] },
+            empowerAttacks: { count: 1, components: [{ id: 'flip', label: 'Mount Up (flip)', type: 'magic', amount: 'W.calc.FlipDamage' }] },
           },
           components: [],
         },
@@ -80,7 +80,7 @@ const kit: ChampionKit = {
         duration: 'dv.Duration + dv.EmpowermentBuffer',
         empowerAttacks: {
           count: 1,
-          components: [{ id: 'tilt', label: 'Full Tilt explosion', type: 'magic', amount: 'E.calc.MaxHealthDamageCalc * target.maxHp' }],
+          components: [{ id: 'tilt', label: 'Full Tilt (explosion)', type: 'magic', amount: 'E.calc.MaxHealthDamageCalc * target.maxHp' }],
         },
       },
       components: [],

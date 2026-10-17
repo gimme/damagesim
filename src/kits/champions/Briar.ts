@@ -34,7 +34,7 @@ const kit: ChampionKit = {
         components: [
           {
             id: 'bleed',
-            label: 'Bleed',
+            label: 'Crimson Curse (bleed)',
             type: 'physical',
             amount: "P.calc['{15da76ad}'] * P.dv.BleedTickRate * (1 + P.dv.BleedPercentAdd * (stacks.crimsonCurse - 1))",
             dot: true,

@@ -5,25 +5,25 @@ import { effectiveResist, resistMultiplier } from '../../engine/damage.ts';
 // Mel — patch 16.20.
 
 const OVERWHELM = 'P.dv.OverwhelmDuration';
-const PROJECTILE = 'Searing Brilliance projectile';
+const PROJECTILE = 'Searing Brilliance (projectile)';
 const STORED = "spell['MelR'].calc.PassiveFlatDamage + spell['MelR'].calc.PassiveStackDamage * stacks.overwhelm";
 
-/** Overwhelm execute: once the stored damage (after MR) reaches the target's health, it is dealt. */
+/** Overwhelm execute: once the stored damage (after MR) reaches the target's health, it is executed. */
 function checkExecute(sim: Sim) {
-  if (sim.target.hp <= 0 || !sim.markStacks('overwhelm')) return;
+  if (!sim.markStacks('overwhelm')) return;
   const stored = sim.evalExpr(STORED, { slot: 'P' });
   const s = sim.stats;
   const red = sim.targetReductions();
   const mr = effectiveResist({ base: sim.target.baseMr, bonus: sim.target.bonusMr }, { flat: red.mrFlat, percent: red.mrPercent }, { percent: s.magicPenPercent, bonusPercent: s.bonusMagicPenPercent, flat: s.magicPenFlat });
-  if (stored * resistMultiplier(mr) * (1 - sim.target.damageReduction) < sim.target.hp) return;
+  const line = stored * resistMultiplier(mr) * (1 - sim.target.damageReduction);
+  if (line < sim.target.hp) return;
   sim.deal({
     source: 'P',
     sourceLabel: 'Searing Brilliance',
     label: 'Overwhelm execute',
-    type: 'magic',
-    amount: stored,
-    flags: { kind: 'ability', slot: 'P', ability: false, proc: true },
-    markSource: 'overwhelm',
+    type: 'true',
+    amount: line,
+    flags: { kind: 'ability', slot: 'P', execute: true },
   });
 }
 
@@ -31,7 +31,7 @@ const kit: ChampionKit = {
   id: 'Mel',
   status: 'curated',
   notes: [
-    'Overwhelm: every damage instance of Mel\'s attacks, passive projectiles and abilities adds a stack (5s, refreshed). When the stored damage (R.calc.PassiveFlatDamage + R.calc.PassiveStackDamage per stack, after MR) reaches the target\'s health, it is dealt (execute).',
+    'Overwhelm: every damage instance of Mel\'s attacks, passive projectiles and abilities adds a stack (5s, refreshed). When the stored damage (R.calc.PassiveFlatDamage + R.calc.PassiveStackDamage per stack, after MR) reaches the target\'s health, the target is executed.',
     'Each ability cast gives the next attack P.dv.PassiveBonusMissiles extra projectiles (max P.dv.MaxPassiveBonusMissiles, P.dv.BonusAttackDuration s); all are assumed to hit the target.',
     'Rebuttal (reflect, shield) is not modeled.',
   ],

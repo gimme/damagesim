@@ -98,8 +98,8 @@
   },
   "Briar": {
    "L11 no items QWER AA": 477.37,
-   "L16 AP build + Electrocute": 1698.19,
-   "L16 AD build + Conqueror": 1599.58
+   "L16 AP build + Electrocute": 1703.5,
+   "L16 AD build + Conqueror": 1610.28
   },
   "Caitlyn": {
    "L11 no items QWER AA": 689.07,
@@ -313,7 +313,7 @@
   },
   "Kayle": {
    "L11 no items QWER AA": 432.97,
-   "L16 AP build + Electrocute": 1553.54,
+   "L16 AP build + Electrocute": 1557.94,
    "L16 AD build + Conqueror": 1326.71
   },
   "Kayn": {
@@ -343,7 +343,7 @@
   },
   "KogMaw": {
    "L11 no items QWER AA": 592.36,
-   "L16 AP build + Electrocute": 2084.02,
+   "L16 AP build + Electrocute": 2093.75,
    "L16 AD build + Conqueror": 1587.87
   },
   "Leblanc": {
@@ -538,7 +538,7 @@
   },
   "Rell": {
    "L11 no items QWER AA": 564.42,
-   "L16 AP build + Electrocute": 2220.02,
+   "L16 AP build + Electrocute": 2220.77,
    "L16 AD build + Conqueror": 1323.57
   },
   "Renata": {
@@ -573,7 +573,7 @@
   },
   "Samira": {
    "L11 no items QWER AA": 684.77,
-   "L16 AP build + Electrocute": 1115.89,
+   "L16 AP build + Electrocute": 1115.35,
    "L16 AD build + Conqueror": 2030.95
   },
   "Sejuani": {
@@ -583,7 +583,7 @@
   },
   "Senna": {
    "L11 no items QWER AA": 651.47,
-   "L16 AP build + Electrocute": 1158.36,
+   "L16 AP build + Electrocute": 1160.31,
    "L16 AD build + Conqueror": 1534.36
   },
   "Seraphine": {

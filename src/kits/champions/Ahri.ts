@@ -10,9 +10,9 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       components: [
-        { id: 'out', label: 'Orb (out)', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true },
+        { id: 'out', label: 'Orb of Deception (out)', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true },
         // Wiki: the orb turns at its range and flies back from 60 speed, accelerating at 1900/s², past the target.
-        { id: 'back', label: 'Orb (return)', type: 'true', amount: 'calc.TotalDamage', aoe: true, travel: 'castRange / missileSpeed + (sqrt(60 * 60 + 2 * 1900 * (castRange - reach)) - 60) / 1900' },
+        { id: 'back', label: 'Orb of Deception (return)', type: 'true', amount: 'calc.TotalDamage', aoe: true, travel: 'castRange / missileSpeed + (sqrt(60 * 60 + 2 * 1900 * (castRange - reach)) - 60) / 1900' },
       ],
     },
     W: {
@@ -20,8 +20,8 @@ const kit: ChampionKit = {
       // Wiki: the flames fire at prioritized targets up to 725 away (BonusAcquisitionRange) at 1400
       // speed, after the data's InitialDelay / SecondaryDelay.
       components: [
-        { id: 'first', label: 'Fox-fire', type: 'magic', amount: 'calc.SingleFireDamage', delay: 'dv.InitialDelay', travel: 'min(distance, dv.BonusAcquisitionRange) / 1400' },
-        { id: 'extra', label: 'Fox-fire (repeat)', type: 'magic', amount: 'calc.MultiFireDamage', hits: 2, maxHits: 2, interval: 0.15, delay: 'dv.SecondaryDelay', travel: 'min(distance, dv.BonusAcquisitionRange) / 1400' },
+        { id: 'first', label: 'Fox-Fire', type: 'magic', amount: 'calc.SingleFireDamage', delay: 'dv.InitialDelay', travel: 'min(distance, dv.BonusAcquisitionRange) / 1400' },
+        { id: 'extra', label: 'Fox-Fire (repeat)', type: 'magic', amount: 'calc.MultiFireDamage', hits: 2, maxHits: 2, interval: 0.15, delay: 'dv.SecondaryDelay', travel: 'min(distance, dv.BonusAcquisitionRange) / 1400' },
       ],
     },
     E: {

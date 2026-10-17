@@ -33,8 +33,9 @@ const kit: ChampionKit = {
     },
     afterDamage(sim, inst) {
       // Uncharged attack execute.
-      if (inst.flags.attack && inst.source === 'AA' && sim.target.hp > 0 && sim.target.hp <= sim.evalExpr('Q.calc.PassiveExecuteThreshold', { slot: 'Q' }))
-        sim.deal({ source: 'P', sourceLabel: 'Living Battery', label: 'Execute', type: 'true', amount: sim.target.hp, castId: inst.castId, flags: { kind: 'ability', slot: 'P', ability: false }, markSource: 'zeriExecute' });
+      const line = sim.evalExpr('Q.calc.PassiveExecuteThreshold', { slot: 'Q' });
+      if (inst.flags.attack && inst.source === 'AA' && sim.target.hp <= line)
+        sim.deal({ source: 'P', sourceLabel: 'Living Battery', label: 'Living Battery (execute)', type: 'true', amount: line, castId: inst.castId, flags: { kind: 'ability', slot: 'P', execute: true } });
       // Overcharge extension on ability (or charged attack) hits.
       const r = sim.buffs.get('zeriR');
       const extends_ = ['Q', 'W', 'E', 'R'].includes(inst.source) || (inst.source === 'P' && inst.flags.attack); // abilities or the charged attack

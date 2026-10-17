@@ -7,6 +7,8 @@ import { loadAllKits } from '../src/node/kits.ts';
 import { Sim, simulate, type TargetSpec } from '../src/engine/sim.ts';
 import { findItem } from '../src/engine/gamedata.ts';
 import { parseCombo } from '../src/engine/combo.ts';
+import { rankItems } from '../src/engine/analysis.ts';
+import { getKit, curatedChampionIds } from '../src/kits/index.ts';
 
 const data = loadGameData('16.20');
 await loadAllKits();
@@ -490,8 +492,41 @@ test("Iceborn Gauntlet's frost field adds no Electrocute stack; Smolder's execut
   assert.ok(bySource(iceborn, 'item:6662').length > 0);
   assert.equal(bySource(iceborn, 'rune:8112').length, 0);
   const r = simulate(data, { ...smolder, level: 9, items: ['Essence Reaver', "Lord Dominik's Regards"], options: { stacks: 225 }, combo: 'E Q AA Q' });
-  const execute = r.events.find((e) => e.label === 'Execute')!;
-  assert.ok(r.events.some((e) => e.source === 'Q' && e.label !== 'Execute' && e.castId === execute.castId && e.time === execute.time));
+  const execute = r.events.find((e) => e.label === 'Super Scorcher Breath (execute)')!;
+  assert.ok(r.events.some((e) => e.source === 'Q' && e.label !== 'Super Scorcher Breath (execute)' && e.castId === execute.castId && e.time === execute.time));
+});
+
+test('An execute sets off nothing and counts once, for its full value, after the rest of its instant', () => {
+  // W slows. Q's hit procs Cheap Shot and its Dragon Practice part lands; then the execute.
+  const target = { maxHp: 1500, armor: 50, mr: 50, hpPercent: 24 };
+  const smolder = (o = {}) => simulate(data, { champion: 'Smolder', level: 11, runes: ['Electrocute', 'Cheap Shot'], options: { stacks: 225 }, combo: 'W Q AA', target, ...o });
+  const r = smolder();
+  const execute = r.events.find((e) => e.label === 'Super Scorcher Breath (execute)')!;
+  const instant = r.events.filter((e) => e.time === execute.time);
+  assert.equal(instant.at(-1), execute);
+  assert.ok(instant.some((e) => e.label === 'Cheap Shot'));
+  // 6.5% of max health, also when Q's parts already killed; Collector's smaller one doesn't count on top.
+  for (const run of [r, smolder({ target: { ...target, hpPercent: 20 } }), smolder({ items: ['The Collector'] })]) {
+    const executes = run.events.filter((e) => e.flags.execute);
+    assert.deepEqual(executes.map((e) => e.label), ['Super Scorcher Breath (execute)']);
+    assert.ok(Math.abs(executes[0].final! - 97.5) < 0.01);
+  }
+  // Only the largest execute counts, whenever it lands: Collector's, on the hit before Q, gives way to
+  // Smolder's, and the hits after it find the health it took. Smolder's comes only once Q's hit burns
+  // (not on a W landing after Q's cast); either way Collector's execute adds nothing.
+  const page = { champion: 'Smolder', level: 15, items: ['Essence Reaver', 'Voltaic Cyclosword', "Lord Dominik's Regards", 'Bastionbreaker'], runes: ['Electrocute', 'Cheap Shot', 'Absolute Focus', 'Gathering Storm'], options: { stacks: 225 }, target: { preset: 'squishy' as const } };
+  for (const combo of ['AA W AA Q AA', 'AA AA W Q AA']) {
+    const run = simulate(data, { ...page, items: [...page.items, 'The Collector'], combo });
+    const executes = run.events.filter((e) => e.flags.execute);
+    assert.deepEqual(executes.map((e) => e.source), ['Q'], combo);
+    assert.ok(executes[0].time >= run.events.find((e) => e.label === 'Super Scorcher Breath')!.time, combo);
+    run.events.reduce((hp, e) => (assert.ok(Math.abs(e.targetHpBefore! - hp) < 1e-6, combo), e.targetHpAfter!), run.events[0].targetHpBefore!);
+    assert.equal(rankItems(data, { ...page, combo }, { candidates: ['The Collector'] }).items[0].itemDamage, 0, combo);
+  }
+  // Urgot's Mercy on a target he suppresses: no Cheap Shot.
+  const urgot = simulate(data, { champion: 'Urgot', level: 11, runes: ['Electrocute', 'Cheap Shot'], combo: 'R R:execute', target: { preset: 'squishy', hpPercent: 20 } });
+  assert.ok(urgot.events.some((e) => e.label === 'Mercy (execute)'));
+  assert.equal(bySource(urgot, 'rune:8126').length, 0);
 });
 
 test("Smolder's Q burn is proc damage: it doesn't keep Liandry's burning, unlike Brand's Blaze", () => {
@@ -689,4 +724,33 @@ test("On-hit effects applied again (Dusk and Dawn, Guinsoo's Phantom Hit) take t
   const active = r.events.filter((e) => e.label === 'Cultivation of Spirit (active)');
   assert.equal(active.filter((e) => e.castId === first).length, 1);
   assert.ok(r.events.some((e) => e.label === 'Spellblade' && e.castId === first));
+});
+
+test("A cast's hits landing together come first, then their on-hits and procs: Smolder Q, its Dragon Practice bonus, then Spellblade", () => {
+  const at = (r: ReturnType<typeof simulate>, slot: string) => r.events.filter((e) => e.time === bySource(r, slot)[0].time).map((e) => e.label);
+  const q = simulate(data, { champion: 'Smolder', level: 11, items: ['Essence Reaver'], combo: 'Q', target: dummy });
+  assert.deepEqual(at(q, 'Q'), ['Super Scorcher Breath', 'Super Scorcher Breath (Dragon Practice)', 'Spellblade']);
+  const w = simulate(data, { champion: 'Smolder', level: 11, items: ["Luden's Echo"], combo: 'W', target: dummy });
+  assert.deepEqual(at(w, 'W'), ['Achooo!', 'Achooo! (explosion)', 'Achooo! (Dragon Practice)', 'Echo']);
+  // An empowered attack's parts (the attack's normal damage recorded out of the first) and its
+  // items' on-hits land before what they set off.
+  const nasus = simulate(data, { champion: 'Nasus', level: 11, items: ["Luden's Echo", 'Lich Bane'], combo: 'Q AA', target: dummy });
+  assert.deepEqual(at(nasus, 'Q'), ['Siphoning Strike', 'Attack', 'Siphoning Strike (stacks)', 'Spellblade', 'Echo']);
+});
+
+test('Hit labels name the hit on their own: an ability part is "Ability (part)", never a bare Execute or Bleed', () => {
+  const bare = /^(Execute|Bleed|Burn|Poison|Venom|Curse|Spin|Lightning|Stored damage|Wake-up bonus|Crit bonus)( \(.*\))?$/;
+  const bad = new Set<string>();
+  for (const id of curatedChampionIds()) {
+    const kit = getKit(data.champions[id]);
+    const steps = Object.entries(kit.abilities).flatMap(([slot, a]) => [slot, ...Object.keys(a?.variants ?? {}).map((v) => `${slot}:${v}`)]);
+    const options = Object.fromEntries((kit.options ?? []).map((o) => [o.key, o.max ?? o.default]));
+    const r = simulate(data, { champion: id, level: 18, options, combo: `${steps.map((s) => `${s} AA`).join(' ')} AA AA`, target: { maxHp: 30000, armor: 50, mr: 50, hpPercent: 10 } });
+    for (const e of r.events) {
+      if (!/^[PQWER]$/.test(e.source)) continue;
+      const base = e.sourceLabel.replace(/ \(.*\)$/, '');
+      if (bare.test(e.label) || [e.sourceLabel, base].some((s) => e.label.startsWith(`${s} `) && !e.label.startsWith(`${s} (`))) bad.add(`${id}: ${e.sourceLabel} → ${e.label}`);
+    }
+  }
+  assert.deepEqual([...bad], []);
 });

@@ -47,7 +47,7 @@ const kit: ChampionKit = {
       components: [
         {
           id: 'shot',
-          label: 'Purge shot',
+          label: 'Purge (shot)',
           type: 'physical',
           amount: 'calc.DamagePerShot',
           attack: true,
@@ -91,9 +91,9 @@ const kit: ChampionKit = {
               id: 'execute',
               label: 'Mercy (execute)',
               type: 'true',
-              amount: 'target.hpPct <= dv.RHealthThreshold / 100 ? target.hp : 0',
+              amount: 'target.hpPct <= dv.RHealthThreshold / 100 ? dv.RHealthThreshold / 100 * target.maxHp : 0',
               delay: 'dv.RChannelTimeReel',
-              noProc: true,
+              execute: true,
               condition: 'target below the health threshold',
             },
           ],

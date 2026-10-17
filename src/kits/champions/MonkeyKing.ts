@@ -49,7 +49,7 @@ const kit: ChampionKit = {
       components: [
         {
           id: 'clone',
-          label: 'Warrior Trickster clone',
+          label: 'Warrior Trickster (clone)',
           type: 'physical',
           amount: 'dv.CloneDamageMod * ad',
           hits: 'floor(dv.CloneDuration * as)',

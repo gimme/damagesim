@@ -257,6 +257,16 @@ test('Collector executes below 5% health', () => {
   assert.ok(r.events.some((e) => e.label === 'Execute'));
 });
 
+test("Collector's execute counts 5% of max health once, also when the hit that took the target there killed", () => {
+  const target = { maxHp: 1000, armor: 0, mr: 0 };
+  const run = (hpPercent: number) => simulate(data, { champion: 'Jinx', level: 18, items: ['The Collector'], combo: 'AA? AA?', target: { ...target, hpPercent } });
+  for (const hpPercent of [8, 30]) {
+    const execs = run(hpPercent).events.filter((e) => e.label === 'Execute');
+    assert.equal(execs.length, 1, `${hpPercent}%`);
+    near(execs[0].final!, 50, 0.01);
+  }
+});
+
 test('rank items per gold: sorted by damage gained per 1000 gold of the item', () => {
   const base = { champion: 'Ahri', level: 11, items: ["Luden's Echo", "Sorcerer's Shoes"], combo: 'E Q W R AA R', target: { preset: 'squishy' as const } };
   const res = rankItems(data, base, { metric: 'damagePerGold', limit: 200 });
@@ -288,11 +298,11 @@ test("rank items: what an item's hits proc is split from its own damage and its 
   assert.equal(rankItems(data, later, { candidates: ['Stormsurge'] }).items[0].procDamage, 0);
   // Any hit that lands only with the item counts: here Smolder's execute, in range only with its damage.
   const exec = { ...base, level: 9, items: ['Essence Reaver'], options: { stacks: 225 }, combo: 'E Q AA Q' };
-  const executes = (items: string[]) => simulate(data, { ...exec, items }).events.filter((e) => e.label === 'Execute');
+  const executes = (items: string[]) => simulate(data, { ...exec, items }).events.filter((e) => e.label === 'Super Scorcher Breath (execute)');
   assert.equal(executes(exec.items).length, 0);
   const [execute] = executes([...exec.items, "Lord Dominik's Regards"]);
   const ldr = rankItems(data, exec, { candidates: ["Lord Dominik's Regards"] }).items[0];
-  assert.deepEqual(ldr.procs.map((p) => [p.source, p.name]), [['Q', 'Execute']]);
+  assert.deepEqual(ldr.procs.map((p) => [p.source, p.name]), [['Q', 'Super Scorcher Breath (execute)']]);
   near(ldr.procDamage, execute.final!, 0.1);
 });
 
