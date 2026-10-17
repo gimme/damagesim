@@ -97,7 +97,7 @@ const kit: ChampionKit = {
       notes: ['Q then Q again (within dv.RecastWindow) for the recast on the bleeding target.'],
       components: [
         // First dagger (or any cast on a target that isn't bleeding).
-        { id: 'dagger', label: 'Darkin Daggers', type: 'physical', amount: 'calc.TotalDamageFirstCast', hits: 'stacks.naafiriBleedLeft > 0 ? 0 : 1', delay: 0.2 },
+        { id: 'dagger', label: 'Darkin Daggers', type: 'physical', amount: 'calc.TotalDamageFirstCast', hits: 'stacks.naafiriBleedLeft > 0 ? 0 : 1', travel: true },
         {
           id: 'recast',
           label: 'Darkin Daggers (recast)',
@@ -105,7 +105,7 @@ const kit: ChampionKit = {
           amount:
             'lerp(calc.TotalMinDamageSecondCast, calc.TotalMaxDamageSecondCast, target.missingHpPct) + stacks.naafiriBleedLeft * calc.TotalBleedDamage * dv.BleedInterval / dv.BleedDuration',
           hits: 'stacks.naafiriBleedLeft > 0 ? 1 : 0',
-          delay: 0.2,
+          travel: true,
           condition: 'target is bleeding from the first dagger',
         },
       ],
@@ -117,18 +117,22 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
+      // Dashes her max range at the dash speed; the target is met at the end, where the flurry bursts.
+      lockout: 'castTime + castRange / missileSpeed',
       components: [
-        { id: 'slash', label: 'Eviscerate (dash)', type: 'physical', amount: 'calc.TotalDamageFirstSlash', delay: 0.2 },
-        { id: 'flurry', label: 'Eviscerate (flurry)', type: 'physical', amount: 'calc.TotalDamageSecondSlash', delay: 0.5, aoe: true },
+        { id: 'slash', label: 'Eviscerate (dash)', type: 'physical', amount: 'calc.TotalDamageFirstSlash', travel: true },
+        { id: 'flurry', label: 'Eviscerate (flurry)', type: 'physical', amount: 'calc.TotalDamageSecondSlash', travel: true, aoe: true },
       ],
     },
     R: {
       dash: true,
       notes: ['Each packmate dashing alongside deals dv.PackmateModifier of the damage. The data\'s ArmorShred/ShredDuration values aren\'t in the tooltip and are not modeled.'],
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
+      // Wiki: a 0.75s channel (unable to act), then the dash to the target at the dash speed.
+      lockout: '0.75 + castRange / missileSpeed',
       components: [
-        { id: 'pursuit', label: "Hounds' Pursuit", type: 'physical', amount: 'calc.TotalDamage', delay: 0.2 },
-        { id: 'pack', label: "Hounds' Pursuit (packmate)", type: 'physical', amount: 'calc.PackmateDamage', hits: PACK, delay: 0.2, pet: true },
+        { id: 'pursuit', label: "Hounds' Pursuit", type: 'physical', amount: 'calc.TotalDamage', delay: 0.75, travel: true },
+        { id: 'pack', label: "Hounds' Pursuit (packmate)", type: 'physical', amount: 'calc.PackmateDamage', hits: PACK, delay: 0.75, travel: true, pet: true },
       ],
     },
   },

@@ -48,7 +48,7 @@ const kit: ChampionKit = {
       recastDelay: "spell['NunuESnowballBurstFire'].cooldown",
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       notes: ['Each cast throws 3 snowballs; all 3 assumed to hit. Use "E E E" for all three volleys.'],
-      components: [{ id: 'snowball', label: 'Snowball Barrage', type: 'magic', amount: 'calc.TotalSnowballDamage', hits: 3, maxHits: 3, interval: 'dv.DelayBetweenSnowballs', delay: 0.1 }],
+      components: [{ id: 'snowball', label: 'Snowball Barrage', type: 'magic', amount: 'calc.TotalSnowballDamage', hits: 3, maxHits: 3, interval: 'dv.DelayBetweenSnowballs', travel: true }],
     },
     R: {
       // Channels before detonating; the damage and the slow's duration grow with the channel (wiki:

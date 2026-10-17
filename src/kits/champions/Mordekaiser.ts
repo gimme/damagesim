@@ -75,9 +75,10 @@ const kit: ChampionKit = {
     },
     W: { noTarget: true, components: [] },
     E: {
-      notes: ['Damage and pull 0.5s after the cast (wiki). The pull is a short airborne displacement (0.25s assumed).'],
+      notes: ['Damage and pull 0.5s after the cast starts (wiki). The pull is a short airborne displacement (0.25s assumed).'],
       cc: [{ kind: 'immobilize', duration: 0.25 }],
-      components: [{ id: 'grasp', label: "Death's Grasp", type: 'magic', amount: 'calc.TotalDamage', delay: 'dv.DelayBeforeMovement', aoe: true }],
+      // Wiki: the claw is summoned at the start of the cast time and hits dv.DelayBeforeMovement (0.5s) later.
+      components: [{ id: 'grasp', label: "Death's Grasp", type: 'magic', amount: 'calc.TotalDamage', delay: 'dv.DelayBeforeMovement - castTime', aoe: true }],
     },
     R: {
       notes: [

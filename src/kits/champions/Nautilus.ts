@@ -12,11 +12,13 @@ const kit: ChampionKit = {
     Q: {
       dash: true,
       cc: [{ kind: 'immobilize', duration: 0.5 }],
-      // Wiki: unable to move or attack while the anchor flies (0.25s cast time + the 0.3s flight); he
-      // can cast any ability during the dash that follows.
-      lockout: 0.55,
+      // {{Effect at cast time start}} (wiki): the anchor flies its max range from the start of the
+      // cast. Unable to move or attack while it flies; he can cast any ability during the 0.9s dash
+      // that follows (wiki), but not attack.
+      lockout: 'castRange / missileSpeed',
+      attackLockout: 'castRange / missileSpeed + 0.9',
       notes: ['Stun duration is not in the data ("briefly"); 0.5 s assumed.'],
-      components: [{ id: 'anchor', label: 'Dredge Line', type: 'magic', amount: 'calc.QDamageCalc', delay: 0.3 }],
+      components: [{ id: 'anchor', label: 'Dredge Line', type: 'magic', amount: 'calc.QDamageCalc', travel: 'max(0, castRange / missileSpeed - castTime)' }],
     },
     W: {
       noTarget: true,
@@ -27,13 +29,16 @@ const kit: ChampionKit = {
       notes: ['A champion in melee range is hit by all three waves: the first deals full damage, later waves 50% (MultiHitReduction).'],
       components: [
         { id: 'wave', label: 'Riptide', type: 'magic', amount: 'calc.DamageCalc', aoe: true },
-        { id: 'extra', label: 'Riptide (extra wave)', type: 'magic', amount: 'calc.DamageCalc * dv.MultiHitReduction', hits: 2, maxHits: 2, interval: 0.28, delay: 0.3, aoe: true },
+        // Wiki: the waves hit 0, 0.297 and 0.561s after the cast time ends (measured).
+        { id: 'extra', label: 'Riptide (extra wave)', type: 'magic', amount: 'calc.DamageCalc * dv.MultiHitReduction', hits: 2, maxHits: 2, interval: 0.264, delay: 0.297, aoe: true },
       ],
     },
     R: {
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-      notes: ['Shockwave assumed to reach the target 0.5 s after the cast. Damage to other enemies on the path is not modeled.'],
-      components: [{ id: 'charge', label: 'Depth Charge', type: 'magic', amount: 'calc.PrimaryTargetDamage', delay: 0.5 }],
+      notes: ['Damage to other enemies on the path is not modeled.'],
+      // No speed in the data. Wiki: the charge starts at 275 speed and gains 466.67 per second, so it
+      // covers the cast range in (sqrt(275² + 2·466.67·range) − 275) / 466.67 ≈ 1.38s.
+      components: [{ id: 'charge', label: 'Depth Charge', type: 'magic', amount: 'calc.PrimaryTargetDamage', travel: '(sqrt(275 ^ 2 + 2 * 466.67 * castRange) - 275) / 466.67' }],
     },
   },
   hooks: {

@@ -5,6 +5,8 @@ import type { ChampionKit } from '../../engine/kit-types.ts';
 // physical damage (affected by crit, wiki). Charges are tracked by a hook (counter + expiry).
 const CHARGES = 'rivenCharges';
 const CHARGES_EXPIRE = 'rivenChargesExpire';
+// No dash speed in the data: Broken Wings' dash takes ~0.35s to its slash.
+const Q_HIT = 0.35;
 
 const kit: ChampionKit = {
   id: 'Riven',
@@ -19,10 +21,15 @@ const kit: ChampionKit = {
       dash: true,
       resetsAttack: true,
       recasts: 3,
-      recastDelay: 0.25,
-      components: [{ id: 'wing', label: 'Broken Wings', type: 'physical', amount: 'calc.FirstSlashDamage', aoe: true, delay: 0.1 }],
+      // 0.3125s static cooldown between casts (wiki).
+      recastDelay: 0.3125,
+      lockout: Q_HIT,
+      components: [{ id: 'wing', label: 'Broken Wings', type: 'physical', amount: 'calc.FirstSlashDamage', aoe: true, delay: Q_HIT }],
     },
     W: {
+      // Wiki: the effects are applied before the cast time, which still locks her out.
+      castTime: 0,
+      lockout: 'castTime',
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
       components: [{ id: 'burst', label: 'Ki Burst', type: 'physical', amount: 'calc.TotalDamage', aoe: true }],
     },
@@ -54,7 +61,8 @@ const kit: ChampionKit = {
               // Linear from MinDamage (full health) to MaxDamage at 75% missing health (wiki).
               amount: 'calc.MinDamage + (calc.MaxDamage - calc.MinDamage) * min(1, target.missingHpPct / 0.75)',
               aoe: true,
-              delay: 0.2,
+              // Each missile flies 1100 units at 1600 speed (wiki; no speed in the data).
+              travel: '1100 / 1600',
             },
           ],
         },
@@ -74,8 +82,7 @@ const kit: ChampionKit = {
         sim.setCounter('rivenQLast', sim.time);
         if (n >= 3) {
           // Knock-up duration from the tooltip text (0.75s); lands with the slam.
-          const castTime = sim.spellFor('Q').castTime ?? 0;
-          sim.schedule(castTime + 0.1, () => sim.applyCC('immobilize', 0.75, cast.castId, 'Q'));
+          sim.schedule(Q_HIT, () => sim.applyCC('immobilize', 0.75, cast.castId, 'Q'));
         }
       }
     },

@@ -8,7 +8,8 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
-      components: [{ id: 'binding', label: 'Dark Binding', type: 'magic', amount: 'calc.TotalDamage', delay: 0.3 }],
+      // {{Effect at cast time start}} (wiki): the missile is launched as the cast time starts.
+      components: [{ id: 'binding', label: 'Dark Binding', type: 'magic', amount: 'calc.TotalDamage', travel: 'max(0, castRange / missileSpeed - castTime)' }],
     },
     W: {
       notes: [

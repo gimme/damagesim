@@ -16,7 +16,7 @@ const kit: ChampionKit = {
       cc: [{ kind: 'slow', duration: 'dv.DelayBetweenTwoHits' }],
       notes: ['The ground erupts again after 1 s: the second hit assumes the target stays in the area (disable with Q{eruption:0}).'],
       components: [
-        { id: 'smash', label: 'Hammer Shock', type: 'physical', amount: 'calc.BaseDamage + dv.HealthDamagePercent / 100 * target.maxHp', aoe: true, delay: 0.05 },
+        { id: 'smash', label: 'Hammer Shock', type: 'physical', amount: 'calc.BaseDamage + dv.HealthDamagePercent / 100 * target.maxHp', aoe: true },
         { id: 'eruption', label: 'Hammer Shock (eruption)', type: 'physical', amount: 'calc.BaseDamage + dv.HealthDamagePercent / 100 * target.maxHp', aoe: true, delay: 'dv.DelayBetweenTwoHits' },
       ],
     },
@@ -28,27 +28,42 @@ const kit: ChampionKit = {
     E: {
       dash: true,
       notes: ['Default: tackle without terrain. Variant "wall": carried into terrain — second hit and stun.'],
+      // Dashes her max range at the dash speed, then carries the target up to 400 units
+      // (dv.MaxEnemyPushbackDistance; at the dash speed, assumed), into terrain for the wall hit.
+      lockout: 'castTime + (castRange + dv.MaxEnemyPushbackDistance) / missileSpeed',
       variants: {
         wall: {
           label: 'into terrain',
           dash: true,
           cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
           components: [
-            { id: 'tackle', label: 'Heroic Charge', type: 'physical', amount: 'calc.TackleDamage', delay: 0.1 },
-            { id: 'wall', label: 'Heroic Charge (terrain)', type: 'physical', amount: 'calc.TackleDamage', delay: 0.3 },
+            { id: 'tackle', label: 'Heroic Charge', type: 'physical', amount: 'calc.TackleDamage', travel: true },
+            { id: 'wall', label: 'Heroic Charge (terrain)', type: 'physical', amount: 'calc.TackleDamage', travel: '(castRange + dv.MaxEnemyPushbackDistance) / missileSpeed' },
           ],
         },
       },
-      components: [{ id: 'tackle', label: 'Heroic Charge', type: 'physical', amount: 'calc.TackleDamage', delay: 0.1 }],
+      components: [{ id: 'tackle', label: 'Heroic Charge', type: 'physical', amount: 'calc.TackleDamage', travel: true }],
     },
     R: {
       // Charged for up to ChannelMaxDuration: 0.5s of it doubles the damage and knocks back, whose
-      // distance grows until DurationUntilFullyCharged (wiki).
+      // distance grows until DurationUntilFullyCharged (wiki). The release then takes 0.25s, or 0.35s
+      // charged (wiki).
       charge: { default: 'dv.DurationUntilFullyCharged', max: 'dv.ChannelMaxDuration' },
-      castTime: 'max(0.25, charge)',
+      castTime: `charge + (charge >= ${CHARGED} ? 0.35 : 0.25)`,
       cc: [{ kind: 'immobilize', duration: `charge >= ${CHARGED} ? dv.KnockupDurationCharged : dv.KnockupDurationSnap` }],
       notes: ['Default: charged release (full damage, knock back). Set the seconds held (R{0s}): under 0.5s it is the uncharged swing (half damage, 1s knock-up).'],
-      components: [{ id: 'verdict', label: "Keeper's Verdict", type: 'physical', amount: `charge >= ${CHARGED} ? calc.Damage : calc.HalfDamage`, aoe: true, delay: `charge >= ${CHARGED} ? 0.2 : 0` }],
+      // Uncharged, it hits around Poppy. Charged, the shockwave flies its range at the missile's speed:
+      // 500 + 175 per 0.25s held, up to 1200 (wiki).
+      components: [
+        {
+          id: 'verdict',
+          label: "Keeper's Verdict",
+          type: 'physical',
+          amount: `charge >= ${CHARGED} ? calc.Damage : calc.HalfDamage`,
+          aoe: true,
+          travel: `charge >= ${CHARGED} ? min(1200, castRange + 700 * charge) / missileSpeed : 0`,
+        },
+      ],
     },
   },
   hooks: {

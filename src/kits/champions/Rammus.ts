@@ -48,7 +48,10 @@ const kit: ChampionKit = {
       dash: true,
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       notes: ['Aftershocks only re-apply the slow (no damage).'],
-      components: [{ id: 'slam', label: 'Soaring Slam', type: 'magic', amount: 'calc.InitialDamageCalc', aoe: true, delay: 0.3 }],
+      // Leaps its base max range (dv.BaseCastRange; no range in the data) at the dash speed, unable to
+      // act meanwhile (wiki).
+      lockout: 'castTime + dv.BaseCastRange / missileSpeed',
+      components: [{ id: 'slam', label: 'Soaring Slam', type: 'magic', amount: 'calc.InitialDamageCalc', aoe: true, travel: 'dv.BaseCastRange / missileSpeed' }],
       variants: {
         powerball: {
           label: 'during Powerball',
@@ -56,8 +59,8 @@ const kit: ChampionKit = {
           note: 'Cast during Powerball: the target in the center also takes Powerball damage and is knocked up.',
           cc: [{ kind: 'immobilize', duration: 'dv.KnockupDuration' }, { kind: 'slow', duration: 'dv.SlowDuration' }],
           components: [
-            { id: 'slam', label: 'Soaring Slam', type: 'magic', amount: 'calc.InitialDamageCalc', aoe: true, delay: 0.3 },
-            { id: 'center', label: 'Soaring Slam (Powerball)', type: 'magic', amount: 'Q.calc.PowerBallDamage', aoe: true, delay: 0.3 },
+            { id: 'slam', label: 'Soaring Slam', type: 'magic', amount: 'calc.InitialDamageCalc', aoe: true, travel: 'dv.BaseCastRange / missileSpeed' },
+            { id: 'center', label: 'Soaring Slam (Powerball)', type: 'magic', amount: 'Q.calc.PowerBallDamage', aoe: true, travel: 'dv.BaseCastRange / missileSpeed' },
           ],
         },
       },

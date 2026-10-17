@@ -6,7 +6,7 @@ const kit: ChampionKit = {
   status: 'curated',
   notes: [
     'Clockwork Windup: attacks on the same target within 4 s stack up to 2 times; each stack adds StackDamage to the on-hit damage.',
-    'The Ball is assumed to be positioned on/near the target for W and R; Q travel time ≈0.4 s.',
+    'The Ball is assumed to be positioned on/near the target for W and R.',
   ],
   marks: [{ id: 'windup', label: 'Clockwork Windup', maxStacks: 'P.dv.StackCount', duration: 'P.dv.StackDuration', appliedBy: ['attack'] }],
   attack: {
@@ -15,7 +15,10 @@ const kit: ChampionKit = {
   },
   abilities: {
     Q: {
-      components: [{ id: 'ball', label: 'Command: Attack', type: 'magic', amount: 'calc.TotalDamageTooltip', aoe: true, delay: 0.4 }],
+      // The Ball flies its max range at the missile's speed. Wiki: she can't cast Command: Protect
+      // while it's in transit, and Dissonance and Shockwave wait until it arrives (she can move and attack).
+      castLockout: { W: 'castRange / missileSpeed', E: 'castRange / missileSpeed', R: 'castRange / missileSpeed' },
+      components: [{ id: 'ball', label: 'Command: Attack', type: 'magic', amount: 'calc.TotalDamageTooltip', aoe: true, travel: true }],
     },
     W: {
       cc: [{ kind: 'slow', duration: 'dv.SlowAndHasteDuration' }],
@@ -23,7 +26,10 @@ const kit: ChampionKit = {
     },
     E: {
       notes: ['Shields an ally (or Orianna). Damage only if the Ball passes through the enemy on its way: optional component "pass" (E+pass).'],
-      components: [{ id: 'pass', label: 'Command: Protect', type: 'magic', amount: 'calc.TotalDamageTooltip', optional: true, condition: 'if the Ball passes through the enemy', delay: 0.3 }],
+      // The Ball flies its max range at the missile's speed; she can't cast her other abilities while
+      // it moves (wiki).
+      castLockout: { Q: 'castRange / missileSpeed', W: 'castRange / missileSpeed', R: 'castRange / missileSpeed' },
+      components: [{ id: 'pass', label: 'Command: Protect', type: 'magic', amount: 'calc.TotalDamageTooltip', optional: true, condition: 'if the Ball passes through the enemy', travel: true }],
     },
     R: {
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],

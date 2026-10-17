@@ -9,6 +9,11 @@ import type { Sim } from '../../engine/sim.ts';
 const brittle: DebuffSpec = { id: 'brittle', label: 'Brittle', duration: 'W.dv.BrittleDuration' };
 const brittleR: DebuffSpec = { ...brittle, duration: 'R.dv.BrittleDurationTOOLTIPONLY' };
 
+// Seconds from R's cast start until the elemental reaches Ornn: it rises dv.RCastRange away as the
+// cast starts ({{Effect at cast time start}}) and charges at 450 speed, reaching its max speed in
+// ~0.6s (wiki), then runs the rest at dv.RMissileMaxSpeed.
+const ELEMENTAL = '0.6 + (dv.RCastRange - 0.6 * (450 + dv.RMissileMaxSpeed) / 2) / dv.RMissileMaxSpeed';
+
 const kit: ChampionKit = {
   id: 'Ornn',
   status: 'curated',
@@ -29,11 +34,12 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      components: [{ id: 'fissure', label: 'Volcanic Rupture', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 0.2 }],
+      // {{Effect at cast time start}} (wiki): the fissure runs its max range from the start of the cast.
+      components: [{ id: 'fissure', label: 'Volcanic Rupture', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, castRange / missileSpeed - castTime)' }],
     },
     W: {
-      // Busy for the cast time (0.25 s) + the breath.
-      lockout: '0.25 + dv.BreathDuration',
+      // Wiki: unable to act while he marches for the breath's 0.75s.
+      lockout: 'dv.BreathDuration',
       notes: ['5 ticks over 0.75 s, each the larger of PercentHPPerTick × max health and MinimumDamagePerTick; the last tick applies Brittle.'],
       debuff: { ...brittle, afterHits: 5 }, // after the last of dv.NumberOfTicks ticks
       components: [
@@ -51,8 +57,9 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
-      // Wiki: unable to act for 0.5s after the dash ends (0.35s cast time + the 0.3s dash to the hit + 0.5s).
-      lockout: 1.15,
+      // Charges its 650 dash distance (dv.DashRange; the data's range is the 800 targeting range) at the
+      // dash speed. Wiki: unable to act for 0.5s after the dash ends.
+      lockout: 'castTime + dv.DashRange / missileSpeed + 0.5',
       cc: [{ kind: 'immobilize', duration: 'dv.KnockupDuration' }],
       notes: ['Default: Ornn rams terrain (e.g. his Q pillar) and knocks up. Variant "noWall": no terrain, no knock-up. The target takes the damage once either way.'],
       variants: {
@@ -60,18 +67,18 @@ const kit: ChampionKit = {
           label: 'no terrain',
           dash: true,
           cc: [],
-          components: [{ id: 'charge', label: 'Searing Charge', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 0.3 }],
+          components: [{ id: 'charge', label: 'Searing Charge', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'dv.DashRange / missileSpeed' }],
         },
       },
-      components: [{ id: 'charge', label: 'Searing Charge', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 0.3 }],
+      components: [{ id: 'charge', label: 'Searing Charge', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'dv.DashRange / missileSpeed' }],
     },
     R: {
       recasts: 2,
-      // The recast is possible once the elemental has passed (cast time 0.5 s + 1 s travel).
-      recastDelay: 1.5,
+      // The recast is possible once the elemental has passed.
+      recastDelay: ELEMENTAL,
       defaultVariant: 'pass',
       notes: [
-        'R: the elemental passes through the target (assumed 1 s after the cast): damage + Brittle + slow.',
+        'R: the elemental passes through the target, next to Ornn: damage + Brittle + slow.',
         'R:recast: Ornn headbutts the elemental back through the target: damage, knock-up (consumes Brittle) and Brittle again. Combo: "R R:recast".',
       ],
       variants: {
@@ -79,16 +86,16 @@ const kit: ChampionKit = {
           label: 'first pass',
           cc: [{ kind: 'slow', duration: 'dv.RSlowDuration' }],
           debuff: brittleR,
-          components: [{ id: 'elemental', label: 'Call of the Forge God', type: 'magic', amount: 'calc.RDamageCalc', aoe: true, delay: 1 }],
+          components: [{ id: 'elemental', label: 'Call of the Forge God', type: 'magic', amount: 'calc.RDamageCalc', aoe: true, travel: `${ELEMENTAL} - castTime` }],
         },
         recast: {
           label: 'recast',
           dash: true,
-          // Wiki: locked out of all actions during the dash (300 units at 1600 speed ≈ 0.19s) and for
-          // 0.5s afterwards, after the 0.5s cast time.
-          lockout: 1.19,
+          // Wiki: locked out of all actions during the dash (its 300 range at the dash speed) and for
+          // 0.5s afterwards. The elemental is struck next to the target.
+          lockout: 'castTime + castRange / missileSpeed + 0.5',
           cc: [{ kind: 'immobilize', duration: 'dv.RStunDuration' }],
-          components: [{ id: 'elemental', label: 'Call of the Forge God (recast)', type: 'magic', amount: 'calc.RDamageCalc', aoe: true, delay: 0.5 }],
+          components: [{ id: 'elemental', label: 'Call of the Forge God (recast)', type: 'magic', amount: 'calc.RDamageCalc', aoe: true, travel: true }],
         },
       },
     },

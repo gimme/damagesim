@@ -42,10 +42,11 @@ const kit: ChampionKit = {
       variants: {
         hold: {
           label: 'hold',
-          // Minimum hold time (dv.MinTimeHoldCast).
-          castTime: 0.35,
+          // Minimum hold time (dv.MinTimeHoldCast), then the 0.2s release cast time (wiki).
+          castTime: 'dv.MinTimeHoldCast + 0.2',
           cooldown: 'cooldown',
-          components: [{ id: 'spear', label: 'Comet Spear (hold)', type: 'physical', amount: execute('calc.HoldDamageCalc'), delay: 0.2 }],
+          // The thrown spear flies its 1200 range (dv.HoldRange; the data's range is the thrust's).
+          components: [{ id: 'spear', label: 'Comet Spear (hold)', type: 'physical', amount: execute('calc.HoldDamageCalc'), travel: 'dv.HoldRange / missileSpeed' }],
         },
       },
       components: [{ id: 'spear', label: 'Comet Spear', type: 'physical', amount: execute('calc.TapDamageCalc'), aoe: true }],
@@ -53,7 +54,9 @@ const kit: ChampionKit = {
     W: {
       dash: true,
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-      components: [{ id: 'vault', label: 'Shield Vault', type: 'physical', amount: 'calc.MaxHealthDamageCalc * target.maxHp' }],
+      // No dash speed in the data: ~0.125s to arrive.
+      lockout: 0.125,
+      components: [{ id: 'vault', label: 'Shield Vault', type: 'physical', amount: 'calc.MaxHealthDamageCalc * target.maxHp', delay: 0.125 }],
     },
     E: {
       // Channel + 0.25 s shield slam (wiki); no attacks meanwhile.

@@ -25,12 +25,13 @@ const kit: ChampionKit = {
           lockout: 0.75,
           cc: [{ kind: 'immobilize', duration: 0.25 }, { kind: 'slow', duration: 'dv.SlowDuration' }],
           note: 'Pull duration is not in the data; 0.25 s assumed.',
+          // No harpoon speed in the data or the wiki: ~0.25s in flight.
           components: [{ id: 'harpoon', label: 'Bone Skewer (hold)', type: 'physical', amount: 'calc.TotalDamage', delay: 0.25 }],
         },
         tap: {
           label: 'tap',
           cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-          components: [{ id: 'stab', label: 'Bone Skewer', type: 'physical', amount: 'calc.TotalDamage', delay: 0.1 }],
+          components: [{ id: 'stab', label: 'Bone Skewer', type: 'physical', amount: 'calc.TotalDamage' }],
         },
       },
     },
@@ -43,12 +44,13 @@ const kit: ChampionKit = {
       dash: true,
       cc: [{ kind: 'immobilize', duration: 'calc.StunDuration' }],
       notes: ['The phantom returns StunDelay (1 s) after the dash and hits the target on its way back.'],
-      components: [{ id: 'phantom', label: 'Phantom Undertow', type: 'physical', amount: 'calc.TotalDamage', delay: 'dv.StunDelay' }],
+      // Dashes his max range at the dash speed; after dv.StunDelay the phantom flies the same way back
+      // at the same speed (wiki).
+      lockout: 'castTime + castRange / missileSpeed',
+      components: [{ id: 'phantom', label: 'Phantom Undertow', type: 'physical', amount: 'calc.TotalDamage', delay: 'dv.StunDelay', travel: true }],
     },
     R: {
       dash: true,
-      // The X is marked, then strikes ~0.5 s later (wiki cast time; the data has 0).
-      castTime: 0.5,
       components: [
         {
           id: 'execute',

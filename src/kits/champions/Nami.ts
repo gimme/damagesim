@@ -13,18 +13,19 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-      notes: ['Bubble assumed to land 0.5 s after the cast (distance dependent).'],
-      components: [{ id: 'bubble', label: 'Aqua Prison', type: 'magic', amount: 'calc.TotalDamageTT', aoe: true, delay: 0.5 }],
+      // Wiki: the bubble lands 0.7s after the cast time ends, whatever the distance.
+      components: [{ id: 'bubble', label: 'Aqua Prison', type: 'magic', amount: 'calc.TotalDamageTT', aoe: true, delay: 0.7 }],
     },
     W: {
       notes: ['Default: cast directly on the enemy (full damage). Variant "bounced": the enemy is the second target after an ally (−20% +15% per 100 AP).'],
       variants: {
         bounced: {
           label: 'after bouncing off an ally',
-          components: [{ id: 'bounce', label: 'Ebb and Flow (bounce)', type: 'magic', amount: 'calc.TotalDamage * (1 + calc.BounceScaling)', delay: 0.3 }],
+          // To the ally, then the bounce: up to 800 units at 1500 speed (wiki).
+          components: [{ id: 'bounce', label: 'Ebb and Flow (bounce)', type: 'magic', amount: 'calc.TotalDamage * (1 + calc.BounceScaling)', travel: 'castRange / missileSpeed + 800 / 1500' }],
         },
       },
-      components: [{ id: 'stream', label: 'Ebb and Flow', type: 'magic', amount: 'calc.TotalDamage', delay: 0.1 }],
+      components: [{ id: 'stream', label: 'Ebb and Flow', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
     E: {
       noTarget: true,
@@ -42,8 +43,8 @@ const kit: ChampionKit = {
     },
     R: {
       cc: [{ kind: 'immobilize', duration: 'dv.KnockupDuration' }, { kind: 'slow', duration: 'dv.MaxSlowDuration' }],
-      notes: ['Wave assumed to reach the target 0.5 s after the cast; slow assumed at max duration (long travel).'],
-      components: [{ id: 'wave', label: 'Tidal Wave', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.5 }],
+      notes: ['Slow assumed at max duration (long travel).'],
+      components: [{ id: 'wave', label: 'Tidal Wave', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true }],
     },
   },
   hooks: {

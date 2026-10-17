@@ -58,12 +58,12 @@ const kit: ChampionKit = {
     },
     E: {
       cc: [{ kind: 'slow', duration: 'dv.CCDuration' }],
-      components: [{ id: 'bola', label: 'Bola Strike', type: 'physical', amount: 'calc.TotalDamage', delay: 0.2 }],
+      components: [{ id: 'bola', label: 'Bola Strike', type: 'physical', amount: 'calc.TotalDamage', travel: true }],
       variants: {
         emp: {
           label: 'Ferocity',
           cc: [{ kind: 'immobilize', duration: 'dv.CCDuration' }],
-          components: [{ id: 'bola', label: 'Bola Strike (Ferocity)', type: 'physical', amount: 'calc.TotalEmpoweredDamage', delay: 0.2 }],
+          components: [{ id: 'bola', label: 'Bola Strike (Ferocity)', type: 'physical', amount: 'calc.TotalEmpoweredDamage', travel: true }],
         },
       },
     },

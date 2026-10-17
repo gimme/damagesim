@@ -25,7 +25,8 @@ const kit: ChampionKit = {
       cooldown: 'opt.axePickup ? dv.MinimumCooldown : cooldown',
       cc: [{ kind: 'slow', duration: 'dv.MaxSlowDuration' }],
       debuff: { id: 'undertow', label: 'Undertow shred', duration: 'dv.DebuffDuration', armorReduction: 'dv.ShredAmount' },
-      components: [{ id: 'axe', label: 'Undertow', type: 'physical', amount: 'calc.TotalDamage', delay: 0.3 }],
+      // The axe flies up to 1000 units (wiki; the data's range is its 425 minimum) at the missile's speed.
+      components: [{ id: 'axe', label: 'Undertow', type: 'physical', amount: 'calc.TotalDamage', travel: '1000 / missileSpeed' }],
     },
     W: {
       noTarget: true,

@@ -27,13 +27,15 @@ const kit: ChampionKit = {
           label: 'Javelin Toss',
           debuff: hunted,
           note: 'Thrown from ≤525 units: minimum damage.',
-          components: [{ id: 'javelin', label: 'Javelin Toss', type: 'magic', amount: 'calc.HumanMinimumDamage', delay: 0.4 }],
+          // {{Effect at cast time start}} (wiki): the javelin flies from the start of the cast, here 525 units.
+          components: [{ id: 'javelin', label: 'Javelin Toss', type: 'magic', amount: 'calc.HumanMinimumDamage', travel: 'max(0, dv.RangeThreshold / missileSpeed - castTime)' }],
         },
         max: {
           label: 'Javelin Toss (max range)',
           debuff: hunted,
           note: 'Thrown from maximum distance: maximum damage.',
-          components: [{ id: 'javelin', label: 'Javelin Toss', type: 'magic', amount: 'calc.HumanMaximumDamage', delay: 1 }],
+          // {{Effect at cast time start}} (wiki): the javelin flies its max range from the start of the cast.
+          components: [{ id: 'javelin', label: 'Javelin Toss', type: 'magic', amount: 'calc.HumanMaximumDamage', travel: 'max(0, castRange / missileSpeed - castTime)' }],
         },
         takedown: {
           label: 'Takedown',
@@ -78,7 +80,9 @@ const kit: ChampionKit = {
           dash: true,
           // Pouncing at a Hunted target reduces the cooldown.
           cooldown: 'debuff.hunted ? R.dv.PounceCooldown : cooldown',
-          components: [{ id: 'pounce', label: 'Pounce', type: 'magic', amount: 'R.calc.TotalPounceDamage', aoe: true, delay: 0.25 }],
+          // No dash speed in the data: ~0.5s to arrive.
+          lockout: 0.5,
+          components: [{ id: 'pounce', label: 'Pounce', type: 'magic', amount: 'R.calc.TotalPounceDamage', aoe: true, delay: 0.5 }],
         },
       },
     },
@@ -94,7 +98,8 @@ const kit: ChampionKit = {
         swipe: {
           label: 'Swipe',
           spell: 'Swipe',
-          components: [{ id: 'swipe', label: 'Swipe', type: 'magic', amount: 'R.calc.TotalSwipeDamage', aoe: true, delay: 0.1 }],
+          // {{Effect at cast time start}} (wiki): it has hit by the end of the cast time.
+          components: [{ id: 'swipe', label: 'Swipe', type: 'magic', amount: 'R.calc.TotalSwipeDamage', aoe: true }],
         },
       },
     },

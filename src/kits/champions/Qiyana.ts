@@ -41,8 +41,9 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       notes: ['Rock: the bonus damage (Q+tremor) applies only if the target is below 50% health when the rocks explode (0.4s later).'],
+      // The enchanted Q is hurled its max range at the missile's speed (the vanilla slash isn't a missile).
       components: [
-        { id: 'blast', label: 'Edge of Ixtal (rock)', type: 'physical', amount: 'calc.EnchantedDamage', aoe: true, delay: 0.1 },
+        { id: 'blast', label: 'Edge of Ixtal (rock)', type: 'physical', amount: 'calc.EnchantedDamage', aoe: true, travel: true },
         {
           id: 'tremor',
           label: 'Rock shatter',
@@ -50,7 +51,8 @@ const kit: ChampionKit = {
           amount: 'target.hpPct < dv.CritThreshold ? calc.TremorDamage : 0',
           aoe: true,
           optional: true,
-          delay: '0.1 + dv.RockExplosionDelay',
+          delay: 'dv.RockExplosionDelay',
+          travel: true,
           condition: 'target below 50% health (checked when the rocks explode)',
         },
       ],
@@ -59,12 +61,12 @@ const kit: ChampionKit = {
           label: 'ice',
           spell: 'QiyanaQ_Water',
           cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }, { kind: 'slow', duration: 'dv.RootDuration + dv.SlowDuration' }],
-          components: [{ id: 'blast', label: 'Edge of Ixtal (ice)', type: 'physical', amount: 'calc.EnchantedDamage', aoe: true, delay: 0.1 }],
+          components: [{ id: 'blast', label: 'Edge of Ixtal (ice)', type: 'physical', amount: 'calc.EnchantedDamage', aoe: true, travel: true }],
         },
         grass: {
           label: 'grass',
           spell: 'QiyanaQ_Grass',
-          components: [{ id: 'blast', label: 'Edge of Ixtal (grass)', type: 'physical', amount: 'calc.EnchantedDamage', aoe: true, delay: 0.1 }],
+          components: [{ id: 'blast', label: 'Edge of Ixtal (grass)', type: 'physical', amount: 'calc.EnchantedDamage', aoe: true, travel: true }],
         },
         vanilla: {
           label: 'no enchantment',
@@ -77,11 +79,17 @@ const kit: ChampionKit = {
       noTarget: true,
       notes: ['Dashes, enchants the weapon (attack speed, bonus magic damage on attacks and once per Q or E cast) and refreshes Elemental Wrath\'s cooldown.'],
       buff: enchant,
+      // Dashes up to dv.TravelDistance at 440 + her movement speed (wiki). She can cast any of her
+      // abilities during the dash (wiki).
+      attackLockout: 'dv.TravelDistance / (dv.DashSpeed + ms)',
       components: [],
     },
     E: {
       dash: true,
-      components: [{ id: 'dash', label: 'Audacity', type: 'physical', amount: 'calc.Damage', delay: 0.15 }],
+      // Dashes her max range at 600 + her movement speed, capped at 1200 (wiki; not the data's
+      // missile speed). She can cast any of her abilities during the dash (wiki).
+      attackLockout: 'castTime + castRange / min(dv.DashSpeedMax, dv.DashSpeed + ms)',
+      components: [{ id: 'dash', label: 'Audacity', type: 'physical', amount: 'calc.Damage', travel: 'castRange / min(dv.DashSpeedMax, dv.DashSpeed + ms)' }],
     },
     R: {
       notes: [
@@ -89,8 +97,10 @@ const kit: ChampionKit = {
         'A second explosion from river/brush along the path is not modeled (one explosion per target).',
       ],
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
+      // The windblast flies its max range at the missile's speed and pins the target against the
+      // terrain there, where the shockwave starts.
       components: [
-        { id: 'explosion', label: 'Supreme Display of Talent', type: 'physical', amount: 'calc.Damage + calc.MissingHealthDamageRock * target.maxHp', aoe: true, delay: 0.5 },
+        { id: 'explosion', label: 'Supreme Display of Talent', type: 'physical', amount: 'calc.Damage + calc.MissingHealthDamageRock * target.maxHp', aoe: true, travel: true },
       ],
     },
   },

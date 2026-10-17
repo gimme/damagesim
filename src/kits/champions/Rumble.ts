@@ -70,18 +70,18 @@ const kit: ChampionKit = {
     E: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       debuff: harpoonShred('1'),
-      components: [{ id: 'harpoon', label: 'Electro Harpoon', type: 'magic', amount: 'calc.TotalDamage', delay: 0.25 }],
+      components: [{ id: 'harpoon', label: 'Electro Harpoon', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
       variants: {
         dz: {
           label: 'Danger Zone',
           cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
           debuff: harpoonShred('1.5'),
-          components: [{ id: 'harpoon', label: 'Electro Harpoon (Danger Zone)', type: 'magic', amount: 'calc.EmpDamage', delay: 0.25 }],
+          components: [{ id: 'harpoon', label: 'Electro Harpoon (Danger Zone)', type: 'magic', amount: 'calc.EmpDamage', travel: true }],
         },
       },
     },
     R: {
-      notes: ['Rockets land after ~0.5s; the trail burns every 0.25s.'],
+      notes: ['The target is assumed at the far end of the rocket line; the trail burns every 0.25s.'],
       cc: [{ kind: 'slow', duration: 'dv.TrailDuration' }],
       components: [
         {
@@ -92,7 +92,10 @@ const kit: ChampionKit = {
           hits: 'dv.TrailDuration / dv.TickRate',
           maxHits: 'dv.TrailDuration / dv.TickRate',
           interval: 'dv.TickRate',
-          delay: 0.5,
+          // Wiki: the barrage starts 0.5833s after the cast and is laid along the path at the vector's
+          // speed, damaging up to 1135 units forward.
+          delay: 0.5833,
+          travel: '1135 / missileSpeed',
           aoe: true,
           dot: true,
         },

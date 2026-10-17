@@ -31,7 +31,8 @@ const kit: ChampionKit = {
     Q: {
       notes: ['Valor dives the first enemy hit: marks it with Harrier and damages enemies around it.'],
       debuff: harrier,
-      components: [{ id: 'dive', label: 'Blinding Assault', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 0.25 }],
+      // {{Effect at cast time start}} (wiki): Valor flies its max range from the start of the cast.
+      components: [{ id: 'dive', label: 'Blinding Assault', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, castRange / missileSpeed - castTime)' }],
     },
     W: { noTarget: true, components: [] },
     E: {
@@ -40,7 +41,10 @@ const kit: ChampionKit = {
       notes: ['Resets the attack timer and marks the target with Harrier; the knock-back is a brief displacement.'],
       debuff: harrier,
       cc: [{ kind: 'immobilize', duration: 0.25 }, { kind: 'slow', duration: 'dv.SlowDecayTime' }],
-      components: [{ id: 'vault', label: 'Vault', type: 'physical', amount: 'calc.TotalDamage' }],
+      // Dashes her max range at the dash speed, then leaps back; the attack reset comes 0.25-0.5s
+      // after the first dash ends (wiki).
+      lockout: 'castTime + castRange / missileSpeed + 0.25',
+      components: [{ id: 'vault', label: 'Vault', type: 'physical', amount: 'calc.TotalDamage', travel: true }],
     },
     R: {
       notes: [
@@ -48,6 +52,8 @@ const kit: ChampionKit = {
         'The channel itself is not a combo step; attacking or Q/E while paired also triggers Skystrike.',
       ],
       debuff: harrier,
+      // Skystrike has no cast time (wiki); the data's is Behind Enemy Lines'.
+      castTime: 0,
       components: [{ id: 'skystrike', label: 'Skystrike', type: 'physical', amount: 'calc.Damage', aoe: true }],
     },
   },

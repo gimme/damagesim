@@ -42,7 +42,8 @@ const kit: ChampionKit = {
         burrowed: {
           label: 'burrowed (Prey Seeker)',
           spell: 'RekSaiQBurrowed',
-          components: [{ id: 'seeker', label: 'Prey Seeker', type: 'magic', amount: 'Q.calc.BurrowDamageTooltip', aoe: true, delay: 0.3 }],
+          // The bolt flies 1500 units at 1950 speed (wiki; not in the data for the burrowed spell).
+          components: [{ id: 'seeker', label: 'Prey Seeker', type: 'magic', amount: 'Q.calc.BurrowDamageTooltip', aoe: true, travel: '1500 / 1950' }],
         },
       },
     },
@@ -52,8 +53,8 @@ const kit: ChampionKit = {
       notes: ['Un-burrow: damage around Rek\'Sai and knock-up on the primary target.'],
       cc: [{ kind: 'immobilize', duration: "spell['RekSaiW'].dv.KnockupDuration" }],
       // Wiki: unable to move or attack for 0.15s (LockoutTime) after hitting an enemy, which happens at
-      // the end of the 0.25s cast time.
-      lockout: "0.25 + spell['RekSaiW'].dv.LockoutTime",
+      // the end of the cast time.
+      lockout: "castTime + spell['RekSaiW'].dv.LockoutTime",
       components: [{ id: 'unburrow', label: 'Un-burrow', type: 'magic', amount: "spell['RekSaiW'].calc.UnburrowDamage", aoe: true }],
       variants: {
         burrow: { label: 'burrow', spell: 'RekSaiW', cc: [], lockout: 0, components: [] },
@@ -66,13 +67,21 @@ const kit: ChampionKit = {
         { id: 'fury', label: 'Furious Bite (max Fury)', type: 'true', amount: 'calc.EmpoweredDamageCalculation', hits: 'stacks.fury >= 100 ? 1 : 0' },
       ],
       variants: {
-        tunnel: { label: 'tunnel (burrowed)', spell: 'RekSaiEBurrowed', dash: true, components: [] },
+        tunnel: {
+          label: 'tunnel (burrowed)',
+          spell: 'RekSaiEBurrowed',
+          dash: true,
+          // Dashes 850 units at 500 + her movement speed (wiki; Furious Bite's spell holds the values).
+          lockout: "castTime + spell['RekSaiE'].dv.DashDistance / (spell['RekSaiE'].dv.DashSpeedBase + spell['RekSaiE'].dv.DashSpeedMod * ms)",
+          components: [],
+        },
       },
     },
     R: {
       dash: true,
-      // Wiki: unable to act from the cast until the pounce lands (0.35s cast time + the hit's delay).
-      lockout: '0.35 + dv.CastBuffDuration',
+      // Wiki: unable to act from the cast until the pounce lands: vanished for 0.9s after the cast time,
+      // then the pounce (dv.CastBuffDuration in all).
+      lockout: 'castTime + dv.CastBuffDuration',
       components: [
         { id: 'rush', label: 'Void Rush', type: 'physical', amount: 'calc.RBaseDamageCalc + dv.PercentHealthDamage / 100 * target.maxHp', delay: 'dv.CastBuffDuration' },
       ],
