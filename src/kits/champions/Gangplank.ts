@@ -44,7 +44,7 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       notes: ['Applies on-hit effects; crits for calc.ShotCrit.'],
-      // The shot flies its range at its speed.
+      // The shot flies to the target at its speed.
       components: [
         { id: 'shot', label: 'Parrrley', type: 'physical', amount: 'calc.ShotDamage', onHit: true, onAttack: true, canCrit: true, critMultiplier: '1 + dv.CritDamageMod * (critDamage - 1)', travel: true },
       ],
@@ -53,7 +53,7 @@ const kit: ChampionKit = {
           label: 'barrel',
           note: 'Parrrley hits a Powder Keg next to the target: the explosion deals the shot\'s damage (can crit) plus the champion bonus, ignoring 40% armor. The shot itself does not hit the target (no on-hit on it).',
           cc: [{ kind: 'slow', duration: 'E.dv.DebuffDuration' }],
-          // The shot flies its range to the keg, which explodes at once.
+          // The shot flies to the keg (next to the target), which explodes at once.
           components: [
             { id: 'keg', label: 'Powder Keg', type: 'physical', amount: 'calc.ShotDamage', canCrit: true, critMultiplier: '1 + dv.CritDamageMod * (critDamage - 1)', penPercent: 'E.dv.BarrelArmorPenetration / 100', aoe: true, travel: true },
             { id: 'kegBonus', label: 'Powder Keg (champion bonus)', type: 'physical', amount: 'E.dv.BonusDamageToChampions', penPercent: 'E.dv.BarrelArmorPenetration / 100', aoe: true, travel: true },

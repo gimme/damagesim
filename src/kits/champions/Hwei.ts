@@ -59,9 +59,9 @@ const kit: ChampionKit = {
           spell: 'HweiQE',
           cc: [{ kind: 'slow', duration: 'dv.Duration' }],
           // Wiki: the path erupts 0.6s after the start of the cast time, then one explosion every 0.2s
-          // (estimated) from the caster out: the 7th, at max range, 1.2s later.
+          // (estimated) from the caster out: the 7th, at max range, 1.2s later (the target's pro rata).
           components: [
-            { id: 'eruption', label: 'Molten Fissure', type: 'magic', amount: 'calc.Damage', aoe: true, delay: '0.6 - castTime', travel: 1.2 },
+            { id: 'eruption', label: 'Molten Fissure', type: 'magic', amount: 'calc.Damage', aoe: true, delay: '0.6 - castTime', travel: '1.2 * reach / castRange' },
             {
               id: 'lava',
               label: 'Molten Fissure (lava)',
@@ -70,7 +70,7 @@ const kit: ChampionKit = {
               hits: `dv.Duration / ${LAVA_TICK}`,
               interval: LAVA_TICK,
               delay: `0.6 - castTime + ${LAVA_TICK}`,
-              travel: 1.2,
+              travel: '1.2 * reach / castRange',
               aoe: true,
               dot: true,
             },
@@ -110,7 +110,7 @@ const kit: ChampionKit = {
           label: 'Gaze of the Abyss',
           spell: 'HweiEW',
           cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
-          // The eye flies its max range, locks on after SetupDelay and launches FireDelay later (wiki;
+          // The eye flies to the target, locks on after SetupDelay and launches FireDelay later (wiki;
           // the target under it).
           components: [{ id: 'gaze', label: 'Gaze of the Abyss', type: 'magic', amount: 'calc.Damage', delay: 'dv.SetupDelay + dv.FireDelay', travel: true }],
         },

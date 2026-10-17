@@ -24,9 +24,9 @@ const kit: ChampionKit = {
     P: { notes: ['Second shot and 3-hit proc are automatic (see notes).'] },
     Q: {
       notes: ['Hits the target on the way out and on the way back (Q{boomerang:1} for one pass).'],
-      // Wiki: out its range at 1500, 500 further for the enemy hit, then back at 2400: it passes the
-      // target (at max range) 500 units into its return.
-      components: [{ id: 'boomerang', label: 'Avengerang', type: 'physical', amount: 'calc.FinalDamage', hits: 2, maxHits: 2, interval: '500 / missileSpeed + 500 / 2400', travel: true, aoe: true }],
+      // Wiki: out at 1500 to the target, then on to its range but at least 500 past the enemy hit, and
+      // back at 2400: it passes the target again on its return.
+      components: [{ id: 'boomerang', label: 'Avengerang', type: 'physical', amount: 'calc.FinalDamage', hits: 2, maxHits: 2, interval: 'max(castRange - reach, 500) / missileSpeed + max(castRange - reach, 500) / 2400', travel: true, aoe: true }],
     },
     W: { noTarget: true, notes: ['Going Rogue: camouflage / revive only.'] },
     E: {
@@ -48,9 +48,10 @@ const kit: ChampionKit = {
           hits: 6,
           maxHits: 15,
           interval: 'dv.AttackFrequency',
-          // The swing starts once the hook has flown its range; shots fly up to 500 at 3000 (wiki).
+          // The swing starts once the hook has flown its range; shots fly to the target (up to 500) at
+          // 3000 (wiki).
           delay: 'castRange / missileSpeed',
-          travel: '500 / 3000',
+          travel: 'min(distance, 500) / 3000',
           canCrit: true,
           critMultiplier: '1 + dv.CritDamageMod * (critDamage - 1)',
           onHit: true,

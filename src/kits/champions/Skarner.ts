@@ -64,16 +64,17 @@ const kit: ChampionKit = {
         throw: {
           label: 'throw',
           buff: { id: 'skarnerQThrow', label: 'Upheaval', duration: 0 },
-          // Shattered Earth's cast time, then Upheaval's 0.25s; the boulder flies 1050 at 1600 (wiki).
+          // Shattered Earth's cast time, then Upheaval's 0.25s; the boulder flies to the target (1050 at
+          // most) at 1600 (wiki).
           castTime: 'castTime + 0.25',
           cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-          components: [{ id: 'upheaval', label: 'Upheaval', type: 'physical', amount: 'calc.AbilityDamage + dv.MaxHPPercent * target.maxHp', aoe: true, travel: '1050 / 1600' }],
+          components: [{ id: 'upheaval', label: 'Upheaval', type: 'physical', amount: 'calc.AbilityDamage + dv.MaxHPPercent * target.maxHp', aoe: true, travel: 'min(distance, 1050) / 1600' }],
         },
       },
     },
     W: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      // A radial missile out to its range.
+      // A radial missile out to its range, passing the target on the way.
       components: [{ id: 'quake', label: 'Seismic Bastion', type: 'magic', amount: 'calc.Damage', aoe: true, travel: true }],
     },
     E: {

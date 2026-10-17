@@ -59,8 +59,9 @@ const kit: ChampionKit = {
               // Linear from MinDamage (full health) to MaxDamage at 75% missing health (wiki).
               amount: 'calc.MinDamage + (calc.MaxDamage - calc.MinDamage) * min(1, target.missingHpPct / 0.75)',
               aoe: true,
-              // Each missile flies 1100 units at 1600 speed (wiki; no speed in the data).
-              travel: '1100 / 1600',
+              // The missiles fly 1100 units at 1600 speed (wiki; no speed in the data), through the
+              // target.
+              travel: 'min(distance, 1100) / 1600',
             },
           ],
         },

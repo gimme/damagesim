@@ -20,7 +20,7 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       // Fired as the cast time starts (wiki: {{Effect at cast time start}}).
-      components: [{ id: 'peacemaker', label: 'Piltover Peacemaker', type: 'physical', amount: 'calc.InitialDamage', aoe: true, travel: 'max(0, castRange / missileSpeed - castTime)' }],
+      components: [{ id: 'peacemaker', label: 'Piltover Peacemaker', type: 'physical', amount: 'calc.InitialDamage', aoe: true, travel: 'max(0, reach / missileSpeed - castTime)' }],
     },
     W: {
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],

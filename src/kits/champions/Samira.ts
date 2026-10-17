@@ -36,8 +36,8 @@ const kit: ChampionKit = {
           amount: 'calc.DamageCalc',
           canCrit: true,
           critMultiplier: '1 + dv.CritDamageMod * (critDamage - 1)',
-          // At the end of the cast time (wiki): the slash hits at once, the gun shot flies its range.
-          travel: 'opt.melee ? 0 : castRange / missileSpeed',
+          // At the end of the cast time (wiki): the slash hits at once, the gun shot flies to the target.
+          travel: 'opt.melee ? 0 : reach / missileSpeed',
         },
         melee('impulse', 'Daredevil Impulse', { hits: 'opt.melee ? 1 : 0' }),
       ],

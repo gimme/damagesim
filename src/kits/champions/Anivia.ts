@@ -18,7 +18,7 @@ const kit: ChampionKit = {
       notes: ['Default: the ice passes through the target and is detonated on it (both hits, stun). Q{detonate:0} for the pass only.'],
       components: [
         { id: 'pass', label: 'Flash Frost', type: 'magic', amount: 'calc.TotalPassthroughDamage', aoe: true, travel: true },
-        // Wiki: detonates by itself at its max range.
+        // Recast as the ice reaches the target (wiki: else it detonates by itself at its max range).
         { id: 'detonate', label: 'Flash Frost (detonation)', type: 'magic', amount: 'calc.TotalExplosionDamage', aoe: true, travel: true },
       ],
     },

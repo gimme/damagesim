@@ -67,14 +67,15 @@ const kit: ChampionKit = {
         'Default: fully charged (1.25s charge, maximum damage, +50% Blight detonation). Set the seconds held (Q{0.5s}): damage and detonation amp grow over the first 1.25s.',
         'After W, the next Piercing Arrow adds % missing health magic damage (more the longer it was charged).',
       ],
-      // Wiki: the arrow's range grows from 895 to 1595 over the first 1.5s of the charge.
+      // Wiki: the arrow's range grows from 895 to 1595 over the first 1.5s of the charge; it pierces
+      // the target on the way.
       components: [
         {
           id: 'arrow',
           label: 'Piercing Arrow',
           type: 'physical',
           amount: `lerp(calc.TotalDamageMinTooltip, calc.TotalDamageMax, min(1, charge / ${CHARGED}))`,
-          travel: '(895 + 700 * min(1, charge / 1.5)) / missileSpeed',
+          travel: 'min(distance, 895 + 700 * min(1, charge / 1.5)) / missileSpeed',
         },
       ],
     },

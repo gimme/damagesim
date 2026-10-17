@@ -70,7 +70,7 @@ const kit: ChampionKit = {
       notes: ['One nail per cast: write Q Q Q AA for three nails and the consuming attack.'],
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration1' }],
       // Thrown as the cast time starts (wiki: {{Effect at cast time start}}): lands its flight after the cast starts.
-      components: [{ id: 'nail', label: 'Ritual Nail', type: 'magic', amount: 'calc.MissileDamage', travel: 'max(0, castRange / missileSpeed - castTime)', aoe: true }],
+      components: [{ id: 'nail', label: 'Ritual Nail', type: 'magic', amount: 'calc.MissileDamage', travel: 'max(0, reach / missileSpeed - castTime)', aoe: true }],
     },
     W: {
       noTarget: true,

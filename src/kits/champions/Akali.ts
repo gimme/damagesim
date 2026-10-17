@@ -14,13 +14,14 @@ const assassinsMark: BuffSpec = {
 };
 
 // Shuriken Flip's dashes, at 1500 speed (wiki): the first cast flips back SelfKnockbackRange from
-// 0.15s into its cast time; the recast dashes to the target the shuriken hit at its range, from where
-// the flip left her.
-const E_DASH = "recast == 1 ? 0.15 + dv.SelfKnockbackRange / 1500 : castTime + (castRange + dv.SelfKnockbackRange) / 1500";
+// 0.15s into its cast time; the recast dashes to the target the shuriken hit, from where the flip
+// left her.
+const E_DASH = "recast == 1 ? 0.15 + dv.SelfKnockbackRange / 1500 : castTime + (reach + dv.SelfKnockbackRange) / 1500";
 // Perfect Execution's first dash: its range at its speed.
 const R1_DASH = 'castTime + castRange / missileSpeed';
-// The recast dashes at 3000 speed (wiki) through the target at its range.
+// The recast dashes its range at 3000 speed (wiki), through the target on the way.
 const R2_DASH = "spell['AkaliRb'].castRange / 3000";
+const R2_HIT = "spell['AkaliRb'].reach / 3000";
 
 const kit: ChampionKit = {
   id: 'Akali',
@@ -42,8 +43,8 @@ const kit: ChampionKit = {
       buff: assassinsMark,
       dash: true,
       recasts: 2,
-      // The recast needs the shuriken's mark: it lands after flying its range.
-      recastDelay: 'castTime + castRange / missileSpeed',
+      // The recast needs the shuriken's mark: it lands after flying to the target.
+      recastDelay: 'castTime + reach / missileSpeed',
       // Wiki: Twilight Shroud and Perfect Execution can be cast during either dash; Five Point Strike
       // waits for the dash to end.
       attackLockout: E_DASH,
@@ -51,7 +52,7 @@ const kit: ChampionKit = {
       notes: ['First cast: shuriken (30% of the total); recast: dash to the marked target (70%).'],
       components: [
         { id: 'shuriken', label: 'Shuriken Flip', type: 'magic', amount: 'calc.E1Damage', hits: 'recast == 1 ? 1 : 0', travel: true },
-        { id: 'dash', label: 'Shuriken Flip (recast)', type: 'magic', amount: 'calc.E2DamageCalc', hits: 'recast == 2 ? 1 : 0', travel: '(castRange + dv.SelfKnockbackRange) / 1500' },
+        { id: 'dash', label: 'Shuriken Flip (recast)', type: 'magic', amount: 'calc.E2DamageCalc', hits: 'recast == 2 ? 1 : 0', travel: '(reach + dv.SelfKnockbackRange) / 1500' },
       ],
     },
     R: {
@@ -76,7 +77,7 @@ const kit: ChampionKit = {
           max: 'calc.Cast2DamageMax',
           hits: 'recast == 2 ? 1 : 0',
           aoe: true,
-          travel: R2_DASH,
+          travel: R2_HIT,
         },
       ],
     },

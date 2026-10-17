@@ -57,12 +57,12 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
-      // Full-distance dash at the dash's (and riders') speed; the riders charge alongside him and
-      // hit the target where he lands (castRange is the riders' 1510).
-      lockout: 'castTime + dv.MaxDashRange / missileSpeed',
+      // He dashes to the target (300 units at least, wiki) at the dash's (and riders') speed; the
+      // riders charge alongside him through the target (castRange is the riders' 1510).
+      lockout: 'castTime + min(max(300, distance), dv.MaxDashRange) / missileSpeed',
       notes: ['Fear assumes a full-distance charge (dv.FearDurationMax).'],
       cc: [{ kind: 'immobilize', duration: 'dv.FearDurationMax' }],
-      components: [{ id: 'onslaught', label: 'Onslaught of Shadows', type: 'magic', amount: 'calc.DamageDone', aoe: true, travel: 'dv.MaxDashRange / missileSpeed' }],
+      components: [{ id: 'onslaught', label: 'Onslaught of Shadows', type: 'magic', amount: 'calc.DamageDone', aoe: true, travel: true }],
     },
   },
 };
