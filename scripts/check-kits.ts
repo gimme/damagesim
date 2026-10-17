@@ -9,7 +9,7 @@ import { loadAllKits } from '../src/node/kits.ts';
 import { Sim, simulate, maxRanks } from '../src/engine/sim.ts';
 import { getKit, curatedChampionIds } from '../src/kits/index.ts';
 import { references } from '../src/engine/expr.ts';
-import type { ChampionKit, ComponentSpec, Expr } from '../src/engine/kit-types.ts';
+import type { ChampionKit, CastLockout, ComponentSpec, Expr } from '../src/engine/kit-types.ts';
 import type { Slot } from '../src/engine/effects.ts';
 
 const args = process.argv.slice(2);
@@ -21,6 +21,12 @@ const names = args.filter((a) => !a.startsWith('--'));
 const ids = names.length ? names.map((n) => data.championIndex.find((c) => c.id.toLowerCase() === n.toLowerCase() || c.name.toLowerCase() === n.toLowerCase())?.id ?? n) : args.includes('--all') ? data.championIndex.map((c) => c.id) : curatedChampionIds();
 
 let failures = 0;
+
+/** A castLockout's expressions, keyed ".Q" etc. when per slot. */
+function castLockouts(l: CastLockout | undefined): [string, Expr][] {
+  if (l === undefined) return [];
+  return typeof l === 'object' ? Object.entries(l).map(([s, x]) => [`.${s}`, x as Expr]) : [['', l]];
+}
 
 /** Every expression in a kit, tagged with the slot whose spell gives it context. */
 function* expressions(kit: ChampionKit): Generator<{ where: string; slot: Slot; expr: Expr; amount?: boolean; spell?: string }> {
@@ -44,6 +50,7 @@ function* expressions(kit: ChampionKit): Generator<{ where: string; slot: Slot; 
       }
       for (const cc of v.cc ?? []) yield { where: `${slot}:${vk}.cc.${cc.kind}`, slot, expr: cc.duration, spell: vs };
       for (const k of ['castTime', 'lockout', 'attackLockout', 'cooldown'] as const) if (v[k] !== undefined) yield { where: `${slot}:${vk}.${k}`, slot, expr: v[k], spell: vs };
+      for (const [s, x] of castLockouts(v.castLockout)) yield { where: `${slot}:${vk}.castLockout${s}`, slot, expr: x, spell: vs };
     }
     for (const b of (Array.isArray(a.buff) ? a.buff : [a.buff]).filter(Boolean)) {
       yield { where: `${slot}.buff.duration`, slot, expr: b.duration };
@@ -64,6 +71,7 @@ function* expressions(kit: ChampionKit): Generator<{ where: string; slot: Slot; 
     for (const cc of a.cc ?? []) yield { where: `${slot}.cc.${cc.kind}`, slot, expr: cc.duration };
     if (a.recastDelay !== undefined) yield { where: `${slot}.recastDelay`, slot, expr: a.recastDelay };
     for (const k of ['castTime', 'lockout', 'attackLockout', 'cooldown', 'recastWindow'] as const) if (a[k] !== undefined) yield { where: `${slot}.${k}`, slot, expr: a[k] };
+    for (const [s, x] of castLockouts(a.castLockout)) yield { where: `${slot}.castLockout${s}`, slot, expr: x };
   }
   for (const m of kit.marks ?? []) {
     const slot = (m.slot ?? 'P') as Slot;

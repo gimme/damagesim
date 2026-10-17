@@ -82,8 +82,9 @@ const kit: ChampionKit = {
       components: [{ id: 'pin', label: "Ixtal's Impact", type: 'physical', amount: 'calc.PinDamage', delay: 0.75 }],
     },
     R: {
-      // Wiki: unable to attack (or cast Q/E) while the targets are impaled, after the 0.75s cast time.
+      // Wiki: unable to attack or cast Q/E while the targets are impaled, after the 0.75s cast time.
       attackLockout: '0.75 + dv.Duration',
+      castLockout: { Q: '0.75 + dv.Duration', E: '0.75 + dv.Duration' },
       cc: [{ kind: 'immobilize', duration: 'dv.Duration' }],
       components: [{ id: 'impale', label: 'Impale', type: 'magic', amount: 'calc.Damage', aoe: true }],
     },

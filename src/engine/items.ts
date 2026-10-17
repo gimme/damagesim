@@ -401,7 +401,7 @@ const ITEMS: Record<number, Factory> = {
           empoweredUntil = sim.time + 10;
           // The cooldown starts when the empowered attack is used (or the 10s window ends).
           sim.startCooldown(`active:item:${item.id}`, 10 + cd);
-          sim.attackReadyAt = Math.min(sim.attackReadyAt, sim.time);
+          sim.resetAttack();
         },
       },
     });
@@ -1154,7 +1154,7 @@ function hydraActive(item: ItemData, calcName: string, label: string, slow = fal
       cast(sim, castId) {
         sim.deal({ ...hit(item, label, 'physical', calc(sim, item, calcName), { ability: true, proc: false, aoe: true }), castId });
         if (slow) sim.applyCC('slow', dv(item, 'Duration') || 3, castId);
-        sim.attackReadyAt = Math.min(sim.attackReadyAt, sim.time);
+        sim.resetAttack();
       },
     },
   });

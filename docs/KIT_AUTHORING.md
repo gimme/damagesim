@@ -262,6 +262,11 @@ other on-hit effects apply, but Guinsoo's/Lethal Tempo/Energize charges don't st
 * `attackLockout`: seconds from cast start the caster can't attack but can still cast, the wiki's
   "unable to move or attack while Rocket Grab is in flight" (Blitzcrank Q, Leona E, Sett E). "Unable to
   act" stops casting too: that is `lockout`.
+  Attack resets don't end it: Blitzcrank's "Q E AA" casts E at once, and its Power Fist waits.
+  Hooks lock attacks with `sim.lockAttacks(until)` (Jhin's reload) and reset them with `sim.resetAttack()`.
+* `castLockout`: seconds from cast start the caster can't cast abilities but can still attack: one
+  expression for all of them (Aurora R), or per slot, `{ Q: 0.6167, E: 0.6167 }` (Darius R). Hooks call
+  `sim.lockCasts(['Q', 'E'], until)` (Renekton after his empowered W attack).
 * `cooldown`: base cooldown expression when the data's is missing/wrong; `notUltimate: true` for an R that isn't one (Udyr).
 * `buff` may be an array (several buffs per cast).
 * `followUpCrits: true`: the cast sets off a hit that can crit outside its components (a hook's;

@@ -77,6 +77,8 @@ const kit: ChampionKit = {
       },
     },
     E: {
+      // Wiki: unable to cast To the Skies! or Shock Blast for 0.4s after the 0.25s cast time.
+      castLockout: { Q: 0.65 },
       cc: [{ kind: 'immobilize', duration: 'dv.KnockbackDuration' }],
       components: [{ id: 'blow', label: 'Thundering Blow', type: 'magic', amount: 'calc.FlatDamage + dv.PercHPDamage * target.maxHp' }],
       variants: {

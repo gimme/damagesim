@@ -268,7 +268,12 @@ export class Sim {
   private cooldownReady = new Map<string, number>();
   private recastCount = new Map<string, number>();
   freeAt = 0;
+  /** The attack timer: when the next attack may start. Attack resets bring it forward. */
   attackReadyAt = 0;
+  /** Until when attacks are locked out (attackLockout, Jhin's reload): attack resets don't end it. */
+  attackLockedUntil = 0;
+  /** Until when each ability can't be cast (castLockout). */
+  private castLockedUntil = new Map<Slot, number>();
   combatStart = 0;
   /** Time of the last damage that keeps you in combat (everything except aura damage). */
   lastCombatTime = 0;
@@ -1601,8 +1606,13 @@ export class Sim {
     // Cooldown / recast handling. Process pending hits first: they can reset cooldowns
     // (Diana E, Ekko…) or refund charges.
     const cdKey = `ability:${slot}`;
-    let start = Math.max(this.time, this.freeAt);
+    const castFree = () => Math.max(this.freeAt, slot === 'P' ? 0 : (this.castLockedUntil.get(slot) ?? 0));
+    let start = Math.max(this.time, castFree());
     this.processUntil(start);
+    while (castFree() > start + 1e-9) {
+      start = castFree();
+      this.processUntil(start);
+    }
     // A recast chain that outlived its window ends: the ability goes on its full cooldown from the first cast.
     if (spec.recastWindow !== undefined && (this.recastCount.get(slot) ?? 0) > 0) {
       const first = this.counters.get(`firstcast:${slot}`) ?? start;
@@ -1709,7 +1719,12 @@ export class Sim {
     this.freeAt = span !== undefined && lockExpr !== undefined ? end + span : Math.max(end, start + lockout);
     if (resets) this.attackReadyAt = this.freeAt;
     const attackLock = variant?.attackLockout ?? spec.attackLockout;
-    if (attackLock !== undefined) this.attackReadyAt = Math.max(this.attackReadyAt, start + this.evalExpr(attackLock, ectx));
+    if (attackLock !== undefined) this.lockAttacks(start + this.evalExpr(attackLock, ectx));
+    const castLock = variant?.castLockout ?? spec.castLockout;
+    if (castLock !== undefined) {
+      const perSlot = typeof castLock === 'object' ? castLock : { Q: castLock, W: castLock, E: castLock, R: castLock };
+      for (const [s, e] of Object.entries(perSlot) as [Slot, Expr][]) this.lockCasts([s], start + this.evalExpr(e, ectx));
+    }
     timeline.push({ step: formatCombo([step]), start, end: this.freeAt });
 
     if (!hitsTarget) return;
@@ -1828,7 +1843,22 @@ export class Sim {
       ...(buff.empowerAttacks ? { charges: Math.round(this.evalExpr(buff.empowerAttacks.count, ctx)) } : {}),
       ...(buff.damageAmp !== undefined ? { amp: this.evalExpr(buff.damageAmp, ctx) } : {}),
     });
-    if (buff.empowerAttacks?.resetsAttack) this.attackReadyAt = Math.min(this.attackReadyAt, this.time);
+    if (buff.empowerAttacks?.resetsAttack) this.resetAttack();
+  }
+
+  /** Resets the attack timer: the next attack can start now (once nothing locks attacks out). */
+  resetAttack() {
+    this.attackReadyAt = Math.min(this.attackReadyAt, this.time);
+  }
+
+  /** No attack starts before `until` (attack resets don't change that). */
+  lockAttacks(until: number) {
+    this.attackLockedUntil = Math.max(this.attackLockedUntil, until);
+  }
+
+  /** The abilities can't be cast before `until`. */
+  lockCasts(slots: Slot[], until: number) {
+    for (const s of slots) this.castLockedUntil.set(s, Math.max(this.castLockedUntil.get(s) ?? 0, until));
   }
 
   applyDebuff(d: DebuffSpec, slot: Slot, spell: SpellData, rank: number, castId?: number) {
@@ -1877,11 +1907,12 @@ export class Sim {
     const options = attackOptions(this.kit);
     for (const id of step.enable ?? []) if (!options.has(id)) this.warn(`Attacks have no optional hit "${id}" (available: ${[...options].join(', ') || 'none'})`);
     for (let i = 0; i < count; i++) {
-      let start = Math.max(this.time, this.freeAt, this.attackReadyAt);
+      const attackFree = () => Math.max(this.freeAt, this.attackReadyAt, this.attackLockedUntil);
+      let start = Math.max(this.time, attackFree());
       this.processUntil(start);
       // What happened meanwhile can hold it longer (Jhin's reload after his 4th shot lands).
-      while (Math.max(this.freeAt, this.attackReadyAt) > start + 1e-9) {
-        start = Math.max(this.freeAt, this.attackReadyAt);
+      while (attackFree() > start + 1e-9) {
+        start = attackFree();
         this.processUntil(start);
       }
       const st = this.stats;

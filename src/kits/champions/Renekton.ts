@@ -79,5 +79,11 @@ const kit: ChampionKit = {
       ],
     },
   },
+  hooks: {
+    // Wiki: after the empowered attack's cast time, unable to move or cast Q/E for 0.525s.
+    onLaunch(sim, launch) {
+      if (!launch.fromAbility && (sim.getBuff('renektonW')?.charges ?? 0) > 0) sim.lockCasts(['Q', 'E'], sim.time + 0.525);
+    },
+  },
 };
 export default kit;

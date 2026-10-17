@@ -25,8 +25,10 @@ const kit: ChampionKit = {
   stats: ({ ranks, evalExpr }) => (ranks.E > 0 ? { armorPenPercent: [evalExpr('E.dv.PassivePercentArmorPen') / 100] } : {}),
   abilities: {
     Q: {
-      // Wiki: unable to declare attacks (or cast E/R) while he hefts the axe for 0.75s.
+      // Wiki: unable to declare attacks or cast E/R while he hefts the axe for 0.75s (W can be cast,
+      // but its attack waits).
       attackLockout: 0.75,
+      castLockout: { E: 0.75, R: 0.75 },
       variants: {
         handle: {
           label: 'handle',
@@ -53,11 +55,17 @@ const kit: ChampionKit = {
     },
     E: {
       noTarget: false,
+      // Wiki: unable to move or cast Q/R for 0.4s after the 0.25s cast time; he attacks once the
+      // pull ends (wiki: he then attacks the pulled target), so attacks wait too.
+      attackLockout: 0.65,
+      castLockout: { Q: 0.65, R: 0.65 },
       cc: [{ kind: 'immobilize', duration: 0.5 }, { kind: 'slow', duration: 'dv.SlowDuration' }],
       components: [],
     },
     R: {
       dash: true,
+      // Wiki: unable to cast Q/E for 0.25s after the 0.3667s cast time; attacks aren't held.
+      castLockout: { Q: 0.6167, E: 0.6167 },
       components: [
         {
           id: 'guillotine',

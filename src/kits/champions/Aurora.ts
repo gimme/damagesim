@@ -48,6 +48,9 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
+      // Wiki: she leaps over 0.4s, then her abilities stay locked out for another 0.5s.
+      lockout: 0.4,
+      castLockout: 0.9,
       cc: [{ kind: 'slow', duration: 2 }],
       notes: ['Leap then a pulse on landing; the border only slows (no damage).'],
       components: [{ id: 'pulse', label: 'Between Worlds', type: 'magic', amount: 'calc.DamageCalc', aoe: true, delay: 0.4 }],

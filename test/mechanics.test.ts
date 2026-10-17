@@ -609,3 +609,16 @@ test("On-attack effects trigger at launch (Lucian's double shot), on-hit ones as
   const blade = ezreal.events.find((e) => e.label === 'Spellblade')!;
   assert.equal(blade.castId, bySource(ezreal, 'AA')[0].castId);
 });
+
+test("An attack reset doesn't end an attack lockout: the attack an ability empowers waits like any other (Blitzcrank Q E AA, Darius Q W AA)", () => {
+  const start = (champion: string, combo: string) => new Sim(data, { champion, level: 11, combo, target: dummy }).run(parseCombo(combo)).timeline.find((s) => s.step === 'AA')!.start;
+  assert.ok(Math.abs(start('Blitzcrank', 'Q E AA') - start('Blitzcrank', 'Q AA')) < 1e-9);
+  assert.ok(Math.abs(start('Darius', 'Q W AA') - 0.75) < 1e-9);
+});
+
+test('A cast lockout holds only the abilities it lists (Darius R: Q and E, not attacks)', () => {
+  const steps = (combo: string) => new Sim(data, { champion: 'Darius', level: 11, combo, target: dummy }).run(parseCombo(combo)).timeline;
+  assert.ok(Math.abs(steps('R Q')[1].start - 0.6167) < 1e-9);
+  const [r, aa] = steps('R AA');
+  assert.ok(Math.abs(aa.start - r.end) < 1e-9);
+});

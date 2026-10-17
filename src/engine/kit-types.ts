@@ -23,6 +23,9 @@ import type { StatMods } from './stats.ts';
 
 export type Expr = string | number;
 
+/** Seconds from a cast's start: for every ability, or per slot (see AbilitySpec.castLockout). */
+export type CastLockout = Expr | Partial<Record<'Q' | 'W' | 'E' | 'R', Expr>>;
+
 export interface ComponentSpec {
   id: string;
   label: string;
@@ -228,6 +231,7 @@ export interface VariantSpec {
   cc?: CCSpec[];
   lockout?: Expr;
   attackLockout?: Expr;
+  castLockout?: CastLockout;
   cooldown?: Expr;
   buff?: BuffSpec | BuffSpec[];
   /** `null` clears the ability's debuff for this variant. */
@@ -260,9 +264,16 @@ export interface AbilitySpec {
   /**
    * Seconds from the start of the cast the caster can't attack, while still free to cast (the wiki's
    * "unable to move or attack while Rocket Grab is in flight"): delays the next attack, not the next
-   * cast. A lockout that stops casting too ("unable to act") is `lockout`.
+   * cast. A lockout that stops casting too ("unable to act") is `lockout`. Attack resets don't end
+   * it: an ability that empowers the next attack (Blitzcrank E) can be cast, but its attack waits.
    */
   attackLockout?: Expr;
+  /**
+   * Seconds from the start of the cast the caster can't cast abilities, while still free to attack
+   * (the wiki's "unable to cast Decimate or Apprehend for 0.25 seconds after Noxian Guillotine's
+   * cast time"): every ability, or the listed slots each until its own seconds.
+   */
+  castLockout?: CastLockout;
   /**
    * The player chooses how long it lasts: ends the channel early (Smolder E: cast something, or fly
    * out of range) or leaves the toggle on (Karthus E). A combo step sets its seconds after the cast
