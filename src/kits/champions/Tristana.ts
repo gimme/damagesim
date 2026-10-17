@@ -12,8 +12,6 @@ interface Bomb {
 }
 const bombs = new WeakMap<Sim, Bomb | undefined>();
 let nextToken = 1;
-/** Explosive Charge's cast time: her attack windup (wiki), 14.8% of her attack period. */
-const E_CAST_TIME = '0.148 / as';
 
 function detonate(sim: Sim, bomb: Bomb) {
   bombs.set(sim, undefined);
@@ -35,7 +33,7 @@ const kit: ChampionKit = {
     onCast(sim, cast) {
       if (cast.slot !== 'E' || !cast.hitsTarget) return;
       // The bomb attaches once it has flown its range, after the cast time.
-      sim.schedule(sim.evalExpr(`${E_CAST_TIME} + castRange / missileSpeed`, { slot: 'E' }), () => {
+      sim.schedule((cast.castTime ?? 0) + sim.evalExpr('castRange / missileSpeed', { slot: 'E' }), () => {
         const bomb: Bomb = { token: nextToken++, stacks: 0, counted: new Set() };
         bombs.set(sim, bomb);
         sim.schedule(sim.evalExpr('E.dv.ActiveDuration', { slot: 'E' }), () => {
@@ -69,7 +67,8 @@ const kit: ChampionKit = {
       components: [{ id: 'landing', label: 'Rocket Jump', type: 'magic', amount: 'calc.LandingDamage', aoe: true, travel: true }],
     },
     E: {
-      castTime: E_CAST_TIME,
+      // Wiki: her attack windup.
+      castTime: 'windup',
       notes: ['Attaches the bomb; damage comes from the detonation (hook).'],
       components: [],
     },

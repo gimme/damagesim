@@ -42,8 +42,9 @@ const kit: ChampionKit = {
       notes: ['Damage only on the returning wave. The recast pull (no damage) is not modeled.'],
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
       // Fired as the cast time starts (wiki: {{Effect at cast time start}}), the wave flies out over its
-      // 850 range in 0.585s (1125 accelerating to 1800) and back over it in ~0.35s (2800 slowing to 2000).
-      components: [{ id: 'nevermove', label: 'Nevermove', type: 'magic', amount: 'calc.SecondaryDamage', aoe: true, travel: '0.585 + 0.35 - castTime' }],
+      // 850 range in 0.585s (1125 accelerating to 1800) and turns there, at the target: the returning
+      // wave hits it as it turns.
+      components: [{ id: 'nevermove', label: 'Nevermove', type: 'magic', amount: 'calc.SecondaryDamage', aoe: true, travel: 'max(0, 0.585 - castTime)' }],
     },
     R: {
       recasts: 2,

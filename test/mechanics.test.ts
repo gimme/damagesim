@@ -118,7 +118,9 @@ test('Smolder E: the full flight, then the next cast; E is not a dash (no Sudden
   assert.equal(r.events.filter((e) => e.label === 'Flap, Flap, Flap (Dragon Practice)').length, 6);
   const qStart = r.timeline.find((s) => s.step === 'Q')!.start;
   assert.ok(qStart >= 1.25, `Q waits for the flight to end (${qStart})`);
-  assert.ok(bolts.every((e) => e.time < qStart));
+  // Fired during the flight, each bolt then flies its range.
+  const travel = new Sim(data, { champion: 'Smolder', level: 11, combo: [] }).evalExpr('castRange / missileSpeed', { slot: 'E' });
+  assert.ok(bolts.every((e) => e.time - travel < qStart));
   assert.equal(bySource(r, 'rune:8143').length, 0, 'Sudden Impact not armed');
 });
 
@@ -128,19 +130,19 @@ test('Smolder E: a flight time lands the bolts fired before it ends, and frees S
   const full = simulate(data, { champion: 'Smolder', level: 11, combo: 'E Q', target: dummy });
   const all = bolts(full);
   const half = simulate(data, { champion: 'Smolder', level: 11, combo: 'E{0.5s} Q', target: dummy });
-  assert.deepEqual(bolts(half), all.filter((t) => t <= 0.5), 'the bolts fired in the first 0.5s, at their times');
+  const travel = new Sim(data, { champion: 'Smolder', level: 11, combo: [] }).evalExpr('castRange / missileSpeed', { slot: 'E' });
+  assert.deepEqual(bolts(half), all.filter((t) => t - travel <= 0.5 + 1e-9), 'the bolts fired in the first 0.5s, at their times');
   assert.equal(half.events.filter((e) => e.label === 'Flap, Flap, Flap (Dragon Practice)').length, bolts(half).length, 'Dragon Practice follows the bolts');
   assert.ok(Math.abs(at(half, 'Q') - 0.5) < 1e-6, 'Q as the flight ends');
   // Never longer than the full flight.
   const long = simulate(data, { champion: 'Smolder', level: 11, combo: 'E{5s} Q', target: dummy });
   assert.equal(bolts(long).length, all.length);
   assert.equal(at(long, 'Q'), at(full, 'Q'));
-  assert.ok(long.warnings.some((w) => /lasts 0.1s to 1.25s, so E\{5s\} lasts 1.25s/.test(w)));
-  // At least until the first bolt is fired.
+  assert.ok(long.warnings.some((w) => /lasts 0s to 1.25s, so E\{5s\} lasts 1.25s/.test(w)));
+  // At least until the first bolt is fired: as the flight starts.
   const none = simulate(data, { champion: 'Smolder', level: 11, combo: 'E{0s} Q', target: dummy });
   assert.equal(bolts(none).length, 1);
-  assert.ok(Math.abs(at(none, 'Q') - 0.1) < 1e-6);
-  assert.ok(none.warnings.some((w) => /so E\{0s\} lasts 0.1s/.test(w)));
+  assert.ok(Math.abs(at(none, 'Q')) < 1e-6);
   assert.ok(new Sim(data, { champion: 'Smolder', level: 11, combo: [] }).castSetting({ slot: 'E' })!.value === 1.25);
 });
 

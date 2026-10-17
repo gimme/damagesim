@@ -16,6 +16,8 @@ const kit: ChampionKit = {
   buffStacks: { [STACKS]: 'opt.stacks' },
   abilities: {
     Q: {
+      // Wiki: his attack windup.
+      castTime: 'windup',
       components: [
         // Applies on-hit effects and triggers on-attack effects (Spellblade, Energized, Guinsoo's stacks…).
         { id: 'breath', label: 'Super Scorcher Breath', type: 'physical', amount: 'calc.TotalDamage', onHit: true, onAttack: true, travel: true },
@@ -86,7 +88,7 @@ const kit: ChampionKit = {
       if (cast.slot !== 'Q' || !cast.hitsTarget) return;
       const q = { slot: 'Q' as const };
       if (sim.opt.stacks >= sim.evalExpr('Q.dv.StackTier3', q))
-        sim.setCounter('smolderBurnUntil', sim.time + (sim.spellFor('Q').castTime ?? 0) + sim.evalExpr('Q.castRange / Q.missileSpeed + Q.dv.Tier3_DotLength', q));
+        sim.setCounter('smolderBurnUntil', sim.time + (cast.castTime ?? 0) + sim.evalExpr('Q.castRange / Q.missileSpeed + Q.dv.Tier3_DotLength', q));
     },
     // 225 stacks: Smolder's damage executes a burning target below the threshold. The execute is part
     // of the hit that executes (not a separate hit for Electrocute).

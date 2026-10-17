@@ -91,7 +91,8 @@ export interface CastSetting {
 const hitsWithin = (first: number, interval: number, maxHits: number, seconds: number) =>
   seconds + 1e-6 < first ? 0 : Math.min(maxHits, Math.floor((seconds - first) / interval + 1e-6) + 1);
 
-type CastCtx = { slot: Slot; spell: SpellData; rank: number; recast?: number };
+/** castTime: the cast's own cast time, where it differs from its spell's (a kit's castTime). */
+type CastCtx = { slot: Slot; spell: SpellData; rank: number; recast?: number; castTime?: number };
 
 const round2 = (x: number) => Math.round(x * 100) / 100;
 
@@ -643,7 +644,7 @@ export class Sim {
   }
 
   /** Evaluate a kit expression in the context of an ability slot. */
-  evalExpr(e: Expr, ctx: { slot: Slot; spell?: SpellData; rank?: number; hit?: number; hits?: number; recast?: number }): number {
+  evalExpr(e: Expr, ctx: { slot: Slot; spell?: SpellData; rank?: number; hit?: number; hits?: number; recast?: number; castTime?: number }): number {
     if (typeof e === 'number') return e;
     const spell = ctx.spell ?? this.spellFor(ctx.slot);
     const rank = ctx.rank ?? this.abilityRank(ctx.slot);
@@ -665,7 +666,7 @@ export class Sim {
     return this.rankOf(slot);
   }
 
-  private resolvePath(path: string[], ctx: { slot: Slot; spell: SpellData; rank: number; hit?: number; hits?: number; recast?: number }): number {
+  private resolvePath(path: string[], ctx: { slot: Slot; spell: SpellData; rank: number; hit?: number; hits?: number; recast?: number; castTime?: number }): number {
     const [h, ...rest] = path;
     const st = this.stats;
     const t = this.target;
@@ -692,10 +693,11 @@ export class Sim {
       }
     };
     switch (h) {
+      case 'castTime':
+        return ctx.castTime ?? sub(ctx.spell, ctx.rank, path);
       case 'calc':
       case 'dv':
       case 'cooldown':
-      case 'castTime':
       case 'castRange':
       case 'missileSpeed':
         return sub(ctx.spell, ctx.rank, path);
@@ -807,6 +809,9 @@ export class Sim {
         return st.bonusMr;
       case 'as':
         return st.attackSpeed;
+      case 'windup':
+        // An attack's windup at the current attack speed (casts the wiki times by it: Senna Q).
+        return windupFraction(this.champ) / Math.max(0.2, this.kit.attack?.attackSpeed !== undefined ? this.evalExpr(this.kit.attack.attackSpeed, { slot: 'P' }) : st.attackSpeed);
       case 'bonusAs':
         return st.bonusAttackSpeed;
       case 'critChance':
@@ -1673,7 +1678,7 @@ export class Sim {
       if (!Number.isFinite(ammo.state.nextAt)) ammo.state.nextAt = start + ammo.recharge;
     }
     const recast = (this.recastCount.get(slot) ?? 0) + 1;
-    const ectx = { slot, spell, rank, recast };
+    const ectx: CastCtx = { slot, spell, rank, recast };
     // The number the step sets, where the player chooses it (see CastSetting), within what the cast
     // allows: the seconds it's held to charge, or after its cast time the seconds it lasts or until
     // its last counted hit is fired (`span`): its repeating hits land within them, and its lockout
@@ -1696,13 +1701,14 @@ export class Sim {
     for (const id of Object.keys(step.hits ?? {})) if (!ids(false).includes(id)) this.warn(`${label} has no hit "${id}" (available: ${ids(false).join(', ') || 'none'})`);
     for (const id of step.enable ?? []) if (!ids(true).includes(id)) this.warn(`${label} has no optional hit "${id}" (available: ${ids(true).join(', ') || 'none'})`);
 
-    const castTime = this.castTimeOf(spec, variant, { slot, spell, rank });
+    const castTime = this.castTimeOf(spec, variant, { slot, spell, rank, recast });
+    ectx.castTime = castTime;
     const castId = this.newCastId();
     this.action = castId;
     const hitsTarget = !step.miss && !spec.noTarget;
     const resets = variant?.resetsAttack ?? spec.resetsAttack;
     const isUlt = slot === ULT && !spec.notUltimate;
-    const cast: CastInfo = { castId, slot, variant: variantKey, hitsTarget, isUltimate: isUlt, label, dash: !!(variant?.dash ?? spec.dash), resetsAttack: !!resets };
+    const cast: CastInfo = { castId, slot, variant: variantKey, hitsTarget, isUltimate: isUlt, label, dash: !!(variant?.dash ?? spec.dash), resetsAttack: !!resets, castTime };
     // A P step is a passive proc, not an ability cast: only the kit's own hooks see it.
     for (const e of this.effects) if (slot !== 'P' || e.source === 'kit') e.onCast?.(this, cast);
 

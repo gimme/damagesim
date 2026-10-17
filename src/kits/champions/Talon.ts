@@ -48,9 +48,8 @@ const kit: ChampionKit = {
         melee: {
           label: 'melee',
           note: 'Cast in melee range: no leap, critically strikes.',
-          // Wiki: the close cast takes his attack windup (0.198s of his 1.6s attack at base attack speed)
-          // and strikes at its end.
-          castTime: '0.198 / 1.6 / as',
+          // Wiki: the close cast takes his attack windup and strikes at its end.
+          castTime: 'windup',
           attackLockout: 0,
           castLockout: {},
           resetsAttack: true,
@@ -63,8 +62,9 @@ const kit: ChampionKit = {
       notes: ['Blades go out and return after dv.ReturnDelay; both passes hit a target in their path.'],
       components: [
         { id: 'out', label: 'Rake (out)', type: 'physical', amount: 'calc.TotalInitialDamage', aoe: true, travel: true },
-        // Wiki: they linger 0.7s (ReturnDelay) at max range, then home back over it at 3000.
-        { id: 'back', label: 'Rake (return)', type: 'physical', amount: 'calc.TotalReturnDamage', aoe: true, delay: 'dv.ReturnDelay', travel: 'castRange / missileSpeed + castRange / 3000' },
+        // Wiki: they linger 0.7s (ReturnDelay) at max range, where the target stands, then home back
+        // through it.
+        { id: 'back', label: 'Rake (return)', type: 'physical', amount: 'calc.TotalReturnDamage', aoe: true, delay: 'dv.ReturnDelay', travel: true },
       ],
     },
     E: {

@@ -47,14 +47,14 @@ const kit: ChampionKit = {
       dash: true,
       notes: ['Crash Down: leap, knock-up and damage; Rell then dismounts (+attack speed, +range).'],
       // Wiki: no attacks during the leap (0.625s cast time) and the ~0.5s slide after it; Q is
-      // disabled, E and R can be cast. So no full cast-time lockout: the hit lands as the leap (the
-      // data's cast time) ends.
+      // disabled, E and R can be cast. So no full cast-time lockout: the hit lands as the leap (its
+      // 0.625s cast time) ends.
       castTime: 0,
       attackLockout: 1.125,
       castLockout: { Q: 1.125 },
       cc: [{ kind: 'immobilize', duration: 'dv.CrashDownKnockupDuration' }],
       buff: dismounted,
-      components: [{ id: 'crash', label: 'Crash Down', type: 'magic', amount: 'calc.DismountDamage', aoe: true, delay: 'castTime' }],
+      components: [{ id: 'crash', label: 'Crash Down', type: 'magic', amount: 'calc.DismountDamage', aoe: true, delay: 0.625 }],
       variants: {
         mountup: {
           label: 'mount up',

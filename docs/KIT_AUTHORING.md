@@ -253,9 +253,15 @@ other on-hit effects apply, but Guinsoo's/Lethal Tempo/Energize charges don't st
   times are the wiki's (none for instant casts like Garen Q, Darius W, dashes), else the game files'.
 * Timing: a hit lands `castTime + delay + travel` after the cast starts. Travel is the ability's max
   range at its missile's (or dash's) speed, the wiki's: expressions read `castRange`, `missileSpeed`
-  and `castTime` (also `Q.castRange`, `spell['X'].missileSpeed`). A dash is busy for its flight
-  (`lockout: 'castTime + castRange / missileSpeed'`); without a speed in the data it keeps a rough
-  duration.
+  and `castTime` (the cast's own, the kit's when it sets one; `Q.castRange`, `spell['X'].missileSpeed`
+  read the data). A dash is busy for its flight (`lockout: 'castTime + castRange / missileSpeed'`);
+  without a speed in the data it keeps a rough duration. A missile the wiki fires as the cast time
+  starts flies `'max(0, castRange / missileSpeed - castTime)'`; an effect applied before the cast
+  time ends takes a negative delay (down to `'-castTime'`, Riven W). A returning missile turns at
+  max range, where the target stands: it hits again as it turns (Ahri Q, Sivir Q). Very long and
+  global ranges are assumed cast from 1200 units (Ezreal R).
+* `windup` is an attack's windup at the current attack speed, for casts the wiki times by it
+  (`castTime: '0.8 * windup'`, Senna Q). Hooks see a cast's cast time as `cast.castTime`.
 * `cc: [{ kind, duration, delay }]`: `delay` lands the CC later (delayed stuns); a duration ≤ 0 means no CC,
   so `duration: 'debuff.flux ? dv.RootDuration : 0'` makes it conditional.
 * `empowerAttacks.onHitRepeats`: extra on-hit applications per empowered attack (Renekton W).

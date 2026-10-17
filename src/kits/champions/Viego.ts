@@ -28,6 +28,8 @@ const kit: ChampionKit = {
   attack: { onHit: [BLADE_ON_HIT] },
   abilities: {
     Q: {
+      // Wiki: 140% of his attack windup.
+      castTime: '1.4 * windup',
       debuff: MARK,
       notes: ['The active\'s damage already scales with crit chance in the game formula.'],
       components: [{ id: 'stab', label: 'Blade of the Ruined King', type: 'physical', amount: 'calc.TotalDamage', aoe: true }],

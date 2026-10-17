@@ -11,8 +11,8 @@ const kit: ChampionKit = {
     Q: {
       components: [
         { id: 'out', label: 'Orb (out)', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true },
-        // Wiki: the orb flies back its range from 60 speed, accelerating at 1900/s² (~0.94s).
-        { id: 'back', label: 'Orb (return)', type: 'true', amount: 'calc.TotalDamage', aoe: true, travel: 'castRange / missileSpeed + (sqrt(60 * 60 + 2 * 1900 * castRange) - 60) / 1900' },
+        // The target stands at max range, where the orb turns: the return hits it as it turns.
+        { id: 'back', label: 'Orb (return)', type: 'true', amount: 'calc.TotalDamage', aoe: true, travel: true },
       ],
     },
     W: {

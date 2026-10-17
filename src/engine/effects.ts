@@ -168,6 +168,8 @@ export interface CastInfo {
   item?: boolean;
   isUltimate: boolean;
   label: string;
+  /** Seconds the cast takes (0 for item actives). */
+  castTime?: number;
 }
 
 /** Distance to the target, shared by Arcane Comet, Hexoptics C44 and Horizon Focus (positions are not simulated). */

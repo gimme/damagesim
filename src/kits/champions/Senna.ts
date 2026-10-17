@@ -53,6 +53,8 @@ const kit: ChampionKit = {
   ],
   abilities: {
     Q: {
+      // Wiki: 80% of her attack windup.
+      castTime: '0.8 * windup',
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       notes: ['Applies on-hit effects and triggers on-attack effects on the target (wiki).'],
       components: [{ id: 'bolt', label: 'Piercing Darkness', type: 'physical', amount: 'calc.TotalDamage', aoe: true, onHit: true, onAttack: true }],

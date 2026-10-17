@@ -28,10 +28,8 @@ const kit: ChampionKit = {
     },
     W: {
       // Wiki: the effects are applied before the cast time, which still locks her out.
-      castTime: 0,
-      lockout: 'castTime',
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-      components: [{ id: 'burst', label: 'Ki Burst', type: 'physical', amount: 'calc.TotalDamage', aoe: true }],
+      components: [{ id: 'burst', label: 'Ki Burst', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: '-castTime' }],
     },
     E: {
       dash: true,

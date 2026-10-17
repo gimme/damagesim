@@ -38,11 +38,11 @@ const kit: ChampionKit = {
       components: [{ id: 'standAside', label: 'Stand Aside', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: true }],
     },
     R: {
-      // Global: assumed fired from 1200 units; the axes reverse on hitting the champion and fly back
-      // as far.
+      // Global: assumed fired from 1200 units; the axes reverse on hitting the champion, hitting it
+      // again as they turn.
       components: [
         { id: 'out', label: 'Whirling Death (out)', type: 'physical', amount: 'calc.RCalculatedDamage', aoe: true, travel: '1200 / missileSpeed' },
-        { id: 'back', label: 'Whirling Death (return)', type: 'physical', amount: 'calc.RCalculatedDamage', aoe: true, travel: '2 * 1200 / missileSpeed' },
+        { id: 'back', label: 'Whirling Death (return)', type: 'physical', amount: 'calc.RCalculatedDamage', aoe: true, travel: '1200 / missileSpeed' },
         {
           id: 'execute',
           label: 'Whirling Death (execute)',

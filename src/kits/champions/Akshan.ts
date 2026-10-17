@@ -24,8 +24,9 @@ const kit: ChampionKit = {
     P: { notes: ['Second shot and 3-hit proc are automatic (see notes).'] },
     Q: {
       notes: ['Hits the target on the way out and on the way back (Q{boomerang:1} for one pass).'],
-      // Wiki: out its range at 1500, then 500 further for the enemy hit, then back all the way at 2400.
-      components: [{ id: 'boomerang', label: 'Avengerang', type: 'physical', amount: 'calc.FinalDamage', hits: 2, maxHits: 2, interval: '500 / missileSpeed + (castRange + 500) / 2400', travel: true, aoe: true }],
+      // Wiki: out its range at 1500, 500 further for the enemy hit, then back at 2400: it passes the
+      // target (at max range) 500 units into its return.
+      components: [{ id: 'boomerang', label: 'Avengerang', type: 'physical', amount: 'calc.FinalDamage', hits: 2, maxHits: 2, interval: '500 / missileSpeed + 500 / 2400', travel: true, aoe: true }],
     },
     W: { noTarget: true, notes: ['Going Rogue: camouflage / revive only.'] },
     E: {
