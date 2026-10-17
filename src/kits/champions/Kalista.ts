@@ -16,10 +16,14 @@ const ARMED = 'kalistaSoulMark';
 const REND_AT = 'kalistaRendAt';
 const REND_SPEARS = 'kalistaRendSpears';
 const IN_FLIGHT = 'Rend (spear in flight)';
+/** When each Pierce's spear was fired (by cast id). */
+const pierces = new WeakMap<Sim, Map<number, number>>();
+const pierceFired = (sim: Sim) => pierces.get(sim) ?? pierces.set(sim, new Map()).get(sim)!;
 
-/** A spear fired before Rend went off lands after it: Rend rips it out, as one more spear. */
+/** A spear fired before Rend went off lands after it: Rend rips it out, as one more spear. One landing
+ *  as Rend goes off is in the target already: Rend's own hit counts it. */
 function rendLanding(sim: Sim, fired: number, castId: number) {
-  if (!(fired < sim.counter(REND_AT) && sim.time >= sim.counter(REND_AT))) return;
+  if (!(fired < sim.counter(REND_AT) && sim.time > sim.counter(REND_AT))) return;
   // After the spear's own hit has added it.
   sim.schedule(0, () => {
     const spears = sim.counter(REND_SPEARS);
@@ -72,7 +76,8 @@ const kit: ChampionKit = {
     },
     W: { noTarget: true, notes: ['Active: scouting ghost (no damage). The passive is the "P" step.'], components: [] },
     E: {
-      cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
+      // Only when it rips out spears (in flight ones slow as they land).
+      cc: [{ kind: 'slow', duration: `stacks.${REND_SPEARS} > 0 ? dv.SlowDuration : 0` }],
       components: [
         {
           id: 'rend',
@@ -99,7 +104,7 @@ const kit: ChampionKit = {
         sim.setCounter(REND_SPEARS, 0);
       }
       // Pierce's spear flies from the end of its cast time.
-      if (cast.slot === 'Q') sim.setCounter(`kalistaQ.${cast.castId}`, sim.time + (cast.castTime ?? 0));
+      if (cast.slot === 'Q') pierceFired(sim).set(cast.castId, sim.time + (cast.castTime ?? 0));
     },
     onLaunch(sim, launch) {
       if (launch.fromAbility || !sim.getBuff(ARMED)) return;
@@ -116,7 +121,7 @@ const kit: ChampionKit = {
         if (inst.label !== IN_FLIGHT) sim.setCounter(REND_SPEARS, sim.markStacks('rend') ?? 0);
         sim.setMarkStacks('rend', 0);
       }
-      if (inst.flags.kind === 'ability' && inst.flags.slot === 'Q') rendLanding(sim, sim.counter(`kalistaQ.${inst.castId}`), inst.castId);
+      if (inst.flags.kind === 'ability' && inst.flags.slot === 'Q') rendLanding(sim, pierceFired(sim).get(inst.castId) ?? 0, inst.castId);
     },
   },
 };

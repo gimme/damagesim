@@ -61,9 +61,9 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
-      // Wiki: unable to act while she leaps over 0.4s, and her abilities stay locked out for another
-      // 0.5s.
-      lockout: 0.9,
+      // Wiki: unable to act while she leaps over 0.4s; her abilities stay locked out for another 0.5s.
+      lockout: 0.4,
+      castLockout: 0.9,
       cc: [{ kind: 'slow', duration: 2 }],
       notes: ['Leap then a pulse on landing; the border only slows (no damage).'],
       // Wiki: the shockwave is unleashed after the 0.4s leap and expands over 0.75s.

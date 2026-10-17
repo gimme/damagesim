@@ -93,6 +93,8 @@ const hitsWithin = (first: number, interval: number, maxHits: number, seconds: n
 
 /** castTime: the cast's own cast time, where it differs from its spell's (a kit's castTime). */
 type CastCtx = { slot: Slot; spell: SpellData; rank: number; recast?: number; castTime?: number };
+/** An execute as dealt, and as the results show it (DamageRequest.normalAttack can split it). */
+type Execution = { inst: DamageInstance; records: DamageInstance[] };
 
 const round2 = (x: number) => Math.round(x * 100) / 100;
 
@@ -262,8 +264,8 @@ export class Sim {
   private nextInstId = 1;
   /** Hits whose hooks are running: an execute they ask for waits. */
   private dealing = 0;
-  /** The execute that counts: the largest (the target dies once). */
-  private execution: DamageInstance | undefined;
+  /** The execute that counts: the largest (the target dies once), and how the results show it. */
+  private execution: Execution | undefined;
   private staticMods: StatMods;
   private statsCache: Stats | null = null;
   private attackIndex = 0;
@@ -830,7 +832,7 @@ export class Sim {
         return st.attackSpeed;
       case 'windup':
         // An attack's windup at the current attack speed (casts the wiki times by it: Senna Q).
-        return windupFraction(this.champ) / Math.max(0.2, this.kit.attack?.attackSpeed !== undefined ? this.evalExpr(this.kit.attack.attackSpeed, { slot: 'P' }) : st.attackSpeed);
+        return windupFraction(this.champ) / Math.max(0.2, st.attackSpeed);
       case 'bonusAs':
         return st.bonusAttackSpeed;
       case 'critChance':
@@ -1035,7 +1037,7 @@ export class Sim {
     const st = this.stats;
     const execute = !!req.flags?.execute;
     if (execute) {
-      if (req.amount <= (this.execution?.final ?? 0)) return;
+      if (req.amount <= (this.execution?.inst.final ?? 0)) return;
       if (this.execution) this.takeBack(this.execution);
     }
     let type: DamageType = execute ? 'true' : req.type === 'adaptive' ? (st.adaptiveType === 'physical' ? 'physical' : 'magic') : req.type;
@@ -1111,9 +1113,10 @@ export class Sim {
     inst.targetHpAfter = this.target.hp;
     if (this.target.hp <= 0 && this.target.killTime === undefined) this.target.killTime = this.time;
     if (!inst.flags.aura) this.lastCombatTime = this.time;
-    this.events.push(...this.recorded(inst, req));
+    const records = this.recorded(inst, req);
+    this.events.push(...records);
     if (execute) {
-      this.execution = inst;
+      this.execution = { inst, records };
       return;
     }
     for (const d of this.debuffs.values()) if (d.spec?.detonate && d.expires >= this.time && !inst.fromMark) d.stored = (d.stored ?? 0) + final;
@@ -1129,9 +1132,9 @@ export class Sim {
 
   /** Take back an execute a larger one replaces: the hits after it find the health it took, and the
    *  kill is when they take it. */
-  private takeBack(ex: DamageInstance) {
-    const at = this.events.indexOf(ex);
-    this.events.splice(at, 1);
+  private takeBack({ inst: ex, records }: Execution) {
+    const at = this.events.indexOf(records[0]);
+    this.events.splice(at, records.length);
     for (const e of this.events.slice(at)) {
       e.targetHpBefore = e.targetHpBefore! + ex.final!;
       e.targetHpAfter = e.targetHpAfter! + ex.final!;
@@ -1211,7 +1214,7 @@ export class Sim {
     const rank = this.abilityRank(slot);
     for (const comp of comps) {
       const hits = Math.max(0, Math.round(this.evalExpr(comp.hits ?? 1, { slot, spell, rank })));
-      const delay0 = (comp.delay !== undefined ? this.evalExpr(comp.delay, { slot, spell, rank }) : 0) + this.travelOf(comp, { slot, spell, rank });
+      const delay0 = this.landsAt(comp, { slot, spell, rank });
       const interval = comp.interval !== undefined ? this.evalExpr(comp.interval, { slot, spell, rank }) : 0;
       for (let h = 0; h < hits; h++) {
         const run = () => {
@@ -1356,8 +1359,8 @@ export class Sim {
   // ---------------------------------------------------------------------------
   // Components (ability hits)
 
-  private dealComponent(comp: ComponentSpec, ctx: { slot: Slot; spell: SpellData; rank: number; castId: number; sourceLabel: string; hit: number; hits: number; recast?: number }) {
-    const ectx = { slot: ctx.slot, spell: ctx.spell, rank: ctx.rank, hit: ctx.hit, hits: ctx.hits, recast: ctx.recast };
+  private dealComponent(comp: ComponentSpec, ctx: { slot: Slot; spell: SpellData; rank: number; castId: number; sourceLabel: string; hit: number; hits: number; recast?: number; castTime?: number }) {
+    const ectx = { slot: ctx.slot, spell: ctx.spell, rank: ctx.rank, hit: ctx.hit, hits: ctx.hits, recast: ctx.recast, castTime: ctx.castTime };
     let amount = this.evalExpr(comp.amount, ectx);
     if (comp.min !== undefined) amount = Math.max(amount, this.evalExpr(comp.min, ectx));
     if (comp.max !== undefined) amount = Math.min(amount, this.evalExpr(comp.max, ectx));
@@ -1412,11 +1415,13 @@ export class Sim {
     return out;
   }
 
-  /** Seconds a basic attack's missile flies to the target (`distance`): 0 for melee
-   *  champions and attacks that hit at once (Senna, Thresh, Zeri). */
+  /** Seconds a basic attack's missile flies to the target (`distance`, from attack range at most):
+   *  0 for melee champions and forms (Elise's Spider Form) and attacks that hit at once (Senna, Zeri). */
   attackTravel(): number {
     const missile = this.champ.stats.attackMissile;
-    return missile && this.champ.attackType === 'ranged' ? missileTime(missile, this.distance) : 0;
+    const melee = this.kit.attack?.melee;
+    if (!missile || this.champ.attackType !== 'ranged' || (melee !== undefined && this.evalExpr(melee, { slot: 'P' }))) return 0;
+    return missileTime(missile, Math.min(this.distance, this.stats.range));
   }
 
   /**
@@ -1500,10 +1505,7 @@ export class Sim {
             flags: { ...flags, onHit: true, ability: (from !== 'P' || !!comp.spell) && flags.ability, crit: !!comp.canCrit && c.crit, ...(empowered ? { empowered } : {}) },
           };
           // Delayed / periodic parts of an empowered attack (bleeds, lightning) land later.
-          const delay =
-            (comp.delay !== undefined ? this.evalExpr(comp.delay, { slot, spell, rank }) : 0) +
-            this.travelOf(comp, { slot, spell, rank }) +
-            (comp.interval !== undefined ? this.evalExpr(comp.interval, { slot, spell, rank }) * h : 0);
+          const delay = this.landsAt(comp, { slot, spell, rank }) + (comp.interval !== undefined ? this.evalExpr(comp.interval, { slot, spell, rank }) * h : 0);
           if (delay > 0) this.schedule(delay, () => this.deal(req));
           else target.extra.push(req);
         }
@@ -1635,7 +1637,8 @@ export class Sim {
 
   private castTimeOf(spec: AbilitySpec, variant: VariantSpec | undefined, ctx: CastCtx): number {
     const ctExpr = variant?.castTime ?? spec.castTime;
-    return Math.max(0, ctExpr !== undefined ? this.evalExpr(ctExpr, ctx) : (ctx.spell.castTime ?? 0));
+    // Its `castTime` is the spell's.
+    return Math.max(0, ctExpr !== undefined ? this.evalExpr(ctExpr, { ...ctx, castTime: undefined }) : (ctx.spell.castTime ?? 0));
   }
 
   /** Seconds the slot's last cast was held to charge (expressions' `charge`). */
@@ -1651,7 +1654,9 @@ export class Sim {
     const spec = this.abilitySpec(step.slot);
     const key = step.variant ?? spec.defaultVariant;
     const variant = key ? findVariant(spec, key)?.[1] : undefined;
-    return this.settingOf(spec, variant, step.enable, { slot: step.slot, spell: this.spellFor(step.slot, variant ?? spec), rank: this.abilityRank(step.slot) });
+    const ctx: CastCtx = { slot: step.slot, spell: this.spellFor(step.slot, variant ?? spec), rank: this.abilityRank(step.slot) };
+    if (!spec.charge) ctx.castTime = this.castTimeOf(spec, variant, ctx);
+    return this.settingOf(spec, variant, step.enable, ctx);
   }
 
   private settingOf(spec: AbilitySpec, variant: VariantSpec | undefined, enable: string[] | undefined, ctx: CastCtx): CastSetting | null {
@@ -1718,6 +1723,11 @@ export class Sim {
   /** Seconds after the cast time a component's first hit is fired: its delay. */
   private firedAt(c: ComponentSpec, ctx: CastCtx) {
     return c.delay !== undefined ? this.evalExpr(c.delay, ctx) : 0;
+  }
+
+  /** Seconds after the cast time a component's first hit lands: fired, then its travel. */
+  private landsAt(c: ComponentSpec, ctx: CastCtx) {
+    return this.firedAt(c, ctx) + this.travelOf(c, ctx);
   }
 
   /** Seconds a component's hits fly before they land (ComponentSpec.travel). */
@@ -1798,6 +1808,8 @@ export class Sim {
     }
     const recast = (this.recastCount.get(slot) ?? 0) + 1;
     const ectx: CastCtx = { slot, spell, rank, recast };
+    // Its own cast time, the kit's where it sets one, in all it evaluates (a charge's once it's held).
+    if (!spec.charge) ectx.castTime = this.castTimeOf(spec, variant, ectx);
     // The number the step sets, where the player chooses it (see CastSetting), within what the cast
     // allows: the seconds it's held to charge, or after its cast time the seconds it lasts or until
     // its last counted hit is fired (`span`): its repeating hits land within them, and its lockout
@@ -1820,14 +1832,14 @@ export class Sim {
     for (const id of Object.keys(step.hits ?? {})) if (!ids(false).includes(id)) this.warn(`${label} has no hit "${id}" (available: ${ids(false).join(', ') || 'none'})`);
     for (const id of step.enable ?? []) if (!ids(true).includes(id)) this.warn(`${label} has no optional hit "${id}" (available: ${ids(true).join(', ') || 'none'})`);
 
-    const castTime = this.castTimeOf(spec, variant, { slot, spell, rank, recast });
+    const castTime = this.castTimeOf(spec, variant, ectx);
     ectx.castTime = castTime;
     const castId = this.newCastId();
     this.action = castId;
     const hitsTarget = !step.miss && !spec.noTarget;
     const resets = variant?.resetsAttack ?? spec.resetsAttack;
     const isUlt = slot === ULT && !spec.notUltimate;
-    const cast: CastInfo = { castId, slot, variant: variantKey, hitsTarget, isUltimate: isUlt, label, dash: !!(variant?.dash ?? spec.dash), resetsAttack: !!resets, castTime };
+    const cast: CastInfo = { castId, slot, variant: variantKey, hitsTarget, isUltimate: isUlt, label, dash: !!(variant?.dash ?? spec.dash), resetsAttack: !!resets, castTime, recast };
     // A P step is a passive proc, not an ability cast: only the kit's own hooks see it.
     for (const e of this.effects) if (slot !== 'P' || e.source === 'kit') e.onCast?.(this, cast);
 
@@ -1849,14 +1861,14 @@ export class Sim {
       } else {
         if (used === 1) this.counters.set(`firstcast:${slot}`, this.time);
         this.recastCount.set(slot, used);
-        const delay = spec.recastDelay !== undefined ? this.evalExpr(spec.recastDelay, { slot, spell, rank }) : castTime;
+        const delay = spec.recastDelay !== undefined ? this.evalExpr(spec.recastDelay, ectx) : castTime;
         this.cooldownReady.set(cdKey, this.time + Math.max(castTime, delay));
       }
     }
 
     // Self buff(s) apply on cast.
     const buffs = variant?.buff ?? spec.buff;
-    for (const b of Array.isArray(buffs) ? buffs : buffs ? [buffs] : []) this.applyBuff(b, slot, spell, rank, recast);
+    for (const b of Array.isArray(buffs) ? buffs : buffs ? [buffs] : []) this.applyBuff(b, slot, spell, rank, recast, castTime);
 
     const end = start + castTime;
     const lockExpr = variant?.lockout ?? spec.lockout;
@@ -1882,7 +1894,7 @@ export class Sim {
     // the debuff says otherwise), or after `afterHits` hits.
     const debuffAt = debuff?.afterHits ?? 1;
     const onHitN = (n: number, phase: 'before' | 'after') => {
-      if (debuff && n === debuffAt && !!debuff.applyBeforeHit === (phase === 'before')) this.applyDebuff(debuff, slot, spell, rank, castId);
+      if (debuff && n === debuffAt && !!debuff.applyBeforeHit === (phase === 'before')) this.applyDebuff(debuff, slot, spell, rank, castId, castTime);
       if (phase === 'after' && n === 1)
         for (const cc of ccs) {
           const apply = () => this.applyCC(cc.kind, this.evalExpr(cc.duration, ectx), castId, slot);
@@ -1896,7 +1908,7 @@ export class Sim {
       const enabled = step.enable?.includes(comp.id) || !comp.optional;
       let hits = step.hits?.[comp.id] ?? (enabled ? this.evalExpr(comp.hits ?? 1, ectx) : 0);
       hits = Math.max(0, Math.round(hits));
-      const delay = (comp.delay !== undefined ? this.evalExpr(comp.delay, ectx) : 0) + this.travelOf(comp, ectx);
+      const delay = this.landsAt(comp, ectx);
       const interval = comp.interval !== undefined ? this.evalExpr(comp.interval, ectx) : 0;
       // Ended early: the repeating hits fired by then land, and a hit at its end (Fiddlesticks W's last tick) doesn't.
       const r = repeating.find((x) => x.id === comp.id);
@@ -1911,7 +1923,7 @@ export class Sim {
         landing.get(at)!.push(() => {
           const n = ++landed;
           onHitN(n, 'before');
-          this.dealComponent(comp, { slot, spell, rank, castId, sourceLabel: label, hit: hitIdx, hits, recast });
+          this.dealComponent(comp, { slot, spell, rank, castId, sourceLabel: label, hit: hitIdx, hits, recast, castTime });
           onHitN(n, 'after');
         });
       }
@@ -1989,8 +2001,8 @@ export class Sim {
     }
   }
 
-  applyBuff(buff: BuffSpec, slot: Slot, spell: SpellData, rank: number, recast?: number) {
-    const ctx = { slot, spell, rank, recast };
+  applyBuff(buff: BuffSpec, slot: Slot, spell: SpellData, rank: number, recast?: number, castTime?: number) {
+    const ctx = { slot, spell, rank, recast, castTime };
     const mods: Partial<StatMods> = {};
     for (const [k, v] of Object.entries(buff.stats ?? {})) (mods as any)[k] = this.evalExpr(v as Expr, ctx);
     if (buff.armorPenPercent !== undefined) mods.armorPenPercent = [this.evalExpr(buff.armorPenPercent, ctx)];
@@ -2025,8 +2037,8 @@ export class Sim {
     for (const s of slots) this.castLockedUntil.set(s, Math.max(this.castLockedUntil.get(s) ?? 0, until));
   }
 
-  applyDebuff(d: DebuffSpec, slot: Slot, spell: SpellData, rank: number, castId?: number) {
-    const ctx = { slot, spell, rank };
+  applyDebuff(d: DebuffSpec, slot: Slot, spell: SpellData, rank: number, castId?: number, castTime?: number) {
+    const ctx = { slot, spell, rank, castTime };
     const prev = this.getDebuff(d.id);
     const max = d.maxStacks !== undefined ? this.evalExpr(d.maxStacks, ctx) : 1;
     const stacks = Math.min(max, (prev?.stacks ?? 0) + 1);
@@ -2079,9 +2091,7 @@ export class Sim {
         start = attackFree();
         this.processUntil(start);
       }
-      const st = this.stats;
-      const as = this.kit.attack?.attackSpeed !== undefined ? this.evalExpr(this.kit.attack.attackSpeed, { slot: 'P' }) : st.attackSpeed;
-      const period = 1 / Math.max(0.2, as);
+      const period = 1 / Math.max(0.2, this.stats.attackSpeed);
       const windup = period * windupFraction(this.champ);
       const castId = this.newCastId();
       this.action = castId;

@@ -650,20 +650,23 @@ test("On-attack effects trigger at launch (Lucian's double shot), on-hit ones as
   assert.equal(blade.castId, bySource(ezreal, 'AA')[0].castId);
 });
 
-test("An attack reset doesn't end an attack lockout: the attack an ability empowers waits like any other (Blitzcrank Q E AA, Darius Q W AA)", () => {
-  const start = (champion: string, combo: string) => new Sim(data, { champion, level: 11, combo, target: dummy }).run(parseCombo(combo)).timeline.find((s) => s.step === 'AA')!.start;
-  assert.ok(Math.abs(start('Blitzcrank', 'Q E AA') - start('Blitzcrank', 'Q AA')) < 1e-9);
-  assert.ok(Math.abs(start('Darius', 'Q W AA') - 0.75) < 1e-9);
+const timelineOf = (champion: string, combo: string) => new Sim(data, { champion, level: 11, combo, target: dummy }).run(parseCombo(combo)).timeline;
+
+test("An attack reset doesn't end an attack lockout: the attack an ability empowers waits like any other (Fizz Q W AA)", () => {
+  // W is cast during Urchin Strike's dash, and its attack waits for the dash to end.
+  const [, w, aa] = timelineOf('Fizz', 'Q W AA');
+  assert.ok(w.start < 1e-9);
+  assert.ok(Math.abs(aa.start - 0.35) < 1e-9);
 });
 
-test('A cast lockout holds only the abilities it lists (Darius R: Q and E, not attacks)', () => {
-  const steps = (combo: string) => new Sim(data, { champion: 'Darius', level: 11, combo, target: dummy }).run(parseCombo(combo)).timeline;
-  assert.ok(Math.abs(steps('R Q')[1].start - 0.6167) < 1e-9);
-  const [r, aa] = steps('R AA');
-  assert.ok(Math.abs(aa.start - r.end) < 1e-9);
+test('A cast lockout holds only the abilities it lists, not attacks (Fizz Q: E; Aurora R: all of them, after her leap)', () => {
+  assert.ok(Math.abs(timelineOf('Fizz', 'Q E')[1].start - 0.5) < 1e-9);
+  assert.ok(timelineOf('Fizz', 'Q W')[1].start < 1e-9);
+  assert.ok(Math.abs(timelineOf('Aurora', 'R Q')[1].start - 0.9) < 1e-9);
+  assert.ok(Math.abs(timelineOf('Aurora', 'R AA')[1].start - 0.4) < 1e-9);
 });
 
-test('The target stands at your attack range unless the distance option places it: missiles fly there, at most their range, and range gained later leaves it (Twitch R)', () => {
+test("The target stands at your attack range unless the distance option places it: missiles fly there, at most their range, and range gained later leaves it (Twitch R); a melee form's attacks don't fly (Nidalee's cougar)", () => {
   const lands = (champion: string, combo: string, options = {}) => bySource(simulate(data, { champion, level: 11, combo, options, target: dummy }), 'Q')[0].time;
   const ezreal = new Sim(data, { champion: 'Ezreal', level: 11, combo: 'Q', target: dummy });
   const speed = ezreal.evalExpr('Q.missileSpeed', { slot: 'Q' });
@@ -671,12 +674,16 @@ test('The target stands at your attack range unless the distance option places i
   assert.ok(Math.abs(lands('Ezreal', 'Q', { distance: 1000 }) - lands('Ezreal', 'Q') - 450 / speed) < 1e-9);
   // Jhin Q reaches 550: no further.
   assert.ok(Math.abs(lands('Jhin', 'Q', { distance: 1000 }) - lands('Jhin', 'Q')) < 1e-9);
-  const flight = (combo: string) => {
-    const r = simulate(data, { champion: 'Twitch', level: 11, combo, target: dummy });
+  const flight = (combo: string, champion = 'Twitch', options = {}) => {
+    const r = simulate(data, { champion, level: 11, combo, options, target: dummy });
     return bySource(r, 'AA')[0].time - r.timeline.find((s) => s.step === 'AA')!.end;
   };
   assert.ok(flight('AA') > 0);
   assert.ok(Math.abs(flight('R AA') - flight('AA')) < 1e-9);
+  // Out of attack range, attacks fly from it.
+  assert.ok(Math.abs(flight('AA', 'Jhin', { distance: 2000 }) - flight('AA', 'Jhin')) < 1e-9);
+  assert.ok(flight('AA', 'Nidalee') > 0);
+  assert.equal(flight('R AA', 'Nidalee'), 0);
 });
 
 test("Kalista: Rend counts the spears that land during its cast; those still flying when it goes off are ripped out as they land", () => {
@@ -685,11 +692,17 @@ test("Kalista: Rend counts the spears that land during its cast; those still fly
   const [one] = rend('AA E');
   assert.ok(Math.abs(one.raw - sim.evalExpr('E.calc.NormalDamage', { slot: 'E' })) < 1e-9);
   // From 1100 units the second spear is still flying when Rend goes off: the same damage, part later.
-  const flying = rend('AA AA E', 1100);
+  // From 1100 units Pierce is still flying when Rend goes off: the same damage, part later.
+  const flying = rend('AA Q E', 1100);
   const total = (hits: ReturnType<typeof rend>) => hits.reduce((s, e) => s + e.raw, 0);
   assert.equal(flying.length, 2);
   assert.ok(flying[1].time > flying[0].time);
-  assert.ok(Math.abs(total(flying) - total(rend('AA AA wait{1s} E', 1100))) < 1e-9);
+  assert.ok(Math.abs(total(flying) - total(rend('AA Q wait{1s} E', 1100))) < 1e-9);
+  // From 600 units Pierce lands as Rend goes off (0.25s): in the target, counted once.
+  assert.equal(rend('Q E', 600).length, 1);
+  // Without spears it does nothing, slows neither: no Cheap Shot on the attack.
+  const bare = simulate(data, { champion: 'Kalista', level: 11, runes: ['Cheap Shot'], combo: 'E AA', target: dummy });
+  assert.deepEqual(bare.events.map((e) => e.label), ['Attack']);
 });
 
 test('Vex R is two parts: the recast dashes to the target once the shadow lands', () => {
@@ -711,11 +724,15 @@ test('Xayah: Bladecaller recalls feathers still flying once they land (Q E), eac
   assert.equal(bySource(simulate(data, { champion: 'Xayah', level: 11, combo: 'W AA AA E', target: dummy }), 'E').length, 2);
 });
 
-test("Zed: Death Mark lands as R's dash ends, so a shuriken landing during the dash isn't stored", () => {
+test("Zed: Death Mark lands as R's dash ends, so a shuriken landing during the dash isn't stored; the recast only swaps", () => {
   const pop = (combo: string) => simulate(data, { champion: 'Zed', level: 11, combo, target: dummy }).events.find((e) => e.label === 'Death Mark (pop)')!;
   const base = new Sim(data, { champion: 'Zed', level: 11, combo: [], target: dummy }).evalExpr('R.calc.RCalculatedDamage', { slot: 'R' });
   assert.ok(Math.abs(pop('Q R').raw - base) < 1e-9);
   assert.ok(pop('R Q').raw > base);
+  // The recast swaps with the Shadow: at once, and the mark keeps what it stored.
+  const [, recast] = timelineOf('Zed', 'R R Q');
+  assert.ok(recast.end - recast.start < 1e-9);
+  assert.ok(Math.abs(pop('R R Q').raw - pop('R Q').raw) < 1e-9);
 });
 
 test("Voltaic Cyclosword's Firmament lands before the attack or ability that fires it (wiki)", () => {

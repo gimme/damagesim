@@ -378,6 +378,9 @@ export interface ChampionKit {
     critMultiplier?: Expr;
     /** Fixed attack speed (attacks/second) replacing the normal formula (Jhin). */
     attackSpeed?: Expr;
+    /** Nonzero while a ranged champion's form attacks in melee (Elise's Spider Form, Nidalee's
+     *  cougar): its attacks land as their windup ends, with no missile. */
+    melee?: Expr;
   };
   stats?: KitStatsFn;
   /** Stacking marks on the target (see MarkSpec). */

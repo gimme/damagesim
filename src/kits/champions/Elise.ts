@@ -33,13 +33,14 @@ const spiderForm: BuffSpec = {
 const kit: ChampionKit = {
   id: 'Elise',
   status: 'curated',
+  attack: { melee: `buff.${spiderForm.id}` },
   options: [{ key: 'spiderlings', label: 'Spiderlings', default: 3, min: 0, max: 5, description: 'Spiderlings summoned in Spider Form (capped by R.dv.BaseSpiderlingsStored).' }],
   notes: [
     'Combo: human Q W E, then R (Spider Form), then Q:spider W:spider E:spider; R again returns to Human Form. Each form keeps its own Q/W/E cooldowns.',
     'Spider Form: attacks deal Spider Queen bonus magic damage (+RappelDamageAmp % for 5s after Rappel). Spiderlings (option, default 3 = one per human ability hit) are approximated as each attacking once per Elise attack.',
     'Venomous Bite applies on-hit effects, including the Spider Form ones above.',
     'Volatile Spiderling is assumed to reach the target ~0.75s after the cast.',
-    'Spider Form makes Elise melee in game; the simulator keeps her ranged (affects melee/ranged item effects).',
+    'Spider Form attacks in melee (no missile); the simulator keeps her ranged for melee/ranged item effects.',
   ],
   hooks: {
     // Form switching: swap the Q/W/E cooldowns of the two forms and toggle the Spider Form buff.

@@ -296,13 +296,14 @@ other on-hit effects apply, but Guinsoo's/Lethal Tempo/Energize charges don't st
 * `lockout`: seconds the caster is busy from cast start (channels/dashes) without delaying damage;
   `variableDuration: true` when the player can end it early (see Components). Ended early, a cast's
   `attackLockout` and `castLockout` end with it too.
-* `attackLockout`: seconds from cast start the caster can't attack but can still cast, the wiki's
-  "unable to move or attack while Rocket Grab is in flight" (Blitzcrank Q, Leona E, Sett E). "Unable to
-  act" stops casting too: that is `lockout`.
-  Attack resets don't end it: Blitzcrank's "Q E AA" casts E at once, and its Power Fist waits.
+* `attackLockout`: seconds from cast start the caster can't attack but can still cast, as in a dash the
+  wiki allows casting during (Fizz Q, Jax Q, Sett E). "Unable to act" stops casting too: that is
+  `lockout`, as it is when the only cast left readies an attack that waits anyway (Blitzcrank Q: Power
+  Fist). Attack resets don't end it: Fizz's "Q W AA" casts W at once, and its empowered attack waits
+  for the dash.
   Hooks lock attacks with `sim.lockAttacks(until)` (Jhin's reload) and reset them with `sim.resetAttack()`.
 * `castLockout`: seconds from cast start the caster can't cast abilities but can still attack: one
-  expression for all of them (Aurora R), or per slot, `{ Q: 0.6167, E: 0.6167 }` (Darius R). Hooks call
+  expression for all of them (Aurora R), or per slot, `{ E: 0.5 }` (Fizz Q). Hooks call
   `sim.lockCasts(['Q', 'E'], until)` (Renekton after his empowered W attack).
 * `cooldown`: base cooldown expression when the data's is missing/wrong; `notUltimate: true` for an R that isn't one (Udyr).
 * `buff` may be an array (several buffs per cast).
@@ -328,7 +329,9 @@ other on-hit effects apply, but Guinsoo's/Lethal Tempo/Energize charges don't st
 For mechanics the declarative format can't express, `hooks` accepts the same hook interface items and
 runes use (`src/engine/effects.ts`): `onCast(sim, cast)`, `onAttack(sim, atk)`, `beforeDamage(sim, inst)`,
 `afterDamage(sim, inst)`, `dynamicStats(sim)`, `onStart(sim)`. A ranged attack is launched at the end
-of its windup and hits when its missile arrives: `onLaunch(sim, launch)` runs at the launch, for what
+of its windup and hits when its missile arrives, flying from attack range at most (a form that attacks
+in melee sets `attack.melee`, an expression: Elise's `'buff.eliseSpiderForm'`, and hits at once):
+`onLaunch(sim, launch)` runs at the launch, for what
 happens on-attack (Lucian's double shot, Kalista's Soul-Marked), `preAttack`/`onAttack` at the hit,
 for what it does on-hit; what kit buffs add to it (`onHit`, `empowerAttacks`) is decided at the launch.
 `sim.launchAttack({ castId, amount, label })` fires an extra shot (Lucian's second). Useful Sim API: `sim.deal(request)`,

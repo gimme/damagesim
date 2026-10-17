@@ -190,6 +190,8 @@ export interface CastInfo {
   label: string;
   /** Seconds the cast takes (0 for item actives). */
   castTime?: number;
+  /** Its place in a recast chain (1: the first cast; expressions' `recast`). */
+  recast?: number;
 }
 
 /**

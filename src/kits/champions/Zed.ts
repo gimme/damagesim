@@ -28,11 +28,11 @@ const kit: ChampionKit = {
     'Shadow Slash damages once even if several slashes hit; it slows only when a Shadow is out. Its Living Shadow cooldown refund is not modeled.',
     'Death Mark pops RCalculatedDamage + RDamageAmp × pre-mitigation physical/magic damage dealt during the mark (true damage excluded).',
     'Contempt for the Weak: an attack on a target below 50% health deals %max-health magic damage, once per 10s.',
-    'W:swap / R:swap switch places with the Shadow (dash, no damage).',
+    'W:swap / R:swap switch places with the Shadow (dash, no damage); so does a plain R recast (R R).',
   ],
   hooks: {
     onCast(sim, cast) {
-      if (cast.slot !== 'R' || cast.variant || !cast.hitsTarget) return;
+      if (cast.slot !== 'R' || cast.variant || cast.recast !== 1 || !cast.hitsTarget) return;
       sim.schedule((cast.castTime ?? 0) + R_DASH, () => {
         sim.setCounter('zedMarkStored', 0);
         sim.applyDebuff(DEATH_MARK, 'R', sim.spellFor('R'), sim.abilityRank('R'), cast.castId);
@@ -84,8 +84,9 @@ const kit: ChampionKit = {
       dash: true,
       recasts: 2,
       recastDelay: 'dv.RReactivateCD',
-      // Wiki: unable to attack or cast during the 0.6s delay and the 0.35s dash to the target.
-      lockout: R_DASH,
+      // Wiki: unable to attack or cast during the 0.6s delay and the 0.35s dash to the target. The
+      // recast swaps with the Shadow (as R:swap).
+      lockout: `recast == 1 ? ${R_DASH} : 0`,
       buff: { id: 'zedR', label: 'Death Mark Shadow', duration: 'dv.RShadowDurationDisplayed' },
       // Death Mark lands as the dash ends and pops RDeathMarkDuration later (hook).
       variants: {

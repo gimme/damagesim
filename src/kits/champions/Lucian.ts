@@ -6,8 +6,9 @@ import type { Sim } from '../../engine/sim.ts';
 // launched from a hook through the simulator's attack pipeline 0.25s after the first shot (wiki).
 
 const SECOND_SHOT_DELAY = 0.25;
-/** Lightslinger shots in flight: each refunds Relentless Pursuit's cooldown as it hits. */
-const SHOTS = 'lucian:shots';
+/** Lightslinger shots in flight (cast ids): each refunds Relentless Pursuit's cooldown as it hits. */
+const shots = new WeakMap<Sim, Set<number>>();
+const inFlight = (sim: Sim) => shots.get(sim) ?? shots.set(sim, new Set()).get(sim)!;
 
 const vigilance: BuffSpec = {
   id: 'vigilance',
@@ -54,14 +55,14 @@ const kit: ChampionKit = {
       if (launch.fromAbility || sim.counter('lucian:secondShot')) return;
       if (sim.time > sim.counter('lucian:lightslingerUntil') + 1e-9) return;
       sim.setCounter('lucian:lightslingerUntil', -1);
-      sim.setCounter(`${SHOTS}:${launch.castId}`, 1);
+      inFlight(sim).add(launch.castId);
       sim.schedule(SECOND_SHOT_DELAY, () => {
         if (sim.target.hp <= 0) return;
         const st = sim.stats;
         // Pre-scale so that the pipeline's crit factor (critDamage) becomes the passive's own (CritDamage formula: 175% + bonus crit damage).
         const scale = critFactor(sim, sim.evalExpr('P.calc.CritDamage / P.calc.TotalDamage', { slot: 'P' })) / critFactor(sim, st.critDamage);
         const castId = sim.newCastId();
-        sim.setCounter(`${SHOTS}:${castId}`, 1);
+        inFlight(sim).add(castId);
         sim.setCounter('lucian:secondShot', 1);
         sim.launchAttack({
           castId,
@@ -73,8 +74,7 @@ const kit: ChampionKit = {
       });
     },
     onAttack(sim, atk) {
-      if (atk.phantom || !sim.counter(`${SHOTS}:${atk.castId}`)) return;
-      sim.setCounter(`${SHOTS}:${atk.castId}`, 0);
+      if (atk.phantom || !inFlight(sim).delete(atk.castId)) return;
       refundE(sim);
     },
   },

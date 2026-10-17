@@ -8,7 +8,7 @@ import type { ChampionKit, DebuffSpec } from '../../engine/kit-types.ts';
 // Hunted lasts 4 s (Prowl tooltip text; not a data value).
 const hunted: DebuffSpec = { id: 'hunted', label: 'Hunted', duration: 4 };
 
-const FORM = 'nidalee.cougar';
+const FORM = 'nidaleeCougar';
 const SLOTS = ['Q', 'W', 'E'] as const;
 
 const kit: ChampionKit = {
@@ -19,6 +19,8 @@ const kit: ChampionKit = {
     'Hunted (from Javelin Toss / Bushwhack) makes Takedown deal 30% more and refreshes Aspect of the Cougar; Pounce on a Hunted target has its cooldown reduced.',
   ],
   options: [{ key: 'cougar', label: 'Start in cougar form', default: 0, min: 0, max: 1, toggle: true }],
+  // The cougar attacks in melee.
+  attack: { melee: `stacks.${FORM}` },
   abilities: {
     Q: {
       defaultVariant: 'javelin',
