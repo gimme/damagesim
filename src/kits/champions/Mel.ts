@@ -80,7 +80,8 @@ const kit: ChampionKit = {
     Q: {
       notes: ['All dv.ExplosionCount explosions hit a target standing at the cast location (radius 200, offsets ≤ 50).'],
       components: [
-        { id: 'first', label: 'Radiant Volley', type: 'magic', amount: 'calc.InitialExplosionDamage', delay: 0.1, aoe: true },
+        // Bolts fly to the target location at their speed, exploding as they land.
+        { id: 'first', label: 'Radiant Volley', type: 'magic', amount: 'calc.InitialExplosionDamage', travel: true, aoe: true },
         {
           id: 'explosion',
           label: 'Radiant Volley (explosion)',
@@ -89,7 +90,8 @@ const kit: ChampionKit = {
           hits: 'dv.ExplosionCount - 1',
           maxHits: 'dv.ExplosionCount - 1',
           interval: 'dv.ChannelDuration / dv.ExplosionCount',
-          delay: '0.1 + dv.ChannelDuration / dv.ExplosionCount',
+          delay: 'dv.ChannelDuration / dv.ExplosionCount',
+          travel: true,
           aoe: true,
         },
       ],
@@ -102,7 +104,7 @@ const kit: ChampionKit = {
         { kind: 'slow', duration: 'dv.AreaSlowDuration' },
       ],
       components: [
-        { id: 'orb', label: 'Solar Snare', type: 'magic', amount: 'calc.Damage', delay: 0.4 },
+        { id: 'orb', label: 'Solar Snare', type: 'magic', amount: 'calc.Damage', travel: true },
         {
           id: 'area',
           label: 'Solar Snare (area)',
@@ -110,7 +112,9 @@ const kit: ChampionKit = {
           amount: 'calc.AreaDamagePerSecond / dv.AreaTicksPerSecond',
           hits: 'dv.AreaTicksPerSecond * dv.DoTDuration',
           interval: '1 / dv.AreaTicksPerSecond',
-          delay: '0.4 + 1 / dv.AreaTicksPerSecond',
+          // From the orb's arrival.
+          delay: '1 / dv.AreaTicksPerSecond',
+          travel: true,
           aoe: true,
           dot: true,
         },

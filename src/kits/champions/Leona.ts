@@ -37,14 +37,15 @@ const kit: ChampionKit = {
     E: {
       dash: true,
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
-      // Wiki: unable to move or attack while the blade flies (0.25s cast time + the 0.25s flight); she
-      // can cast any ability during the dash that follows.
-      lockout: 0.5,
-      components: [{ id: 'blade', label: 'Zenith Blade', type: 'magic', amount: 'calc.TotalDamageTooltip', aoe: true, delay: 0.25 }],
+      // Wiki: unable to move or attack while the blade flies its max range; she can cast any ability
+      // during the dash that follows.
+      lockout: 'castTime + castRange / missileSpeed',
+      components: [{ id: 'blade', label: 'Zenith Blade', type: 'magic', amount: 'calc.TotalDamageTooltip', aoe: true, travel: true }],
     },
     R: {
       cc: [{ kind: 'immobilize', duration: 'dv.CCDuration' }],
       notes: ['Default: target in the center (stunned). R:edge = slowed instead.'],
+      // Strikes 0.625s later (wiki).
       components: [{ id: 'flare', label: 'Solar Flare', type: 'magic', amount: 'calc.ExplosionCalculatedDamage', aoe: true, delay: 0.625 }],
       variants: {
         edge: {

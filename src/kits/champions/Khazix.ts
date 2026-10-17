@@ -36,13 +36,15 @@ const kit: ChampionKit = {
     },
     W: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      components: [{ id: 'spike', label: 'Void Spike', type: 'physical', amount: 'calc.BaseDamage', aoe: true, delay: 0.2 }],
+      components: [{ id: 'spike', label: 'Void Spike', type: 'physical', amount: 'calc.BaseDamage', aoe: true, travel: true }],
     },
     E: {
       dash: true,
-      // 0.25s cast + ~0.25s airborne (estimate): no attacks before landing.
-      castTime: 0.5,
-      components: [{ id: 'leap', label: 'Leap', type: 'physical', amount: 'calc.TotalDamage', aoe: true }],
+      // No dash speed in the data: ~0.5s to land. Taste Their Fear can be cast during the leap; Void
+      // Spike and Void Assault wait for the landing (wiki).
+      attackLockout: 0.5,
+      castLockout: { W: 0.5, R: 0.5 },
+      components: [{ id: 'leap', label: 'Leap', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 0.5 }],
     },
     R: {
       noTarget: true,

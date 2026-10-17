@@ -24,7 +24,8 @@ const kit: ChampionKit = {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       debuff: { id: 'kayleQ', label: 'Radiant Blast shred', duration: 'dv.ShredDuration', armorReduction: 'dv.ShredPercent / 100', mrReduction: 'dv.ShredPercent / 100' },
-      components: [{ id: 'blast', label: 'Radiant Blast', type: 'magic', amount: 'calc.TotalDamage', delay: 0.2 }],
+      // The portal launches the sword dv.CastDelay (0.25s) after the cast starts (wiki), as the cast time ends.
+      components: [{ id: 'blast', label: 'Radiant Blast', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
     W: { noTarget: true, components: [] },
     E: {
@@ -46,7 +47,7 @@ const kit: ChampionKit = {
     },
     R: {
       notes: ['Damage lands 2.5s after the cast starts (end of the invulnerability), around the protected ally (usually Kayle herself).'],
-      components: [{ id: 'judgment', label: 'Divine Judgment', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 'dv.InvulnDuration - 0.5' }],
+      components: [{ id: 'judgment', label: 'Divine Judgment', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 'dv.InvulnDuration - castTime' }],
     },
   },
   hooks: {

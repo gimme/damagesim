@@ -64,15 +64,19 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       notes: ['The kicked target is knocked back (stunned ~1s, wiki) and takes the explosion dv.FallTime later.'],
+      // No cast time: Milio kicks the fireball after a 0.25s delay, unable to cast other abilities
+      // until then (wiki). It flies its max range, then the explosion comes dv.FallTime later.
+      castLockout: 0.25,
       cc: [
         { kind: 'immobilize', duration: 1 },
         { kind: 'slow', duration: 'dv.SlowDuration' },
       ],
-      components: [{ id: 'kick', label: 'Ultra Mega Fire Kick', type: 'magic', amount: 'calc.Damage', delay: '0.2 + dv.FallTime', aoe: true }],
+      components: [{ id: 'kick', label: 'Ultra Mega Fire Kick', type: 'magic', amount: 'calc.Damage', delay: '0.25 + dv.FallTime', travel: true, aoe: true }],
     },
     W: { noTarget: true, notes: ['Cast on/following Milio himself: grants Fired Up!.'], components: [] },
     E: { noTarget: true, notes: ['Cast on Milio himself: grants Fired Up!.'], components: [] },
-    R: { noTarget: true, components: [] },
+    // Milio can't cast his other abilities for 0.75s after activating it (wiki).
+    R: { noTarget: true, castLockout: 0.75, components: [] },
   },
 };
 export default kit;

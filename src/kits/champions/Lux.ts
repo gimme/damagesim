@@ -16,18 +16,19 @@ const kit: ChampionKit = {
     Q: {
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
       debuff: illumination,
-      components: [{ id: 'bind', label: 'Light Binding', type: 'magic', amount: 'calc.TotalDamageTT', delay: 0.4 }],
+      components: [{ id: 'bind', label: 'Light Binding', type: 'magic', amount: 'calc.TotalDamageTT', travel: true }],
     },
     W: { noTarget: true, components: [] },
     E: {
       cc: [{ kind: 'slow', duration: 'dv.SlowZoneDuration' }],
       debuff: illumination,
-      notes: ['Detonation assumed recast immediately (≈0.5s after cast).'],
-      components: [{ id: 'detonate', label: 'Lucent Singularity', type: 'magic', amount: 'calc.TotalDamageTT', aoe: true, delay: 0.5 }],
+      notes: ['Detonation assumed recast while the singularity flies: it detonates on arrival (wiki).'],
+      components: [{ id: 'detonate', label: 'Lucent Singularity', type: 'magic', amount: 'calc.TotalDamageTT', aoe: true, travel: true }],
     },
     R: {
       debuff: illumination,
-      components: [{ id: 'spark', label: 'Final Spark', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.1 }],
+      // The beam fires as the 1s cast time ends.
+      components: [{ id: 'spark', label: 'Final Spark', type: 'magic', amount: 'calc.TotalDamage', aoe: true }],
     },
   },
 };

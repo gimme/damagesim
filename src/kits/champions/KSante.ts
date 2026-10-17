@@ -51,30 +51,45 @@ const kit: ChampionKit = {
       // Charged for MinChargeTime to MaxDuration; stun and All Out's true damage grow until TimeToFullCharge.
       charge: { default: 'dv.MinChargeTime', min: 'dv.MinChargeTime', max: 'dv.MaxDuration' },
       castTime: 'charge',
+      // Then dashes its range at 1500 (wiki; the data's speed is the knock back's). Ntofo Strikes and
+      // All Out can be cast during the dash (wiki).
+      attackLockout: 'charge + castRange / 1500',
+      castLockout: { E: 'charge + castRange / 1500' },
       debuff: mark,
       cc: [{ kind: 'immobilize', duration: `lerp(dv.MinKnockbackDuration, dv.MaxKnockbackDuration, ${W_POWER})` }],
-      components: [{ id: 'ram', label: 'Path Maker', type: 'physical', amount: wDamage, aoe: true }],
+      components: [{ id: 'ram', label: 'Path Maker', type: 'physical', amount: wDamage, aoe: true, travel: 'castRange / 1500' }],
       variants: {
         allout: {
           label: 'All Out',
           dash: true,
+          // All Out dashes at 1800 (wiki).
+          attackLockout: 'charge + castRange / 1800',
+          castLockout: { E: 'charge + castRange / 1800' },
           debuff: mark,
           cc: [],
           components: [
-            { id: 'ram', label: 'Path Maker', type: 'physical', amount: wDamage, aoe: true },
-            { id: 'true', label: 'Path Maker (All Out)', type: 'true', amount: `(${wDamage}) * lerp(dv.RDamageIncreaseMin, dv.RDamageIncreaseMax, ${W_POWER})`, aoe: true },
+            { id: 'ram', label: 'Path Maker', type: 'physical', amount: wDamage, aoe: true, travel: 'castRange / 1800' },
+            { id: 'true', label: 'Path Maker (All Out)', type: 'true', amount: `(${wDamage}) * lerp(dv.RDamageIncreaseMin, dv.RDamageIncreaseMax, ${W_POWER})`, aoe: true, travel: 'castRange / 1800' },
           ],
         },
       },
     },
-    E: { dash: true, noTarget: true, notes: ['Dash + shield, no damage.'], components: [] },
+    E: {
+      dash: true,
+      noTarget: true,
+      // No dash speed in the data: ~0.4s. He can cast any ability during the dash (wiki).
+      attackLockout: 0.4,
+      notes: ['Dash + shield, no damage.'],
+      components: [],
+    },
     R: {
       dash: true,
       debuff: mark,
       cc: [{ kind: 'immobilize', duration: 'dv.NoWallStunDuration' }],
       buff: { id: 'ksanteR', label: 'All Out', duration: 'dv.AllOutDuration', stats: { attackSpeed: 'dv.AttackSpeed' }, bonusArmorPenPercent: 'dv.ArmorPenPercent' },
       notes: ['R:wall when the target is knocked through a wall (second strike, longer stun).'],
-      components: [{ id: 'tackle', label: 'All Out', type: 'physical', amount: 'dv.BaseDamage', delay: 0.3 }],
+      // Damage near the end of the 300-unit pull, at its speed (wiki).
+      components: [{ id: 'tackle', label: 'All Out', type: 'physical', amount: 'dv.BaseDamage', travel: true }],
       variants: {
         wall: {
           label: 'through a wall',
@@ -82,6 +97,8 @@ const kit: ChampionKit = {
           debuff: mark,
           cc: [{ kind: 'immobilize', duration: 'dv.WallStunDuration' }],
           buff: { id: 'ksanteR', label: 'All Out', duration: 'dv.AllOutDuration', stats: { attackSpeed: 'dv.AttackSpeed' }, bonusArmorPenPercent: 'dv.ArmorPenPercent' },
+          // The pull over a wall has no fixed length: the damage as the target emerges (~0.3s), the
+          // strike 0.125s into the 0.25s airborne after the pull (~0.8s, wiki).
           components: [
             { id: 'tackle', label: 'All Out', type: 'physical', amount: 'dv.BaseDamage', delay: 0.3 },
             { id: 'slam', label: 'All Out (wall strike)', type: 'physical', amount: 'calc.TotalDamageSlamDown', delay: 0.8 },

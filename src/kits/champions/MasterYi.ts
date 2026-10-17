@@ -9,6 +9,8 @@ import type { Sim } from '../../engine/sim.ts';
 const SECOND_STRIKE_DELAY = 0.1;
 // Alpha Strike marks a target every 0.231s (wiki).
 const MARK = 0.231;
+// Yi can act again 1.087s after Alpha Strike's cast starts (4 marks, game ticks; wiki).
+const ALPHA_STRIKE_END = 1.087;
 
 function reduceQCooldown(sim: Sim) {
   const ready = sim.cooldownReadyAt('ability:Q');
@@ -50,8 +52,11 @@ const kit: ChampionKit = {
   },
   abilities: {
     Q: {
-      // Yi is untargetable while marking: the cast lasts until the last mark (dv.AlphaStrikeBounces marks).
-      castTime: `dv.AlphaStrikeBounces * ${MARK}`,
+      // No cast time: Yi vanishes and marks the target every MARK s (dv.AlphaStrikeBounces marks), then
+      // reappears. Until he can act again he can't attack or Meditate, but can cast Wuju Style and
+      // Highlander (wiki).
+      attackLockout: ALPHA_STRIKE_END,
+      castLockout: { W: ALPHA_STRIKE_END },
       notes: [
         'Single target: dv.AlphaStrikeBounces marks; the first deals calc.TotalDamage when Yi reappears, the others dv.SubsequentHitMultiplier each. All can crit.',
         'On-hit effects: the game applies them at dv.BaseOnHitMultiplier (75%) on the first mark and 18.75% on each repeat; modeled as one application at the summed effectiveness (131.25%) on the main strike. Kit on-hits (Wuju Style) apply once at 100%.',
@@ -65,7 +70,8 @@ const kit: ChampionKit = {
           hits: 'dv.AlphaStrikeBounces - 1',
           maxHits: 'dv.AlphaStrikeBounces - 1',
           interval: MARK,
-          delay: `${MARK} - dv.AlphaStrikeBounces * ${MARK}`,
+          // Marks after the first on the same target detonate as they're applied.
+          delay: 2 * MARK,
           canCrit: true,
           aoe: true,
         },
@@ -74,6 +80,8 @@ const kit: ChampionKit = {
           label: 'Alpha Strike',
           type: 'physical',
           amount: 'calc.TotalDamage',
+          // The first mark detonates as Yi reappears, after the last mark.
+          delay: `dv.AlphaStrikeBounces * ${MARK}`,
           canCrit: true,
           onHit: true,
           onHitEffectiveness: 'dv.BaseOnHitMultiplier * (1 + dv.SubsequentHitMultiplier * (dv.AlphaStrikeBounces - 1))',

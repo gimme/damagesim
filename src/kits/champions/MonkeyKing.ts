@@ -31,7 +31,6 @@ const kit: ChampionKit = {
   },
   abilities: {
     Q: {
-      castTime: 0, // no cast time (wiki); the data's 0.5s is the attack animation
       resetsAttack: true,
       notes: ['Empowers the next attack with bonus physical damage (proc damage) and gives it extra range; follow Q with AA.'],
       buff: {
@@ -45,6 +44,8 @@ const kit: ChampionKit = {
     W: {
       dash: true,
       noTarget: false,
+      // He can cast any ability during the dash (wiki), not attack.
+      attackLockout: 'castTime + castRange / missileSpeed',
       components: [
         {
           id: 'clone',
@@ -62,6 +63,9 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
+      // No dash speed in the data: ~0.2s to arrive. Crushing Blow can be cast during the dash (wiki).
+      attackLockout: 0.2,
+      castLockout: { W: 0.2, R: 0.2 },
       buff: { id: 'nimbusStrike', label: 'Nimbus Strike', duration: 'dv.AttackSpeedDuration', stats: { attackSpeed: 'dv.AttackSpeed' } },
       components: [{ id: 'strike', label: 'Nimbus Strike', type: 'magic', amount: 'calc.TotalDamage', delay: 0.2 }],
     },

@@ -69,7 +69,8 @@ const kit: ChampionKit = {
       recastDelay: 0.5, // static 0.5s between nails (wiki)
       notes: ['One nail per cast: write Q Q Q AA for three nails and the consuming attack.'],
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration1' }],
-      components: [{ id: 'nail', label: 'Ritual Nail', type: 'magic', amount: 'calc.MissileDamage', delay: 0.15, aoe: true }],
+      // Thrown as the cast time starts (wiki: {{Effect at cast time start}}): lands its flight after the cast starts.
+      components: [{ id: 'nail', label: 'Ritual Nail', type: 'magic', amount: 'calc.MissileDamage', travel: 'max(0, castRange / missileSpeed - castTime)', aoe: true }],
     },
     W: {
       noTarget: true,
@@ -94,7 +95,8 @@ const kit: ChampionKit = {
     R: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       debuff: { id: 'purgatory', label: 'Purgatory mark', duration: 'dv.Duration', applyBeforeHit: true },
-      components: [{ id: 'artifact', label: 'Purgatory', type: 'magic', amount: 'calc.Damage', delay: 'dv.Anim_BiteTime', aoe: true }],
+      // The totem flies to the spot over 0.5s and fires its nails 0.25s after landing (wiki).
+      components: [{ id: 'artifact', label: 'Purgatory', type: 'magic', amount: 'calc.Damage', delay: 0.75, aoe: true }],
     },
   },
 };

@@ -16,7 +16,7 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      components: [{ id: 'shard', label: 'Seismic Shard', type: 'magic', amount: 'calc.QDamageCalc', delay: 0.25 }],
+      components: [{ id: 'shard', label: 'Seismic Shard', type: 'magic', amount: 'calc.QDamageCalc', travel: true }],
     },
     W: {
       notes: [
@@ -39,6 +39,8 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
+      // No dash speed in the data: ~0.3s to arrive.
+      lockout: 0.3,
       cc: [{ kind: 'immobilize', duration: 'dv.KnockupDuration' }],
       components: [{ id: 'force', label: 'Unstoppable Force', type: 'magic', amount: 'calc.TotalDamage', delay: 0.3, aoe: true }],
     },

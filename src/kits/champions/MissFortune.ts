@@ -31,17 +31,18 @@ const kit: ChampionKit = {
       notes: [
         'Default: the target is hit by the first shot (applies on-hit). Q:bounce — the target is the bounce target (shot through a minion): can crit for dv.BounceCriticalMod of crit damage. Q:bounceKill — the first shot kills the minion, so the bounce always crits.',
       ],
-      components: [{ id: 'shot', label: 'Double Up', type: 'physical', amount: 'calc.TotalDamageTooltip', onHit: true, onAttack: true, delay: 0.15 }],
+      components: [{ id: 'shot', label: 'Double Up', type: 'physical', amount: 'calc.TotalDamageTooltip', onHit: true, onAttack: true, travel: true }],
+      // The bounce: the shot flies its range to the first unit, then up to 500 units on (wiki).
       variants: {
         bounce: {
           label: 'bounce',
           components: [
-            { id: 'bounce', label: 'Double Up (bounce)', type: 'physical', amount: 'calc.TotalDamageTooltip', canCrit: true, critMultiplier: '1 + dv.BounceCriticalMod * (critDamage - 1)', onHit: true, delay: 0.35 },
+            { id: 'bounce', label: 'Double Up (bounce)', type: 'physical', amount: 'calc.TotalDamageTooltip', canCrit: true, critMultiplier: '1 + dv.BounceCriticalMod * (critDamage - 1)', onHit: true, travel: '(castRange + 500) / missileSpeed' },
           ],
         },
         bounceKill: {
           label: 'bounce (guaranteed crit)',
-          components: [{ id: 'bounce', label: 'Double Up (bounce crit)', type: 'physical', amount: 'calc.TotalDamageCrit', onHit: true, delay: 0.35 }],
+          components: [{ id: 'bounce', label: 'Double Up (bounce crit)', type: 'physical', amount: 'calc.TotalDamageCrit', onHit: true, travel: '(castRange + 500) / missileSpeed' }],
         },
       },
     },
@@ -84,6 +85,8 @@ const kit: ChampionKit = {
           maxHits: 'dv.BaseWaves',
           interval: 'dv.BaseChannelDuration / dv.BaseWaves',
           delay: 'dv.BaseChannelDuration / dv.BaseWaves / 2',
+          // No range in the data: each bullet stream's 1450 (wiki).
+          travel: '1450 / missileSpeed',
           canCrit: true,
           critMultiplier: '1 + dv.CritDamageMultiplier * (critDamage - 1)',
           aoe: true,

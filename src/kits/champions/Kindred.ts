@@ -34,6 +34,8 @@ const kit: ChampionKit = {
     Q: {
       dash: true,
       resetsAttack: true,
+      // No dash speed in the data: the arrows hit ~0.25s in. She can cast any ability during the dash (wiki).
+      attackLockout: 0.25,
       buff: { id: 'kindredQ', label: 'Dance of Arrows', duration: 'dv.BaseASDuration', stats: { attackSpeed: 'calc.TotalQAttackSpeed' } },
       components: [{ id: 'arrows', label: 'Dance of Arrows', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 0.25 }],
     },
@@ -48,7 +50,8 @@ const kit: ChampionKit = {
           hits: 'opt.wolfBites',
           maxHits: 'dv.ZoneDuration',
           interval: '1 / (1 + dv.LambToWolfAttackSpeedConversionPercent * bonusAs)',
-          delay: 0.5,
+          // Wolf first dashes to the zone at his speed (wiki).
+          delay: 'castRange / missileSpeed',
           pet: true,
         },
       ],

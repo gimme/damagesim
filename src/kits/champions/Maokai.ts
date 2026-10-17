@@ -7,10 +7,10 @@ const kit: ChampionKit = {
   notes: ['Sap Magic (self heal and its cooldown refunds) is not modeled.'],
   abilities: {
     Q: {
-      // Wiki: locked out for 0.075s after the 0.375s cast time.
-      lockout: 0.45,
+      // Wiki: locked out for 0.075s after the cast time.
+      lockout: 'castTime + 0.075',
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      components: [{ id: 'smash', label: 'Bramble Smash', type: 'magic', amount: 'calc.TotalDamage + calc.TotalPercentHealth * target.maxHp', aoe: true }],
+      components: [{ id: 'smash', label: 'Bramble Smash', type: 'magic', amount: 'calc.TotalDamage + calc.TotalPercentHealth * target.maxHp', aoe: true, travel: true }],
       variants: {
         close: {
           label: 'point-blank',
@@ -19,14 +19,17 @@ const kit: ChampionKit = {
             { kind: 'immobilize', duration: 'dv.KnockbackDistance / dv.KnockbackSpeed' },
             { kind: 'slow', duration: 'dv.SlowDuration' },
           ],
+          // Next to Maokai: the shockwave hits at once.
           components: [{ id: 'smash', label: 'Bramble Smash', type: 'magic', amount: 'calc.TotalDamage + calc.TotalPercentHealth * target.maxHp', aoe: true }],
         },
       },
     },
     W: {
       dash: true,
+      // Busy for the dash; the damage on arrival.
+      lockout: 'castTime + castRange / missileSpeed',
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
-      components: [{ id: 'advance', label: 'Twisted Advance', type: 'magic', amount: 'calc.TotalDamage', delay: 0.3 }],
+      components: [{ id: 'advance', label: 'Twisted Advance', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
     E: {
       notes: [
@@ -56,9 +59,12 @@ const kit: ChampionKit = {
       },
     },
     R: {
-      notes: ['Root duration grows with distance travelled (dv.MinRootDuration–dv.MaxRootDuration); the midpoint is assumed.'],
-      cc: [{ kind: 'immobilize', duration: '(dv.MinRootDuration + dv.MaxRootDuration) / 2' }],
-      components: [{ id: 'grasp', label: "Nature's Grasp", type: 'magic', amount: 'calc.TotalDamage', delay: 0.5, aoe: true }],
+      notes: ['Root duration grows with distance travelled (dv.MinRootDuration–dv.MaxRootDuration, the most from 1000 units): fired from 1200 units, the longest.'],
+      cc: [{ kind: 'immobilize', duration: 'dv.MaxRootDuration' }],
+      // Its 3000 range is treated like a global ability's: fired from 1200 units, as the cast starts
+      // (wiki: {{Effect at cast time start}}). The brambles speed up from 100 by 300/s to 750 (wiki):
+      // 650 / 300 s accelerating at an average (100 + 750) / 2, then 750 for the rest, ~2.54s.
+      components: [{ id: 'grasp', label: "Nature's Grasp", type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, 650 / 300 + (1200 - (100 + 750) / 2 * 650 / 300) / 750 - castTime)' }],
     },
   },
 };

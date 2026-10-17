@@ -84,9 +84,16 @@ const kit: ChampionKit = {
     },
     W: {
       notes: ['The move speed on marked targets is not modeled.'],
-      components: [{ id: 'blaze', label: 'Ardent Blaze', type: 'magic', amount: 'calc.TotalDamage', delay: 0.25, aoe: true }],
+      components: [{ id: 'blaze', label: 'Ardent Blaze', type: 'magic', amount: 'calc.TotalDamage', travel: true, aoe: true }],
     },
-    E: { dash: true, noTarget: true, components: [] },
+    E: {
+      dash: true,
+      noTarget: true,
+      // Resets the attack timer; he can cast any ability during the dash (wiki), not attack.
+      resetsAttack: true,
+      attackLockout: 'castTime + castRange / missileSpeed',
+      components: [],
+    },
     R: {
       // Channel: no attacks or Q/W while firing (Relentless Pursuit is usable but blocked here too).
       lockout: 'dv.Duration',
@@ -104,6 +111,7 @@ const kit: ChampionKit = {
           hits: 'calc.TotalNumShots',
           interval: 'dv.Duration / calc.TotalNumShots',
           delay: 'dv.Duration / calc.TotalNumShots',
+          travel: true,
           aoe: true,
           dot: true,
         },

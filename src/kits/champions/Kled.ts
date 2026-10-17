@@ -24,14 +24,18 @@ const kit: ChampionKit = {
         { kind: 'slow', duration: 'dv.SlowDuration', delay: 'dv.TetherPopTime' },
       ],
       components: [
-        { id: 'trap', label: 'Bear Trap on a Rope', type: 'physical', amount: 'calc.TotalDamage', delay: 0.2 },
-        { id: 'yank', label: 'Bear Trap (yank)', type: 'physical', amount: 'calc.TotalYankDamage', delay: '0.2 + dv.TetherPopTime' },
+        { id: 'trap', label: 'Bear Trap on a Rope', type: 'physical', amount: 'calc.TotalDamage', travel: true },
+        // TetherPopTime after the trap lands.
+        { id: 'yank', label: 'Bear Trap (yank)', type: 'physical', amount: 'calc.TotalYankDamage', delay: 'dv.TetherPopTime', travel: true },
       ],
       variants: {
         pistol: {
           label: 'Pocket Pistol',
           spell: 'KledRiderQ',
           note: 'Dismounted shotgun: 5 pellets, each pellet after the first deals 20%. Assumes all 5 hit an adjacent target.',
+          // Kled recoils 300 units at ~1025 speed (wiki, estimated) after the cast time, unable to act.
+          lockout: 'castTime + 300 / 1025',
+          cc: [],
           components: [
             {
               id: 'pellet',
@@ -41,6 +45,7 @@ const kit: ChampionKit = {
               amount: 'Q.calc.DismountedQDamage * (hit == 0 ? 1 : dv.FalloffPerMissile)',
               hits: 5,
               maxHits: 5,
+              travel: true,
             },
           ],
         },
@@ -55,6 +60,9 @@ const kit: ChampionKit = {
       dash: true,
       recasts: 2,
       notes: ['Recast ("E E") dashes back through the target for the same damage.'],
+      // No dash speed in the data: ~0.3s to arrive. Bear Trap on a Rope and Chaaaaaaaarge!!! can be
+      // cast during the dashes (wiki).
+      attackLockout: 0.3,
       components: [{ id: 'joust', label: 'Jousting', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 0.3 }],
     },
     R: {

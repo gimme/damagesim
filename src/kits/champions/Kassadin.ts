@@ -18,7 +18,7 @@ const kit: ChampionKit = {
   marks: [{ id: 'riftwalk', label: 'Riftwalk stacks', slot: 'R', maxStacks: 'dv.MaxStacks', duration: 'dv.RStackDuration', appliedBy: ['R'] }],
   abilities: {
     Q: {
-      components: [{ id: 'sphere', label: 'Null Sphere', type: 'magic', amount: 'calc.TotalDamage', delay: 0.25 }],
+      components: [{ id: 'sphere', label: 'Null Sphere', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
     W: {
       castTime: 0,

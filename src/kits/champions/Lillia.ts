@@ -7,7 +7,7 @@ const kit: ChampionKit = {
   status: 'curated',
   notes: [
     'Dream Dust is a mark refreshed by any ability hit; it ticks every 0.5s while active (6 ticks per application).',
-    'Lilting Lullaby: the wake-up damage is dealt by the next attack/ability hit after R (Dream Dust ticks do not wake). The sleep starts 1.5s after the cast: add wait{1.5s} before the waking hit. The Dream Dust requirement is not checked.',
+    'Lilting Lullaby: the wake-up damage is dealt by the next attack/ability hit after R (Dream Dust ticks do not wake). The sleep starts 1.8s after the cast: add wait{1.8s} before the waking hit. The Dream Dust requirement is not checked.',
   ],
   marks: [
     {
@@ -31,29 +31,32 @@ const kit: ChampionKit = {
       ],
     },
     W: {
-      castTime: 0.767, // the strike lands 0.767s after the cast (wiki); Lillia can't act before
-      components: [{ id: 'eep', label: 'Watch Out! Eep!', type: 'magic', amount: 'calc.FlatDamage', aoe: true }],
+      // No cast time; she dashes and the strike lands 0.767s after the cast (wiki). Lillia can't act before.
+      lockout: 0.767,
+      components: [{ id: 'eep', label: 'Watch Out! Eep!', type: 'magic', amount: 'calc.FlatDamage', aoe: true, delay: 0.767 }],
       variants: {
         center: {
           label: 'center',
-          castTime: 0.767,
-          components: [{ id: 'eep', label: 'Watch Out! Eep! (center)', type: 'magic', amount: 'calc.FlatDamageSweetSpot', aoe: true }],
+          lockout: 0.767,
+          components: [{ id: 'eep', label: 'Watch Out! Eep! (center)', type: 'magic', amount: 'calc.FlatDamageSweetSpot', aoe: true, delay: 0.767 }],
         },
       },
     },
     E: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      components: [{ id: 'seed', label: 'Swirlseed', type: 'magic', amount: 'calc.ImpactDamageTotal', aoe: true, delay: 0.3 }],
+      // Lobbed to its max range at its speed, detonating on the target as it lands.
+      components: [{ id: 'seed', label: 'Swirlseed', type: 'magic', amount: 'calc.ImpactDamageTotal', aoe: true, travel: true }],
     },
     R: {
+      // The lullaby arrives 0.3s after the cast time (wiki: fixed travel time missile).
       cc: [
-        { kind: 'slow', duration: 'dv.DrowsyDuration' },
-        { kind: 'immobilize', duration: 'dv.SleepDuration', delay: 'dv.DrowsyDuration' }, // sleep after the drowsy phase
+        { kind: 'slow', duration: 'dv.DrowsyDuration', delay: 0.3 },
+        { kind: 'immobilize', duration: 'dv.SleepDuration', delay: '0.3 + dv.DrowsyDuration' }, // sleep after the drowsy phase
       ],
       debuff: {
         id: 'lullaby',
         label: 'Lilting Lullaby',
-        duration: 'dv.DrowsyDuration + dv.SleepDuration',
+        duration: '0.3 + dv.DrowsyDuration + dv.SleepDuration',
         consume: { by: 'any', components: [{ id: 'wake', label: 'Lilting Lullaby (wake)', type: 'magic', amount: 'R.calc.TotalDamage' }] },
       },
       components: [],

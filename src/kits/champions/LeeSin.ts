@@ -21,15 +21,21 @@ const kit: ChampionKit = {
     Q: {
       recasts: 2,
       buff: flurry,
-      components: [{ id: 'wave', label: 'Sonic Wave', type: 'physical', amount: 'calc.InitialDamage', delay: 0.25 }],
+      // Fired as the cast time starts (wiki: {{Effect at cast time start}}): lands its flight after the cast starts.
+      components: [{ id: 'wave', label: 'Sonic Wave', type: 'physical', amount: 'calc.InitialDamage', travel: 'max(0, castRange / missileSpeed - castTime)' }],
       variants: {
         Q2: {
           label: 'Resonating Strike',
           dash: true,
-          castTime: 0.5, // cast + dash to the target (estimate; dash speed 1350)
+          // No cast time (wiki; the data's is Sonic Wave's). No dash speed in the data: ~0.5s to arrive.
+          // Safeguard, Iron Will and Cripple can be cast during the dash, Tempest and Dragon's Rage
+          // can't (wiki; Cripple waits too, sharing Tempest's slot).
+          castTime: 0,
+          attackLockout: 0.5,
+          castLockout: { E: 0.5, R: 0.5 },
           buff: flurry,
           note: 'Damage increased by 1% per 1% of the target\'s missing health (up to double).',
-          components: [{ id: 'strike', label: 'Resonating Strike', type: 'physical', amount: 'calc.RecastDamage * (1 + dv.Q2MaxMissingHealthMod * target.missingHpPct)' }],
+          components: [{ id: 'strike', label: 'Resonating Strike', type: 'physical', amount: 'calc.RecastDamage * (1 + dv.Q2MaxMissingHealthMod * target.missingHpPct)', delay: 0.5 }],
         },
       },
     },
@@ -47,7 +53,8 @@ const kit: ChampionKit = {
       buff: flurry,
       components: [{ id: 'tempest', label: 'Tempest', type: 'magic', amount: 'calc.InitialDamage', aoe: true }],
       variants: {
-        E2: { label: 'Cripple', buff: flurry, cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }], components: [] },
+        // No cast time (wiki; the data's is Tempest's).
+        E2: { label: 'Cripple', castTime: 0, buff: flurry, cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }], components: [] },
       },
     },
     R: {

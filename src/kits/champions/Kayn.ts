@@ -26,11 +26,12 @@ const kit: ChampionKit = {
     Q: {
       dash: true,
       // Wiki: the swing after the dash has a 0.25s lockout; the dash and swing take about 0.66s.
+      // No dash speed in the data: the dash hits ~0.25s in, the swing ~0.5s.
       lockout: 0.66,
       notes: ['Hits twice: on the dash and on the spin. Rhaast: each hit deals 65% AD + % max health instead.'],
       components: [
-        { id: 'dash', label: 'Reaping Slash (dash)', type: 'physical', amount: `${isRhaast} ? calc.DarkinFlatDamage + calc.DarkinPercentDamage * target.maxHp : calc.TotalDamage`, aoe: true, delay: 0.1 },
-        { id: 'spin', label: 'Reaping Slash (spin)', type: 'physical', amount: `${isRhaast} ? calc.DarkinFlatDamage + calc.DarkinPercentDamage * target.maxHp : calc.TotalDamage`, aoe: true, delay: 0.35 },
+        { id: 'dash', label: 'Reaping Slash (dash)', type: 'physical', amount: `${isRhaast} ? calc.DarkinFlatDamage + calc.DarkinPercentDamage * target.maxHp : calc.TotalDamage`, aoe: true, delay: 0.25 },
+        { id: 'spin', label: 'Reaping Slash (spin)', type: 'physical', amount: `${isRhaast} ? calc.DarkinFlatDamage + calc.DarkinPercentDamage * target.maxHp : calc.TotalDamage`, aoe: true, delay: 0.5 },
       ],
     },
     W: {

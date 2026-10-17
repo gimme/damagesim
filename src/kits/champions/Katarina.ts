@@ -7,7 +7,7 @@ const kit: ChampionKit = {
   id: 'Katarina',
   status: 'curated',
   notes: [
-    'Dagger pickups are the "P" step (Voracity slash, applies on-hit). Write e.g. "Q wait{1s} E P" or "W wait{1.25s} E P": the Dagger must have landed.',
+    'Dagger pickups are the "P" step (Voracity slash, applies on-hit). Write e.g. "Q wait{1.25s} E P" or "W wait{1.25s} E P": the Dagger must have landed.',
     'Each pickup also reduces Shunpo\'s remaining cooldown by E.calc.DaggerCooldownReduction (hook).',
     'Death Lotus knives apply on-hit effects at R.dv.OnHitRatio (25/30/35%) effectiveness; the 2.5s channel locks Katarina out (lockout).',
   ],
@@ -18,7 +18,7 @@ const kit: ChampionKit = {
     },
     Q: {
       notes: ['Hits the target (and bounces to 2 others); the Dagger lands behind the target ~1s after the hit.'],
-      components: [{ id: 'blade', label: 'Bouncing Blade', type: 'magic', amount: 'calc.TotalDamage', delay: 0.1 }],
+      components: [{ id: 'blade', label: 'Bouncing Blade', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
     W: {
       noTarget: true,
@@ -47,6 +47,7 @@ const kit: ChampionKit = {
           hits: 'dv.TicksPerSecond * dv.Duration',
           interval: '1 / dv.TicksPerSecond',
           delay: '1 / dv.TicksPerSecond',
+          travel: true,
           sameCast: false,
           onHit: true,
           onAttack: true,
@@ -63,6 +64,7 @@ const kit: ChampionKit = {
           maxHits: 'dv.TicksPerSecond * dv.Duration',
           interval: '1 / dv.TicksPerSecond',
           delay: '1 / dv.TicksPerSecond',
+          travel: true,
           condition: 'scales with bonus AD and bonus attack speed',
         },
       ],

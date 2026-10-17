@@ -27,38 +27,43 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       debuff: sigil,
-      components: [{ id: 'sigil', label: 'Sigil of Malice', type: 'magic', amount: 'calc.Damage', delay: 0.2 }],
+      components: [{ id: 'sigil', label: 'Sigil of Malice', type: 'magic', amount: 'calc.Damage', travel: true }],
     },
     W: {
       dash: true,
-      components: [{ id: 'distortion', label: 'Distortion', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.3 }],
+      // Busy for the dash; the damage on arrival.
+      lockout: 'castTime + castRange / missileSpeed',
+      components: [{ id: 'distortion', label: 'Distortion', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true }],
     },
     E: {
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration', delay: 'dv.TetherDuration' }],
       components: [
-        { id: 'chain', label: 'Ethereal Chains', type: 'magic', amount: 'calc.InitialDamage', delay: 0.3 },
-        { id: 'root', label: 'Ethereal Chains (root)', type: 'magic', amount: 'calc.DelayedDamage', delay: '0.3 + dv.TetherDuration' },
+        { id: 'chain', label: 'Ethereal Chains', type: 'magic', amount: 'calc.InitialDamage', travel: true },
+        // TetherDuration after the chain lands.
+        { id: 'root', label: 'Ethereal Chains (root)', type: 'magic', amount: 'calc.DelayedDamage', delay: 'dv.TetherDuration', travel: true },
       ],
     },
     R: {
       defaultVariant: 'Q',
+      // Mimic casts the same ability (wiki): its range and speed are the copied ability's.
       variants: {
         Q: {
           label: 'Mimic: Sigil of Malice',
           debuff: mimicSigil,
-          components: [{ id: 'sigil', label: 'Mimic: Sigil of Malice', type: 'magic', amount: 'calc.RQ1Damage', delay: 0.2 }],
+          components: [{ id: 'sigil', label: 'Mimic: Sigil of Malice', type: 'magic', amount: 'calc.RQ1Damage', travel: 'Q.castRange / Q.missileSpeed' }],
         },
         W: {
           label: 'Mimic: Distortion',
           dash: true,
-          components: [{ id: 'distortion', label: 'Mimic: Distortion', type: 'magic', amount: 'calc.RWDamage', aoe: true, delay: 0.3 }],
+          lockout: 'castTime + W.castRange / W.missileSpeed',
+          components: [{ id: 'distortion', label: 'Mimic: Distortion', type: 'magic', amount: 'calc.RWDamage', aoe: true, travel: 'W.castRange / W.missileSpeed' }],
         },
         E: {
           label: 'Mimic: Ethereal Chains',
           cc: [{ kind: 'immobilize', duration: 'E.dv.RootDuration', delay: 'E.dv.TetherDuration' }],
           components: [
-            { id: 'chain', label: 'Mimic: Ethereal Chains', type: 'magic', amount: 'calc.RE1Damage', delay: 0.3 },
-            { id: 'root', label: 'Mimic: Ethereal Chains (root)', type: 'magic', amount: 'calc.RE2Damage', delay: '0.3 + E.dv.TetherDuration' },
+            { id: 'chain', label: 'Mimic: Ethereal Chains', type: 'magic', amount: 'calc.RE1Damage', travel: 'E.castRange / E.missileSpeed' },
+            { id: 'root', label: 'Mimic: Ethereal Chains (root)', type: 'magic', amount: 'calc.RE2Damage', delay: 'E.dv.TetherDuration', travel: 'E.castRange / E.missileSpeed' },
           ],
         },
       },
