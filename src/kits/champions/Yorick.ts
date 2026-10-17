@@ -42,7 +42,7 @@ const kit: ChampionKit = {
           hits: 'opt.ghouls * opt.ghoulAttacks',
           interval: 'dv.MarkDuration / max(1, opt.ghouls * opt.ghoulAttacks)',
           // Raised from the graves 1s after the mist lands.
-          delay: 'castRange / missileSpeed + P.dv.YorickGhoulSpawnDelay',
+          delay: 'reach / missileSpeed + P.dv.YorickGhoulSpawnDelay',
           pet: true,
           noProc: true,
         },

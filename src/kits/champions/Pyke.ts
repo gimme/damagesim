@@ -44,8 +44,8 @@ const kit: ChampionKit = {
       dash: true,
       cc: [{ kind: 'immobilize', duration: 'calc.StunDuration' }],
       notes: ['The phantom returns StunDelay (1 s) after the dash and hits the target on its way back.'],
-      // Dashes his max range at the dash speed; after dv.StunDelay the phantom flies the same way back
-      // at the same speed (wiki).
+      // Dashes his max range at the dash speed, through the target; after dv.StunDelay the phantom
+      // follows the same way at the same speed, passing the target (wiki).
       lockout: 'castTime + castRange / missileSpeed',
       components: [{ id: 'phantom', label: 'Phantom Undertow', type: 'physical', amount: 'calc.TotalDamage', delay: 'dv.StunDelay', travel: true }],
     },

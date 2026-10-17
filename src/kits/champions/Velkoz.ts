@@ -59,16 +59,16 @@ const kit: ChampionKit = {
     W: {
       notes: ['The rift opens 0.25s after the cast, cascades out over 0.65s and collapses ~0.75s after opening (wiki).'],
       components: [
-        // The ripple sets off 0.25s after the cast and runs its range at its speed (wiki).
+        // The ripple sets off 0.25s after the cast and runs to the target at its speed (wiki).
         { id: 'initial', label: 'Void Rift', type: 'magic', amount: 'calc.InitialDamage', aoe: true, delay: 0.25, travel: true },
         { id: 'eruption', label: 'Void Rift (eruption)', type: 'magic', amount: 'calc.SecondaryDamage', aoe: true, delay: '0.25 + 0.75' },
       ],
     },
     E: {
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-      // Wiki: lands up to dv.MaxDetonationTime (0.55s) after it's hurled, at the start of the cast
-      // time ({{effect at cast time start}}).
-      components: [{ id: 'disrupt', label: 'Tectonic Disruption', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 'max(0, dv.MaxDetonationTime - castTime)' }],
+      // Wiki: lands dv.MinDetonationTime to dv.MaxDetonationTime (from 150 to 800 units away) after it's
+      // hurled, at the start of the cast time ({{effect at cast time start}}).
+      components: [{ id: 'disrupt', label: 'Tectonic Disruption', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 'max(0, lerp(dv.MinDetonationTime, dv.MaxDetonationTime, clamp((reach - 150) / 650, 0, 1)) - castTime)' }],
     },
     R: {
       // Busy for the 0.2s delay and 2.6s channel (wiki).

@@ -63,8 +63,8 @@ const kit: ChampionKit = {
               onHit: true,
               onAttack: true,
               aoe: true,
-              // The whirlwind flies its range (data) at its speed.
-              travel: 'dv.TornadoRange / missileSpeed',
+              // The whirlwind flies to the target at its speed (its range: dv.TornadoRange).
+              travel: 'min(distance, dv.TornadoRange) / missileSpeed',
             },
           ],
         },
@@ -88,11 +88,11 @@ const kit: ChampionKit = {
       dash: true,
       // On a single target the per-target lockout is the effective cooldown (not reduced by haste).
       cooldown: 'dv.PerTargetCooldown * (1 + ah / 100)',
-      // Wiki: he dashes 475 units at 750 + 60% of his movement speed, hitting on impact; Last Breath can
-      // be cast during the dash.
+      // Wiki: he dashes 475 units through the target at 750 + 60% of his movement speed, hitting it on
+      // impact; Last Breath can be cast during the dash.
       attackLockout: 'castTime + castRange / (dv.BaseDashSpeed + 0.6 * ms)',
       components: [
-        { id: 'blade', label: 'Sweeping Blade', type: 'magic', amount: 'calc.TotalDamage + calc.BonusDamagePerStack * opt.eStacks', travel: 'castRange / (dv.BaseDashSpeed + 0.6 * ms)' },
+        { id: 'blade', label: 'Sweeping Blade', type: 'magic', amount: 'calc.TotalDamage + calc.BonusDamagePerStack * opt.eStacks', travel: 'reach / (dv.BaseDashSpeed + 0.6 * ms)' },
       ],
     },
     R: {

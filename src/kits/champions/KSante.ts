@@ -51,13 +51,13 @@ const kit: ChampionKit = {
       // Charged for MinChargeTime to MaxDuration; stun and All Out's true damage grow until TimeToFullCharge.
       charge: { default: 'dv.MinChargeTime', min: 'dv.MinChargeTime', max: 'dv.MaxDuration' },
       castTime: 'charge',
-      // Then dashes its range at 1500 (wiki; the data's speed is the knock back's). Ntofo Strikes and
-      // All Out can be cast during the dash (wiki).
+      // Then dashes its range at 1500, through the target (wiki; the data's speed is the knock back's).
+      // Ntofo Strikes and All Out can be cast during the dash (wiki).
       attackLockout: 'charge + castRange / 1500',
       castLockout: { E: 'charge + castRange / 1500' },
       debuff: mark,
       cc: [{ kind: 'immobilize', duration: `lerp(dv.MinKnockbackDuration, dv.MaxKnockbackDuration, ${W_POWER})` }],
-      components: [{ id: 'ram', label: 'Path Maker', type: 'physical', amount: wDamage, aoe: true, travel: 'castRange / 1500' }],
+      components: [{ id: 'ram', label: 'Path Maker', type: 'physical', amount: wDamage, aoe: true, travel: 'reach / 1500' }],
       variants: {
         allout: {
           label: 'All Out',
@@ -68,8 +68,8 @@ const kit: ChampionKit = {
           debuff: mark,
           cc: [],
           components: [
-            { id: 'ram', label: 'Path Maker', type: 'physical', amount: wDamage, aoe: true, travel: 'castRange / 1800' },
-            { id: 'true', label: 'Path Maker (All Out)', type: 'true', amount: `(${wDamage}) * lerp(dv.RDamageIncreaseMin, dv.RDamageIncreaseMax, ${W_POWER})`, aoe: true, travel: 'castRange / 1800' },
+            { id: 'ram', label: 'Path Maker', type: 'physical', amount: wDamage, aoe: true, travel: 'reach / 1800' },
+            { id: 'true', label: 'Path Maker (All Out)', type: 'true', amount: `(${wDamage}) * lerp(dv.RDamageIncreaseMin, dv.RDamageIncreaseMax, ${W_POWER})`, aoe: true, travel: 'reach / 1800' },
           ],
         },
       },
@@ -89,7 +89,7 @@ const kit: ChampionKit = {
       buff: { id: 'ksanteR', label: 'All Out', duration: 'dv.AllOutDuration', stats: { attackSpeed: 'dv.AttackSpeed' }, bonusArmorPenPercent: 'dv.ArmorPenPercent' },
       notes: ['R:wall when the target is knocked through a wall (second strike, longer stun).'],
       // Damage near the end of the 300-unit pull, at its speed (wiki).
-      components: [{ id: 'tackle', label: 'All Out', type: 'physical', amount: 'dv.BaseDamage', travel: true }],
+      components: [{ id: 'tackle', label: 'All Out', type: 'physical', amount: 'dv.BaseDamage', travel: 'castRange / missileSpeed' }],
       variants: {
         wall: {
           label: 'through a wall',

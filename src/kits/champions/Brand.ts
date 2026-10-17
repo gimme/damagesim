@@ -16,7 +16,7 @@ const kit: ChampionKit = {
   notes: [
     'Blaze: each ability hit adds a stack (max 3, all stacks refresh to 4s); each stack burns for its own 2% max health over 4s.',
     'At 3 stacks the target explodes 2s later for P.calc.ExplosionDamage × max health, which consumes the stacks and re-applies 1 stack; for 4s afterwards the target cannot hold more than 1 stack.',
-    'Pyroclasm against a lone champion bounces champion → Brand → champion…: 3 hits on the target (wiki), each bounce flying the 600 bounce range after a 0.15s delay.',
+    'Pyroclasm against a lone champion bounces champion → Brand → champion…: 3 hits on the target (wiki), each bounce flying between them after a 0.15s delay.',
     'Sear only stuns Ablaze targets and Pyroclasm only slows Ablaze targets: both are assumed to hit an Ablaze target (cast them after another ability).',
   ],
   marks: [
@@ -108,10 +108,10 @@ const kit: ChampionKit = {
           amount: 'calc.TotalDamage',
           hits: 3,
           maxHits: 3,
-          // Flies its range to the target, then to Brand and back (at most the 600 bounce range apart),
-          // 0.15s between bounces (wiki).
-          interval: `2 * (0.15 + ${fireball('600')})`,
-          travel: fireball('castRange'),
+          // Flies to the target, then to Brand and back (at most the 600 bounce range apart), 0.15s
+          // between bounces (wiki).
+          interval: `2 * (0.15 + ${fireball('min(distance, 600)')})`,
+          travel: fireball('reach'),
           sameCast: false,
         },
       ],

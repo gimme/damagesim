@@ -4,6 +4,9 @@ import type { ChampionKit } from '../../engine/kit-types.ts';
 // Dragon Practice stacks are an option (fed to the game formulas' stack counter). Stacks gained
 // during the combo are ignored. Dragon Practice's bonus damage in Q/W/E is proc damage (wiki).
 const STACKS = '{32bcea5d}';
+// Super Scorcher Breath's range is his attack range (wiki; the data's is its Tier 2 missiles').
+const Q_REACH = 'min(distance, range)';
+const Q_TRAVEL = `${Q_REACH} / missileSpeed`;
 
 const kit: ChampionKit = {
   id: 'Smolder',
@@ -20,8 +23,8 @@ const kit: ChampionKit = {
       castTime: 'windup',
       components: [
         // Applies on-hit effects and triggers on-attack effects (Spellblade, Energized, Guinsoo's stacks…).
-        { id: 'breath', label: 'Super Scorcher Breath', type: 'physical', amount: 'calc.TotalDamage', onHit: true, onAttack: true, travel: true },
-        { id: 'practice', label: 'Super Scorcher Breath (Dragon Practice)', type: 'magic', amount: 'P.calc.Passive_QDamageIncrease', hits: 'opt.stacks > 0 ? 1 : 0', travel: true, proc: true },
+        { id: 'breath', label: 'Super Scorcher Breath', type: 'physical', amount: 'calc.TotalDamage', onHit: true, onAttack: true, travel: Q_TRAVEL },
+        { id: 'practice', label: 'Super Scorcher Breath (Dragon Practice)', type: 'magic', amount: 'P.calc.Passive_QDamageIncrease', hits: 'opt.stacks > 0 ? 1 : 0', travel: Q_TRAVEL, proc: true },
         {
           id: 'burn',
           label: 'Super Scorcher Breath (burn)',
@@ -32,7 +35,7 @@ const kit: ChampionKit = {
           hits: 'opt.stacks >= dv.StackTier3 ? dv.Tier3_DotLength : 0',
           interval: 1,
           delay: 1,
-          travel: true,
+          travel: Q_TRAVEL,
           dot: true,
           proc: true,
         },
@@ -72,13 +75,13 @@ const kit: ChampionKit = {
     R: {
       notes: ['Default: hit by the edge of the breath. R:center = sweet spot (150% damage + slow).'],
       // Called as the cast time starts (wiki: {{Effect at cast time start}}), she breathes MomSpawnDelay
-      // later; the wave flies its range.
-      components: [{ id: 'breath', label: 'MMOOOMMMM!', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 'dv.MomSpawnDelay - castTime', travel: true }],
+      // later; the wave flies to the target from MomDistBehindOffset behind Smolder.
+      components: [{ id: 'breath', label: 'MMOOOMMMM!', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 'dv.MomSpawnDelay - castTime', travel: '(dv.MomDistBehindOffset + reach) / missileSpeed' }],
       variants: {
         center: {
           label: 'center',
           cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-          components: [{ id: 'breath', label: 'MMOOOMMMM! (center)', type: 'physical', amount: 'calc.TooltipOnly_TotalSweetspotDamage', aoe: true, delay: 'dv.MomSpawnDelay - castTime', travel: true }],
+          components: [{ id: 'breath', label: 'MMOOOMMMM! (center)', type: 'physical', amount: 'calc.TooltipOnly_TotalSweetspotDamage', aoe: true, delay: 'dv.MomSpawnDelay - castTime', travel: '(dv.MomDistBehindOffset + reach) / missileSpeed' }],
         },
       },
     },
@@ -88,7 +91,7 @@ const kit: ChampionKit = {
       if (cast.slot !== 'Q' || !cast.hitsTarget) return;
       const q = { slot: 'Q' as const };
       if (sim.opt.stacks >= sim.evalExpr('Q.dv.StackTier3', q))
-        sim.setCounter('smolderBurnUntil', sim.time + (cast.castTime ?? 0) + sim.evalExpr('Q.castRange / Q.missileSpeed + Q.dv.Tier3_DotLength', q));
+        sim.setCounter('smolderBurnUntil', sim.time + (cast.castTime ?? 0) + sim.evalExpr(`${Q_REACH} / Q.missileSpeed + Q.dv.Tier3_DotLength`, q));
     },
     // 225 stacks: Smolder's damage executes a burning target below the threshold. The execute is part
     // of the hit that executes (not a separate hit for Electrocute).

@@ -88,29 +88,31 @@ const kit: ChampionKit = {
     W: {
       notes: ['Outbound stab, then the pull at max range (both hit by default).'],
       cc: [{ kind: 'immobilize', duration: 'dv.MaximumPullDistance / dv.PullSpeed' }],
-      // The glaive extends its range at its speed; at max range (wiki) the pull hits too.
+      // The glaive extends to max range at its speed, stabbing the target on the way; at max range
+      // (wiki) the pull hits too.
       components: [
         { id: 'stab', label: 'Dreaded Return (stab)', type: 'physical', amount: 'calc.InitialDamage', aoe: true, travel: true },
-        { id: 'pull', label: 'Dreaded Return (pull)', type: 'physical', amount: 'calc.SecondaryDamage', aoe: true, travel: true },
+        { id: 'pull', label: 'Dreaded Return (pull)', type: 'physical', amount: 'calc.SecondaryDamage', aoe: true, travel: 'castRange / missileSpeed' },
       ],
     },
     E: {
       dash: true,
       // Wiki: unable to move or attack during the dash; The Darkin Glaive can be cast, but only
       // readies the next attack.
-      lockout: 'dv.DashDistance / dv.DashSpeed',
+      lockout: 'reach / dv.DashSpeed',
       notes: ['Default: target inside the slice; E:edge for the outer edge (sweet spot).'],
       variants: {
         edge: {
           label: 'edge',
           dash: true,
+          lockout: 'dv.DashDistance / dv.DashSpeed',
           components: [
-            { id: 'edge', label: 'Aureate Rush (edge)', type: 'physical', amount: 'calc.BonusDamageCalc', aoe: true, travel: true },
-            { id: 'edgeHp', label: 'Aureate Rush (edge, %HP)', type: 'magic', amount: 'dv.PercentHPDamage * target.maxHp', aoe: true, travel: true },
+            { id: 'edge', label: 'Aureate Rush (edge)', type: 'physical', amount: 'calc.BonusDamageCalc', aoe: true, travel: 'castRange / missileSpeed' },
+            { id: 'edgeHp', label: 'Aureate Rush (edge, %HP)', type: 'magic', amount: 'dv.PercentHPDamage * target.maxHp', aoe: true, travel: 'castRange / missileSpeed' },
           ],
         },
       },
-      // The flourish on arrival (wiki), after the dash's range at its speed.
+      // The flourish on arrival (wiki), after the dash to the target at its speed.
       components: [{ id: 'slice', label: 'Aureate Rush', type: 'physical', amount: 'calc.BaseDamageCalc', aoe: true, travel: true }],
     },
     R: {

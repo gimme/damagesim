@@ -65,7 +65,7 @@ const kit: ChampionKit = {
         },
       },
       // Wiki: {{Effect at cast time start}}: the pulse flies during the cast time.
-      components: [{ id: 'pulse', label: 'Ultrashock Laser', type: 'physical', amount: 'calc.TotalDamage', travel: 'max(0, castRange / missileSpeed - castTime)' }],
+      components: [{ id: 'pulse', label: 'Ultrashock Laser', type: 'physical', amount: 'calc.TotalDamage', travel: 'max(0, reach / missileSpeed - castTime)' }],
     },
     E: {
       dash: true,

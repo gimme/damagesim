@@ -27,7 +27,7 @@ const kit: ChampionKit = {
     W: {
       dash: true,
       // Busy for the dash; the damage on arrival.
-      lockout: 'castTime + castRange / missileSpeed',
+      lockout: 'castTime + reach / missileSpeed',
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
       components: [{ id: 'advance', label: 'Twisted Advance', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
@@ -59,12 +59,12 @@ const kit: ChampionKit = {
       },
     },
     R: {
-      notes: ['Root duration grows with distance travelled (dv.MinRootDuration–dv.MaxRootDuration, the most from 1000 units): fired from 1200 units, the longest.'],
-      cc: [{ kind: 'immobilize', duration: 'dv.MaxRootDuration' }],
-      // Its 3000 range is treated like a global ability's: fired from 1200 units, as the cast starts
-      // (wiki: {{Effect at cast time start}}). The brambles speed up from 100 by 300/s to 750 (wiki):
-      // 650 / 300 s accelerating at an average (100 + 750) / 2, then 750 for the rest, ~2.54s.
-      components: [{ id: 'grasp', label: "Nature's Grasp", type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, 650 / 300 + (1200 - (100 + 750) / 2 * 650 / 300) / 750 - castTime)' }],
+      notes: ['Root duration grows with distance travelled (dv.MinRootDuration–dv.MaxRootDuration, the most from 1000 units): the target\'s distance.'],
+      cc: [{ kind: 'immobilize', duration: 'lerp(dv.MinRootDuration, dv.MaxRootDuration, min(1, reach / 1000))' }],
+      // Fired as the cast starts (wiki: {{Effect at cast time start}}). The brambles speed up from 100
+      // by 300/s to 750 (wiki): to the target while accelerating, else 650 / 300 s accelerating at an
+      // average (100 + 750) / 2, then 750 for the rest.
+      components: [{ id: 'grasp', label: "Nature's Grasp", type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, (reach < (100 + 750) / 2 * 650 / 300 ? (sqrt(100 * 100 + 2 * 300 * reach) - 100) / 300 : 650 / 300 + (reach - (100 + 750) / 2 * 650 / 300) / 750) - castTime)' }],
     },
   },
 };

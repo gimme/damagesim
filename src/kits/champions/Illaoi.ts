@@ -57,9 +57,9 @@ const kit: ChampionKit = {
         'E:vessel — the spirit is killed/leashed right away: the champion becomes a Vessel (slowed) and Tentacles slam it directly for dv.VesselDuration seconds.',
         'Slams start ~0.5s after the pull (wiki: "up to a 0.5-second delay").',
       ],
-      // Wiki: unable to act while the tendril flies (its max range at its speed) and while the spirit
+      // Wiki: unable to act while the tendril flies (to the target at its speed) and while the spirit
       // is pulled out over 0.75s.
-      lockout: 'castTime + castRange / missileSpeed + 0.75',
+      lockout: 'castTime + reach / missileSpeed + 0.75',
       components: [
         {
           id: 'echo',

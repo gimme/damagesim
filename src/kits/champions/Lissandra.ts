@@ -24,7 +24,7 @@ const kit: ChampionKit = {
       notes: ['The claw damages enemies it passes through; recast (E:blink) teleports Lissandra to it.'],
       // No speed in the data: the claw decelerates from 1200 to 640 over its range (wiki), taken at
       // their average.
-      components: [{ id: 'claw', label: 'Glacial Path', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'castRange / ((1200 + 640) / 2)' }],
+      components: [{ id: 'claw', label: 'Glacial Path', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'reach / ((1200 + 640) / 2)' }],
       variants: { blink: { label: 'teleport', dash: true, components: [] } },
     },
     R: {

@@ -33,8 +33,8 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       dash: true,
-      // Busy for the dash: its range at its speed.
-      lockout: 'castRange / missileSpeed',
+      // Busy for the dash: to the target at its speed.
+      lockout: 'reach / missileSpeed',
       cc: [{ kind: 'immobilize', duration: 'dv.KnockupDurationTOOLTIPONLY' }],
       components: [{ id: 'charge', label: 'Arctic Assault', type: 'magic', amount: 'calc.TotalDamageTooltip', aoe: true, travel: true }],
     },
@@ -54,15 +54,15 @@ const kit: ChampionKit = {
     R: {
       cc: [{ kind: 'immobilize', duration: 'dv.EmpoweredStunDuration' }],
       debuff: frozen('R.dv.EmpoweredStunDuration'),
-      // The empowered bola detonates at max range (wiki).
-      components: [{ id: 'prison', label: 'Glacial Prison', type: 'magic', amount: 'calc.TotalDamageTooltip', travel: true }],
+      // Empowered: it flew at least 425 units (wiki).
+      components: [{ id: 'prison', label: 'Glacial Prison', type: 'magic', amount: 'calc.TotalDamageTooltip', travel: 'max(425, reach) / missileSpeed' }],
       variants: {
         short: {
           label: 'short range',
           cc: [{ kind: 'immobilize', duration: 'dv.BaseStunDuration' }],
           debuff: frozen('R.dv.BaseStunDuration'),
           // Unempowered: it hit within its first 425 units (wiki).
-          components: [{ id: 'prison', label: 'Glacial Prison', type: 'magic', amount: 'calc.MinorDamageTooltip', travel: '425 / missileSpeed' }],
+          components: [{ id: 'prison', label: 'Glacial Prison', type: 'magic', amount: 'calc.MinorDamageTooltip', travel: 'min(425, reach) / missileSpeed' }],
         },
       },
     },

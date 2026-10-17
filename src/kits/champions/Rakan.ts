@@ -12,8 +12,8 @@ const kit: ChampionKit = {
       dash: true,
       notes: ['Dash, then a short delay before the knock-up lands.'],
       cc: [{ kind: 'immobilize', duration: 'dv.KnockupDuration' }],
-      // Dashes his max range at the dash speed; the knock-up lands 0.35s after he arrives (wiki).
-      lockout: 'castTime + castRange / missileSpeed',
+      // Dashes to the target at the dash speed; the knock-up lands 0.35s after he arrives (wiki).
+      lockout: 'castTime + reach / missileSpeed',
       components: [{ id: 'entrance', label: 'Grand Entrance', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.35, travel: true }],
     },
     E: {

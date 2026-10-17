@@ -91,7 +91,7 @@ const kit: ChampionKit = {
             { kind: 'slow', duration: 'E.dv.SlowDuration' },
           ],
           // Same range and speed as Electron Storm Grenade (wiki; not in the data).
-          components: [{ id: 'grenade', label: 'Lightning Grenade', type: 'magic', amount: 'calc.EUltDamage', aoe: true, travel: 'E.castRange / E.missileSpeed' }],
+          components: [{ id: 'grenade', label: 'Lightning Grenade', type: 'magic', amount: 'calc.EUltDamage', aoe: true, travel: 'E.reach / E.missileSpeed' }],
         },
       },
     },

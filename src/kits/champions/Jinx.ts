@@ -24,7 +24,7 @@ const kit: ChampionKit = {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       // Launched as the cast time starts (wiki: {{Effect at cast time start}}); `castTime` would read
       // the data's.
-      components: [{ id: 'zap', label: 'Zap!', type: 'physical', amount: 'calc.TotalDamage', travel: `max(0, castRange / missileSpeed - ${W_CAST})` }],
+      components: [{ id: 'zap', label: 'Zap!', type: 'physical', amount: 'calc.TotalDamage', travel: `max(0, reach / missileSpeed - ${W_CAST})` }],
     },
     E: {
       notes: ['Chompers thrown at the target\'s feet: they land after 0.4s and arm dv.GrenadeArmTime s later (wiki), then explode on contact.'],

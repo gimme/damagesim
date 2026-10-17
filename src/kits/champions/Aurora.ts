@@ -22,8 +22,8 @@ const kit: ChampionKit = {
     P: { notes: ['3-hit proc (mark).'] },
     Q: {
       recasts: 2,
-      // The recast needs a marked target: the bolt lands after flying its range.
-      recastDelay: 'castTime + castRange / missileSpeed',
+      // The recast needs a marked target: the bolt lands after flying to it.
+      recastDelay: 'castTime + reach / missileSpeed',
       // The curse lasts MarkDuration; afterwards the recast fires automatically (not modeled) and the chain ends.
       recastWindow: 'dv.MarkDuration',
       notes: ['Recast damage = the first hit\'s damage increased by 0.5% per 1% missing health (up to +50%), computed when it hits.'],
@@ -38,7 +38,7 @@ const kit: ChampionKit = {
           hits: 'recast == 2 ? 1 : 0',
           aoe: true,
           // Wiki: the bolts fly back from the marked target at 2000 speed.
-          travel: 'castRange / 2000',
+          travel: 'reach / 2000',
         },
       ],
     },

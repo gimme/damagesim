@@ -63,7 +63,8 @@ const kit: ChampionKit = {
       notes: [
         'Dragon Form: 25% more damage. Optional "repeat" = a second explosion on the same target at 40% damage (unverified), optional "trail" = burning trail ticks (0.25s) while the target stands in it.',
       ],
-      // Wiki: Dragon Form casts in 0.3333s and its fireball flies 1000 at 1600 (800 at 1500 in human form).
+      // Wiki: Dragon Form casts in 0.3333s and its fireball's range is 1000 at 1600 speed (800 at 1500 in
+      // human form).
       castTime: `${DRAGON} ? 0.3333 : castTime`,
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       components: [
@@ -73,7 +74,7 @@ const kit: ChampionKit = {
           type: 'magic',
           amount: `${DRAGON} ? calc.Calc_Dragon_Damage + calc.Calc_Max_Health_Dragon_Damage * target.maxHp : calc.Damage + calc.Calc_Max_Health_Damage * target.maxHp`,
           aoe: true,
-          travel: `${DRAGON} ? 1000 / 1600 : castRange / missileSpeed`,
+          travel: `${DRAGON} ? min(distance, 1000) / 1600 : reach / missileSpeed`,
         },
         {
           id: 'repeat',
@@ -84,7 +85,7 @@ const kit: ChampionKit = {
           optional: true,
           aoe: true,
           delay: 'dv.RepeatExplosionDelay',
-          travel: '1000 / 1600',
+          travel: 'min(distance, 1000) / 1600',
         },
         {
           id: 'trail',
@@ -99,7 +100,7 @@ const kit: ChampionKit = {
           aoe: true,
           // First tick a tick after the impact.
           delay: 0.25,
-          travel: '1000 / 1600',
+          travel: 'min(distance, 1000) / 1600',
         },
       ],
     },
