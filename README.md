@@ -32,6 +32,8 @@ npm run sim -- simulate -c Ahri -l 11 -i "Luden's Echo,Sorcerer's Shoes" -r Elec
   --combo "E Q W R AA" --target squishy --events
 npm test                    # typecheck, engine tests, then a formatting check
 npm run fmt                 # format the code (Prettier)
+npx playwright install chromium  # once per machine: the browser the UI test drives
+npm run test:ui             # the web UI's smoke test, in headless Chromium, against the dev server on PORT (5173 by default), started if none is running
 ```
 
 Requires Node ≥ 22.18 (runs the TypeScript sources directly; no build step for CLI/MCP).
@@ -127,6 +129,13 @@ Only the stats of a target's items count: it never fights back, so their passive
    * a snapshot of three standard combos for every champion, so engine changes can't move numbers
      unnoticed (`node scripts/update-snapshots.ts` after an intended change).
 
+   The web UI has a smoke test of its own, `npm run test:ui` (Playwright, not part of `npm test`):
+   scenarios in `test/ui/` drive every card in headless Chromium, against the dev server on `PORT`
+   (5173 by default, as for `make dev`; started if none is running), and check after each step that it
+   did what it should: a pick shows the champion and changes the result, a buy fills its slot, a drag
+   reorders, undo restores, a hover card names its item. They check behaviour, not the engine's
+   numbers (the champion snapshots own those), and in every test that the console stays empty.
+
    `node scripts/check-kits.ts` validates every kit's formulas at several levels. `npm test` also checks
    that the code is formatted; `npm run fmt` formats it (Prettier, configured in `.prettierrc`).
 6. **Behaviour the game files don't encode** is checked against the wiki. The files hold the
@@ -195,5 +204,5 @@ src/cli/        damagesim CLI
 src/mcp/        MCP server
 src/web/        React UI (Vite)
 docs/           KIT_AUTHORING.md, COVERAGE.md, research/ (mechanics notes with sources)
-test/           engine, mechanics and per-champion snapshot tests
+test/           engine, mechanics and per-champion snapshot tests; ui/ the web UI's smoke test (Playwright)
 ```

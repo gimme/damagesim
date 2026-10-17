@@ -26,9 +26,11 @@
     "check-kits": "node scripts/check-kits.ts",
     "wiki": "node scripts/fetch-wiki.ts",
     "audit": "node scripts/audit-wiki.ts",
-    "audit:items": "node scripts/audit-items.ts"
+    "audit:items": "node scripts/audit-items.ts",
+    "test:ui": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",

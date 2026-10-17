@@ -3,3 +3,5 @@ data/raw
 dist/
 *.log
 dist-artifact/
+test-results/
+playwright-report/

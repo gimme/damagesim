@@ -1,0 +1,267 @@
+// The Item value card: the slot to rank for, the ranking sorted two ways, Show all, buying from a row, and the gold map.
+
+import { test, expect, attrs, num, texts, type UI } from "./ui.ts";
+
+// Every step checks the ranking as the build then is.
+test.use({ itemValue: true });
+
+const parts = (ui: UI) => {
+  const card = ui.card("Item value");
+  // The items' rows: not the heading's, nor Show all's.
+  const rows = card
+    .getByRole("table")
+    .getByRole("row")
+    .filter({ has: ui.page.getByRole("cell") })
+    .filter({ hasNot: ui.page.getByRole("button", { name: /^Show (all|less)$/ }) });
+  return {
+    card,
+    slots: card.locator(".slots > .slot:not(.vacated)"),
+    rows,
+    names: () => texts(rows.locator(".iv-name")),
+    perGold: async () => (await texts(rows.locator(".iv-pg"))).map(num),
+    damage: async () => (await texts(rows.locator(".iv-dmg"))).map(num),
+    caption: card.locator(".iv-caption"),
+    /** The index of the slot ranked for. */
+    ranked: async () => (await attrs(card.locator(".slots > .slot:not(.vacated)"), "aria-pressed")).indexOf("true"),
+    /** The names of the build's items, by slot, as Items shows them. */
+    build: async () =>
+      (await attrs(ui.card("Items").locator(".slots > .slot:not(.vacated)"), "aria-label")).map(
+        (l) => /^Item slot \d: (.*)\. Arrow keys/.exec(l!)?.[1] ?? null,
+      ),
+  };
+};
+
+const descending = (xs: number[]) => xs.every((x, i) => i === 0 || xs[i - 1] >= x);
+
+test("ranking, sorting and buying", async ({ ui }) => {
+  const { page, step } = ui;
+  const { card, slots, rows, names, perGold, damage, caption, ranked, build } = parts(ui);
+  let shown = 0;
+
+  await step(
+    "load: the next slot ranked, by damage per gold",
+    () => ui.open(),
+    async () => {
+      await expect(caption).toHaveText("Next item");
+      expect(await ranked()).toBe(2);
+      shown = await rows.count();
+      expect(shown).toBeGreaterThan(0);
+      expect(shown).toBeLessThanOrEqual(8);
+      expect(descending(await perGold())).toBe(true);
+      await expect(card.getByRole("columnheader", { name: "per 1000g", exact: true })).toHaveAttribute("aria-sort", "descending");
+    },
+  );
+  await step(
+    "Show all: more",
+    () => card.getByRole("button", { name: "Show all" }).click(),
+    async () => expect(await rows.count()).toBeGreaterThan(shown),
+  );
+  await step(
+    "Show less: as before",
+    () => card.getByRole("button", { name: "Show less" }).click(),
+    () => expect(rows).toHaveCount(shown),
+  );
+  await step(
+    "sort by damage",
+    () => card.getByRole("button", { name: "damage", exact: true }).click(),
+    async () => {
+      expect(descending(await damage())).toBe(true);
+      await expect(card.getByRole("columnheader", { name: "damage", exact: true })).toHaveAttribute("aria-sort", "descending");
+    },
+  );
+  await step(
+    "sort per 1000g",
+    () => card.getByRole("button", { name: "per 1000g", exact: true }).click(),
+    async () => expect(descending(await perGold())).toBe(true),
+  );
+  const second = (await names())[1];
+  await step(
+    "hover a row's item: its card names it, a click buys",
+    () => rows.nth(1).locator(".iv-name").hover(),
+    async () => {
+      await expect(ui.tooltip).toContainText(second);
+      await expect(ui.tooltip).toContainText("Click to buy");
+    },
+  );
+  await step(
+    "hover its bar: where its damage comes from",
+    () => rows.nth(1).locator(".iv-track").hover(),
+    () => expect(ui.tooltip).toContainText(`${second} · `),
+  );
+  await step("the pointer away", () => ui.unhover());
+  const first = (await build())[0]!;
+  await step(
+    "hover slot 1: its card names its item",
+    () => slots.nth(0).hover(),
+    () => expect(ui.hovercard).toContainText(first),
+  );
+  await step("the pointer away", () => ui.unhover());
+  await step(
+    "click slot 1: ranked in place of its item, listed as the current one",
+    () => slots.nth(0).click(),
+    async () => {
+      expect(await ranked()).toBe(0);
+      await expect(caption).toHaveText(`In place of ${first}`);
+      await expect(card.locator("[role=row][aria-current=true]")).toContainText(first);
+    },
+  );
+  await step(
+    "Enter on slot 2 ranks it",
+    async () => {
+      await slots.nth(1).focus();
+      await page.keyboard.press("Enter");
+    },
+    async () => expect(await ranked()).toBe(1),
+  );
+  let top = "";
+  await step(
+    "click the top row: bought in its place, the next slot ranked",
+    async () => {
+      top = (await names())[0];
+      await rows.first().click();
+    },
+    async () => {
+      expect((await build())[1]).toBe(top);
+      expect(await ranked()).toBe(2);
+    },
+  );
+  await step(
+    "Enter on a row's item buys it",
+    async () => {
+      top = (await names())[1];
+      await rows.nth(1).getByRole("button").focus();
+      await page.keyboard.press("Enter");
+    },
+    async () => expect((await build())[2]).toBe(top),
+  );
+  await step(
+    "Delete on slot 3 sells it, and ranks it",
+    async () => {
+      await slots.nth(2).focus();
+      await page.keyboard.press("Delete");
+    },
+    async () => {
+      expect((await build())[2]).toBeNull();
+      expect(await ranked()).toBe(2);
+    },
+  );
+});
+
+test("slots and the gold map", async ({ ui }) => {
+  const { page, step } = ui;
+  const { card, slots, rows, caption, ranked, build } = parts(ui);
+  const items = async () => (await ui.state()).items;
+  let was: (number | null)[] = [];
+
+  await step(
+    "load",
+    () => ui.open(),
+    async () => {
+      was = await items();
+    },
+  );
+  await step(
+    "drag slot 2 onto slot 1: they swap, the next slot still ranked",
+    () => ui.drag(slots.nth(1), slots.nth(0)),
+    async () => {
+      expect(await items()).toEqual([was[1], was[0], ...was.slice(2)]);
+      expect(await ranked()).toBe(2);
+    },
+  );
+  let item = "";
+  await step(
+    "rank slot 2, drag it onto slot 5: the ranked slot follows its item",
+    async () => {
+      item = (await build())[1]!;
+      await slots.nth(1).click();
+      await ui.drag(slots.nth(1), slots.nth(4));
+    },
+    async () => {
+      expect(await ranked()).toBe(4);
+      await expect(caption).toHaveText(`In place of ${item}`);
+      expect((await build())[4]).toBe(item);
+    },
+  );
+  await step(
+    "ArrowLeft on the focused slot 5 moves its item, ranked still",
+    async () => {
+      await slots.nth(4).focus();
+      await page.keyboard.press("ArrowLeft");
+    },
+    async () => {
+      expect((await build())[3]).toBe(item);
+      expect(await ranked()).toBe(3);
+      await page.evaluate(() => (document.activeElement as HTMLElement).blur());
+    },
+  );
+
+  const view = card.getByRole("group", { name: "View" });
+  const map = card.getByRole("img", { name: "Damage gained versus item cost" });
+  // The dots, at their middles on screen: drawn with a 2px outline (a hovered one's ring is larger, r 9).
+  const dots = map.locator('circle[stroke-width="2"]:not([r="9"])');
+  const at = async (i: number) => {
+    const b = (await dots.nth(i).boundingBox())!;
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  };
+  let listed = 0;
+  await step(
+    "Gold map: a dot per item the list has",
+    async () => {
+      await card.getByRole("button", { name: "Show all" }).click();
+      listed = await rows.count();
+      await view.getByRole("button", { name: "Gold map" }).click();
+    },
+    async () => {
+      await expect(map).toBeVisible();
+      await expect(dots).toHaveCount(listed);
+    },
+  );
+  await step(
+    "hover a dot: its numbers, a ring round it",
+    async () => {
+      const d = await at(0);
+      await page.mouse.move(d.x, d.y);
+    },
+    async () => {
+      await expect(ui.tooltip).toContainText("Damage gained");
+      await expect(ui.tooltip).toContainText("Per 1000 gold");
+      await expect(map.locator('circle[r="9"]')).toHaveCount(1);
+    },
+  );
+  // The current item's dot is the hollow one.
+  const current = async () => (await attrs(dots, "fill")).indexOf("var(--surface)");
+  await step(
+    "click the current item's dot: nothing bought",
+    async () => {
+      was = await items();
+      const d = await at(await current());
+      await page.mouse.click(d.x, d.y);
+    },
+    async () => expect(await items()).toEqual(was),
+  );
+  let bought = "";
+  await step(
+    "click another dot: bought in its place",
+    async () => {
+      const i = (await current()) === 0 ? 1 : 0;
+      const d = await at(i);
+      await page.mouse.move(d.x, d.y);
+      bought = (await ui.tooltip.locator(".tt-title").innerText()).split(" · ")[0];
+      await page.mouse.click(d.x, d.y);
+    },
+    async () => expect((await build())[3]).toBe(bought),
+  );
+  await step(
+    "the pointer away",
+    () => ui.unhover(),
+    () => expect(map.locator('circle[r="9"]')).toHaveCount(0),
+  );
+  await step(
+    "List",
+    () => view.getByRole("button", { name: "List" }).click(),
+    async () => {
+      await expect(map).toHaveCount(0);
+      expect(await rows.count()).toBeGreaterThan(0);
+    },
+  );
+});
