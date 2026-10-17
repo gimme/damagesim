@@ -497,9 +497,13 @@ test("variants, numbers and refits", async ({ ui }) => {
     () => expect(card.locator(".combo-palette .combo-key")).toHaveCount(keys + 1),
   );
   await step(
-    "click it: the item's step",
+    "click it: the item's step, its chip named as the key",
     () => key("Heretical Cleave").click(),
-    async () => expect((await steps()).at(-1)).toBe("item:Profane_Hydra"),
+    async () => {
+      expect((await steps()).at(-1)).toBe("item:Profane_Hydra");
+      await expect(chips.last()).toHaveText(/^Heretical Cleave/);
+      await expect(chips.last().locator("img")).toHaveAttribute("src", (await key("Heretical Cleave").locator("img").getAttribute("src"))!);
+    },
   );
   await step(
     "back to Ahri: no variant, the item's step kept",

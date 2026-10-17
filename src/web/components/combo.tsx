@@ -252,7 +252,21 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
   };
   const follow = (st: ComboStep) => (crits === "mixed" ? st : markCrit(st, kit, crits));
   const add = (st: ComboStep) => commit([...steps, follow(st)]);
-  const label = (st: ComboStep) => formatCombo([st]);
+  // An item step's item; none when it isn't found.
+  const stepItem = (st: ComboStep) => {
+    if (st.type !== "item") return null;
+    try {
+      return findItem(DATA, st.item);
+    } catch {
+      return null;
+    }
+  };
+  // A step as its shorthand, or for an item's active as its key names it: the active's name, the
+  // item's while it isn't bought.
+  const label = (st: ComboStep) => {
+    const it = stepItem(st);
+    return it ? (actives.find((e) => e.id === `item:${it.id}`)?.active?.label ?? it.name) : formatCombo([st]);
+  };
   // A step's label in its chip, without the number its field shows.
   const chipLabel = (st: ComboStep) =>
     st.type === "ability" ? label({ ...st, duration: undefined, count: undefined }) : st.type === "wait" ? "wait" : label(st);
@@ -262,15 +276,8 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
     if (st.type === "ability") return icon(st.slot, spellName(st.slot), "xs");
     if (st.type === "attack") return icon("AA", "Basic attack", "xs");
     if (st.type === "summoner") return icon("summoner:ignite", "Ignite", "xs");
-    if (st.type === "item") {
-      try {
-        const it = findItem(DATA, st.item);
-        return icon(`item:${it.id}`, it.name, "xs");
-      } catch {
-        return null;
-      }
-    }
-    return null;
+    const it = stepItem(st);
+    return it && icon(`item:${it.id}`, it.name, "xs");
   };
   // A key adds its step at the end, or dragged into the steps, where it's let go: meanwhile its step
   // is the last one shown, and lands among the others like a step moved there.
@@ -413,7 +420,9 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
                     onPick={(v) => replace(follow({ ...st, variant: v || undefined }))}
                   />
                 ) : (
-                  <span title={st.type === "ability" ? spellName(st.slot) : undefined}>{chipLabel(st)}</span>
+                  <span title={st.type === "ability" ? spellName(st.slot) : st.type === "item" ? `${stepItem(st)?.name ?? st.item} active` : undefined}>
+                    {chipLabel(st)}
+                  </span>
                 )}
                 {st.type === "ability" && setting && <CastSettingField step={st} setting={setting} onChange={replace} />}
                 {st.type === "wait" && (
