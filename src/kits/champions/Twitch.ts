@@ -45,8 +45,8 @@ const kit: ChampionKit = {
     onCast(sim, cast) {
       if (cast.slot !== 'W' || !cast.hitsTarget) return;
       const castTime = sim.spellFor('W').castTime ?? 0;
-      // The cask flies its max range at its missile's speed.
-      const flight = sim.evalExpr('castRange / missileSpeed', { slot: 'W' });
+      // The cask flies to the target at its missile's speed.
+      const flight = sim.evalExpr('reach / missileSpeed', { slot: 'W' });
       const cloud = sim.evalExpr('W.dv.Duration', { slot: 'W' });
       for (let i = 0; i <= cloud; i++) sim.schedule(castTime + flight + i, () => addVenom(sim, cast.castId));
     },

@@ -64,7 +64,7 @@ const kit: ChampionKit = {
           components: [
             { id: 'bolt', label: 'Condemn', type: 'physical', amount: 'calc.TotalDamage', travel: true },
             // The bolt, then the full knockback into the wall (475 units at 2000 speed, wiki).
-            { id: 'wall', label: 'Condemn (wall)', type: 'physical', amount: 'calc.EmpoweredDamageTT', travel: 'castRange / missileSpeed + dv.KnockbackDistance / 2000' },
+            { id: 'wall', label: 'Condemn (wall)', type: 'physical', amount: 'calc.EmpoweredDamageTT', travel: 'reach / missileSpeed + dv.KnockbackDistance / 2000' },
           ],
         },
       },

@@ -45,15 +45,15 @@ const kit: ChampionKit = {
       attackLockout: 'charge + dv.DashDistance / dv.DashSpeed',
       notes: ['Default: quick release (minimum stun). Set the seconds held (W{1s} for the maximum stun).'],
       cc: [{ kind: 'immobilize', duration: 'lerp(dv.StunDuration, dv.MaxStunTT, min(1, floor(charge * 4) / 4))' }],
-      // Wiki: the mist flies 500 units, +100 per 0.25s charged (up to 1s), at 1300 speed (the data's
-      // speed is the dash's).
+      // Wiki: the mist flies to the target, up to 500 units +100 per 0.25s charged (up to 1s), at 1300
+      // speed (the data's speed is the dash's).
       components: [
         {
           id: 'maw',
           label: 'Spectral Maw',
           type: 'magic',
           amount: 'calc.TotalDamage',
-          travel: '(dv.MinMissileRange + dv.MaxBonusMissileRange * min(1, floor(charge * 4) / 4)) / 1300',
+          travel: 'min(distance, dv.MinMissileRange + dv.MaxBonusMissileRange * min(1, floor(charge * 4) / 4)) / 1300',
         },
       ],
     },

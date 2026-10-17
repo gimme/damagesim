@@ -51,7 +51,7 @@ const kit: ChampionKit = {
           maxHits: 'dv.ZoneDuration',
           interval: '1 / (1 + dv.LambToWolfAttackSpeedConversionPercent * bonusAs)',
           // Wolf first dashes to the zone at his speed (wiki).
-          delay: 'castRange / missileSpeed',
+          delay: 'reach / missileSpeed',
           pet: true,
         },
       ],

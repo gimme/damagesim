@@ -65,8 +65,8 @@ const kit: ChampionKit = {
           label: 'Twin Fang',
           type: 'magic',
           amount: 'calc.BasicDamage + (debuff.cassPoison ? calc.BonusPoisonedDamage : 0)',
-          // Lands after flying its range, or once a pending Noxious Blast explodes.
-          delay: 'max(0, stacks.cassBlastAt - time - castTime - castRange / missileSpeed)',
+          // Lands after flying to the target, or once a pending Noxious Blast explodes.
+          delay: 'max(0, stacks.cassBlastAt - time - castTime - reach / missileSpeed)',
           travel: true,
           condition: 'bonus if Poisoned',
         },

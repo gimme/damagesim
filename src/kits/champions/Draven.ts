@@ -38,18 +38,17 @@ const kit: ChampionKit = {
       components: [{ id: 'standAside', label: 'Stand Aside', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: true }],
     },
     R: {
-      // Global: assumed fired from 1200 units; the axes reverse on hitting the champion, hitting it
-      // again as they turn.
+      // The axes fly to the target and reverse on hitting the champion, hitting it again as they turn.
       components: [
-        { id: 'out', label: 'Whirling Death (out)', type: 'physical', amount: 'calc.RCalculatedDamage', aoe: true, travel: '1200 / missileSpeed' },
-        { id: 'back', label: 'Whirling Death (return)', type: 'physical', amount: 'calc.RCalculatedDamage', aoe: true, travel: '1200 / missileSpeed' },
+        { id: 'out', label: 'Whirling Death (out)', type: 'physical', amount: 'calc.RCalculatedDamage', aoe: true, travel: 'reach / missileSpeed' },
+        { id: 'back', label: 'Whirling Death (return)', type: 'physical', amount: 'calc.RCalculatedDamage', aoe: true, travel: 'reach / missileSpeed' },
         {
           id: 'execute',
           label: 'Whirling Death (execute)',
           type: 'true',
           amount: 'target.hp < calc.RPassiveTrueDamage ? target.hp : 0',
           hits: 'opt.adoration > 0 ? 1 : 0',
-          travel: '2 * 1200 / missileSpeed',
+          travel: 'reach / missileSpeed',
           condition: 'target below Adoration stacks',
           note: 'Execute after the return hit',
         },

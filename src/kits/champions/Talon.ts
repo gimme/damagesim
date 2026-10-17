@@ -4,6 +4,7 @@ import type { ChampionKit } from '../../engine/kit-types.ts';
 // Blade's End: ability hits add Wound stacks (each pass of Rake / Shadow Assault counts). An attack on
 // a target with 3 stacks consumes them and starts a bleed (16 ticks over 2s); no stacks during the bleed.
 const BLEED_TICKS = 16; // every 0.125s over P.dv.BleedDuration (wiki)
+const Q_LEAP = 'max(170, reach) / missileSpeed';
 
 const kit: ChampionKit = {
   id: 'Talon',
@@ -41,9 +42,10 @@ const kit: ChampionKit = {
       dash: true,
       resetsAttack: true,
       // Wiki: the leap has no cast time and dashes at ~1400; Shadow Assault can be cast during the dash.
-      attackLockout: 'castRange / missileSpeed',
-      castLockout: { W: 'castRange / missileSpeed', E: 'castRange / missileSpeed' },
-      components: [{ id: 'leap', label: 'Noxian Diplomacy', type: 'physical', amount: 'calc.LeapDamage', travel: true }],
+      // A leap implies the target beyond the close cast's 170 range.
+      attackLockout: Q_LEAP,
+      castLockout: { W: Q_LEAP, E: Q_LEAP },
+      components: [{ id: 'leap', label: 'Noxian Diplomacy', type: 'physical', amount: 'calc.LeapDamage', travel: Q_LEAP }],
       variants: {
         melee: {
           label: 'melee',
@@ -62,9 +64,8 @@ const kit: ChampionKit = {
       notes: ['Blades go out and return after dv.ReturnDelay; both passes hit a target in their path.'],
       components: [
         { id: 'out', label: 'Rake (out)', type: 'physical', amount: 'calc.TotalInitialDamage', aoe: true, travel: true },
-        // Wiki: they linger 0.7s (ReturnDelay) at max range, where the target stands, then home back
-        // through it.
-        { id: 'back', label: 'Rake (return)', type: 'physical', amount: 'calc.TotalReturnDamage', aoe: true, delay: 'dv.ReturnDelay', travel: true },
+        // Wiki: they linger 0.7s (ReturnDelay) at max range, then home back through the target at 3000.
+        { id: 'back', label: 'Rake (return)', type: 'physical', amount: 'calc.TotalReturnDamage', aoe: true, delay: 'dv.ReturnDelay', travel: 'castRange / missileSpeed + (castRange - reach) / 3000' },
       ],
     },
     E: {
@@ -80,8 +81,9 @@ const kit: ChampionKit = {
       notes: ['Blades return to the target when Talon breaks stealth with an attack or Noxian Diplomacy (assumed at the earliest, after their 0.8s minimum lifetime); otherwise they fly back to Talon after 2.5s (disable with R{back:0}).'],
       components: [
         { id: 'out', label: 'Shadow Assault (out)', type: 'physical', amount: 'calc.Damage', aoe: true, travel: true },
-        // Wiki: they converge after 0.8s at the earliest, flying back over the range at 4000.
-        { id: 'back', label: 'Shadow Assault (return)', type: 'physical', amount: 'calc.Damage', aoe: true, delay: 0.8, travel: 'castRange / 4000' },
+        // Wiki: they converge after 0.8s at the earliest, flying back from their range at 4000, the
+        // nearest through the target.
+        { id: 'back', label: 'Shadow Assault (return)', type: 'physical', amount: 'calc.Damage', aoe: true, delay: 0.8, travel: '(castRange - reach) / 4000' },
       ],
     },
   },

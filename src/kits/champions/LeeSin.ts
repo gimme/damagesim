@@ -9,6 +9,8 @@ const flurry: BuffSpec = {
   stats: { attackSpeed: 'P.dv.PassiveAS / 100' },
   empowerAttacks: { count: 2, components: [] },
 };
+// Resonating Strike's dash to the target, at 1350 + his movement speed (wiki).
+const Q2_DASH = 'reach / (1350 + ms)';
 
 const kit: ChampionKit = {
   id: 'LeeSin',
@@ -22,20 +24,20 @@ const kit: ChampionKit = {
       recasts: 2,
       buff: flurry,
       // Fired as the cast time starts (wiki: {{Effect at cast time start}}): lands its flight after the cast starts.
-      components: [{ id: 'wave', label: 'Sonic Wave', type: 'physical', amount: 'calc.InitialDamage', travel: 'max(0, castRange / missileSpeed - castTime)' }],
+      components: [{ id: 'wave', label: 'Sonic Wave', type: 'physical', amount: 'calc.InitialDamage', travel: 'max(0, reach / missileSpeed - castTime)' }],
       variants: {
         Q2: {
           label: 'Resonating Strike',
           dash: true,
-          // No cast time (wiki; the data's is Sonic Wave's). No dash speed in the data: ~0.5s to arrive.
-          // Safeguard, Iron Will and Cripple can be cast during the dash, Tempest and Dragon's Rage
-          // can't (wiki; Cripple waits too, sharing Tempest's slot).
+          // No cast time (wiki; the data's is Sonic Wave's). No dash speed in the data: the wiki's 1350
+          // + his movement speed to the target. Safeguard, Iron Will and Cripple can be cast during the
+          // dash, Tempest and Dragon's Rage can't (wiki; Cripple waits too, sharing Tempest's slot).
           castTime: 0,
-          attackLockout: 0.5,
-          castLockout: { E: 0.5, R: 0.5 },
+          attackLockout: Q2_DASH,
+          castLockout: { E: Q2_DASH, R: Q2_DASH },
           buff: flurry,
           note: 'Damage increased by 1% per 1% of the target\'s missing health (up to double).',
-          components: [{ id: 'strike', label: 'Resonating Strike', type: 'physical', amount: 'calc.RecastDamage * (1 + dv.Q2MaxMissingHealthMod * target.missingHpPct)', delay: 0.5 }],
+          components: [{ id: 'strike', label: 'Resonating Strike', type: 'physical', amount: 'calc.RecastDamage * (1 + dv.Q2MaxMissingHealthMod * target.missingHpPct)', delay: Q2_DASH }],
         },
       },
     },

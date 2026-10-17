@@ -64,10 +64,11 @@ const kit: ChampionKit = {
       dash: true,
       notes: ['The first champion hit is stunned and thrown behind Urgot (a different leg then faces it).'],
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-      // Wiki: after the cast time he dashes 450 units (dv.MinimumDashRange) at 1200 + his movement
-      // speed. Purge can be cast during the dash, but Disdain stops it firing for 1.25s: unable to act.
-      lockout: 'castTime + dv.MinimumDashRange / (dv.BaseDashSpeed + ms)',
-      components: [{ id: 'charge', label: 'Disdain', type: 'physical', amount: 'calc.EDamage', travel: 'dv.MinimumDashRange / (dv.BaseDashSpeed + ms)' }],
+      // Wiki: after the cast time he dashes up to 450 units (dv.MinimumDashRange) at 1200 + his
+      // movement speed, stopping at the champion hit. Purge can be cast during the dash, but Disdain
+      // stops it firing for 1.25s: unable to act.
+      lockout: 'castTime + min(distance, dv.MinimumDashRange) / (dv.BaseDashSpeed + ms)',
+      components: [{ id: 'charge', label: 'Disdain', type: 'physical', amount: 'calc.EDamage', travel: 'min(distance, dv.MinimumDashRange) / (dv.BaseDashSpeed + ms)' }],
     },
     R: {
       recasts: 2,
@@ -77,7 +78,7 @@ const kit: ChampionKit = {
       ],
       cc: [{ kind: 'slow', duration: 'dv.RSlowDuration' }],
       // Wiki: {{Effect at cast time start}}: the drill flies during the cast time.
-      components: [{ id: 'drill', label: 'Fear Beyond Death', type: 'physical', amount: 'calc.RCalculatedDamage', travel: 'max(0, castRange / missileSpeed - castTime)' }],
+      components: [{ id: 'drill', label: 'Fear Beyond Death', type: 'physical', amount: 'calc.RCalculatedDamage', travel: 'max(0, reach / missileSpeed - castTime)' }],
       variants: {
         execute: {
           label: 'execute',

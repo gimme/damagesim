@@ -26,7 +26,7 @@ const kit: ChampionKit = {
     W: {
       notes: ['Cast on the enemy: polymorph (no damage).'],
       // The polymorph flies to the target at its speed (wiki).
-      cc: [{ kind: 'impair', duration: 'dv.CCDuration', delay: 'castRange / missileSpeed' }],
+      cc: [{ kind: 'impair', duration: 'dv.CCDuration', delay: 'reach / missileSpeed' }],
       components: [],
     },
     E: {

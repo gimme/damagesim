@@ -2,8 +2,8 @@ import type { ChampionKit } from '../../engine/kit-types.ts';
 
 // Vi — patch 16.20.
 
-/** Vault Breaker's dash: its range over its speed, both growing with the charge (wiki). */
-const DASH = '(dv.MinDashRange + dv.ExtraDashRangeAtMaxCharge * min(1, floor(charge * 8) / 10)) / (1450 + 90 * min(1, floor(charge * 8) / 10))';
+/** Vault Breaker's dash to the target, where she stops, at its speed; range and speed grow with the charge (wiki). */
+const DASH = 'min(distance, dv.MinDashRange + dv.ExtraDashRangeAtMaxCharge * min(1, floor(charge * 8) / 10)) / (1450 + 90 * min(1, floor(charge * 8) / 10))';
 
 const kit: ChampionKit = {
   id: 'Vi',
@@ -67,9 +67,9 @@ const kit: ChampionKit = {
       // Wiki: she dashes to within 300 units of the target at 800 speed (it ramps up; not modeled), then
       // grabs it for 1.05s, the damage 0.75s into the grab. Unable to move or attack during the dash and
       // the grab: Relentless Force can be cast, but only readies the next attack.
-      lockout: 'castTime + (castRange - 300) / missileSpeed + 1.05',
+      lockout: 'castTime + max(0, reach - 300) / missileSpeed + 1.05',
       cc: [{ kind: 'immobilize', duration: 'dv.RStunDuration' }],
-      components: [{ id: 'cease', label: 'Cease and Desist', type: 'physical', amount: 'calc.Damage', delay: 0.75, travel: '(castRange - 300) / missileSpeed' }],
+      components: [{ id: 'cease', label: 'Cease and Desist', type: 'physical', amount: 'calc.Damage', delay: 0.75, travel: 'max(0, reach - 300) / missileSpeed' }],
     },
   },
 };

@@ -56,15 +56,24 @@ const kit: ChampionKit = {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       // Launched as the cast time starts ({{Effect at cast time start}}); no speed in the data: the
-      // wiki's boomerang slows from 2500 to 1400 (-3000/s²), ~0.66s over its 1125 range.
-      components: [{ id: 'boomerang', label: 'Boomerang Throw', type: 'physical', amount: 'calc.MiniTotalDamage', travel: 'max(0, 0.66 - castTime)' }],
+      // wiki's boomerang slows from 2500 to 1400 (-3000/s², reached after 715 units) on its way to the
+      // target.
+      components: [
+        {
+          id: 'boomerang',
+          label: 'Boomerang Throw',
+          type: 'physical',
+          amount: 'calc.MiniTotalDamage',
+          travel: 'max(0, (2500 - sqrt(2500 * 2500 - 6000 * min(reach, 715))) / 3000 + max(0, reach - 715) / 1400 - castTime)',
+        },
+      ],
       variants: {
         mega: {
           label: 'mega',
           note: 'Boulder Toss (Mega Gnar).',
           buff: mega,
           // Boulder Toss's own spell: 0.5s cast time; thrown as it starts ({{Effect at cast time start}}),
-          // it flies its range at its speed.
+          // it flies to the target at its speed.
           castTime: "spell['GnarBigQ'].castTime",
           cc: [{ kind: 'slow', duration: 'dv.MegaSlowDuration' }],
           components: [
@@ -74,7 +83,7 @@ const kit: ChampionKit = {
               type: 'physical',
               amount: 'calc.MegaTotalDamage',
               aoe: true,
-              travel: "max(0, spell['GnarBigQ'].castRange / spell['GnarBigQ'].missileSpeed - spell['GnarBigQ'].castTime)",
+              travel: "max(0, spell['GnarBigQ'].reach / spell['GnarBigQ'].missileSpeed - spell['GnarBigQ'].castTime)",
             },
           ],
         },

@@ -13,8 +13,8 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      // Wiki: unable to move or attack while the arm flies (the cast time + its range at its speed).
-      lockout: 'castTime + castRange / missileSpeed',
+      // Wiki: unable to move or attack while the arm flies (the cast time + its flight to the target).
+      lockout: 'castTime + reach / missileSpeed',
       variants: {
         slam: {
           label: 'slam',
@@ -44,11 +44,11 @@ const kit: ChampionKit = {
     E: {
       dash: true,
       castTime: 'dv.ChannelTime',
-      // After the charge he leaps its max range (dv.MaxRange; the data's range isn't it) at the dash
-      // speed, busy until he lands.
-      lockout: 'dv.ChannelTime + dv.MaxRange / missileSpeed',
+      // After the charge he leaps to the target, up to dv.MaxRange (the data's range isn't it), at the
+      // dash speed, busy until he lands.
+      lockout: 'dv.ChannelTime + min(distance, dv.MaxRange) / missileSpeed',
       cc: [{ kind: 'immobilize', duration: 'calc.MaxStun' }],
-      components: [{ id: 'slingshot', label: 'Elastic Slingshot', type: 'magic', amount: 'calc.Damage', aoe: true, travel: 'dv.MaxRange / missileSpeed' }],
+      components: [{ id: 'slingshot', label: 'Elastic Slingshot', type: 'magic', amount: 'calc.Damage', aoe: true, travel: 'min(distance, dv.MaxRange) / missileSpeed' }],
     },
     R: {
       // Wiki: free to move, but unable to declare attacks or cast Q/E (W can be cast) until the last

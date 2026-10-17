@@ -12,6 +12,8 @@ interface Bomb {
 }
 const bombs = new WeakMap<Sim, Bomb | undefined>();
 let nextToken = 1;
+// Explosive Charge and Buster Shot fly to the target; Draw a Bead adds to their range (not in the data's).
+const TO_TARGET = 'min(distance, castRange + P.calc.BonusPassiveRange) / missileSpeed';
 
 function detonate(sim: Sim, bomb: Bomb) {
   bombs.set(sim, undefined);
@@ -29,11 +31,13 @@ const kit: ChampionKit = {
     'Explosive Charge: +25% damage per attack or ability hit on the target after it is attached (one stack per attack / cast); explodes after 4s or at once at 4 stacks, which refreshes Rocket Jump.',
     "The bomb's crit-chance scaling is part of the game formula (E.calc.ActiveDamage). The on-kill passive splash is not modeled.",
   ],
+  // Draw a Bead: attack range by level.
+  stats: ({ evalExpr }) => ({ range: evalExpr('P.calc.BonusPassiveRange') }),
   hooks: {
     onCast(sim, cast) {
       if (cast.slot !== 'E' || !cast.hitsTarget) return;
-      // The bomb attaches once it has flown its range, after the cast time.
-      sim.schedule((cast.castTime ?? 0) + sim.evalExpr('castRange / missileSpeed', { slot: 'E' }), () => {
+      // The bomb attaches once it has flown to the target, after the cast time.
+      sim.schedule((cast.castTime ?? 0) + sim.evalExpr(TO_TARGET, { slot: 'E' }), () => {
         const bomb: Bomb = { token: nextToken++, stacks: 0, counted: new Set() };
         bombs.set(sim, bomb);
         sim.schedule(sim.evalExpr('E.dv.ActiveDuration', { slot: 'E' }), () => {
@@ -61,9 +65,9 @@ const kit: ChampionKit = {
     W: {
       dash: true,
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      notes: ['Lands after jumping its range at its speed.'],
+      notes: ['Lands after jumping to the target at its speed.'],
       // Wiki: she can cast any of her abilities during the jump.
-      attackLockout: 'castTime + castRange / missileSpeed',
+      attackLockout: 'castTime + reach / missileSpeed',
       components: [{ id: 'landing', label: 'Rocket Jump', type: 'magic', amount: 'calc.LandingDamage', aoe: true, travel: true }],
     },
     E: {
@@ -74,7 +78,7 @@ const kit: ChampionKit = {
     },
     R: {
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-      components: [{ id: 'buster', label: 'Buster Shot', type: 'magic', amount: 'calc.DamageCalc', travel: true }],
+      components: [{ id: 'buster', label: 'Buster Shot', type: 'magic', amount: 'calc.DamageCalc', travel: TO_TARGET }],
     },
   },
 };

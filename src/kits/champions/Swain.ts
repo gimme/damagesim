@@ -42,9 +42,18 @@ const kit: ChampionKit = {
       notes: ['Damage only on the returning wave. The recast pull (no damage) is not modeled.'],
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration' }],
       // Fired as the cast time starts (wiki: {{Effect at cast time start}}), the wave flies out over its
-      // 850 range in 0.585s (1125 accelerating to 1800) and turns there, at the target: the returning
-      // wave hits it as it turns.
-      components: [{ id: 'nevermove', label: 'Nevermove', type: 'magic', amount: 'calc.SecondaryDamage', aoe: true, travel: 'max(0, 0.585 - castTime)' }],
+      // 850 range in 0.585s (1125 accelerating to 1800) and turns there; the returning wave (2800
+      // slowing by 2000/s²) hits the target on its way back.
+      components: [
+        {
+          id: 'nevermove',
+          label: 'Nevermove',
+          type: 'magic',
+          amount: 'calc.SecondaryDamage',
+          aoe: true,
+          travel: 'max(0, 0.585 + (2800 - sqrt(2800 * 2800 - 4000 * (castRange - reach))) / 2000 - castTime)',
+        },
+      ],
     },
     R: {
       recasts: 2,
@@ -65,15 +74,15 @@ const kit: ChampionKit = {
           dot: true,
           aoe: true,
         },
-        { id: 'endFlare', label: 'Demonflare (end of form)', type: 'magic', amount: 'calc.DemonflareDamageTotal', aoe: true, optional: true, delay: 'opt.rDuration', travel: "spell['SwainRSoulFlare'].castRange / spell['SwainRSoulFlare'].missileSpeed" },
+        { id: 'endFlare', label: 'Demonflare (end of form)', type: 'magic', amount: 'calc.DemonflareDamageTotal', aoe: true, optional: true, delay: 'opt.rDuration', travel: "spell['SwainRSoulFlare'].reach / spell['SwainRSoulFlare'].missileSpeed" },
       ],
       variants: {
         demonflare: {
           label: 'Demonflare',
           castTime: "spell['SwainRSoulFlare'].castTime",
           cc: [{ kind: 'slow', duration: 'dv.DemonflareSlowDuration' }],
-          // The shockwave flies its range.
-          components: [{ id: 'flare', label: 'Demonflare', type: 'magic', amount: 'calc.DemonflareDamageTotal', aoe: true, travel: "spell['SwainRSoulFlare'].castRange / spell['SwainRSoulFlare'].missileSpeed" }],
+          // The shockwave reaches the target at its speed.
+          components: [{ id: 'flare', label: 'Demonflare', type: 'magic', amount: 'calc.DemonflareDamageTotal', aoe: true, travel: "spell['SwainRSoulFlare'].reach / spell['SwainRSoulFlare'].missileSpeed" }],
         },
       },
     },

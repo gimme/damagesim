@@ -68,8 +68,8 @@ const kit: ChampionKit = {
           spell: 'EliseSpiderQCast',
           dash: true,
           // Wiki: the spiderlings pounce with her upon the cast, and the bite applies as the cast time
-          // ends even if the dash is cut short. Busy until she lands (castRange at the dash speed).
-          lockout: 'castRange / missileSpeed',
+          // ends even if the dash is cut short. Busy until she lands on the target at the dash speed.
+          lockout: 'reach / missileSpeed',
           components: [{ id: 'bite', label: 'Venomous Bite', type: 'magic', amount: 'Q.dv.SpiderBaseDamage + calc.MissingHPDamage * target.missingHp', onHit: true }],
         },
       },
@@ -87,8 +87,8 @@ const kit: ChampionKit = {
       },
     },
     E: {
-      // The cocoon flies its max range at the missile's speed before it stuns.
-      cc: [{ kind: 'immobilize', duration: 'calc.TotalStunDuration', delay: 'castRange / missileSpeed' }],
+      // The cocoon flies to the target at the missile's speed before it stuns.
+      cc: [{ kind: 'immobilize', duration: 'calc.TotalStunDuration', delay: 'reach / missileSpeed' }],
       components: [],
       variants: {
         spider: {

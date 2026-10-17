@@ -6,7 +6,7 @@ const kit: ChampionKit = {
   status: 'curated',
   notes: [
     "Concussive Blows: Braum's attacks and Winter's Bite add stacks (ally attacks are not modeled). The 4th stack stuns and deals P.calc.TotalDamage; for P.calc.StunCD seconds the target gains no stacks and Braum's attacks deal P.calc.OnHitDamage bonus magic damage.",
-    'Glacial Fissure: the first target hit is knocked up for MinKnockup–MaxKnockup seconds depending on distance; the midpoint is assumed.',
+    'Glacial Fissure: the first target hit is knocked up for MinKnockup–MaxKnockup seconds depending on distance, assumed to grow linearly to its range.',
   ],
   marks: [
     {
@@ -44,7 +44,7 @@ const kit: ChampionKit = {
     E: { noTarget: true, components: [] },
     R: {
       cc: [
-        { kind: 'immobilize', duration: '(dv.MinKnockup + dv.MaxKnockup) / 2' },
+        { kind: 'immobilize', duration: 'lerp(dv.MinKnockup, dv.MaxKnockup, reach / castRange)' },
         { kind: 'slow', duration: 'dv.SlowZoneDuration' },
       ],
       components: [{ id: 'fissure', label: 'Glacial Fissure', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true }],

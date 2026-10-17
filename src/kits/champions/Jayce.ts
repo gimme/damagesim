@@ -44,9 +44,9 @@ const kit: ChampionKit = {
           attackLockout: 0,
           castLockout: {},
           cc: [],
-          // Through the gate (assumed right in front of Jayce) the bolt flies its 1600 total range at
-          // 2350 (wiki).
-          components: [{ id: 'blast', label: 'Shock Blast', type: 'physical', amount: 'buff.jayceGate ? calc.EmpoweredDamage : calc.Damage', aoe: true, travel: 'buff.jayceGate ? 1600 / 2350 : castRange / missileSpeed' }],
+          // Through the gate (assumed right in front of Jayce) the bolt flies to the target at 2350, up
+          // to 1600 units (wiki).
+          components: [{ id: 'blast', label: 'Shock Blast', type: 'physical', amount: 'buff.jayceGate ? calc.EmpoweredDamage : calc.Damage', aoe: true, travel: 'buff.jayceGate ? min(distance, 1600) / 2350 : reach / missileSpeed' }],
         },
       },
     },

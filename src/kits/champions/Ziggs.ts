@@ -3,6 +3,10 @@ import type { ChampionKit } from '../../engine/kit-types.ts';
 // Ziggs — patch 16.20.
 // Short Fuse: a 1-stack mark consumed by the next attack, with the passive's cooldown; each ability
 // cast shortens the remaining cooldown by SpellCdr (hook — mark cooldowns can't be reduced declaratively).
+
+// Mega Inferno Bomb lands 1.617s after the cast starts within 2700 units, farther at its speed (wiki).
+const R_TRAVEL = 'max(1.617 - castTime, reach / missileSpeed)';
+
 const kit: ChampionKit = {
   id: 'Ziggs',
   status: 'curated',
@@ -29,9 +33,18 @@ const kit: ChampionKit = {
   },
   abilities: {
     Q: {
-      // Wiki: thrown its 850 cast range at 1700 speed, then two bounces of 0.495s each out to the 1400
-      // max range.
-      components: [{ id: 'bomb', label: 'Bouncing Bomb', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'dv.MaxRange / missileSpeed + 2 * 0.495' }],
+      // Wiki: thrown at the target, up to its 850 cast range, at 1700 speed, exploding as it lands near
+      // it; farther, up to two bounces of 0.495s each out to the 1400 max range.
+      components: [
+        {
+          id: 'bomb',
+          label: 'Bouncing Bomb',
+          type: 'magic',
+          amount: 'calc.TotalDamage',
+          aoe: true,
+          travel: 'min(reach, dv.MaxRange) / missileSpeed + 0.495 * ((reach > dv.MaxRange) + (reach > dv.MaxRange + dv.MaxRangeFirstBounce))',
+        },
+      ],
     },
     W: {
       // Knock-back lasts 0.5s (wiki).
@@ -49,10 +62,9 @@ const kit: ChampionKit = {
     },
     R: {
       variants: {
-        edge: { label: 'edge', components: [{ id: 'edge', label: 'Mega Inferno Bomb (edge)', type: 'magic', amount: 'calc.BlastDamage', aoe: true, travel: true }] },
+        edge: { label: 'edge', components: [{ id: 'edge', label: 'Mega Inferno Bomb (edge)', type: 'magic', amount: 'calc.BlastDamage', aoe: true, travel: R_TRAVEL }] },
       },
-      // Flies its 5000 range at its speed (wiki: 2.64s from the cast start at max range).
-      components: [{ id: 'center', label: 'Mega Inferno Bomb', type: 'magic', amount: 'calc.EmpoweredDamage', aoe: true, travel: true }],
+      components: [{ id: 'center', label: 'Mega Inferno Bomb', type: 'magic', amount: 'calc.EmpoweredDamage', aoe: true, travel: R_TRAVEL }],
     },
   },
 };

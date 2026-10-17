@@ -45,8 +45,9 @@ const kit: ChampionKit = {
           // Minimum hold time (dv.MinTimeHoldCast), then the 0.2s release cast time (wiki).
           castTime: 'dv.MinTimeHoldCast + 0.2',
           cooldown: 'cooldown',
-          // The thrown spear flies its 1200 range (dv.HoldRange; the data's range is the thrust's).
-          components: [{ id: 'spear', label: 'Comet Spear (hold)', type: 'physical', amount: execute('calc.HoldDamageCalc'), travel: 'dv.HoldRange / missileSpeed' }],
+          // The thrown spear flies to the target, up to 1200 units (dv.HoldRange; the data's range is the
+          // thrust's).
+          components: [{ id: 'spear', label: 'Comet Spear (hold)', type: 'physical', amount: execute('calc.HoldDamageCalc'), travel: 'min(distance, dv.HoldRange) / missileSpeed' }],
         },
       },
       components: [{ id: 'spear', label: 'Comet Spear', type: 'physical', amount: execute('calc.TapDamageCalc'), aoe: true }],

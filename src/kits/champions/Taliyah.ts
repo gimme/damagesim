@@ -1,8 +1,8 @@
 import type { ChampionKit } from '../../engine/kit-types.ts';
 
 // Taliyah — patch 16.20.
-/** A Stone Shard's flight over Threaded Volley's range: 3600 speed slowing by 5000/s² (wiki), ~0.376s. */
-const SHARD_TRAVEL = '(3600 - sqrt(3600 * 3600 - 2 * 5000 * castRange)) / 5000';
+/** A Stone Shard's flight to the target: 3600 speed slowing by 5000/s² (wiki). */
+const SHARD_TRAVEL = '(3600 - sqrt(3600 * 3600 - 2 * 5000 * reach)) / 5000';
 
 const kit: ChampionKit = {
   id: 'Taliyah',
@@ -30,7 +30,7 @@ const kit: ChampionKit = {
           attackLockout: 0, // a single boulder: no shards to wait for
           cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
           // The boulder flies at 2000 (wiki).
-          components: [{ id: 'boulder', label: 'Threaded Volley (boulder)', type: 'magic', amount: 'calc.BigRockDamage', aoe: true, travel: 'castRange / 2000' }],
+          components: [{ id: 'boulder', label: 'Threaded Volley (boulder)', type: 'magic', amount: 'calc.BigRockDamage', aoe: true, travel: 'reach / 2000' }],
         },
       },
     },

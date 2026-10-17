@@ -81,7 +81,7 @@ const kit: ChampionKit = {
       },
     },
     R: {
-      notes: ['The target is assumed at the far end of the rocket line; the trail burns every 0.25s.'],
+      notes: ['The rocket line is assumed drawn from Rumble through the target; the trail burns every 0.25s.'],
       cc: [{ kind: 'slow', duration: 'dv.TrailDuration' }],
       components: [
         {
@@ -93,9 +93,9 @@ const kit: ChampionKit = {
           maxHits: 'dv.TrailDuration / dv.TickRate',
           interval: 'dv.TickRate',
           // Wiki: the barrage starts 0.5833s after the cast and is laid along the path at the vector's
-          // speed, damaging up to 1135 units forward.
+          // speed, damaging up to 1135 units forward: it reaches the target at that speed.
           delay: 0.5833,
-          travel: '1135 / missileSpeed',
+          travel: 'min(distance, 1135) / missileSpeed',
           aoe: true,
           dot: true,
         },
