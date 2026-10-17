@@ -95,6 +95,8 @@ export interface DamageRequest {
    * have dealt, recorded as that attack's hit (`amount` of it, named `label`) and the rest as this.
    */
   normalAttack?: { amount: number; source: string; sourceLabel: string; label: string };
+  /** An on-hit dealt before the attack's own damage (Voltaic Cyclosword's Firmament, wiki). */
+  beforeAttack?: boolean;
 }
 
 export interface AttackInfo {

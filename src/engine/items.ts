@@ -545,7 +545,8 @@ const ITEMS: Record<number, Factory> = {
         lethUntil = s2.time + dv(item, 'LethalityBonusDuration');
         s2.invalidateStats();
         const pct = (setup.ranged ? dv(item, 'PercentCurrentHPRanged') : dv(item, 'PercentCurrentHPMelee')) / 100;
-        push(hit(item, 'Firmament', 'physical', pct * Math.max(0, s2.target.hp), { onHit: true }));
+        // Before the triggering attack's or ability's damage (wiki).
+        push({ ...hit(item, 'Firmament', 'physical', pct * Math.max(0, s2.target.hp), { onHit: true }), beforeAttack: true });
       },
       'Energized hits deal 9% (ranged 7%) current health physical damage and grant lethality for 4s. Champion-ability damage fires all ready Energized effects (Galvanize) before its own damage.',
       {

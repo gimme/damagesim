@@ -1528,6 +1528,13 @@ export class Sim {
       const share = total > 0 ? Math.min(1, base / total) : 0;
       for (const x of atk.replacedBy) x.normalAttack = { amount: Math.max(0, x.amount) * share, source: o.fromAbility ?? 'AA', sourceLabel: o.sourceLabel ?? 'Basic attack', label };
     }
+    // Abilities that apply on-hit at reduced effectiveness (Azir soldiers, Akshan E…).
+    const eff = o.comp?.onHitEffectiveness !== undefined ? this.evalExpr(o.comp.onHitEffectiveness, { slot: o.fromAbility ?? 'P' }) : (empoweredEff ?? 1);
+    const dealExtra = (x: DamageRequest) => {
+      const scaled = eff !== 1 && x.flags?.onHit && x.flags.kind !== 'ability' && !x.flags.fullOnHit ? { ...x, amount: x.amount * eff } : x;
+      this.deal({ ...scaled, castId: x.castId ?? o.castId });
+    };
+    for (const x of atk.extra) if (x.beforeAttack) dealExtra(x);
     if (!o.onHitOnly && !atk.replaceBase) {
       this.deal({
         source: o.fromAbility ?? 'AA',
@@ -1543,12 +1550,7 @@ export class Sim {
           : { kind: o.fromAbility ? 'ability' : 'attack', slot: o.fromAbility, attack: !o.fromAbility, ability: !!o.fromAbility, crit: atk.crit, ...(o.fromAbility ? { basic: true } : {}) },
       });
     }
-    // Abilities that apply on-hit at reduced effectiveness (Azir soldiers, Akshan E…).
-    const eff = o.comp?.onHitEffectiveness !== undefined ? this.evalExpr(o.comp.onHitEffectiveness, { slot: o.fromAbility ?? 'P' }) : (empoweredEff ?? 1);
-    for (const x of atk.extra) {
-      const scaled = eff !== 1 && x.flags?.onHit && x.flags.kind !== 'ability' && !x.flags.fullOnHit ? { ...x, amount: x.amount * eff } : x;
-      this.deal({ ...scaled, castId: x.castId ?? o.castId });
-    }
+    for (const x of atk.extra) if (!x.beforeAttack) dealExtra(x);
     for (const f of pendingCC) f();
   }
 

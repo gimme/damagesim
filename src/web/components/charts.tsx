@@ -160,15 +160,17 @@ const addHit = (s: SourceTotal, e: DamageInstance) => {
  * an item's or rune's proc (one can land before the ability that set it off: Voltaic Cyclosword's
  * before Smolder's W), else by its first hit; several sources' DoTs are named DoTs. Its parts keep
  * the order their first hits were applied in, not by damage, so hits landing together read in the
- * order the engine dealt them, but what empowered an attack comes first.
+ * order the engine dealt them (Voltaic Cyclosword's first), but what empowered an attack comes just
+ * before the attack.
  */
 function moments(events: DamageInstance[]) {
   const out: Moment[] = [];
   const open = new Map<string, number>();
   const ticks = new Set<number>();
   const named = new Set<Moment>();
-  // Blocks named by what empowered their attack, and its parts.
-  const led = new Set<SourceTotal>();
+  // Blocks named by what empowered their attack; the parts of attacks' own damage.
+  const led = new Set<Moment>();
+  const attacks = new Set<SourceTotal>();
   for (const e of events) {
     if (e.flags.dot) ticks.add(e.castId);
     const dot = !!e.flags.dot || (!!e.flags.proc && ticks.has(e.castId));
@@ -187,10 +189,9 @@ function moments(events: DamageInstance[]) {
     let part = m.parts.find((p) => p.source === e.source && p.label === e.sourceLabel);
     if (!part) {
       part = { source: e.source, label: e.sourceLabel, damage: 0, raw: 0, hits: 0, type: {} };
-      if (e.flags.empowered) {
-        m.parts.splice(m.parts.filter((p) => led.has(p)).length, 0, part);
-        led.add(part);
-      } else m.parts.push(part);
+      const at = e.flags.empowered ? m.parts.findIndex((p) => attacks.has(p)) : -1;
+      m.parts.splice(at < 0 ? m.parts.length : at, 0, part);
+      if (e.flags.attack && !e.flags.empowered) attacks.add(part);
     }
     addHit(part, e);
     addHit(m, e);

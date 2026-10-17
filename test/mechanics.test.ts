@@ -675,3 +675,9 @@ test('Xayah: Bladecaller recalls feathers still flying once they land (Q E), eac
   // A Clean Cuts attack still flying counts too.
   assert.equal(bySource(simulate(data, { champion: 'Xayah', level: 11, combo: 'W AA AA E', target: dummy }), 'E').length, 2);
 });
+
+test("Voltaic Cyclosword's Firmament lands before the attack or ability that fires it (wiki)", () => {
+  const order = (combo: string) => simulate(data, { champion: 'Talon', level: 11, items: ['Voltaic Cyclosword'], combo, target: dummy }).events.slice(0, 2).map((e) => e.source);
+  assert.deepEqual(order('AA'), ['item:6699', 'AA']);
+  assert.deepEqual(order('Q'), ['item:6699', 'Q']);
+});
