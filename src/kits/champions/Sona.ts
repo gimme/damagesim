@@ -24,13 +24,14 @@ const kit: ChampionKit = {
         // The wiki: the Melody empowered attacks deal proc damage (the bolts are area damage).
         empowerAttacks: { count: 'dv.OnHitProcs', components: [{ id: 'melody', label: 'Hymn of Valor (on-hit)', type: 'magic', amount: 'Q.calc.TotalOnHitDamage', proc: true }] },
       },
-      components: [{ id: 'bolt', label: 'Hymn of Valor', type: 'magic', amount: 'calc.TotalDamage', delay: 0.2 }],
+      components: [{ id: 'bolt', label: 'Hymn of Valor', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
     W: { noTarget: true, components: [] },
     E: { noTarget: true, components: [] },
     R: {
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-      components: [{ id: 'crescendo', label: 'Crescendo', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.2 }],
+      // Fired as the cast time starts (wiki: {{Effect at cast time start}}).
+      components: [{ id: 'crescendo', label: 'Crescendo', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: 'max(0, castRange / missileSpeed - castTime)' }],
     },
   },
   hooks: {

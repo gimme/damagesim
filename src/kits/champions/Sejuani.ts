@@ -33,15 +33,17 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       dash: true,
+      // Busy for the dash: its range at its speed.
+      lockout: 'castRange / missileSpeed',
       cc: [{ kind: 'immobilize', duration: 'dv.KnockupDurationTOOLTIPONLY' }],
-      components: [{ id: 'charge', label: 'Arctic Assault', type: 'magic', amount: 'calc.TotalDamageTooltip', aoe: true, delay: 0.1 }],
+      components: [{ id: 'charge', label: 'Arctic Assault', type: 'magic', amount: 'calc.TotalDamageTooltip', aoe: true, travel: true }],
     },
     W: {
-      notes: ['First swing right after the cast, the lash ~0.75s later (wiki).'],
+      notes: ['The swing 0.25s into the 1s cast time, the lash at its end (wiki).'],
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       components: [
-        { id: 'swing', label: "Winter's Wrath (swing)", type: 'physical', amount: 'calc.FirstHitDamageTooltip', aoe: true },
-        { id: 'lash', label: "Winter's Wrath (lash)", type: 'physical', amount: 'calc.SecondHitDamageTooltip', aoe: true, delay: 0.75 },
+        { id: 'swing', label: "Winter's Wrath (swing)", type: 'physical', amount: 'calc.FirstHitDamageTooltip', aoe: true, delay: '0.25 - castTime' },
+        { id: 'lash', label: "Winter's Wrath (lash)", type: 'physical', amount: 'calc.SecondHitDamageTooltip', aoe: true },
       ],
     },
     E: {
@@ -52,13 +54,15 @@ const kit: ChampionKit = {
     R: {
       cc: [{ kind: 'immobilize', duration: 'dv.EmpoweredStunDuration' }],
       debuff: frozen('R.dv.EmpoweredStunDuration'),
-      components: [{ id: 'prison', label: 'Glacial Prison', type: 'magic', amount: 'calc.TotalDamageTooltip', delay: 0.4 }],
+      // The empowered bola detonates at max range (wiki).
+      components: [{ id: 'prison', label: 'Glacial Prison', type: 'magic', amount: 'calc.TotalDamageTooltip', travel: true }],
       variants: {
         short: {
           label: 'short range',
           cc: [{ kind: 'immobilize', duration: 'dv.BaseStunDuration' }],
           debuff: frozen('R.dv.BaseStunDuration'),
-          components: [{ id: 'prison', label: 'Glacial Prison', type: 'magic', amount: 'calc.MinorDamageTooltip', delay: 0.2 }],
+          // Unempowered: it hit within its first 425 units (wiki).
+          components: [{ id: 'prison', label: 'Glacial Prison', type: 'magic', amount: 'calc.MinorDamageTooltip', travel: '425 / missileSpeed' }],
         },
       },
     },

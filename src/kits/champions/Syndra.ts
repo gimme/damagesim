@@ -43,11 +43,11 @@ const kit: ChampionKit = {
   },
   abilities: {
     Q: {
-      notes: ['The sphere lands ~0.6s after the cast.'],
+      notes: ['The sphere appears 0.6s after the cast (wiki).'],
       components: [{ id: 'sphere', label: 'Dark Sphere', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.6 }],
     },
     W: {
-      castTime: 0.5, // grab (0.25s) + throw recast
+      // Grab and throw recast: neither has a cast time (wiki). The thrown target lands ~0.3s later (no data).
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       notes: ['One W step = grab + throw (recast). At 60 Splinters the throw deals bonus true damage (W.calc.PassiveBonusDamage).'],
       components: [
@@ -58,7 +58,8 @@ const kit: ChampionKit = {
     E: {
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
       notes: ['Assumes a Dark Sphere is pushed into the target (Q→E): stun. A champion takes E damage only once (wave or sphere).'],
-      components: [{ id: 'scatter', label: 'Scatter the Weak', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.4 }],
+      // The wave's damage, over its range.
+      components: [{ id: 'scatter', label: 'Scatter the Weak', type: 'magic', amount: 'calc.TotalDamage', aoe: true, travel: true }],
     },
     R: {
       notes: ['3 orbiting spheres + spheres on the field (from Q casts within 6s, + extraSpheres), max 7. Override with R{sphere:N}.'],
@@ -70,6 +71,7 @@ const kit: ChampionKit = {
           amount: 'calc.DamageCalc',
           hits: 'dv.MinSpheresToUse + min(dv.MaxSpheresToUse - dv.MinSpheresToUse, stacks.syndraSpheres + opt.extraSpheres)',
           maxHits: 'dv.MaxSpheresToUse',
+          // No sphere speed in the data: ~0.25s to the target.
           delay: 0.25,
           interval: 0.08,
         },

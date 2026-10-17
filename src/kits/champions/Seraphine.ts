@@ -14,9 +14,9 @@ const highNote: ComponentSpec = {
   // +7.5% damage per 7.5% missing health (wiki: stepped), up to +DamageAmp% at ExecuteThreshold health.
   amount: 'calc.ExplosionDamage * (1 + dv.DamageAmp / 100 * min(1, floor(target.missingHpPct / 0.075 + 1e-6) * 0.075 / (1 - dv.ExecuteThreshold)))',
   aoe: true,
-  delay: 0.4,
+  travel: true,
 };
-const beatDrop: ComponentSpec = { id: 'wave', label: 'Beat Drop', type: 'magic', amount: 'calc.FinalDamage', aoe: true, delay: 0.25 };
+const beatDrop: ComponentSpec = { id: 'wave', label: 'Beat Drop', type: 'magic', amount: 'calc.FinalDamage', aoe: true, travel: true };
 
 // Already slowed → rooted, already immobilized → stunned (both immobilize); otherwise slowed.
 // The immobilize entry is evaluated before this cast's own slow lands.
@@ -40,7 +40,8 @@ function echo(sim: Sim, slot: Slot, castTime: number) {
   sim.schedule(delay, () => addNote(sim));
   const comp = slot === 'Q' ? highNote : slot === 'E' ? beatDrop : undefined;
   if (!comp) return; // Surround Sound: shield only
-  sim.schedule(delay + Number(comp.delay ?? 0), () => {
+  // Its missile flies its max range, as the first cast's does.
+  sim.schedule(delay + sim.evalExpr('castRange / missileSpeed', { slot }), () => {
     sim.deal({
       source: slot,
       sourceLabel: `${comp.label} (echo)`,
@@ -76,7 +77,7 @@ const kit: ChampionKit = {
       // Wiki: two 0.5s cast times; the wave goes out after the first, the second only locks Seraphine out.
       lockout: 1,
       cc: [{ kind: 'immobilize', duration: 'dv.RChannelDuration' }],
-      components: [{ id: 'encore', label: 'Encore', type: 'magic', amount: 'calc.R1TotalDamage', aoe: true, delay: 0.3 }],
+      components: [{ id: 'encore', label: 'Encore', type: 'magic', amount: 'calc.R1TotalDamage', aoe: true, travel: true }],
     },
   },
   hooks: {

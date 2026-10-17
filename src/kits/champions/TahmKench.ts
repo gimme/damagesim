@@ -4,7 +4,6 @@ import type { ChampionKit } from '../../engine/kit-types.ts';
 // An Acquired Taste: attacks and Tongue Lash add a stack (max 3). At 3 stacks Tongue Lash stuns and
 // Devour can be cast; both consume the stacks. A hook snapshots the stacks at the Q cast (the CC is
 // evaluated after the Q hit has added its own stack) and spends them.
-const Q_DELAY = 0.25; // tongue travel time (not in data)
 
 const kit: ChampionKit = {
   id: 'TahmKench',
@@ -41,13 +40,13 @@ const kit: ChampionKit = {
         { kind: 'slow', duration: 'dv.SlowDuration' },
       ],
       notes: ['Deals Tongue Lash damage plus An Acquired Taste damage; stuns if the target already had 3 stacks.'],
-      // Wiki: unable to move, attack or cast Abyssal Dive while the tongue flies (0.25s cast time + its
-      // travel); Devour can be cast.
-      attackLockout: 0.25 + Q_DELAY,
-      castLockout: { W: 0.25 + Q_DELAY },
+      // Wiki: unable to move, attack or cast Abyssal Dive while the tongue flies, which it does from the
+      // start of the cast time ({{Effect at cast time start}}) over its range; Devour can be cast.
+      attackLockout: 'max(castTime, castRange / missileSpeed)',
+      castLockout: { W: 'max(castTime, castRange / missileSpeed)' },
       components: [
-        { id: 'lash', label: 'Tongue Lash', type: 'magic', amount: 'calc.TotalDamage', delay: Q_DELAY },
-        { id: 'taste', label: 'An Acquired Taste', type: 'magic', amount: 'P.calc.TotalDamage', delay: Q_DELAY, proc: true },
+        { id: 'lash', label: 'Tongue Lash', type: 'magic', amount: 'calc.TotalDamage', travel: 'max(0, castRange / missileSpeed - castTime)' },
+        { id: 'taste', label: 'An Acquired Taste', type: 'magic', amount: 'P.calc.TotalDamage', travel: 'max(0, castRange / missileSpeed - castTime)', proc: true },
       ],
     },
     W: {

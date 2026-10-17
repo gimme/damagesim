@@ -40,11 +40,19 @@ const kit: ChampionKit = {
     Q: {
       dash: true,
       resetsAttack: true,
-      components: [{ id: 'leap', label: 'Noxian Diplomacy', type: 'physical', amount: 'calc.LeapDamage' }],
+      // Wiki: the leap has no cast time and dashes at ~1400; Shadow Assault can be cast during the dash.
+      attackLockout: 'castRange / missileSpeed',
+      castLockout: { W: 'castRange / missileSpeed', E: 'castRange / missileSpeed' },
+      components: [{ id: 'leap', label: 'Noxian Diplomacy', type: 'physical', amount: 'calc.LeapDamage', travel: true }],
       variants: {
         melee: {
           label: 'melee',
           note: 'Cast in melee range: no leap, critically strikes.',
+          // Wiki: the close cast takes his attack windup (0.198s of his 1.6s attack at base attack speed)
+          // and strikes at its end.
+          castTime: '0.198 / 1.6 / as',
+          attackLockout: 0,
+          castLockout: {},
           resetsAttack: true,
           components: [{ id: 'crit', label: 'Noxian Diplomacy (crit)', type: 'physical', amount: 'calc.CriticalDamage' }],
         },
@@ -54,16 +62,26 @@ const kit: ChampionKit = {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       notes: ['Blades go out and return after dv.ReturnDelay; both passes hit a target in their path.'],
       components: [
-        { id: 'out', label: 'Rake (out)', type: 'physical', amount: 'calc.TotalInitialDamage', aoe: true, delay: 0.2 },
-        { id: 'back', label: 'Rake (return)', type: 'physical', amount: 'calc.TotalReturnDamage', aoe: true, delay: 'dv.ReturnDelay + 0.2' },
+        { id: 'out', label: 'Rake (out)', type: 'physical', amount: 'calc.TotalInitialDamage', aoe: true, travel: true },
+        // Wiki: they linger 0.7s (ReturnDelay) at max range, then home back over it at 3000.
+        { id: 'back', label: 'Rake (return)', type: 'physical', amount: 'calc.TotalReturnDamage', aoe: true, delay: 'dv.ReturnDelay', travel: 'castRange / missileSpeed + castRange / 3000' },
       ],
     },
-    E: { noTarget: true, dash: true, notes: ["Assassin's Path (wall vault) deals no damage."], components: [] },
+    E: {
+      noTarget: true,
+      dash: true,
+      notes: ["Assassin's Path (wall vault) deals no damage."],
+      // Wiki: the vault goes at his movement speed; Shadow Assault can be cast during it.
+      attackLockout: 'castRange / ms',
+      castLockout: { Q: 'castRange / ms', W: 'castRange / ms' },
+      components: [],
+    },
     R: {
-      notes: ['Blades return to the target when Talon breaks stealth with an attack or Noxian Diplomacy (assumed ~0.6s after the cast); otherwise they fly back to Talon after 2.5s (disable with R{back:0}).'],
+      notes: ['Blades return to the target when Talon breaks stealth with an attack or Noxian Diplomacy (assumed at the earliest, after their 0.8s minimum lifetime); otherwise they fly back to Talon after 2.5s (disable with R{back:0}).'],
       components: [
-        { id: 'out', label: 'Shadow Assault (out)', type: 'physical', amount: 'calc.Damage', aoe: true },
-        { id: 'back', label: 'Shadow Assault (return)', type: 'physical', amount: 'calc.Damage', aoe: true, delay: 0.6 },
+        { id: 'out', label: 'Shadow Assault (out)', type: 'physical', amount: 'calc.Damage', aoe: true, travel: true },
+        // Wiki: they converge after 0.8s at the earliest, flying back over the range at 4000.
+        { id: 'back', label: 'Shadow Assault (return)', type: 'physical', amount: 'calc.Damage', aoe: true, delay: 0.8, travel: 'castRange / 4000' },
       ],
     },
   },

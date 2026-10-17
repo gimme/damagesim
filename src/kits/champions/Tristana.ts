@@ -12,6 +12,8 @@ interface Bomb {
 }
 const bombs = new WeakMap<Sim, Bomb | undefined>();
 let nextToken = 1;
+/** Explosive Charge's cast time: her attack windup (wiki), 14.8% of her attack period. */
+const E_CAST_TIME = '0.148 / as';
 
 function detonate(sim: Sim, bomb: Bomb) {
   bombs.set(sim, undefined);
@@ -32,10 +34,13 @@ const kit: ChampionKit = {
   hooks: {
     onCast(sim, cast) {
       if (cast.slot !== 'E' || !cast.hitsTarget) return;
-      const bomb: Bomb = { token: nextToken++, stacks: 0, counted: new Set() };
-      bombs.set(sim, bomb);
-      sim.schedule(sim.evalExpr('E.dv.ActiveDuration', { slot: 'E' }), () => {
-        if (bombs.get(sim)?.token === bomb.token) detonate(sim, bomb);
+      // The bomb attaches once it has flown its range, after the cast time.
+      sim.schedule(sim.evalExpr(`${E_CAST_TIME} + castRange / missileSpeed`, { slot: 'E' }), () => {
+        const bomb: Bomb = { token: nextToken++, stacks: 0, counted: new Set() };
+        bombs.set(sim, bomb);
+        sim.schedule(sim.evalExpr('E.dv.ActiveDuration', { slot: 'E' }), () => {
+          if (bombs.get(sim)?.token === bomb.token) detonate(sim, bomb);
+        });
       });
     },
     afterDamage(sim, inst) {
@@ -58,17 +63,19 @@ const kit: ChampionKit = {
     W: {
       dash: true,
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      notes: ['Lands ~0.5s after the cast (flight time not in data).'],
-      components: [{ id: 'landing', label: 'Rocket Jump', type: 'magic', amount: 'calc.LandingDamage', aoe: true, delay: 0.5 }],
+      notes: ['Lands after jumping its range at its speed.'],
+      // Wiki: she can cast any of her abilities during the jump.
+      attackLockout: 'castTime + castRange / missileSpeed',
+      components: [{ id: 'landing', label: 'Rocket Jump', type: 'magic', amount: 'calc.LandingDamage', aoe: true, travel: true }],
     },
     E: {
-      castTime: 0,
+      castTime: E_CAST_TIME,
       notes: ['Attaches the bomb; damage comes from the detonation (hook).'],
       components: [],
     },
     R: {
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],
-      components: [{ id: 'buster', label: 'Buster Shot', type: 'magic', amount: 'calc.DamageCalc', delay: 0.2 }],
+      components: [{ id: 'buster', label: 'Buster Shot', type: 'magic', amount: 'calc.DamageCalc', travel: true }],
     },
   },
 };

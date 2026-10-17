@@ -28,6 +28,8 @@ const kit: ChampionKit = {
     Q: {
       dash: true,
       noTarget: true,
+      // Wiki: he blinks after a 0.125s delay (PseudoCastTime).
+      lockout: 'dv.PseudoCastTime',
       notes: [
         'Next attack while invisible deals bonus damage. From behind it critically strikes for 1 + 60% × (crit damage − 1), or full crit damage if a crit was rolled (expected value). Write "Q AA".',
         'Use Q:front when not striking from behind (bonus damage, normal crit roll).',
@@ -65,22 +67,23 @@ const kit: ChampionKit = {
     },
     W: {
       notes: [
-        'Fears, then fires every 0.5s for 5s (wiki); single-target damage per shot. Default 6 shots (~3s of the target staying in range); up to 10.',
+        'Springs once armed (2s), fears, then fires every 0.5s for 5s (wiki); single-target damage per shot. Default 6 shots (~3s of the target staying in range); up to 10.',
       ],
       cc: [{ kind: 'immobilize', duration: 'dv.FearDuration' }],
-      components: [{ id: 'box', label: 'Jack In The Box', type: 'magic', amount: 'calc.STDamage', hits: 6, maxHits: 10, interval: 0.5, delay: 0.25, pet: true }],
+      // Sprung by the target once armed: it arms over 2s (wiki, ArmTime).
+      components: [{ id: 'box', label: 'Jack In The Box', type: 'magic', amount: 'calc.STDamage', hits: 6, maxHits: 10, interval: 0.5, delay: 'dv.ArmTime', pet: true }],
     },
     E: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDurationActive' }],
       components: [
-        { id: 'shiv', label: 'Two-Shiv Poison', type: 'magic', amount: 'target.hpPct < dv.ExecuteHealthThreshold ? calc.TotalExecuteDamage : calc.TotalDamage', delay: 0.15 },
+        { id: 'shiv', label: 'Two-Shiv Poison', type: 'magic', amount: 'target.hpPct < dv.ExecuteHealthThreshold ? calc.TotalExecuteDamage : calc.TotalDamage', travel: true },
         {
           id: 'backstab',
           label: 'Two-Shiv Poison (backstab)',
           type: 'magic',
           amount: 'target.hpPct < dv.ExecuteHealthThreshold ? P.calc.ShivDamageExecute : P.calc.ShivDamage',
           hits: 'opt.backstab',
-          delay: 0.15,
+          travel: true,
         },
       ],
     },

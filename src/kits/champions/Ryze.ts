@@ -21,7 +21,8 @@ const kit: ChampionKit = {
           label: 'Overload',
           type: 'magic',
           amount: 'calc.QDamageCalc * (1 + (debuff.flux ? R.dv.OverloadDamageBonus / 100 : 0))',
-          delay: 0.2,
+          // Fired as the cast time starts (wiki: {{Effect at cast time start}}).
+          travel: 'max(0, castRange / missileSpeed - castTime)',
         },
       ],
     },
@@ -35,7 +36,7 @@ const kit: ChampionKit = {
     },
     E: {
       debuff: { id: 'flux', label: 'Flux', duration: 'dv.DebuffDuration' },
-      components: [{ id: 'flux', label: 'Spell Flux', type: 'magic', amount: 'calc.EDamageCalc', delay: 0.2 }],
+      components: [{ id: 'flux', label: 'Spell Flux', type: 'magic', amount: 'calc.EDamageCalc', travel: true }],
     },
     R: { noTarget: true, notes: ['Teleport; its passive raises Overload\'s Flux bonus.'], components: [] },
   },

@@ -7,9 +7,9 @@ const kit: ChampionKit = {
   notes: ['Astral Infusion and Wish only heal allies; they are not modeled beyond casting.'],
   abilities: {
     Q: {
-      notes: ['The star lands 0.25–1s after the cast depending on range (wiki); 0.6s assumed.'],
+      notes: ['The star lands 0.25–1s after the cast depending on range (wiki): 1s, at its 800 max range.'],
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      components: [{ id: 'star', label: 'Starcall', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 0.6 }],
+      components: [{ id: 'star', label: 'Starcall', type: 'magic', amount: 'calc.TotalDamage', aoe: true, delay: 1 }],
     },
     W: { noTarget: true, components: [] },
     E: {

@@ -58,14 +58,14 @@ const kit: ChampionKit = {
     },
     R: {
       dash: true,
-      // Busy until the slam: cast time + ~1s carry.
+      // No dash speed in the data: ~1.25s to the slam (wiki: within ~1.23s at max range). Busy until then.
       lockout: 1.25,
-      notes: ['Damage scales with the grabbed target\'s bonus health. Slam assumed ~1s after the grab (wiki: ≤1.23s at max range).'],
+      notes: ['Damage scales with the grabbed target\'s bonus health. Slam assumed ~1.25s after the cast (wiki: ≤1.23s at max range).'],
       cc: [
         { kind: 'immobilize', duration: 1 },
         { kind: 'slow', duration: 'dv.SlowDuration' },
       ],
-      components: [{ id: 'slam', label: 'The Show Stopper', type: 'physical', amount: 'calc.DamageCalc + calc.MaxHealthDamageCalc * target.bonusHp', aoe: true, delay: 1 }],
+      components: [{ id: 'slam', label: 'The Show Stopper', type: 'physical', amount: 'calc.DamageCalc + calc.MaxHealthDamageCalc * target.bonusHp', aoe: true, delay: 1.25 }],
     },
   },
   hooks: {

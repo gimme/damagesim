@@ -64,18 +64,21 @@ const kit: ChampionKit = {
         throw: {
           label: 'throw',
           buff: { id: 'skarnerQThrow', label: 'Upheaval', duration: 0 },
+          // Shattered Earth's cast time, then Upheaval's 0.25s; the boulder flies 1050 at 1600 (wiki).
+          castTime: 'castTime + 0.25',
           cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-          components: [{ id: 'upheaval', label: 'Upheaval', type: 'physical', amount: 'calc.AbilityDamage + dv.MaxHPPercent * target.maxHp', aoe: true, delay: 0.3 }],
+          components: [{ id: 'upheaval', label: 'Upheaval', type: 'physical', amount: 'calc.AbilityDamage + dv.MaxHPPercent * target.maxHp', aoe: true, travel: '1050 / 1600' }],
         },
       },
     },
     W: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-      components: [{ id: 'quake', label: 'Seismic Bastion', type: 'magic', amount: 'calc.Damage', aoe: true }],
+      // A radial missile out to its range.
+      components: [{ id: 'quake', label: 'Seismic Bastion', type: 'magic', amount: 'calc.Damage', aoe: true, travel: true }],
     },
     E: {
       dash: true,
-      // Charging until the wall hit.
+      // No dash speed in the data (it accelerates): ~0.75s charging until the wall hit.
       lockout: 0.75,
       notes: ['Assumes the dragged champion is slammed into a wall (no damage or stun otherwise).'],
       cc: [{ kind: 'immobilize', duration: 'dv.StunDuration' }],

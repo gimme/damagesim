@@ -36,13 +36,16 @@ const kit: ChampionKit = {
           amount: 'calc.DamageCalc',
           canCrit: true,
           critMultiplier: '1 + dv.CritDamageMod * (critDamage - 1)',
-          delay: 0.1,
+          // At the end of the cast time (wiki): the slash hits at once, the gun shot flies its range.
+          travel: 'opt.melee ? 0 : castRange / missileSpeed',
         },
-        melee('impulse', 'Daredevil Impulse', { hits: 'opt.melee ? 1 : 0', delay: 0.1 }),
+        melee('impulse', 'Daredevil Impulse', { hits: 'opt.melee ? 1 : 0' }),
       ],
     },
     W: {
       notes: ['Two slashes: immediately and after 0.75s (SlashDuration); each adds Daredevil Impulse damage.'],
+      // Wiki: the 0.1s cast time has no effect, the first slash is immediate.
+      castTime: 0,
       // Wiki: free to move, but can't attack nor cast Flair during the whirl.
       attackLockout: 'dv.SlashDuration',
       castLockout: { Q: 'dv.SlashDuration' },
@@ -53,10 +56,13 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
+      // Wiki: Flair and Inferno Trigger can be cast during the dash; Blade Whirl waits for its end.
+      attackLockout: 'castRange / missileSpeed',
+      castLockout: { W: 'castRange / missileSpeed' },
       buff: { id: 'samiraE', label: 'Wild Rush', duration: 'dv.AttackSpeedDuration', stats: { attackSpeed: 'dv.BonusAttackSpeed' } },
       components: [
-        { id: 'rush', label: 'Wild Rush', type: 'magic', amount: 'calc.DashDamage', aoe: true, delay: 0.1 },
-        melee('impulse', 'Daredevil Impulse', { delay: 0.1 }),
+        { id: 'rush', label: 'Wild Rush', type: 'magic', amount: 'calc.DashDamage', aoe: true, travel: true },
+        melee('impulse', 'Daredevil Impulse', { travel: true }),
       ],
     },
     R: {

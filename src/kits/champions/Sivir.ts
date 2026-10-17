@@ -16,7 +16,8 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       notes: ['Hits the target on the way out and again on the return (same damage). Crit scaling is part of the game formula (expected value).'],
-      components: [{ id: 'blade', label: 'Boomerang Blade', type: 'physical', amount: 'calc.TotalDamage', hits: 2, maxHits: 2, interval: 0.8, delay: 0.3, aoe: true }],
+      // Out over its range, then back over it at the returning missile's 1200 speed (wiki).
+      components: [{ id: 'blade', label: 'Boomerang Blade', type: 'physical', amount: 'calc.TotalDamage', hits: 2, maxHits: 2, interval: 'castRange / 1200', travel: true, aoe: true }],
     },
     W: {
       noTarget: true,

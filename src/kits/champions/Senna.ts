@@ -60,11 +60,13 @@ const kit: ChampionKit = {
     W: {
       notes: ['The root lands DelayTime (1s) after the hit.'],
       cc: [{ kind: 'immobilize', duration: 'dv.RootDuration', delay: 'dv.DelayTime' }],
-      components: [{ id: 'mist', label: 'Last Embrace', type: 'physical', amount: 'calc.Damage', delay: 0.3 }],
+      components: [{ id: 'mist', label: 'Last Embrace', type: 'physical', amount: 'calc.Damage', travel: true }],
     },
     E: { noTarget: true, components: [] },
     R: {
-      components: [{ id: 'beam', label: 'Dawning Shadow', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 0.25 }],
+      // Global: assumed fired from 1200 units. The beam fires after the 1s charge, although the wiki
+      // marks it {{Effect at cast time start}}.
+      components: [{ id: 'beam', label: 'Dawning Shadow', type: 'physical', amount: 'calc.TotalDamage', aoe: true, travel: '1200 / missileSpeed' }],
     },
   },
   hooks: {

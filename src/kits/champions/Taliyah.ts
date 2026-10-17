@@ -1,6 +1,9 @@
 import type { ChampionKit } from '../../engine/kit-types.ts';
 
 // Taliyah — patch 16.20.
+/** A Stone Shard's flight over Threaded Volley's range: 3600 speed slowing by 5000/s² (wiki), ~0.376s. */
+const SHARD_TRAVEL = '(3600 - sqrt(3600 * 3600 - 2 * 5000 * castRange)) / 5000';
+
 const kit: ChampionKit = {
   id: 'Taliyah',
   status: 'curated',
@@ -17,8 +20,8 @@ const kit: ChampionKit = {
       // move and cast meanwhile.
       attackLockout: 1.25,
       components: [
-        { id: 'rock', label: 'Threaded Volley', type: 'magic', amount: 'calc.RockDamage', aoe: true, delay: 0.1 },
-        { id: 'rest', label: 'Threaded Volley (repeat)', type: 'magic', amount: 'calc.RockDamage * (1 - dv.ExtraMissileReducedDamagePercent / 100)', aoe: true, hits: 4, maxHits: 4, delay: 0.475, interval: 0.375 },
+        { id: 'rock', label: 'Threaded Volley', type: 'magic', amount: 'calc.RockDamage', aoe: true, travel: SHARD_TRAVEL },
+        { id: 'rest', label: 'Threaded Volley (repeat)', type: 'magic', amount: 'calc.RockDamage * (1 - dv.ExtraMissileReducedDamagePercent / 100)', aoe: true, hits: 4, maxHits: 4, delay: 0.375, interval: 0.375, travel: SHARD_TRAVEL },
       ],
       variants: {
         boulder: {
@@ -26,7 +29,8 @@ const kit: ChampionKit = {
           note: 'Cast on Worked Ground: one boulder dealing 180% damage and slowing.',
           attackLockout: 0, // a single boulder: no shards to wait for
           cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
-          components: [{ id: 'boulder', label: 'Threaded Volley (boulder)', type: 'magic', amount: 'calc.BigRockDamage', aoe: true, delay: 0.2 }],
+          // The boulder flies at 2000 (wiki).
+          components: [{ id: 'boulder', label: 'Threaded Volley (boulder)', type: 'magic', amount: 'calc.BigRockDamage', aoe: true, travel: 'castRange / 2000' }],
         },
       },
     },

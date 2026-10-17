@@ -44,18 +44,22 @@ const kit: ChampionKit = {
     W: {
       buff: petricite,
       dash: true,
-      components: [{ id: 'kingslayer', label: 'Kingslayer', type: 'magic', amount: 'calc.MinDamage' }],
+      // No dash speed in the data: ~0.15s to strike. Busy until then.
+      lockout: 0.15,
+      components: [{ id: 'kingslayer', label: 'Kingslayer', type: 'magic', amount: 'calc.MinDamage', delay: 0.15 }],
     },
     E: {
       buff: petricite,
       dash: true,
-      castTime: 0.5, // Abscond + Abduct casts (0.25s each)
-      // Wiki: unable to act while dashing to the target and for 0.05s after: the chains' 0.2s flight
-      // (~440 units at 2500 speed, decelerating) and the dash back at 1800 speed (~0.25s).
-      lockout: 1,
+      // Abscond's dash (its range at its speed), then Abduct's cast time.
+      castTime: "castRange / missileSpeed + spell['SylasE2'].castTime",
+      // Abduct's chains fly as its cast time starts (wiki: {{Effect at cast time start}}), reaching its
+      // 850 range in 0.5s (2500 speed, slowing by 3200/s); then he dashes there at 1800 and can't act
+      // until 0.05s after (wiki).
+      lockout: "castRange / missileSpeed + 0.5 + spell['SylasE2'].castRange / 1800 + 0.05",
       cc: [{ kind: 'immobilize', duration: 'dv.KnockUpDuration' }],
       notes: ['One E step = Abscond (dash) + Abduct recast (pull, damage, knock-up); grants two Petricite charges.'],
-      components: [{ id: 'abduct', label: 'Abduct', type: 'magic', amount: 'calc.Damage', delay: 0.2 }],
+      components: [{ id: 'abduct', label: 'Abduct', type: 'magic', amount: 'calc.Damage', travel: "0.5 - spell['SylasE2'].castTime" }],
     },
     R: {
       buff: petricite,

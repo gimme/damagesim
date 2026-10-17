@@ -24,9 +24,10 @@ const kit: ChampionKit = {
     },
     W: {
       notes: ['Grounds and slows; marks the area so a following Fling roots (debuff "megaAdhesive").'],
+      // Wiki: the goo lands 0.375s (DelayExecute) after the cast.
       cc: [
-        { kind: 'impair', duration: 'dv.WDuration' },
-        { kind: 'slow', duration: 'dv.WDuration' },
+        { kind: 'impair', duration: 'dv.WDuration', delay: 'dv.DelayExecute' },
+        { kind: 'slow', duration: 'dv.WDuration', delay: 'dv.DelayExecute' },
       ],
       debuff: { id: 'megaAdhesive', label: 'Mega Adhesive', duration: 'dv.WDuration' },
       components: [],

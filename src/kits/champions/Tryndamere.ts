@@ -55,6 +55,10 @@ const kit: ChampionKit = {
     },
     E: {
       dash: true,
+      // No dash speed in the data: ~0.2s to arrive. Bloodlust and Undying Rage can be cast during the
+      // dash (wiki).
+      attackLockout: 0.2,
+      castLockout: { W: 0.2 },
       components: [{ id: 'slash', label: 'Spinning Slash', type: 'physical', amount: 'calc.TotalDamage', aoe: true, delay: 0.2 }],
     },
     R: { noTarget: true, notes: ['Undying Rage: grants Fury; no damage.'], components: [] },

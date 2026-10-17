@@ -38,7 +38,7 @@ const kit: ChampionKit = {
     E: {
       cc: [{ kind: 'slow', duration: 'dv.SlowDuration' }],
       debuff: { id: 'sionE', label: 'Roar of the Slayer', duration: 'dv.ArmorShredDuration', armorReduction: 'dv.ArmorShred / 100' },
-      components: [{ id: 'roar', label: 'Roar of the Slayer', type: 'magic', amount: 'calc.TotalDamage', delay: 0.25 }],
+      components: [{ id: 'roar', label: 'Roar of the Slayer', type: 'magic', amount: 'calc.TotalDamage', travel: true }],
     },
     R: {
       dash: true,

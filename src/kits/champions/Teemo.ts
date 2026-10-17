@@ -8,7 +8,7 @@ const kit: ChampionKit = {
   status: 'curated',
   notes: [
     'Toxic Shot: attacks deal impact damage on-hit and poison for 4 ticks (1/s); the poison refreshes, it does not stack.',
-    'Noxious Trap: the target is assumed to step on the mushroom right away; damage ticks every second for 4s. Several traps refresh rather than stack.',
+    'Noxious Trap: the target is assumed to step on the mushroom as soon as it is armed (1s); damage ticks every second for 4s. Several traps refresh rather than stack.',
     'Option fromStealth: the combo starts by leaving Guerrilla Warfare camouflage (bonus attack speed for 5s).',
   ],
   options: [{ key: 'fromStealth', label: 'Start from Guerrilla Warfare camouflage', default: 0, toggle: true, min: 0, max: 1 }],
@@ -35,14 +35,15 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       cc: [{ kind: 'impair', duration: 'dv.BlindDuration' }],
-      components: [{ id: 'dart', label: 'Blinding Dart', type: 'magic', amount: 'calc.CalculatedDamage', delay: 0.2 }],
+      components: [{ id: 'dart', label: 'Blinding Dart', type: 'magic', amount: 'calc.CalculatedDamage', travel: true }],
     },
     W: { noTarget: true, notes: ['Move Quick: movement speed only.'], components: [] },
     E: { noTarget: true, notes: ['Toxic Shot is passive (see attack on-hit and poison).'], components: [] },
     R: {
       cc: [{ kind: 'slow', duration: 'dv.DebuffDuration' }],
       components: [
-        { id: 'trap', label: 'Noxious Trap', type: 'magic', amount: 'calc.TotalDamage / dv.DebuffDuration', hits: 'dv.DebuffDuration', interval: 1, dot: true, aoe: true, delay: 0.5 },
+        // Stepped on once armed: it arms over 1s (wiki, ArmTime).
+        { id: 'trap', label: 'Noxious Trap', type: 'magic', amount: 'calc.TotalDamage / dv.DebuffDuration', hits: 'dv.DebuffDuration', interval: 1, dot: true, aoe: true, delay: 'dv.ArmTime' },
       ],
     },
   },
