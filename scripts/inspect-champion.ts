@@ -48,7 +48,7 @@ for (const ab of c.abilities) {
   for (const sp of ab.spells) {
     const hasData = Object.keys(sp.dataValues).length || Object.keys(sp.calcs).length || sp.tooltip;
     if (!hasData) continue;
-    console.log(`### spell ${sp.scriptName}  "${sp.name}"  castTime=${sp.castTime}${sp.cooldown ? ` cd=${sp.cooldown.slice(1, maxRank + 1).join('/')}` : ''}${sp.levelCount ? ` ranks=${sp.levelCount}` : ''}`);
+    console.log(`### spell ${sp.scriptName}  "${sp.name}"  castTime=${sp.castTime}${sp.castRange ? ` range=${sp.castRange[1]}` : ''}${sp.missileSpeed ? ` speed=${sp.missileSpeed}` : ''}${sp.cooldown ? ` cd=${sp.cooldown.slice(1, maxRank + 1).join('/')}` : ''}${sp.levelCount ? ` ranks=${sp.levelCount}` : ''}`);
     if (sp.tooltip) {
       console.log(`TOOLTIP (raw): ${sp.tooltip.replace(/\n/g, ' ')}`);
       console.log(`TOOLTIP (rendered, rank ${sim.abilityRank(slot)}): ${renderTooltip(sim, slot, sp).replace(/\n/g, ' | ')}`);
