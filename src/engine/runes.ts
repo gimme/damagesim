@@ -391,7 +391,7 @@ const RUNES: Record<number, Factory> = {
         if (!(inst.flags.ability || inst.flags.pet) || (inst.flags.proc && !inst.flags.pet)) return;
         if (!sim.isReady(`rune:${rune.id}`)) return;
         sim.startCooldown(`rune:${rune.id}`, calc(sim, rune, 'CooldownCalc'));
-        const dist = sim.opt['distance'] ?? DISTANCE.default;
+        const dist = sim.distance;
         sim.schedule(0.8, () =>
           sim.deal({
             source: `rune:${rune.id}`,

@@ -126,8 +126,13 @@ export interface BuffSpec {
   empowerAttacks?: {
     count: Expr;
     components: ComponentSpec[];
-    /** The empowered attack's own physical damage is replaced by the components. */
+    /**
+     * The empowered attack's own physical damage is replaced by the components. The results credit
+     * the basic attack with what it would have dealt and the ability with the rest (Garen Q).
+     */
     replaceBase?: boolean;
+    /** With replaceBase: someone else attacks instead (Azir's soldiers), so all of it is the ability's. */
+    otherAttacker?: boolean;
     /**
      * The attack itself is also the ability's spell damage, the wiki's "basic damage and spell
      * damage" (Wukong Q, Kayle E): like an attack the components replace (Garen Q).

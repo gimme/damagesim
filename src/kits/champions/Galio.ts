@@ -1,5 +1,6 @@
 import type { ChampionKit } from '../../engine/kit-types.ts';
 import type { Sim } from '../../engine/sim.ts';
+import type { DamageRequest } from '../../engine/effects.ts';
 
 // Galio — patch 16.20.
 // Hook: Colossal Smash is a cooldown-gated empowered attack whose cooldown is cut by ability hits.
@@ -65,8 +66,7 @@ const kit: ChampionKit = {
       sim.startCooldown('galioP', sim.evalExpr('P.calc.PassiveCooldownModified', { slot: 'P' }));
       const total = sim.evalExpr('P.calc.TotalDamage', { slot: 'P' });
       const ad = sim.stats.ad;
-      atk.replaceBase = true;
-      atk.extra.unshift({
+      const smash: DamageRequest = {
         source: 'P',
         sourceLabel: 'Colossal Smash',
         label: atk.crit ? 'Colossal Smash (crit)' : 'Colossal Smash',
@@ -75,7 +75,10 @@ const kit: ChampionKit = {
         castId: atk.castId,
         // The wiki: basic and spell damage to the target (area proc damage only to others around it).
         flags: { kind: 'ability', slot: 'P', attack: true, ability: true, crit: atk.crit },
-      });
+      };
+      atk.replaceBase = true;
+      atk.extra.unshift(smash);
+      (atk.replacedBy ??= []).push(smash);
     },
     afterDamage(sim: Sim, inst) {
       if (inst.fromMark || inst.flags.kind !== 'ability' || !inst.flags.slot || inst.flags.slot === 'P' || inst.flags.attack) return;

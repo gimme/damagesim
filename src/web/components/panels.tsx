@@ -13,7 +13,7 @@ import { critMarking, fitCombo, formatCombo, markCrit, parseCombo, type AbilityS
 import { conflicts } from '../../engine/analysis.ts';
 import { findItem } from '../../engine/gamedata.ts';
 import { getKit } from '../../kits/index.ts';
-import type { Effect, Slot } from '../../engine/effects.ts';
+import { DISTANCE, type Effect, type Slot } from '../../engine/effects.ts';
 import type { KitOption } from '../../engine/kit-types.ts';
 
 type Set = (fn: (s: UIState) => UIState) => void;
@@ -134,8 +134,10 @@ function OptionsEditor({ state, set, sim }: { state: UIState; set: Set; sim: Sim
   const kit = getKit(champ);
   // Each parameter once, with everything in the scenario that reads it: your HP can matter to Olaf,
   // Last Stand and Overlord's Bloodmail at once.
-  const declared = [
+  // Where the target stands matters to every champion's missiles and dashes.
+  const declared: { o: KitOption; id: string; name: string }[] = [
     ...(kit.options ?? []).map((o) => ({ o, id: 'kit', name: champ.name })),
+    { o: DISTANCE, id: 'kit', name: champ.name },
     ...(sim?.effects ?? []).flatMap((e: Effect) => (e.options ?? []).map((o) => ({ o, id: e.id, name: e.label }))),
   ];
   const opts = new Map<string, { o: KitOption; sources: { id: string; name: string }[] }>();
@@ -164,7 +166,7 @@ function OptionsEditor({ state, set, sim }: { state: UIState; set: Set; sim: Sim
       <summary>Champion, item & rune parameters ({opts.size})</summary>
       <div className="stack" style={{ marginTop: 8 }}>
         {[...opts.values()].map(({ o, sources }) => {
-          const v = state.options[o.key] ?? o.default;
+          const v = state.options[o.key] ?? sim?.opt[o.key] ?? o.default;
           const isToggle = o.toggle || (o.max === 1 && (o.min ?? 0) === 0 && o.step === 1);
           return (
             <div key={o.key} className="row" style={{ flexWrap: 'nowrap' }}>

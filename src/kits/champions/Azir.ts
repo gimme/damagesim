@@ -30,6 +30,7 @@ const kit: ChampionKit = {
         empowerAttacks: {
           count: 99,
           replaceBase: true,
+          otherAttacker: true,
           components: [
             { id: 'stab', label: 'Sand Soldier', type: 'magic', amount: 'W.calc.TotalDamage', aoe: true, onHitEffectiveness: 0.5 },
             {

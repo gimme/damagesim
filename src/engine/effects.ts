@@ -87,6 +87,11 @@ export interface DamageRequest {
   markSource?: string;
   /** Extra percent armor/MR penetration for this hit only (Gangplank barrels ignore 40% armor). */
   penPercent?: number;
+  /**
+   * A hit that replaces an attack's own damage (Garen Q): of `amount`, what the normal attack would
+   * have dealt, recorded as that attack's hit (`amount` of it, named `label`) and the rest as this.
+   */
+  normalAttack?: { amount: number; source: string; sourceLabel: string; label: string };
 }
 
 export interface AttackInfo {
@@ -121,6 +126,11 @@ export interface AttackInfo {
   areaOnHit?: boolean;
   /** Set to true to remove the attack's own damage (empowered attacks that replace it). */
   replaceBase?: boolean;
+  /**
+   * The hits in `extra` that replace it: they are recorded as the normal attack for as much as it
+   * would have dealt, the rest as their own (Garen Q; hooks add theirs: Galio's passive).
+   */
+  replacedBy?: DamageRequest[];
   /** Extra times on-hit effects apply (Guinsoo's Phantom Hit, Dusk and Dawn, Renekton W); sources add up. */
   repeatOnHit?: number;
   /** This pass is the repeated on-hit application (no base damage). */
@@ -172,8 +182,12 @@ export interface CastInfo {
   castTime?: number;
 }
 
-/** Distance to the target, shared by Arcane Comet, Hexoptics C44 and Horizon Focus (positions are not simulated). */
-export const DISTANCE = { key: 'distance', label: 'Distance to target (units)', default: 600, min: 0, max: 2000, step: 100, description: 'Where your attacks and abilities hit the target from.' };
+/**
+ * Distance to the target (positions are not simulated): what attacks, missiles and dashes at it fly,
+ * and what Arcane Comet, Hexoptics C44 and Horizon Focus read. Unset, your attack range (the
+ * simulation sets it; `default` is only a fallback).
+ */
+export const DISTANCE = { key: 'distance', label: 'Distance to target (units)', default: 550, min: 0, max: 2000, step: 25, description: 'Where the target stands, edge to edge: your attack range unless set. Attacks, missiles and dashes at it fly this far.' };
 
 /**
  * Your own health, shared by Last Stand, Absolute Focus, Immortal Path, Overlord's Bloodmail, Olaf,

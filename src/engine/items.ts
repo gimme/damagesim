@@ -514,7 +514,7 @@ const ITEMS: Record<number, Factory> = {
       options: [DISTANCE],
       beforeDamage(sim, inst) {
         if (!inst.flags.attack && !inst.flags.basic) return;
-        const dist = sim.opt['distance'] ?? DISTANCE.default;
+        const dist = sim.distance;
         inst.amps.push({ id: `item:${item.id}`, source: item.name, value: dv(item, 'MaxDamageAmp') * Math.min(1, dist / dv(item, 'MaxRange')), kind: 'dealt' });
       },
     }),
@@ -941,12 +941,12 @@ const ITEMS: Record<number, Factory> = {
       options: [DISTANCE],
       afterDamage(sim, inst) {
         // Every long-range hit marks the target again for the full duration.
-        if (!isChampionAbilityDamage(inst) || (sim.opt['distance'] ?? DISTANCE.default) < dv(item, 'SnipeRange')) return;
+        if (!isChampionAbilityDamage(inst) || (sim.distance) < dv(item, 'SnipeRange')) return;
         sim.setCounter(`horizon:${item.id}`, sim.time + dv(item, 'BuffDuration'));
       },
       beforeDamage(sim, inst) {
         // The triggering ability also benefits.
-        const marked = sim.time <= timerEnd(sim, `horizon:${item.id}`) || (isChampionAbilityDamage(inst) && (sim.opt['distance'] ?? DISTANCE.default) >= dv(item, 'SnipeRange'));
+        const marked = sim.time <= timerEnd(sim, `horizon:${item.id}`) || (isChampionAbilityDamage(inst) && (sim.distance) >= dv(item, 'SnipeRange'));
         if (marked && !inst.flags.unamplified) inst.amps.push({ id: `item:${item.id}`, source: item.name, value: dv(item, 'DamageAmp'), kind: 'dealt' });
       },
     }),

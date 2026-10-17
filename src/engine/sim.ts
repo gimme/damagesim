@@ -8,7 +8,7 @@ import { compile, type Resolver } from './expr.ts';
 import { computeStats, emptyMods, hasteCooldown, itemStatsToMods, mergeMods, type Stats, type StatMods, GAME } from './stats.ts';
 import { effectiveResist, resistMultiplier, type DamageType } from './damage.ts';
 import type { AbilitySpec, BuffSpec, ChampionKit, ComponentSpec, DebuffSpec, Expr, MarkSpec, VariantSpec } from './kit-types.ts';
-import { addOnHitRepeat, IN_COMBAT, selfHp, type AttackInfo, type AttackLaunch, type CastInfo, type DamageFlags, type DamageInstance, type DamageRequest, type Effect, type SetupCtx, type Slot } from './effects.ts';
+import { addOnHitRepeat, DISTANCE, IN_COMBAT, selfHp, type AttackInfo, type AttackLaunch, type CastInfo, type DamageFlags, type DamageInstance, type DamageRequest, type Effect, type SetupCtx, type Slot } from './effects.ts';
 import { attackOptions, findVariant, parseCombo, formatCombo, rollsCrits, type AbilityStep, type ComboStep, type CritMode } from './combo.ts';
 import { getKit } from '../kits/index.ts';
 import { createItemEffect, ITEM_GROUPS } from './items.ts';
@@ -354,12 +354,21 @@ export class Sim {
     this.invalidateStats();
 
     this.target = resolveTarget(data, scenario.target ?? {}, this.level);
+    // Unless placed, the target stands at your attack range as the combo starts: range gained later
+    // doesn't move it.
+    if (scenario.options?.[DISTANCE.key] === undefined) this.opt[DISTANCE.key] = this.stats.range;
   }
 
   // ---------------------------------------------------------------------------
   // Stats
 
   private computingStats = false;
+
+  /** How far the target stands, edge to edge (option DISTANCE): attacks, missiles and dashes at it
+   *  fly this far. */
+  get distance(): number {
+    return this.opt[DISTANCE.key];
+  }
 
   get stats(): Stats {
     if (!this.statsCache) {
@@ -830,6 +839,8 @@ export class Sim {
         return st.bonusMana;
       case 'range':
         return st.range;
+      case 'distance':
+        return this.distance;
       case 'ah':
         return st.abilityHaste;
       case 'ranged':
@@ -1062,7 +1073,7 @@ export class Sim {
     inst.targetHpAfter = this.target.hp;
     if (this.target.hp <= 0 && this.target.killTime === undefined) this.target.killTime = this.time;
     if (!inst.flags.aura) this.lastCombatTime = this.time;
-    this.events.push(inst);
+    this.events.push(...this.recorded(inst, req));
     for (const d of this.debuffs.values()) if (d.spec?.detonate && d.expires >= this.time && !inst.fromMark) d.stored = (d.stored ?? 0) + final;
 
     for (const e of this.effects) e.afterDamage?.(this, inst);
@@ -1071,6 +1082,30 @@ export class Sim {
       this.processMarks(inst);
     }
     return inst;
+  }
+
+  /** A hit as the results show it: in two when part of it is what a normal attack would have dealt
+   *  (DamageRequest.normalAttack), that part as the attack's hit. Effects saw it whole. */
+  private recorded(inst: DamageInstance, req: DamageRequest): DamageInstance[] {
+    const normal = req.normalAttack;
+    if (!normal || !(normal.amount > 0) || !(req.amount > 0)) return [inst];
+    const share = Math.min(1, normal.amount / req.amount);
+    const final = inst.final ?? 0;
+    const hpBefore = inst.targetHpBefore ?? 0;
+    const flags: DamageFlags = { ...inst.flags, kind: 'attack', attack: true, ability: false, onHit: false };
+    delete flags.slot;
+    const attack: DamageInstance = {
+      ...inst,
+      source: normal.source,
+      sourceLabel: normal.sourceLabel,
+      label: normal.label,
+      raw: inst.raw * share,
+      final: final * share,
+      targetHpAfter: hpBefore - final * share,
+      flags,
+    };
+    if (share >= 1) return [attack];
+    return [attack, { ...inst, id: this.nextInstId++, raw: inst.raw * (1 - share), final: final * (1 - share), targetHpBefore: attack.targetHpAfter }];
   }
 
   // ---------------------------------------------------------------------------
@@ -1320,11 +1355,11 @@ export class Sim {
     return out;
   }
 
-  /** Seconds a basic attack's missile flies to a target at the edge of your attack range: 0 for melee
+  /** Seconds a basic attack's missile flies to the target (`distance`): 0 for melee
    *  champions and attacks that hit at once (Senna, Thresh, Zeri). */
   attackTravel(): number {
     const missile = this.champ.stats.attackMissile;
-    return missile && this.champ.attackType === 'ranged' ? missileTime(missile, this.stats.range) : 0;
+    return missile && this.champ.attackType === 'ranged' ? missileTime(missile, this.distance) : 0;
   }
 
   /**
@@ -1447,6 +1482,7 @@ export class Sim {
           // The first empowered component *is* the basic attack (counts for attack-based effects).
           const first = atk.extra[before];
           if (first) first.flags = { ...first.flags, attack: true, onHit: false };
+          if (!empower.otherAttacker) (atk.replacedBy ??= []).push(...atk.extra.slice(before));
         }
         if (empower.spell) spellOf = slot;
         const effComp = empower.components.find((x) => x.onHitEffectiveness !== undefined);
@@ -1477,12 +1513,20 @@ export class Sim {
       atk.extra.push(...again.extra);
     }
 
+    const base = (o.amount ?? st.ad * (kitAtk?.damageMult !== undefined ? this.evalExpr(kitAtk.damageMult, { slot: 'P' }) : 1)) * atk.baseMult * atk.critFactor;
+    const label = o.label ?? (atk.crit ? 'Attack (crit)' : expected && st.critChance > 0 && st.critChance < 1 && canCrit ? 'Attack (avg. crit)' : 'Attack');
+    if (!o.onHitOnly && atk.replaceBase && atk.replacedBy?.length) {
+      // What replaced the attack is recorded as the attack for what it would have dealt (crediting
+      // the ability only with the extra), shared out over its hits.
+      const total = atk.replacedBy.reduce((sum, x) => sum + Math.max(0, x.amount), 0);
+      const share = total > 0 ? Math.min(1, base / total) : 0;
+      for (const x of atk.replacedBy) x.normalAttack = { amount: Math.max(0, x.amount) * share, source: o.fromAbility ?? 'AA', sourceLabel: o.sourceLabel ?? 'Basic attack', label };
+    }
     if (!o.onHitOnly && !atk.replaceBase) {
-      const base = (o.amount ?? st.ad * (kitAtk?.damageMult !== undefined ? this.evalExpr(kitAtk.damageMult, { slot: 'P' }) : 1)) * atk.baseMult * atk.critFactor;
       this.deal({
         source: o.fromAbility ?? 'AA',
         sourceLabel: o.sourceLabel ?? 'Basic attack',
-        label: o.label ?? (atk.crit ? 'Attack (crit)' : expected && st.critChance > 0 && st.critChance < 1 && canCrit ? 'Attack (avg. crit)' : 'Attack'),
+        label,
         type: o.comp && o.comp.type !== 'adaptive' ? o.comp.type : o.comp?.type === 'adaptive' ? 'adaptive' : (kitAtk?.type ?? 'physical'),
         amount: base,
         castId: o.castId,
@@ -1604,7 +1648,10 @@ export class Sim {
   /** Seconds a component's hits fly before they land (ComponentSpec.travel). */
   private travelOf(c: ComponentSpec, ctx: { slot: Slot; spell?: SpellData; rank?: number }) {
     if (c.travel === undefined) return 0;
-    return this.evalExpr(c.travel === true ? 'castRange / missileSpeed' : c.travel, ctx);
+    if (c.travel !== true) return this.evalExpr(c.travel, ctx);
+    // To the target, or as far as the ability reaches if that's shorter.
+    const spell = ctx.spell ?? this.spellFor(ctx.slot);
+    return this.evalExpr(spell.castRange ? 'min(distance, castRange) / missileSpeed' : 'distance / missileSpeed', { ...ctx, spell });
   }
 
   castAbility(step: AbilityStep, timeline: SimResult['timeline']) {
