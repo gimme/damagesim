@@ -46,6 +46,14 @@ export function ChampionPicker({ value, onChange, label = "Champion" }: { value:
     setOpen(false);
     setQ("");
   };
+  // As a combobox: the focus stays in the field after a pick, which then shows the champion with the
+  // list closed, as after Escape; a click, an arrow key or typing opens the list again, and what's
+  // typed starts a new search.
+  const startSearch = (text: string) => {
+    setOpen(true);
+    setQ(text);
+    setActive(0);
+  };
   const champ = DATA.champions[value];
   return (
     <div className="picker" ref={ref}>
@@ -57,20 +65,20 @@ export function ChampionPicker({ value, onChange, label = "Champion" }: { value:
             aria-label={label}
             placeholder={champ?.name ?? "Search champion"}
             value={open ? q : (champ?.name ?? value)}
-            onFocus={() => {
-              setOpen(true);
-              setQ("");
-              setActive(0);
-            }}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setActive(0);
-            }}
+            onFocus={() => startSearch("")}
+            onClick={() => !open && startSearch("")}
+            // Closed, the field held the champion's name: only what was typed counts (nothing, for a deletion).
+            onChange={(e) => startSearch(open ? e.target.value : ((e.nativeEvent as InputEvent).data ?? ""))}
             onKeyDown={(e) => {
-              if (e.key === "ArrowDown") setActive((a) => Math.min(list.length - 1, a + 1));
+              // A search field's Escape also empties it, which would open the list again.
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setOpen(false);
+              } else if (!open) {
+                if (e.key === "ArrowDown" || e.key === "ArrowUp") startSearch("");
+              } else if (e.key === "ArrowDown") setActive((a) => Math.min(list.length - 1, a + 1));
               else if (e.key === "ArrowUp") setActive((a) => Math.max(0, a - 1));
               else if (e.key === "Enter" && list[active]) pick(list[active].id);
-              else if (e.key === "Escape") setOpen(false);
             }}
           />
           <div className="row small secondary" style={{ gap: 6 }}>
@@ -87,7 +95,11 @@ export function ChampionPicker({ value, onChange, label = "Champion" }: { value:
               role="option"
               aria-selected={i === active}
               className="picker-option"
-              onMouseDown={() => pick(c.id)}
+              // Without taking the focus from the field.
+              onMouseDown={(e) => {
+                e.preventDefault();
+                pick(c.id);
+              }}
               onMouseEnter={() => setActive(i)}
             >
               <ChampIcon id={c.id} size="sm" />
