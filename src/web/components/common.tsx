@@ -6,6 +6,7 @@ import type { ItemData } from '../../engine/data-types.ts';
 import { hasItemModel } from '../../engine/items.ts';
 import { hasRuneModel } from '../../engine/runes.ts';
 import { itemText, runeText } from '../../engine/tooltip.ts';
+import { search } from '../search.ts';
 import type { Sim } from '../../engine/sim.ts';
 
 /** What stands in for a missing icon: the first letters of the name's first two words. */
@@ -63,63 +64,13 @@ export function KitBadge({ id }: { id: string }) {
   );
 }
 
-const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-/** Whether `q`'s letters all appear in `s` in order, with any letters between: "rfc" is in "rapidfirecannon". */
-const hasInOrder = (s: string, q: string) => {
-  let i = 0;
-  for (const c of s) if (c === q[i]) i++;
-  return i === q.length;
-};
-
-/**
- * The words a name leaves out when `q` abbreviates it from word `w` on: each piece of `q` starts a
- * word, in turn, skipping any ("bork" is Blade of the Ruined King). Infinity if it doesn't.
- */
-const leftOut = (words: string[], q: string, w: number): number => {
-  let best = Infinity;
-  for (let k = 1; k <= q.length && words[w]?.[k - 1] === q[k - 1]; k++) {
-    const rest = q.slice(k);
-    if (!rest) best = Math.min(best, words.length - w - 1);
-    for (let i = w + 1; rest && i < words.length; i++) best = Math.min(best, i - w - 1 + leftOut(words, rest, i));
-  }
-  return best;
-};
-
-/**
- * How closely a name matches a search, higher first, or -1 if it doesn't hold its letters in order.
- * Best is an abbreviation from the first word, leaving the fewest words out ("er" is Essence Reaver,
- * "lud" Luden's Echo), then one from a later word ("edge" in Infinity Edge), then the letters
- * unbroken in a word ("er" in Actualizer), then with letters between, from a word's start ("dcap" in
- * Rabadon's Deathcap) before not.
- */
-const matchRank = (name: string, q: string) => {
-  const n = norm(name);
-  if (!hasInOrder(n, q)) return -1;
-  if (!q) return 0;
-  const words = name.split(/[\s-]+/).map(norm).filter(Boolean);
-  const first = leftOut(words, q, 0);
-  if (first < Infinity) return 400 - first;
-  const later = Math.min(...words.map((_, i) => i + leftOut(words, q, i)));
-  if (later < Infinity) return 300 - later;
-  return n.includes(q) ? 200 : words.some((w, i) => w[0] === q[0] && hasInOrder(words.slice(i).join(''), q)) ? 100 : 0;
-};
-
-/** The things whose names match a search, best first. */
-const search = <T,>(things: T[], name: (t: T) => string, q: string) =>
-  things
-    .map((t) => ({ t, rank: matchRank(name(t), q) }))
-    .filter((m) => m.rank >= 0)
-    .sort((a, b) => b.rank - a.rank)
-    .map((m) => m.t);
-
 export function ChampionPicker({ value, onChange, label = 'Champion' }: { value: string; onChange: (id: string) => void; label?: string }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const list = useMemo(() => {
-    return search(DATA.championIndex, (c) => c.name, norm(q));
+    return search(DATA.championIndex, (c) => c.name, q);
   }, [q]);
   useEffect(() => {
     const close = (e: globalThis.MouseEvent) => {
@@ -209,7 +160,7 @@ export function ItemPicker({ onPick, onClose, sim }: { onPick: (id: number) => v
   const list = search(
     SHOP_ITEMS.filter((i) => (tier === 'all' || i.depth >= 3 || i.tags.includes('Boots') || i.gold.total >= 2200) && ITEM_FILTERS[filter].test(i)),
     (i) => i.name,
-    norm(q),
+    q,
   );
   // Enter buys the top match, marked while there's a search.
   const top = q.trim() ? list[0]?.id : undefined;
