@@ -7,7 +7,7 @@ import { parseArgs } from "node:util";
 import { loadGameData } from "../node/load.ts";
 import { loadAllKits } from "../node/kits.ts";
 import { simulate, Sim, type Scenario, type TargetSpec, type SimResult } from "../engine/sim.ts";
-import { compare, rankItems, optimizeItems, optimizeCombo, resistSweep, summarize, type Metric } from "../engine/analysis.ts";
+import { compare, rankItems, rankItemSets, optimizeItems, optimizeCombo, resistSweep, summarize, type Metric } from "../engine/analysis.ts";
 import { describeChampion, describeItem, listItems, listRunes, listChampions } from "../engine/describe.ts";
 import { SCENARIO_HELP } from "../engine/help.ts";
 import { isTargetPreset } from "../engine/presets.ts";
@@ -20,6 +20,7 @@ Commands
   simulate     Run a combo.          damagesim simulate -c Ahri -l 11 -i "Luden's Echo,Sorcerer's Shoes" -r Electrocute --combo "E Q W R AA" --target hp=2000,armor=80,mr=50
   compare      Compare item builds.  damagesim compare -c Jinx -l 13 --combo "AA*8" --build "Kraken Slayer,Infinity Edge" --build "Yun Tal Wildarrows,Infinity Edge"
   rank-items   Value of adding each item to a build.   damagesim rank-items -c Zed -l 11 -i "Youmuu's Ghostblade" --combo "W E Q AA R"
+               --size <n>: of sets of n items instead.  damagesim rank-items -c Ahri -l 11 -i "Luden's Echo" --size 3
   optimize     Best N items from a pool.               damagesim optimize -c Syndra -l 16 --slots 3 --combo "Q E W R"
   combo-order  Best ordering of the given combo steps. damagesim combo-order -c Ahri -l 11 --combo "E Q W R"
   sweep        Damage vs. target armor or MR.          damagesim sweep -c Ahri --combo "E Q W" --stat mr
@@ -43,6 +44,7 @@ Scenario options (simulate / compare / rank-items / optimize / combo-order / swe
 Other options
   --metric damage|burst|percentHp|damagePerGold|killTime|dps   (compare/rank/optimize)
   --slots <n> --pool <a,b,c> --top <n>                                (optimize)
+  --size <n> --pool <a,b,c> --top <n>  --metric damage|damagePerGold  (rank-items)
   --stat armor|mr --from 0 --to 300 --step 10                         (sweep)
 `;
 
@@ -68,6 +70,7 @@ const { values: o, positionals } = parseArgs({
     build: { type: "string", multiple: true },
     metric: { type: "string" },
     slots: { type: "string" },
+    size: { type: "string" },
     pool: { type: "string" },
     top: { type: "string" },
     stat: { type: "string" },
@@ -226,6 +229,23 @@ async function main() {
       });
     }
     case "rank-items": {
+      if (Number(o.size ?? 1) > 1) {
+        const size = Number(o.size);
+        const top = Number(o.top ?? 25);
+        const res = rankItemSets(data, buildScenario(), { size, candidates: list(o.pool), limit: top });
+        const perGold = metric === "damagePerGold";
+        const sets = perGold ? [...res.sets].sort((a, b) => b.gainPerGold - a.gainPerGold).slice(0, top) : res.sets.slice(0, top);
+        return out({ metric: perGold ? metric : "damage", base: res.base, evaluated: res.evaluated, sets }, () => {
+          console.log(
+            `Base: ${num(res.base.totalDamage)} dmg with ${res.base.items.join(", ") || "no items"}. Adding ${size} items (ranked by ${perGold ? metric : "damage"}, ${res.evaluated} builds simulated):`,
+          );
+          sets.forEach((x, i) =>
+            console.log(
+              `${pad(i + 1 + ".", 4)}${x.items.map((it) => it.item).join(" + ")}  +${num(x.gain)} (${num(x.totalDamage)} total, ${x.gold}g${x.replaces ? ` upgrading ${x.replaces.map((r) => r.item).join(", ")}` : ""}, ${x.gainPerGold}/1000g)`,
+            ),
+          );
+        });
+      }
       const res = rankItems(data, buildScenario(), { metric, limit: Number(o.top ?? 25), candidates: list(o.pool) });
       return out(res, () => {
         console.log(`Base: ${num(res.base.totalDamage)} dmg with ${res.base.items.join(", ") || "no items"}. Adding one item (ranked by ${metric}):`);

@@ -12,7 +12,9 @@ import { compile } from "../src/engine/expr.ts";
 import { clampCombo, critMarking, fitCombo, formatCombo, markCrit, parseCombo, rollsCrits } from "../src/engine/combo.ts";
 import { getKit } from "../src/kits/index.ts";
 import { combineAmps } from "../src/engine/sim.ts";
-import { rankItems } from "../src/engine/analysis.ts";
+import { conflicts, rankItems, rankItemSets, searchItemSets, type ItemSet } from "../src/engine/analysis.ts";
+import { findItem } from "../src/engine/gamedata.ts";
+import type { ItemData } from "../src/engine/data-types.ts";
 import { formatNumber, itemText, renderTooltip, runeText } from "../src/engine/tooltip.ts";
 import { NOT_LIVE_RUNES } from "../src/engine/runes.ts";
 import { choosePrimary, chooseSecondary, pageRunes, pickRune, treePicks, type RunePage } from "../src/engine/rune-page.ts";
@@ -479,6 +481,117 @@ test("rank items: a candidate's active in the combo is used with it, though the 
     ["Lightning Bolt"],
   );
   near(used.gain, without.gain + used.itemDamage, 0.2);
+});
+
+test("item sets: the best by damage and per gold of every set of the candidates", () => {
+  const base = { champion: "Ahri", level: 11, items: ["Luden's Echo", "Sorcerer's Shoes"], combo: "E Q W R AA R", target: { preset: "squishy" as const } };
+  const candidates = [
+    "Rabadon's Deathcap",
+    "Shadowflame",
+    "Stormsurge",
+    "Void Staff",
+    "Lich Bane",
+    "Zhonya's Hourglass",
+    "Cosmic Drive",
+    "Horizon Focus",
+    "Blackfire Torch",
+    "Liandry's Torment",
+    "Morellonomicon",
+  ];
+  const res = rankItemSets(data, base, { size: 3, candidates });
+  // Every set of three, simulated.
+  const was = simulate(data, base).totalDamage;
+  const every: { key: string; gain: number; perGold: number }[] = [];
+  for (let i = 0; i < candidates.length; i++)
+    for (let j = i + 1; j < candidates.length; j++)
+      for (let k = j + 1; k < candidates.length; k++) {
+        const set = [candidates[i], candidates[j], candidates[k]];
+        const gain = simulate(data, { ...base, items: [...base.items, ...set] }).totalDamage - was;
+        const gold = set.reduce((sum, q) => sum + findItem(data, q).gold.total, 0);
+        every.push({ key: [...set].sort().join(" + "), gain, perGold: (gain / gold) * 1000 });
+      }
+  const keys = (xs: { key: string }[]) => xs.slice(0, 5).map((x) => x.key);
+  const found = res.sets.map((s) => ({
+    key: s.items
+      .map((x) => x.item)
+      .sort()
+      .join(" + "),
+    gain: s.gain,
+    perGold: s.gainPerGold,
+  }));
+  for (const by of ["gain", "perGold"] as const)
+    assert.deepEqual(keys([...found].sort((a, b) => b[by] - a[by])), keys(every.sort((a, b) => b[by] - a[by])), by);
+  // Fewer simulations than the 165 sets of three, let alone the 231 builds with one to three more items.
+  assert.ok(res.evaluated < 165, `${res.evaluated} simulations`);
+  // Its numbers, as simulate has them.
+  const top = res.sets[0];
+  const gold = top.items.reduce((sum, x) => sum + data.items[x.id].gold.total, 0);
+  assert.equal(top.gold, gold);
+  near(top.gain, simulate(data, { ...base, items: [...base.items, ...top.items.map((x) => x.id)] }).totalDamage - was, 0.1);
+  near(top.gainPerGold, (top.gain / gold) * 1000, 0.1);
+});
+
+test("item sets: bought as the shop buys them, fitting the build's slots", () => {
+  const base = { champion: "Ahri", level: 11, items: ["Luden's Echo", "Boots"], combo: "E Q W R AA R", target: { preset: "squishy" as const } };
+  const candidates = ["Sorcerer's Shoes", "Berserker's Greaves", "Spellslinger's Shoes", "Rabadon's Deathcap", "Shadowflame", "Lich Bane", "Trinity Force"];
+  const { sets } = rankItemSets(data, base, { size: 2, candidates });
+  const names = (s: ItemSet) => s.items.map((x) => x.item);
+  const shoes = sets.find((s) => names(s).includes("Sorcerer's Shoes") && names(s).includes("Rabadon's Deathcap"))!;
+  // A pair of boots takes the place of the Boots, for the difference in gold.
+  assert.deepEqual(shoes.replaces, [{ item: "Boots", id: 1001 }]);
+  assert.equal(shoes.gold, 1100 - 300 + 3500);
+  near(
+    shoes.gain,
+    simulate(data, { ...base, items: ["Luden's Echo", "Sorcerer's Shoes", "Rabadon's Deathcap"] }).totalDamage - simulate(data, base).totalDamage,
+    0.1,
+  );
+  for (const s of sets) {
+    const items = s.items.map((x) => data.items[x.id]);
+    // One pair of boots, one Spellblade item (Lich Bane, Trinity Force).
+    assert.ok(
+      items.every((it, i) => !conflicts(items.slice(0, i), it)),
+      names(s).join(" + "),
+    );
+    // Not a pair and its upgrade, which is bought for nothing.
+    assert.ok(!(names(s).includes("Sorcerer's Shoes") && names(s).includes("Spellslinger's Shoes")));
+  }
+  assert.ok(sets.some((s) => s.items.every((x) => !data.items[x.id].tags.includes("Boots"))));
+  // With a slot for boots and one for anything else, a set of two is a pair of boots and another item.
+  const slots = (b: ItemData[]) => b.filter((it) => !it.tags.includes("Boots")).length <= 2;
+  const fitted = rankItemSets(data, base, { size: 2, candidates, fits: slots }).sets;
+  assert.ok(fitted.length > 0);
+  for (const s of fitted) assert.equal(s.items.filter((x) => data.items[x.id].tags.includes("Boots")).length, 1, names(s).join(" + "));
+});
+
+test("item sets: progress, one simulation at a time, never going back", () => {
+  const base = { champion: "Jinx", level: 13, items: ["Infinity Edge"], combo: "AA AA AA W AA AA", target: { preset: "bruiser" as const } };
+  const search = searchItemSets(data, base, { size: 2, limit: 5 });
+  let step = search.next();
+  let done = 0;
+  let share = 0;
+  while (!step.done) {
+    const { done: now, total } = step.value;
+    assert.equal(now, done + 1);
+    assert.ok(total >= now && now / total >= share, `${now} of ${total} after ${share}`);
+    [done, share] = [now, now / total];
+    step = search.next();
+  }
+  const res = step.value;
+  assert.equal(res.evaluated, done);
+  // The 5 best by damage and the 5 best per gold, by damage.
+  assert.ok(res.sets.length >= 5 && res.sets.length <= 10);
+  assert.ok(res.sets.every((s, i) => i === 0 || res.sets[i - 1].gain >= s.gain));
+  assert.equal(
+    new Set(
+      res.sets.map((s) =>
+        s.items
+          .map((x) => x.id)
+          .sort()
+          .join(),
+      ),
+    ).size,
+    res.sets.length,
+  );
 });
 
 test("item hover text: numbers for the attacker from the template the shop text is generated from", () => {

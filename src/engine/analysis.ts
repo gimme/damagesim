@@ -1,5 +1,5 @@
-// Higher-level analyses built on simulate(): compare builds, rank items, optimize item sets,
-// order combos, and sweep target resistances. Used by the CLI, the MCP server and the web UI.
+// Higher-level analyses built on simulate(): compare builds, rank items and sets of items, optimize
+// item sets, order combos, and sweep target resistances. Used by the CLI, the MCP server and the web UI.
 
 import type { GameData } from "./gamedata.ts";
 import { findItem } from "./gamedata.ts";
@@ -384,6 +384,174 @@ export function optimizeItems(
   choose(0, []);
   results.sort((a, b) => b.score - a.score);
   return { metric, evaluated: results.length, poolSize: pool.length, best: results.slice(0, opts.top ?? 10) };
+}
+
+// -----------------------------------------------------------------------------
+// Item sets: the best few items to buy together, for Item value and rank-items --size. A beam search
+// rather than optimizeItems' brute force: it adds one item at a time to the sets it keeps, so an item
+// counts for what it adds to the others (Rabadon's Deathcap on more AP, Void Staff on more magic
+// damage). A generator, so its caller can show progress and give way between simulations.
+
+/** A set of items bought together, as rankItems' rows: what it gains for the gold it costs. */
+export interface ItemSet {
+  /** The items bought, in the order the search added them. */
+  items: { item: string; id: number }[];
+  /** The build's items they're built from, which they replace (Boots, for a pair of boots). */
+  replaces?: { item: string; id: number }[];
+  gold: number;
+  totalDamage: number;
+  gain: number;
+  /** Damage gained per 1000 of the gold. */
+  gainPerGold: number;
+  killed: boolean;
+  killTime?: number;
+}
+
+export interface ItemSetOptions {
+  /** How many items each set adds. */
+  size: number;
+  /** The items to choose from (by default the legendaries and boots, defaultCandidates). */
+  candidates?: (number | string)[];
+  /** How many sets of each size the search builds on, the best by damage and the best per gold each (6). */
+  beam?: number;
+  /** Whether a build's items fit its slots (the bot lane quest's boots slot); by default six items do. */
+  fits?: (items: ItemData[]) => boolean;
+  /** How many sets to return, the best by damage and the best per gold each (25). */
+  limit?: number;
+}
+
+/** Progress, in simulations: those run, and about how many the search takes in all. */
+export interface SearchProgress {
+  done: number;
+  total: number;
+}
+
+/** Rounds of swapping the best sets' items, at most. */
+const REFINE_ROUNDS = 3;
+
+/**
+ * The best sets of `size` items to add to the build, as the shop buys them: one at a time, an item
+ * built from items of the build in their place, at most one of an item group (conflicts), and the
+ * build fitting its slots. Each build is simulated once.
+ *
+ * First every candidate alone, as rankItems; only those that add damage alone are tried with others.
+ * Then, size by size, each of the `beam` best sets by damage and the `beam` best per gold with each
+ * of those candidates added. Last, the best set by damage and the best per gold with each of their
+ * items swapped for each candidate, and again from a better one found, up to 3 rounds. At most
+ * candidates + (size − 1) × 2 × beam × useful candidates simulations and 2 × size × useful a round of
+ * swaps, fewer as a build reached two ways is simulated once: 800 to 1,500 for 3 items of some 110
+ * candidates, 1,200 to 2,300 for 4, 1,700 to 3,300 for 5.
+ *
+ * What it misses: a set none of whose smaller sets was kept and that differs from the best ones by
+ * more than one item, as items that add little alone but much together. For 3 items it found the 8
+ * best by damage and the 8 best per gold of every set, in each of five builds tried; for 5 items, as a
+ * search keeping 24 found, but for the 7th and 8th of one, some 1% short.
+ */
+export function* searchItemSets(
+  data: GameData,
+  base: Scenario,
+  opts: ItemSetOptions,
+): Generator<SearchProgress, { base: Summary; sets: ItemSet[]; evaluated: number }> {
+  const beam = opts.beam ?? 6;
+  const fits = opts.fits ?? ((items: ItemData[]) => items.length <= 6);
+  const baseRes = simulate(data, base);
+  type Node = { added: ItemData[]; replaced: ItemData[]; build: ItemData[]; gold: number; r?: SimResult; gain: number; perGold: number };
+  const root: Node = { added: [], replaced: [], build: (base.items ?? []).map((q) => findItem(data, q)), gold: 0, gain: 0, perGold: 0 };
+  let pool = opts.candidates?.length ? opts.candidates.map((q) => findItem(data, q)) : defaultCandidates(data, base);
+
+  /** The set with one more item, as the shop buys it; null where it can't be bought. */
+  const buy = (n: Node | null, it: ItemData): Node | null => {
+    if (!n) return null;
+    const used = builtFrom(
+      data,
+      n.build.map((b) => b.id),
+      it.id,
+    );
+    // Not an upgrade of an item of the set: each one bought takes a slot of its own.
+    if (used.some((k) => n.added.includes(n.build[k]))) return null;
+    const rest = n.build.filter((_, k) => !used.includes(k));
+    if (conflicts(rest, it)) return null;
+    const gold = it.gold.total - used.reduce((sum, k) => sum + n.build[k].gold.total, 0);
+    // A free upgrade isn't bought: the mid lane role quest's tier 3 boots.
+    if (used.length && gold <= 0) return null;
+    const build = [...rest, it];
+    if (!fits(build)) return null;
+    return { added: [...n.added, it], replaced: [...n.replaced, ...used.map((k) => n.build[k])], build, gold: n.gold + gold, gain: 0, perGold: 0 };
+  };
+
+  // Simulates each set not seen before; `ahead` guesses how many more the search takes after them.
+  const seen = new Set<string>();
+  let done = 0;
+  function* run(sets: (Node | null)[], ahead: number): Generator<SearchProgress, Node[]> {
+    const fresh: Node[] = [];
+    for (const n of sets) {
+      const key = n?.build
+        .map((b) => b.id)
+        .sort((a, b) => a - b)
+        .join();
+      if (!n || seen.has(key!)) continue;
+      seen.add(key!);
+      fresh.push(n);
+    }
+    const total = done + fresh.length + ahead;
+    for (const n of fresh) {
+      n.r = simulate(data, { ...base, items: n.build.map((b) => b.id) });
+      n.gain = n.r.totalDamage - baseRes.totalDamage;
+      n.perGold = n.gold > 0 ? (n.gain / n.gold) * 1000 : 0;
+      yield { done: ++done, total };
+    }
+    return fresh.filter((n) => n.gain > 0.5);
+  }
+
+  const swaps = () => 2 * opts.size * pool.length;
+  let kept = [root];
+  let found: Node[] = [];
+  for (let size = 1; size <= opts.size; size++) {
+    found = yield* run(
+      kept.flatMap((n) => pool.map((it) => buy(n, it))),
+      (opts.size - size) * 2 * beam * pool.length + swaps(),
+    );
+    if (size === 1) pool = pool.filter((it) => found.some((n) => n.added[0] === it));
+    kept = best(found, beam);
+  }
+  // Each of the best sets' items swapped for each candidate: the sets one item from them.
+  const top = () => [best(found, 1, "gain")[0], best(found, 1, "perGold")[0]];
+  let was: (Node | undefined)[] = [];
+  for (let pass = 0; pass < REFINE_ROUNDS; pass++) {
+    const now = top();
+    const seeds = [...new Set(now.filter((n, i) => n && n !== was[i]))] as Node[];
+    if (!seeds.length) break;
+    was = now;
+    const near = seeds.flatMap((s) => s.added.flatMap((_, i) => pool.map((it) => [...s.added.slice(0, i), ...s.added.slice(i + 1), it].reduce(buy, root))));
+    found.push(...(yield* run(near, pass + 1 < REFINE_ROUNDS ? swaps() : 0)));
+  }
+
+  const sets = best(found, opts.limit ?? 25).map((n): ItemSet => ({
+    items: n.added.map((it) => ({ item: it.name, id: it.id })),
+    ...(n.replaced.length ? { replaces: n.replaced.map((it) => ({ item: it.name, id: it.id })) } : {}),
+    gold: n.gold,
+    totalDamage: round(n.r!.totalDamage),
+    gain: round(n.gain),
+    gainPerGold: round(n.perGold, 2),
+    killed: n.r!.killed,
+    ...(n.r!.killTime !== undefined ? { killTime: round(n.r!.killTime, 2) } : {}),
+  }));
+  return { base: summarize(baseRes, "current build"), sets, evaluated: done };
+}
+
+/** The `n` best by damage and the `n` best per gold (or by one of them), by damage. */
+function best<T extends { gain: number; perGold: number }>(xs: T[], n: number, by?: "gain" | "perGold"): T[] {
+  const top = (k: "gain" | "perGold") => [...xs].sort((a, b) => b[k] - a[k]).slice(0, n);
+  return [...new Set([...(by !== "perGold" ? top("gain") : []), ...(by !== "gain" ? top("perGold") : [])])].sort((a, b) => b.gain - a.gain);
+}
+
+/** searchItemSets, run to its end. */
+export function rankItemSets(data: GameData, base: Scenario, opts: ItemSetOptions) {
+  const search = searchItemSets(data, base, opts);
+  for (;;) {
+    const step = search.next();
+    if (step.done) return step.value;
+  }
 }
 
 // -----------------------------------------------------------------------------
