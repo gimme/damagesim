@@ -195,33 +195,15 @@ function ownHits(r: SimResult, item: string) {
   return byName(hits).map(({ name, damage }) => ({ name, damage }));
 }
 
-/**
- * The hit each event is part of, as a key: a hit's parts share it (a Death Lotus knife's magic and AD
- * parts, Achooo! and its explosion), each hit has its own (Nashor's Tooth applied twice by one attack).
- * Told from the events: a source's events at one moment are its hits there, the k-th of each kind there
- * the k-th hit; an execute is one of its own.
- */
-function hitKeys(r: SimResult): string[] {
-  const seen = new Map<string, number>();
-  return r.events.map((e) => {
-    const src = `${e.source}|${e.sourceLabel}`;
-    if (e.flags.execute) return `${src}|${e.id}`;
-    const kind = `${src}|${e.time}|${e.label}`;
-    const k = seen.get(kind) ?? 0;
-    seen.set(kind, k + 1);
-    return `${src}|${e.time}|#${k}`;
-  });
-}
-
 /** A result's damage by kind of hit (source, its label and the hit's: Smolder's Q hit, its burn, its
- *  execute), and how many hits each source ("source|Q|Super Scorcher Breath") and each name
- *  ("name|Q|Super Scorcher Breath") lands. */
+ *  execute), and how many hits (DamageInstance.hitId: a Death Lotus knife's magic and AD parts are one,
+ *  Nashor's Tooth applied twice by one attack two) each source ("source|Q|Super Scorcher Breath") and
+ *  each name ("name|Q|Super Scorcher Breath") lands. */
 function tally(r: SimResult) {
   const kinds = new Map<string, { src: string; source: string; name: string; events: number; damage: number }>();
-  const hits = new Map<string, Set<string>>();
-  const count = (key: string, hit: string) => (hits.get(key) ?? hits.set(key, new Set()).get(key)!).add(hit);
-  const keys = hitKeys(r);
-  r.events.forEach((e, i) => {
+  const hits = new Map<string, Set<number>>();
+  const count = (key: string, hit: number) => (hits.get(key) ?? hits.set(key, new Set()).get(key)!).add(hit);
+  for (const e of r.events) {
     const src = `${e.source}|${e.sourceLabel}`;
     const kind = `${src}|${e.label}`;
     const name = `${e.source}|${nameOf(e)}`;
@@ -229,9 +211,9 @@ function tally(r: SimResult) {
     const k = kinds.get(kind)!;
     k.events++;
     k.damage += e.final ?? 0;
-    count(`source|${src}`, keys[i]);
-    count(`name|${name}`, keys[i]);
-  });
+    count(`source|${src}`, e.hitId);
+    count(`name|${name}`, e.hitId);
+  }
   return { kinds, hits: new Map([...hits].map(([key, set]) => [key, set.size])) };
 }
 

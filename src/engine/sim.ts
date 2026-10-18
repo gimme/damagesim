@@ -233,6 +233,8 @@ interface ActiveBuff {
 /** A basic attack or attack-like ability hit landing on the target (Sim.performAttackHit). */
 export interface AttackHit {
   castId: number;
+  /** The hit it's part of, landing with a cast's other parts (DamageInstance.hitId); a new one if omitted. */
+  hitId?: number;
   amount?: number;
   comp?: ComponentSpec;
   label?: string;
@@ -315,6 +317,7 @@ export class Sim {
   private setOff: (() => void)[] | null = null;
   private nextCastId = 1;
   private nextInstId = 1;
+  private nextHitId = 1;
   /** Hits whose hooks are running: an execute they ask for waits. */
   private dealing = 0;
   /** The execute that counts: the largest (the target dies once), and how the results show it. */
@@ -1051,6 +1054,23 @@ export class Sim {
     return this.nextCastId++;
   }
 
+  private newHitId(): number {
+    return this.nextHitId++;
+  }
+
+  /** For components landing together (a cast's, a mark's): the hit of each one's hit landing at
+   *  `time`, the n-th of each there being one (DamageInstance.hitId), made as the first of them lands. */
+  private hitsLandingTogether() {
+    const at = new Map<number, { count: Map<ComponentSpec, number>; hits: number[] }>();
+    return (time: number, comp: ComponentSpec) => {
+      if (!at.has(time)) at.set(time, { count: new Map(), hits: [] });
+      const t = at.get(time)!;
+      const n = t.count.get(comp) ?? 0;
+      t.count.set(comp, n + 1);
+      return () => (t.hits[n] ??= this.newHitId());
+    };
+  }
+
   // ---------------------------------------------------------------------------
   // Scheduling
 
@@ -1155,6 +1175,7 @@ export class Sim {
       id: this.nextInstId++,
       time: this.time,
       castId: req.castId ?? this.newCastId(),
+      hitId: execute ? this.newHitId() : (req.hitId ?? this.newHitId()),
       source: req.source,
       sourceLabel: req.sourceLabel,
       label: req.label,
@@ -1275,6 +1296,7 @@ export class Sim {
       out.push({
         ...same,
         id: this.nextInstId++,
+        hitId: this.newHitId(),
         source: a.id!,
         sourceLabel: a.source,
         label: a.hit!,
@@ -1363,11 +1385,14 @@ export class Sim {
     const slot = spec.slot ?? "P";
     const spell = this.spellFor(slot);
     const rank = this.abilityRank(slot);
+    const hitAt = this.hitsLandingTogether();
     for (const comp of comps) {
       const hits = Math.max(0, Math.round(this.evalExpr(comp.hits ?? 1, { slot, spell, rank })));
       const delay0 = this.landsAt(comp, { slot, spell, rank });
       const interval = comp.interval !== undefined ? this.evalExpr(comp.interval, { slot, spell, rank }) : 0;
       for (let h = 0; h < hits; h++) {
+        const at = delay0 + interval * h;
+        const hitId = hitAt(at, comp);
         const run = () => {
           let amount = this.evalExpr(comp.amount, { slot, spell, rank, hit: h, hits });
           if (comp.min !== undefined) amount = Math.max(amount, this.evalExpr(comp.min, { slot, spell, rank }));
@@ -1380,11 +1405,11 @@ export class Sim {
             type: comp.type,
             amount,
             castId,
+            hitId: hitId(),
             flags: componentFlags(comp, slot),
             markSource: spec.id,
           });
         };
-        const at = delay0 + interval * h;
         if (at > 0) this.schedule(at, run);
         else run();
       }
@@ -1461,6 +1486,7 @@ export class Sim {
       const spell = this.spellFor(slot);
       const rank = this.abilityRank(slot);
       const castId = this.newCastId();
+      const hitId = this.newHitId();
       for (const comp of c.components) {
         const amount = this.evalExpr(comp.amount, { slot, spell, rank });
         this.deal({
@@ -1470,6 +1496,7 @@ export class Sim {
           type: comp.type,
           amount,
           castId,
+          hitId,
           flags: componentFlags(comp, slot),
           markSource: d.id,
         });
@@ -1529,6 +1556,8 @@ export class Sim {
       spell: SpellData;
       rank: number;
       castId: number;
+      /** The hit it's part of (DamageInstance.hitId). */
+      hitId: number;
       sourceLabel: string;
       hit: number;
       hits: number;
@@ -1563,6 +1592,7 @@ export class Sim {
         type: comp.type,
         amount: amount * c.factor,
         castId: ctx.castId,
+        hitId: ctx.hitId,
         flags: { kind: "ability", slot: ctx.slot, ability: !comp.noProc, crit: c.crit, basic: true },
       });
       return;
@@ -1572,6 +1602,7 @@ export class Sim {
       const own = !comp.onHitOnce && (comp.sameCast === false || (comp.sameCast !== true && ctx.hits > 1));
       this.performAttackHit({
         castId: own ? this.newCastId() : ctx.castId,
+        hitId: ctx.hitId,
         amount,
         comp,
         label: comp.label,
@@ -1595,6 +1626,7 @@ export class Sim {
       type: comp.type,
       amount,
       castId: comp.sameCast === false ? this.newCastId() : ctx.castId,
+      hitId: ctx.hitId,
       ...(comp.penPercent !== undefined ? { penPercent: this.evalExpr(comp.penPercent, ectx) } : {}),
       // Abilities that apply on-hit (Ezreal Q, Fizz Q) count as on-hit for marks like Fizz W.
       flags: { ...componentFlags(comp, ctx.slot), onHit: !!comp.onHit, crit },
@@ -1604,6 +1636,7 @@ export class Sim {
       // Ability that applies on-hit effects (no base attack damage).
       this.performAttackHit({
         castId: ctx.castId,
+        hitId: ctx.hitId,
         amount: 0,
         comp: { ...comp, attack: true },
         label: comp.label,
@@ -1672,6 +1705,7 @@ export class Sim {
    *  unless launchAttack launched it. */
   performAttackHit(o: AttackHit) {
     const effects = this.attackEffects(!!o.fromAbility);
+    const hitId = o.hitId ?? this.newHitId();
     /** A basic attack that is an ability (Zeri's): spell damage, no on-hit or on-attack effects. */
     const abilityAttack = !o.fromAbility && !!this.kit.attack?.ability;
     // It counts as a cast as it hits (Spellblade is granted then: Burst Fire's rounds landing before
@@ -1812,14 +1846,15 @@ export class Sim {
     for (const e of effects) e.onAttack?.(this, atk);
     const repeats = Math.max(0, Math.round(atk.repeatOnHit ?? 0));
     for (let i = 0; i < repeats; i++) {
-      // Extra application of on-hit effects (no base damage, no passive every-Nth counting). Unlike
-      // the attack's own, it takes the buffs' on-hits as it lands: Dusk and Dawn's after a cast while
-      // the attack flew gets Yunara's Q, which the attack doesn't.
+      // Extra application of on-hit effects (no base damage, no passive every-Nth counting), a hit of
+      // its own. Unlike the attack's own, it takes the buffs' on-hits as it lands: Dusk and Dawn's
+      // after a cast while the attack flew gets Yunara's Q, which the attack doesn't.
       const again: AttackInfo = { ...atk, extra: [], phantom: true, repeatOnHit: 0 };
       if (kitAtk?.onHit && !o.fromAbility) pushCompsTo(again, kitAtk.onHit, this.champ.passive.name);
       for (const b of this.buffs.values()) if (b.expires >= this.time && b.spec?.onHit) pushCompsTo(again, b.spec.onHit, b.label, b.slot, false, b.distance);
       for (const e of effects) e.onAttack?.(this, again);
-      atk.extra.push(...again.extra);
+      const repeated = this.newHitId();
+      atk.extra.push(...again.extra.map((x) => ({ ...x, hitId: x.hitId ?? repeated })));
     }
 
     const base = (o.amount ?? st.ad * (kitAtk?.damageMult !== undefined ? this.evalExpr(kitAtk.damageMult, { slot: "P" }) : 1)) * atk.baseMult * atk.critFactor;
@@ -1839,7 +1874,7 @@ export class Sim {
     // Its on-hit effects, items' too, are part of the attack: not what it sets off.
     const dealExtra = (x: DamageRequest) => {
       const scaled = eff !== 1 && x.flags?.onHit && x.flags.kind !== "ability" && !x.flags.fullOnHit ? { ...x, amount: x.amount * eff } : x;
-      this.apply({ ...scaled, castId: x.castId ?? o.castId });
+      this.apply({ ...scaled, castId: x.castId ?? o.castId, hitId: x.hitId ?? hitId });
     };
     const attack = () => {
       for (const x of atk.extra) if (x.beforeAttack) dealExtra(x);
@@ -1851,6 +1886,7 @@ export class Sim {
         type: o.comp && o.comp.type !== "adaptive" ? o.comp.type : o.comp?.type === "adaptive" ? "adaptive" : (kitAtk?.type ?? "physical"),
         amount: base,
         castId: o.castId,
+        hitId,
         // Attack-like ability hits (Urgot W, Azir soldiers…) deal basic damage too, and only that
         // when noProc (Zeri Q); an attack that is also an ability's spell damage (Wukong Q) is
         // flagged as an attack its components replace, and an attack that is an ability (Zeri's) as
@@ -2322,6 +2358,7 @@ export class Sim {
         }
     };
     const landing = new Map<number, (() => void)[]>();
+    const hitAt = this.hitsLandingTogether();
     for (const comp of comps) {
       const enabled = step.enable?.includes(comp.id) || !comp.optional;
       // An execute's line shows whether it hits or not (Pyke's R deals its other hit instead).
@@ -2339,11 +2376,24 @@ export class Sim {
       for (let h = 0; h < hits; h++) {
         const at = end + delay + interval * h;
         const hitIdx = h;
+        const hitId = hitAt(at, comp);
         if (!landing.has(at)) landing.set(at, []);
         landing.get(at)!.push(() => {
           const n = ++landed;
           onHitN(n, "before");
-          this.dealComponent(comp, { slot, spell, rank, castId, sourceLabel: label, hit: hitIdx, hits, recast, castTime, distance: ectx.distance });
+          this.dealComponent(comp, {
+            slot,
+            spell,
+            rank,
+            castId,
+            hitId: hitId(),
+            sourceLabel: label,
+            hit: hitIdx,
+            hits,
+            recast,
+            castTime,
+            distance: ectx.distance,
+          });
           onHitN(n, "after");
         });
       }

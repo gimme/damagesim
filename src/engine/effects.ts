@@ -49,6 +49,14 @@ export interface DamageInstance {
   /** Groups the instances of one cast / one attack ("separate hits" for runes). */
   castId: number;
   /**
+   * The hit it's part of: a cast's parts landing together (the n-th of each at one moment: Katarina's
+   * knife, its magic and AD parts), a mark's, an attack's damage with its on-hit effects (each
+   * application: Dusk and Dawn's second is a hit of its own). Anything else is a hit of its own: what
+   * a hit sets off (procs, marks, DoTs' ticks), parts landing later, an execute, a multiplier's part
+   * recorded as a hit (amps' `hit`). Item value counts hits by it.
+   */
+  hitId: number;
+  /**
    * The castId of the combo action (an ability cast, an attack, an active) that set this off, also
    * for hits counted as casts of their own (Zed's shadow Q, Katarina's R daggers) and for what the
    * action triggered (procs, DoTs). Unset for damage no action set off (an aura from the start).
@@ -98,6 +106,8 @@ export interface DamageRequest {
   amount: number;
   flags?: Partial<DamageFlags>;
   castId?: number;
+  /** The hit it's part of (DamageInstance.hitId); a new one if omitted. */
+  hitId?: number;
   note?: string;
   /** Internal: produced by a mark/detonation. */
   markSource?: string;
