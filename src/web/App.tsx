@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DATA, loadBundledIcons } from "./data.ts";
-import { DEFAULT_STATE, decodePage, encodePage, loadSavedPage, resetState, saveState, scenarioKey, toScenario, type UIState } from "./state.ts";
+import { DEFAULT_STATE, decodePage, encodePage, loadSavedPage, saveState, scenarioKey, toScenario, type UIState } from "./state.ts";
 import { simulate, Sim, type SimResult } from "../engine/sim.ts";
 import { clampCombo, formatCombo, parseCombo } from "../engine/combo.ts";
 import { AttackerPanel } from "./components/attacker.tsx";
@@ -12,7 +12,6 @@ import { ComboBuilder } from "./components/combo.tsx";
 import { Details, Summary } from "./components/results.tsx";
 import { ItemValueCard } from "./components/item-value.tsx";
 import { ScenarioBar, useScenarios } from "./components/scenarios.tsx";
-import { CompareCard } from "./components/compare.tsx";
 
 function useTheme() {
   const [theme, setTheme] = useState<"light" | "dark" | null>(() => {
@@ -62,20 +61,25 @@ export function App() {
   const [, setIconsReady] = useState(false);
   const theme = useTheme();
   const scenarios = useScenarios(state, setState, initial?.page ?? null);
+  const build = scenarios.page.builds[scenarios.page.active];
+  const buildName = scenarios.many ? build.name : undefined;
 
   useEffect(() => {
     loadBundledIcons().then((ok) => ok && setIconsReady(true));
   }, []);
 
-  // The address is a link to the scenarios, written over as they change (no history entry for each
-  // change), with replaceState, which fires no hashchange.
+  // The address is a link to the builds, written over as they change (no history entry for each
+  // change), with replaceState, which fires no hashchange; a change Back should undo (Reset, a tab
+  // closed) gets an entry of its own.
   const address = useMemo(() => BASE + encodePage(DATA, state, scenarios.page), [state, scenarios.page]);
   const shown = useRef(address);
   useEffect(() => saveState(DATA, state, address.slice(BASE.length)), [state, address]);
   useEffect(() => {
     shown.current = address;
-    if (ROUTED && location.href !== new URL(address, location.href).href) history.replaceState(null, "", address);
-  }, [address]);
+    const push = scenarios.push.current;
+    scenarios.push.current = false;
+    if (ROUTED && location.href !== new URL(address, location.href).href) history[push ? "pushState" : "replaceState"](null, "", address);
+  });
   // A link entered in the address bar on the page with only its hash different reloads nothing, nor
   // do Back and Forward between two such: its scenarios load here. An address that isn't a page's
   // goes back to this one's.
@@ -126,8 +130,8 @@ export function App() {
         <span className="spacer" />
         <button
           className="btn small"
-          title={`Reset ${DATA.champions[state.champion].name}: no items, runes or combo, and the rest as on a fresh page`}
-          onClick={() => setState(resetState)}
+          title={`Reset ${DATA.champions[state.champion].name}: one build, no items, runes or combo, and the rest as on a fresh page (Back undoes it)`}
+          onClick={scenarios.reset}
         >
           Reset
         </button>
@@ -138,19 +142,24 @@ export function App() {
       <div className="layout">
         <div>
           <AttackerPanel state={state} set={setState} sim={sim} />
-          {/* A champion's items come and go with it: their undo starts afresh with each */}
-          <ItemsPanel key={state.champion} state={state} set={setState} gold={result?.gold ?? 0} sim={sim} />
-          <RunesPanel state={state} set={setState} sim={sim} />
+          {/* A build's items come and go with it: their undo starts afresh with each */}
+          <ItemsPanel key={`${state.champion}#${build.id}`} state={state} set={setState} gold={result?.gold ?? 0} sim={sim} buildName={buildName} />
+          <RunesPanel state={state} set={setState} sim={sim} buildName={buildName} />
           <TargetPanel state={state} set={setState} resolved={result?.target} />
           <SettingsPanel state={state} set={setState} />
         </div>
         <div style={{ minWidth: 0 }}>
-          <CompareCard scenarios={scenarios} state={state} result={result} />
-          <ComboBuilder state={state} set={setState} sim={sim} result={result} />
+          <ComboBuilder
+            state={state}
+            set={setState}
+            sim={sim}
+            result={result}
+            builds={scenarios.many ? { name: build.name, own: scenarios.page.ownCombos, setOwn: scenarios.setOwnCombos } : undefined}
+          />
           {error && <div className="notice warn">{error}</div>}
           {result && (
             <>
-              <Summary r={result} />
+              <Summary r={result} scenarios={scenarios} state={state} />
               <ItemValueCard state={state} set={setState} scenario={scenario} sim={sim} />
               <Details r={result} scenario={scenario} sim={sim} />
             </>

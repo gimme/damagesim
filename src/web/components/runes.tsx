@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import { DATA, runeIcon } from "../data.ts";
 import { Icon } from "./icons.tsx";
 import { RuneTip, useHoverCard } from "./hover.tsx";
-import { Card } from "./common.tsx";
+import { BuildTitle, Card } from "./common.tsx";
 import type { Set, UIState } from "../state.ts";
 import type { Sim } from "../../engine/sim.ts";
 import { choosePrimary, chooseSecondary, pickRune, type RunePage } from "../../engine/rune-page.ts";
@@ -15,7 +15,7 @@ const treeRow = (tree: string, row: number) => DATA.runes.filter((r) => r.tree =
 /** Sets --tree to a tree's color, for what's inside. */
 const treeColor = (tree: string) => ({ "--tree": `var(--tree-${tree.toLowerCase()})` }) as CSSProperties;
 
-export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim: Sim | null }) {
+export function RunesPanel({ state, set, sim, buildName }: { state: UIState; set: Set; sim: Sim | null; buildName?: string }) {
   const page = state.runes;
   const hover = useHoverCard();
   const change = (fn: (p: RunePage) => RunePage) => set((s) => ({ ...s, runes: fn(s.runes) }));
@@ -32,7 +32,7 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
     </button>
   );
   return (
-    <Card title="Runes">
+    <Card title={<BuildTitle title="Runes" build={buildName} />}>
       <div className="rune-page">
         <div className="rune-tree" style={treeColor(page.primary)}>
           <TreePicker label="Primary" value={page.primary} trees={TREES} onPick={(t) => change((p) => choosePrimary(DATA, p, t))} />

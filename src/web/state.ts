@@ -1,8 +1,8 @@
 // UI state ⇄ engine Scenario, plus the scenario's address, which is what a link to it is (the page's
 // own address, so the address bar is how a scenario is shared): the champion in the path and the rest
-// of the state as a code in the hash, with the page's other tabs and Compare after it where it has
-// them. localStorage keeps the address for a reload where the page can't write its own (the artifact
-// frame), and each champion's setup as you left it, for when it's picked again. It takes the game data
+// of the state as a code in the hash, with the page's builds after it where it has more than one.
+// localStorage keeps the address for a reload where the page can't write its own (the artifact
+// frame), and each champion's page as you left it, for when it's picked again. It takes the game data
 // as an argument, so Node reads them too.
 
 import type { GameData } from "../engine/gamedata.ts";
@@ -11,7 +11,7 @@ import type { TargetPreset } from "../engine/presets.ts";
 import { pageRunes, type RunePage } from "../engine/rune-page.ts";
 import { fitCombo, formatCombo, parseCombo } from "../engine/combo.ts";
 import { getKit } from "../kits/index.ts";
-import type { Compare, Page, Setup } from "./scenarios.ts";
+import { single, withBuild, type Build, type Page } from "./scenarios.ts";
 
 /** Health, armor and magic resist. */
 export interface TargetStats {
@@ -485,50 +485,59 @@ export function decodeState(data: GameData, address: string): UIState | null {
   }
 }
 
-/** Compare in an address, after the tabs' codes and "!". */
-const COMPARE: Record<Exclude<Compare, "off">, string> = { own: "compare", same: "compare-same-target" };
-
-/**
- * A page's address after the app's own: the address of its scenario on screen, `s`, with the page's
- * other tabs around its code in the hash, in their order, each its champion's path and its code
- * ("ahri-3fGh"), then Compare: "zed/#ahri-3fGh~5h2Kq!compare". A page of one tab and no Compare has
- * the scenario's own (see encodeState).
- */
-export function encodePage(data: GameData, s: UIState, page: Page): string {
-  const code = encodeSetup(data, s);
-  const tabs = page.tabs.map((t, i) => (i === page.active ? code : `${championSlug(data, t.champion)}-${t.code}`));
-  const hash = tabs.join("~") + (page.tabs.length > 1 && page.compare !== "off" ? `!${COMPARE[page.compare]}` : "");
-  return `${championSlug(data, s.champion)}/${hash ? "#" + hash : ""}`;
+/** A build's name in an address: "Build n" as its number, anything else as a URI component, with what the address's own parts are written with escaped. */
+const nameCode = (name: string) =>
+  /^Build \d+$/.test(name) ? name.slice(6) : encodeURIComponent(name).replace(/[.~!*'()]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase());
+function nameOf(code: string): string | null {
+  try {
+    return /^\d+$/.test(code) ? `Build ${code}` : decodeURIComponent(code).trim() || null;
+  } catch {
+    return null;
+  }
 }
 
-/** The page at an address after the app's own, with its scenario on screen, or null if it isn't a page's; a tab that doesn't load is left out. */
+/** The build fields of a state: what the address has of a build, and not of what its builds share. */
+const ofBuild = (s: UIState, combo: boolean) => ({ items: s.items, runes: s.runes, ...(combo ? { combo: s.combo } : {}) });
+
+/**
+ * A page's address after the app's own. With one build, its scenario's (see encodeState). With more,
+ * the hash has what they share, then each build in its order (the one on screen after "*"), its code
+ * and its name ("Build n" as n), then "!combos" where each has its own combo:
+ * "ahri/#5h2Kq~*3fGh.1~9aB.Burst!combos".
+ */
+export function encodePage(data: GameData, s: UIState, page: Page): string {
+  if (page.builds.length < 2) return encodeState(data, s);
+  const shared = encodeSetup(data, { ...s, ...ofBuild(DEFAULT_STATE, page.ownCombos) });
+  const builds = page.builds.map((b, i) => {
+    const own = i === page.active ? s : withBuild(s, page, i);
+    return `${i === page.active ? "*" : ""}${encodeSetup(data, { ...DEFAULT_STATE, champion: s.champion, ...ofBuild(own, page.ownCombos) })}.${nameCode(b.name)}`;
+  });
+  return `${championSlug(data, s.champion)}/#${[shared, ...builds].join("~")}${page.ownCombos ? "!combos" : ""}`;
+}
+
+/** The page at an address after the app's own, with its state on screen, or null if it isn't a page's; a build that doesn't load is left out. */
 export function decodePage(data: GameData, address: string): { state: UIState; page: Page } | null {
   try {
     const [, slug, hash = ""] = /^\/?([^/#]+)\/?(?:#(.*))?$/.exec(address.trim()) ?? fail("not a champion's path");
     const champion = championBySlug(data, decodeURIComponent(slug));
     const [list, flag] = hash.split("!");
-    let state: UIState | null = null;
-    const tabs: Setup[] = [];
-    let active = -1;
-    for (const tab of list.split("~")) {
-      const dash = tab.lastIndexOf("-");
-      if (dash < 0) {
-        state = active < 0 ? decodeSetup(data, champion, tab) : null;
-        if (!state) return null;
-        active = tabs.length;
-        tabs.push({ champion, code: tab });
-        continue;
-      }
-      try {
-        const t = { champion: championBySlug(data, decodeURIComponent(tab.slice(0, dash))), code: tab.slice(dash + 1) };
-        if (decodeSetup(data, t.champion, t.code)) tabs.push(t);
-      } catch {
-        // no such champion: left out
-      }
+    const [code, ...tabs] = list.split("~");
+    const base = decodeSetup(data, champion, code);
+    if (!base) return null;
+    if (!tabs.length) return { state: base, page: single(base) };
+    const ownCombos = flag === "combos";
+    const builds: Build[] = [];
+    let active = 0;
+    for (const tab of tabs) {
+      const [, on, own, name] = /^(\*?)([^.]*)(?:\.(.*))?$/.exec(tab) ?? [];
+      const b = own != null ? decodeSetup(data, champion, own) : null;
+      if (!b) continue;
+      if (on) active = builds.length;
+      builds.push({ id: builds.length + 1, name: (name && nameOf(name)) || `Build ${builds.length + 1}`, items: b.items, runes: b.runes, combo: b.combo });
     }
-    if (!state) return null;
-    const compare = tabs.length > 1 ? ((Object.keys(COMPARE) as (keyof typeof COMPARE)[]).find((k) => COMPARE[k] === flag) ?? "off") : "off";
-    return { state, page: { tabs, active, compare } };
+    if (!builds.length) return { state: base, page: single(base) };
+    const page: Page = { champion, builds, active, ownCombos: ownCombos && builds.length > 1 };
+    return { state: withBuild(base, page, active), page };
   } catch {
     return null;
   }
@@ -545,19 +554,22 @@ export function loadSavedPage(data: GameData): { state: UIState; page: Page } | 
   }
 }
 
-/** Keeps the page's address after the app's own (see encodePage) for a reload, and the state's setup for its champion (see pickChampion). */
+/** Keeps the page's address after the app's own (see encodePage) for a reload, and for its champion, for when it's picked again (see pickChampion). */
 export function saveState(data: GameData, s: UIState, address: string): void {
-  remember(data, s);
+  const all = remembered();
   try {
     localStorage.setItem(STORAGE_KEY, address);
+    if (all[s.champion] === address) return;
+    all[s.champion] = address;
+    localStorage.setItem(MEMORY_KEY, JSON.stringify(all));
   } catch {
-    // storage unavailable
+    // storage unavailable: remembered for the session
   }
 }
 
 const MEMORY_KEY = "damagesim:champions";
 
-/** Each champion's setup as you left it, its code (see encodeSetup) by champion; in localStorage, for the session only where it's unavailable. */
+/** Each champion's page as you left it, its address by champion; in localStorage, for the session only where it's unavailable. */
 let memory: Record<string, string> | null = null;
 
 function remembered(): Record<string, string> {
@@ -572,29 +584,22 @@ function remembered(): Record<string, string> {
   return memory!;
 }
 
-function remember(data: GameData, s: UIState): void {
-  const all = remembered();
-  const code = encodeSetup(data, s);
-  if (all[s.champion] === code) return;
-  all[s.champion] = code;
-  try {
-    localStorage.setItem(MEMORY_KEY, JSON.stringify(all));
-  } catch {
-    // storage unavailable: remembered for the session
-  }
+/** Champion `id`'s page as you left it, if it had one. */
+export function recallPage(data: GameData, id: string): { state: UIState; page: Page } | null {
+  const address = remembered()[id];
+  const back = typeof address === "string" ? decodePage(data, address) : null;
+  return back?.state.champion === id ? back : null;
 }
 
 /**
- * The state with champion `id` picked, the one on screen remembered for its champion: the whole state
- * `id` had when you left it; or, for a champion not had before, the one on screen with the combo as its
- * kit takes it (see fitCombo), default leveling and without the last champion's own parameters.
+ * The state with champion `id` picked: the one on screen `id`'s page had when you left it (see
+ * recallPage); or, for a champion not had before, the one on screen with the combo as its kit takes
+ * it (see fitCombo), default leveling and without the last champion's own parameters.
  */
 export function pickChampion(data: GameData, s: UIState, id: string): UIState {
   if (id === s.champion) return s;
-  remember(data, s);
-  const code = remembered()[id];
-  const back = typeof code === "string" ? decodeSetup(data, id, code) : null;
-  if (back) return back;
+  const back = recallPage(data, id);
+  if (back) return back.state;
   const own = new Set((getKit(data.champions[s.champion]).options ?? []).map((o) => o.key));
   const options = Object.fromEntries(Object.entries(s.options).filter(([k]) => !own.has(k)));
   return { ...s, champion: id, ranks: null, options, combo: fitShorthand(data, s.combo, id) };

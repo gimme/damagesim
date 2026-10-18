@@ -4,8 +4,8 @@
 
 import { test as base, expect, type Locator, type Page } from "@playwright/test";
 import { loadGameData } from "../../src/node/load.ts";
-import { DEFAULT_STATE, decodePage, encodePage, encodeSetup, encodeState, type UIState } from "../../src/web/state.ts";
-import type { Compare } from "../../src/web/scenarios.ts";
+import { DEFAULT_STATE, decodePage, encodePage, encodeState, type UIState } from "../../src/web/state.ts";
+import { withBuild, type Build } from "../../src/web/scenarios.ts";
 
 export { expect };
 
@@ -57,11 +57,20 @@ const filled = (state: Record<string, any>): UIState => ({
 /** A state's address on the dev server ("/zed/#5h2Kq…"); what's left out is the default, in the target and the settings field by field. */
 export const addressOf = (state: Record<string, any>) => "/" + encodeState(DATA, filled(state));
 
-/** The address of a page with a tab for each state (as addressOf), the one at `active` on screen, and Compare. */
-export function pageAddressOf(states: Record<string, any>[], active = 0, compare: Compare = "off") {
-  const all = states.map(filled);
-  const tabs = all.map((s) => ({ champion: s.champion, code: encodeSetup(DATA, s) }));
-  return "/" + encodePage(DATA, all[active], { tabs, active, compare });
+/**
+ * The address of a page of builds, what they share as addressOf's state, each build its items, runes
+ * and combo (the default where left out) and its name ("Build n" for the nth); the one at `active` on
+ * screen, each with its own combo with `ownCombos`.
+ */
+export function pageAddressOf(shared: Record<string, any>, builds: Partial<Build>[], active = 0, ownCombos = false) {
+  const s = filled(shared);
+  const page = {
+    champion: s.champion,
+    builds: builds.map((b, i) => ({ id: i + 1, name: `Build ${i + 1}`, items: s.items, runes: s.runes, combo: s.combo, ...b })),
+    active,
+    ownCombos,
+  };
+  return "/" + encodePage(DATA, withBuild(s, page, active), page);
 }
 
 /** The state on screen at a URL on the dev server. */

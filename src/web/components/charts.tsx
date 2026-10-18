@@ -229,6 +229,7 @@ export function HpBar({
   startHp,
   champion,
   executes = [],
+  axis = true,
 }: {
   sources: SourceTotal[];
   events: DamageInstance[];
@@ -238,6 +239,8 @@ export function HpBar({
   champion: string;
   /** Health lines the executes kill below, marked across the bar as the game's last hit indicator does. */
   executes?: ExecuteLine[];
+  /** 0 and the health under it; without, bars over each other on one scale have it once. */
+  axis?: boolean;
 }) {
   const tt = useTooltip();
   const clipId = useId().replace(/[^\w-]/g, "");
@@ -294,7 +297,7 @@ export function HpBar({
   return (
     <div className="chart-wrap" ref={tt.ref}>
       <svg
-        viewBox={`0 0 ${W} ${H + 22}`}
+        viewBox={`0 0 ${W} ${H + (axis ? 22 : 4)}`}
         role="img"
         aria-label={`Target health bar: ${fmt(total)} damage of ${fmt(startHp)} health${marks.map(({ l }) => `; ${executeName(l)} below ${fmt(l.hp)}`).join("")}`}
       >
@@ -435,12 +438,16 @@ export function HpBar({
             <line x1={x} x2={x} y1={1} y2={H + 3} stroke="var(--hp-execute)" strokeWidth={2} />
           </g>
         ))}
-        <text x={0} y={H + 16} fontSize={12} fill="var(--text-muted)">
-          0
-        </text>
-        <text x={W} y={H + 16} fontSize={12} fill="var(--text-muted)" textAnchor="end">
-          {fmt(maxHp)} HP{overkill > 0 ? ` · overkill ${fmt(overkill)}` : ""}
-        </text>
+        {axis && (
+          <>
+            <text x={0} y={H + 16} fontSize={12} fill="var(--text-muted)">
+              0
+            </text>
+            <text x={W} y={H + 16} fontSize={12} fill="var(--text-muted)" textAnchor="end">
+              {fmt(maxHp)} HP{overkill > 0 ? ` · overkill ${fmt(overkill)}` : ""}
+            </text>
+          </>
+        )}
       </svg>
       {tt.node}
     </div>

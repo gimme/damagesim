@@ -1,17 +1,21 @@
-// Scenarios as tabs in the top bar: + opens a copy of the one on screen, a click switches with each
-// tab's changes its own, × closes one, and all of them are in the address, through a reload; and the
-// Compare card: the one on screen beside the others, from a link, its sources until all are shown.
+// A champion's builds as tabs in the top bar: + opens a copy of the one on screen, a click switches,
+// its items and runes its own and the rest shared, the combo too unless each build has its own; a
+// tab renamed, dragged to another place, closed, all in the address through a reload, and Back
+// undoing a close and Reset. The Result card compares them: a bar each, the table under them until
+// it's all shown, against the first build; folded, the one on screen alone. Each champion its builds.
 
 import { test, expect, num, pageAddressOf, texts, type UI } from "./ui.ts";
 
-const bar = (ui: UI) => ui.page.getByRole("group", { name: "Scenarios" });
-const tab = (ui: UI, label: string) => bar(ui).getByRole("button", { name: label, exact: true });
-/** The tabs' labels, the one on screen's with " *". */
+const bar = (ui: UI) => ui.page.getByRole("group", { name: "Builds" });
+const tab = (ui: UI, name: string) => bar(ui).getByRole("button", { name, exact: true });
+/** The tabs' names, the one on screen's with " *". */
 const tabs = (ui: UI) =>
   bar(ui)
     .locator("button[aria-pressed]")
     .evaluateAll((els) => els.map((e) => `${e.textContent}${e.getAttribute("aria-pressed") === "true" ? " *" : ""}`));
-const plus = (ui: UI) => ui.page.getByRole("button", { name: "+ Scenario" });
+const first = (ui: UI) => ui.page.getByRole("button", { name: "Build", exact: true });
+const bars = (ui: UI) => ui.card("Result").getByRole("img", { name: /^Target health bar/ });
+const hash = (ui: UI) => decodeURIComponent(new URL(ui.page.url()).hash);
 
 /** Moves the champion level `n` steps right (left where negative). */
 const level = async (ui: UI, n: number) => {
@@ -19,173 +23,222 @@ const level = async (ui: UI, n: number) => {
   await slider.focus();
   for (let i = 0; i < Math.abs(n); i++) await slider.press(n > 0 ? "ArrowRight" : "ArrowLeft");
 };
-const mode = (ui: UI, m: string) => ui.card("Target").getByRole("group", { name: "Target" }).getByRole("button", { name: m });
 
-test("tabs", async ({ ui }) => {
+test("builds", async ({ ui }) => {
   const { page, step } = ui;
+  const combo = ui.card("Combo");
+  const same = combo.getByRole("checkbox", { name: "Same for all builds" });
   let at11 = 0;
 
   await step(
-    "load: one scenario, + Scenario alone",
+    "load: one build, + Build alone",
     () => ui.open(),
     async () => {
       await expect(bar(ui)).toHaveCount(0);
-      await expect(plus(ui)).toBeVisible();
+      await expect(first(ui)).toBeVisible();
+      await expect(ui.card("Items").locator(".build-of")).toHaveCount(0);
+      await expect(same).toHaveCount(0);
       at11 = await ui.total();
     },
   );
   await step(
-    "+ Scenario: a copy in a second tab, on screen",
-    () => plus(ui).click(),
+    "+ Build: a copy in a second tab, on screen, its name on the cards of its own",
+    () => first(ui).click(),
     async () => {
-      expect(await tabs(ui)).toEqual(["Ahri", "Ahri 2 *"]);
+      expect(await tabs(ui)).toEqual(["Build 1", "Build 2 *"]);
       expect(await ui.total()).toBe(at11);
-      expect(new URL(page.url()).hash).toBe("#ahri-~");
+      expect(hash(ui)).toBe("#~.1~*.2");
+      await expect(ui.card("Items").locator(".build-of")).toHaveText("Build 2");
+      await expect(ui.card("Runes").locator(".build-of")).toHaveText("Build 2");
+      await expect(same).toBeChecked();
+      await expect(bars(ui)).toHaveCount(2);
     },
   );
   await step(
-    "level 16 in it: the first as it was",
+    "Luden's Echo sold in it: Build 1 as it was",
+    async () => {
+      const slot = ui.card("Items").locator(".slots > .slot:not(.vacated)").nth(0);
+      await slot.hover();
+      await slot.getByRole("button", { name: "Sell Luden's Echo" }).click();
+      await ui.settle();
+      expect(await ui.total()).toBeLessThan(at11);
+      await tab(ui, "Build 1").click();
+    },
+    async () => {
+      expect(await tabs(ui)).toEqual(["Build 1 *", "Build 2"]);
+      expect((await ui.state()).items[0]).toBe(6655);
+      expect(await ui.total()).toBe(at11);
+    },
+  );
+  await step(
+    "level 16 and a combo of Q in Build 1: Build 2's too, and still without Luden's Echo",
     async () => {
       await level(ui, 5);
+      await combo.getByRole("button", { name: "Clear" }).click();
+      await combo.locator(".combo-palette").getByRole("button", { name: "Q", exact: true }).click();
       await ui.settle();
-      await tab(ui, "Ahri").click();
+      await tab(ui, "Build 2").click();
     },
     async () => {
-      expect(await tabs(ui)).toEqual(["Ahri *", "Ahri 2"]);
-      expect((await ui.state()).level).toBe(11);
-      expect(await ui.total()).toBe(at11);
+      const s = await ui.state();
+      expect([s.level, s.combo, s.items[0]]).toEqual([16, "Q", null]);
     },
   );
   await step(
-    "back to the second: at 16",
-    () => tab(ui, "Ahri 2").click(),
-    async () => expect((await ui.state()).level).toBe(16),
-  );
-  await step(
-    "+ again, the tank on screen, and a reload: all as they were",
+    "each its own combo: Build 2's W, Build 1's still Q",
     async () => {
-      await bar(ui).getByRole("button", { name: "New scenario" }).click();
-      await mode(ui, "Tank").click();
+      await same.uncheck();
+      await combo.locator(".combo-palette").getByRole("button", { name: "W", exact: true }).click();
       await ui.settle();
-      await page.reload();
+      await tab(ui, "Build 1").click();
     },
     async () => {
-      expect(await tabs(ui)).toEqual(["Ahri", "Ahri 2", "Ahri 3 *"]);
-      expect((await ui.state()).level).toBe(16);
-      expect((await ui.state()).target.mode).toBe("tank");
-      await tab(ui, "Ahri 2").click();
+      expect((await ui.state()).combo).toBe("Q");
+      await expect(combo.locator(".build-of")).toHaveText("Build 1");
+      expect(hash(ui)).toMatch(/!combos$/);
+      await tab(ui, "Build 2").click();
       await ui.settle();
-      expect((await ui.state()).target.mode).toBe("squishy");
-      await tab(ui, "Ahri 3").click();
+      expect((await ui.state()).combo).toBe("Q W");
     },
   );
   await step(
-    "× on the one on screen, the last: the one before it on screen",
-    () => bar(ui).getByRole("button", { name: "Close Ahri 3" }).click(),
+    "Build 2 renamed Burst by a double-click",
     async () => {
-      expect(await tabs(ui)).toEqual(["Ahri", "Ahri 2 *"]);
-      expect((await ui.state()).target.mode).toBe("squishy");
+      await tab(ui, "Build 2").dblclick();
+      await bar(ui).getByRole("textbox", { name: "Build name" }).fill("Burst");
+      await bar(ui).getByRole("textbox", { name: "Build name" }).press("Enter");
+    },
+    async () => {
+      expect(await tabs(ui)).toEqual(["Build 1", "Burst *"]);
+      expect(hash(ui)).toContain(".Burst");
     },
   );
   await step(
-    "× on the other: one left, + Scenario alone, the address a scenario's",
-    () => bar(ui).getByRole("button", { name: "Close Ahri", exact: true }).click(),
+    "Burst dragged first: still on screen, first in the address too",
+    () => ui.drag(bar(ui).locator(".scenario-tab").nth(1), bar(ui).locator(".scenario-tab").nth(0)),
     async () => {
+      expect(await tabs(ui)).toEqual(["Burst *", "Build 1"]);
+      expect(hash(ui)).toMatch(/^#\w*~\*\w*\.Burst~\w*\.1!combos$/);
+    },
+  );
+  await step(
+    "a reload: as they were",
+    () => page.reload(),
+    async () => {
+      expect(await tabs(ui)).toEqual(["Burst *", "Build 1"]);
+      expect((await ui.state()).combo).toBe("Q W");
+    },
+  );
+  await step(
+    "Burst closed: Build 1 alone, + Build; Back brings Burst back",
+    async () => {
+      await bar(ui).getByRole("button", { name: "Close Burst" }).click();
+      await ui.settle();
       await expect(bar(ui)).toHaveCount(0);
+      expect((await ui.state()).combo).toBe("Q");
+      await page.goBack();
+    },
+    async () => expect(await tabs(ui)).toEqual(["Burst *", "Build 1"]),
+  );
+  await step(
+    "Reset: one build, nothing in it; Back brings them back",
+    async () => {
+      await page.getByRole("button", { name: "Reset" }).click();
+      await ui.settle();
+      await expect(bar(ui)).toHaveCount(0);
+      expect((await ui.state()).items.every((x) => x == null)).toBe(true);
+      await page.goBack();
+    },
+    async () => {
+      expect(await tabs(ui)).toEqual(["Burst *", "Build 1"]);
       expect((await ui.state()).level).toBe(16);
-      expect(new URL(page.url()).hash).not.toContain("~");
     },
   );
 });
 
-test("compare", async ({ ui }) => {
+test("compared", async ({ ui }) => {
   const { page, step } = ui;
-  const card = ui.card("Compare");
-  const table = card.getByRole("table", { name: "Compared scenarios" });
+  const card = ui.card("Result");
+  const table = card.getByRole("table", { name: "Compared builds" });
   const row = (label: string) => table.locator("tr").filter({ has: page.getByRole("rowheader", { name: label, exact: true }) });
   const cells = async (label: string) => (await texts(row(label).getByRole("cell"))).map(num);
-  const sources = table.locator("tbody").nth(1).getByRole("rowheader");
-  const more = card.getByRole("button", { name: /^Show (all \d+ sources|less)$/ });
-  const compare = () => page.getByRole("button", { name: "Compare", exact: true });
-  let all = 0;
+  const fold = card.getByRole("button", { name: "3 builds" });
+  const more = card.getByRole("button", { name: /^Show (all|less)$/ });
+  const search = ui.card("Champion").getByRole("searchbox", { name: "Champion" });
+  const pick = async (name: string) => {
+    await search.click();
+    await search.fill(name);
+    await search.press("Enter");
+  };
 
   await step(
-    "a link to three tabs compared: Ahri at 11 on screen, at 16, and Zed",
-    () => ui.open(pageAddressOf([{}, { level: 16 }, { champion: "Zed", items: [3142, null, null, null, null, null], combo: "W E Q AA R" }], 0, "own")),
+    "a link to three builds, Build 2 with Rabadon's on screen",
+    () => ui.open(pageAddressOf({}, [{}, { items: [6655, 3020, 3089, null, null, null] }, { items: [3020, null, null, null, null, null], name: "Boots" }], 1)),
     async () => {
-      expect(await tabs(ui)).toEqual(["Ahri *", "Ahri 2", "Zed"]);
-      await expect(compare()).toHaveAttribute("aria-pressed", "true");
-      expect(await texts(table.getByRole("columnheader"))).toEqual(["", "Ahri", "Ahri 2", "Zed"]);
-      await expect(card.getByRole("img", { name: /^Target health bar/ })).toHaveCount(3);
+      expect(await tabs(ui)).toEqual(["Build 1", "Build 2 *", "Boots"]);
+      await expect(bars(ui)).toHaveCount(3);
+      await expect(card.getByRole("group", { name: "Build 2" }).getByRole("button", { name: "Build 2" })).toHaveAttribute("aria-pressed", "true");
+      expect(await texts(table.getByRole("columnheader"))).toEqual(["", "Build 1", "Build 2", "Boots"]);
     },
   );
   await step(
-    "the totals: the one on screen first, each a health bar's, Ahri 2's more",
+    "the totals: in the tabs' order, each a health bar's, against Build 1",
     async () => {},
     async () => {
       const totals = await cells("Total damage");
-      expect(totals[0]).toBe(await ui.total());
+      expect(totals[1]).toBe(await ui.total());
       expect(totals[1]).toBeGreaterThan(totals[0]);
-      const bars = await card.getByRole("img", { name: /^Target health bar/ }).evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")!));
-      expect(bars.map((b) => num(/: ([\d,]+) damage/.exec(b)![1]))).toEqual(totals);
+      expect(totals[2]).toBeLessThan(totals[0]);
+      const shown = await bars(ui).evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")!));
+      expect(shown.map((b) => num(/: ([\d,]+) damage/.exec(b)![1]))).toEqual(totals);
       await expect(row("Total damage").getByRole("cell").nth(1)).toContainText(`+${(totals[1] - totals[0]).toLocaleString("en-US")}`);
-      await expect(row("Build").getByRole("cell").nth(2)).toContainText("Zed 11");
-      await expect(row("Combo").getByRole("cell").nth(2)).toHaveText("W E Q AA R");
+      await expect(row("Total damage").getByRole("cell").nth(2)).toContainText(`−${(totals[0] - totals[2]).toLocaleString("en-US")}`);
     },
   );
   await step(
-    "the sources: the top three until all are shown, either champion's",
+    "the table: its top rows until Show all, then the rest and the sources",
     async () => {
-      await expect(sources).toHaveCount(3);
-      await expect(more).toHaveAttribute("aria-expanded", "false");
-      all = num((await texts(more))[0]);
+      expect(await texts(table.getByRole("rowheader"))).toEqual(["Build", "Total damage", "Of its health"]);
       await more.click();
     },
     async () => {
-      await expect(more).toHaveText(/Show less/);
-      await expect(sources).toHaveCount(all);
+      await expect(more).toHaveText("Show less");
+      await expect(row("Gold").getByRole("cell").nth(1)).toContainText("+");
       await expect(table.getByRole("rowheader", { name: "Orb of Deception" })).toHaveCount(1);
-      await expect(table.getByRole("rowheader", { name: "Razor Shuriken" })).toHaveCount(1);
+      await expect(table.getByRole("rowheader", { name: "Luden's Echo" })).toHaveCount(1);
     },
   );
   await step(
-    "a tank on screen: the others against their own target",
-    () => mode(ui, "Tank").click(),
+    "a build's name: it on screen",
+    () => card.getByRole("group", { name: "Boots" }).getByRole("button", { name: "Boots" }).click(),
     async () => {
-      const [here, other] = await texts(row("Target").getByRole("cell"));
-      expect(here).toMatch(/^Tank /);
-      expect(other).toMatch(/^Squishy /);
+      expect(await tabs(ui)).toEqual(["Build 1", "Build 2", "Boots *"]);
+      expect((await ui.state()).items[0]).toBe(3020);
     },
   );
   await step(
-    "All against the target on screen: the tank, at its level 11, in the address through a reload",
+    "folded: the one on screen alone, through a reload",
     async () => {
-      await card.getByRole("checkbox", { name: "All against Tank lvl 11" }).check();
+      await fold.click();
       await ui.settle();
       await page.reload();
     },
     async () => {
-      expect(new URL(page.url()).hash).toMatch(/!compare-same-target$/);
-      await expect(card.getByRole("checkbox", { name: "All against Tank lvl 11" })).toBeChecked();
-      const [here, other] = await texts(row("Target").getByRole("cell"));
-      expect(other).toBe(here);
-      const [now, at16] = await cells("Total damage");
-      expect(now).toBe(await ui.total());
-      expect(at16).toBeGreaterThan(now);
+      await expect(fold).toHaveAttribute("aria-expanded", "false");
+      await expect(bars(ui)).toHaveCount(1);
+      await expect(table).toHaveCount(0);
+      await fold.click();
+      await expect(bars(ui)).toHaveCount(3);
     },
   );
   await step(
-    "Zed closed: two columns",
-    () => bar(ui).getByRole("button", { name: "Close Zed" }).click(),
-    async () => expect(await texts(table.getByRole("columnheader"))).toEqual(["", "Ahri", "Ahri 2"]),
-  );
-  await step(
-    "✕: closed, and out of the address",
-    () => card.getByRole("button", { name: "Close Compare" }).click(),
+    "Zed picked: a build of his own; Ahri again, her three",
     async () => {
-      await expect(card).toHaveCount(0);
-      await expect(compare()).toHaveAttribute("aria-pressed", "false");
-      expect(new URL(page.url()).hash).not.toContain("!");
+      await pick("zed");
+      await ui.settle();
+      await expect(bar(ui)).toHaveCount(0);
+      await pick("ahri");
     },
+    async () => expect(await tabs(ui)).toEqual(["Build 1", "Build 2", "Boots *"]),
   );
 });

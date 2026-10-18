@@ -278,6 +278,30 @@ export function useDragOrder({
   return { box, drag, item, source, focusLater };
 }
 
+/**
+ * Where a child dragged among children laid out in lines (a row that wraps: a combo's steps, the
+ * tabs) lands, for useDragOrder's landAt: on the line nearest its middle, however the pointer drifts
+ * up or down, after the children there whose middle its left edge is past, or its right edge for one
+ * after the gap it leaves on its own line. So one it's dragged over makes way once half covered,
+ * either way.
+ */
+export function landInLines(x: number, y: number, cells: Place[], at: number): number {
+  const d = cells[at];
+  // The cells by line, as laid out: one left of the one before it starts a new line.
+  const lines: number[][] = [];
+  cells.forEach((c, k) => (k && c.x >= cells[k - 1].x ? lines[lines.length - 1].push(k) : lines.push([k])));
+  const top = (l: number[]) => Math.min(...l.map((k) => cells[k].y));
+  const bottom = (l: number[]) => Math.max(...l.map((k) => cells[k].y + cells[k].h));
+  let n = 0;
+  while (n < lines.length - 1 && y > (bottom(lines[n]) + top(lines[n + 1])) / 2) n++;
+  const own = lines[n].includes(at);
+  const above = lines
+    .slice(0, n)
+    .flat()
+    .filter((k) => k !== at).length;
+  return above + lines[n].filter((k) => k !== at && (own && k > at ? x + d.w / 2 : x - d.w / 2) > cells[k].x + cells[k].w / 2).length;
+}
+
 type Slots = (number | null)[];
 
 /**

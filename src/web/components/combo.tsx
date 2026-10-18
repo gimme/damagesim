@@ -3,8 +3,8 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { DATA } from "../data.ts";
 import { Icon, sourceMark } from "./icons.tsx";
-import { useDragOrder } from "./drag.tsx";
-import { Card, mergeProps } from "./common.tsx";
+import { landInLines, useDragOrder } from "./drag.tsx";
+import { BuildTitle, Card, mergeProps } from "./common.tsx";
 import type { Set, UIState } from "../state.ts";
 import type { CastSetting, Sim, SimResult } from "../../engine/sim.ts";
 import {
@@ -222,7 +222,20 @@ function VariantMenu({
   );
 }
 
-export function ComboBuilder({ state, set, sim, result }: { state: UIState; set: Set; sim: Sim | null; result: SimResult | null }) {
+export function ComboBuilder({
+  state,
+  set,
+  sim,
+  result,
+  builds,
+}: {
+  state: UIState;
+  set: Set;
+  sim: Sim | null;
+  result: SimResult | null;
+  /** While there are several builds: the one on screen's name, and whether each has its own combo. */
+  builds?: { name: string; own: boolean; setOwn: (own: boolean) => void };
+}) {
   const [text, setText] = useState(state.combo);
   // The combo shows as steps; the pencil turns it into its shorthand, typed in place, until Enter,
   // Escape or a click elsewhere.
@@ -324,25 +337,7 @@ export function ComboBuilder({ state, set, sim, result }: { state: UIState; set:
         from,
         to,
       ),
-    // Where it's nearest: on the line nearest its middle, however the pointer drifts up or down, after
-    // the steps there whose middle its left edge is past, or its right edge for a step after the gap
-    // it leaves on its own line. So a step it's dragged over makes way once half covered, either way.
-    landAt: (x, y, cells, at) => {
-      const d = cells[at];
-      // The cells by line, as laid out: one left of the one before it starts a new line.
-      const lines: number[][] = [];
-      cells.forEach((c, k) => (k && c.x >= cells[k - 1].x ? lines[lines.length - 1].push(k) : lines.push([k])));
-      const top = (l: number[]) => Math.min(...l.map((k) => cells[k].y));
-      const bottom = (l: number[]) => Math.max(...l.map((k) => cells[k].y + cells[k].h));
-      let n = 0;
-      while (n < lines.length - 1 && y > (bottom(lines[n]) + top(lines[n + 1])) / 2) n++;
-      const own = lines[n].includes(at);
-      const above = lines
-        .slice(0, n)
-        .flat()
-        .filter((k) => k !== at).length;
-      return above + lines[n].filter((k) => k !== at && (own && k > at ? x + d.w / 2 : x - d.w / 2) > cells[k].x + cells[k].w / 2).length;
-    },
+    landAt: landInLines,
     move: (from, to) => {
       setIncoming(null);
       commit(moveStep(shown, from, to));
@@ -387,9 +382,15 @@ export function ComboBuilder({ state, set, sim, result }: { state: UIState; set:
 
   return (
     <Card
-      title="Combo"
+      title={<BuildTitle title="Combo" build={builds?.own ? builds.name : undefined} />}
       right={
         <div className="row" style={{ gap: 6 }}>
+          {builds && (
+            <label className="row small combo-shared" title="One combo for every build, or each its own">
+              <input type="checkbox" checked={!builds.own} onChange={(e) => builds.setOwn(!e.target.checked)} />
+              Same for all builds
+            </label>
+          )}
           <span className="small secondary">Crits</span>
           <div
             className="segmented small"

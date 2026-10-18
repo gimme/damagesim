@@ -264,7 +264,7 @@ test("Reset", async ({ ui }) => {
     "Reset, its title naming Zed: still Zed, at his address, with no items, runes or combo, the rest as on a fresh page",
     async () => {
       const reset = page.locator("header").getByRole("button", { name: "Reset" });
-      await expect(reset).toHaveAttribute("title", "Reset Zed: no items, runes or combo, and the rest as on a fresh page");
+      await expect(reset).toHaveAttribute("title", "Reset Zed: one build, no items, runes or combo, and the rest as on a fresh page (Back undoes it)");
       await reset.click();
     },
     async () => {

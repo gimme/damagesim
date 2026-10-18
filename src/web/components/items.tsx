@@ -7,13 +7,13 @@ import { BootsGlyph, ItemIcon } from "./icons.tsx";
 import { ItemPicker } from "./pickers.tsx";
 import { ItemTip, useHoverCard } from "./hover.tsx";
 import { useItemSlots } from "./drag.tsx";
-import { Card, fmt, useHistory } from "./common.tsx";
+import { BuildTitle, Card, fmt, useHistory } from "./common.tsx";
 import type { Set, UIState } from "../state.ts";
 import { BOOTS_SLOT, addBootsSlot, buyItem } from "../slots.ts";
 import type { Sim } from "../../engine/sim.ts";
 import { conflicts } from "../../engine/analysis.ts";
 
-export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set; gold: number; sim: Sim | null }) {
+export function ItemsPanel({ state, set, gold, sim, buildName }: { state: UIState; set: Set; gold: number; sim: Sim | null; buildName?: string }) {
   const [picking, setPicking] = useState<number | null>(null);
   const hover = useHoverCard();
   const items = state.items;
@@ -80,7 +80,7 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
   });
   return (
     <Card
-      title="Items"
+      title={<BuildTitle title="Items" build={buildName} />}
       right={
         <div className="row" style={{ gap: 6 }}>
           <span className="num secondary">{fmt(gold)}g</span>

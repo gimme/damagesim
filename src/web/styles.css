@@ -171,9 +171,9 @@ a {
   white-space: nowrap;
 }
 
-/* The scenarios in the top bar (scenarios.tsx): tabs in one outline, as a segmented control, the one
-   on screen pressed, each with its × (on the one on screen, else while hovered), + at the end. On a
-   phone, a line of their own, scrolled sideways where they don't fit. */
+/* The builds in the top bar (scenarios.tsx): tabs in one outline, as a segmented control, the one on
+   screen pressed, each with its × (on the one on screen, else while hovered), + at the end; dragged
+   to another place, they make way. On a phone, a line of their own; where they don't fit, more. */
 .scenario-bar {
   display: flex;
   align-items: center;
@@ -186,33 +186,43 @@ a {
     flex-basis: 100%;
   }
 }
+.scenario-first {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
 .scenario-tabs {
   position: relative;
   display: inline-flex;
+  flex-wrap: wrap;
   min-width: 0;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  background: var(--surface);
 }
 .scenario-tab {
   display: inline-flex;
   flex: none;
   align-items: center;
   border-right: 1px solid var(--border);
+  background: var(--surface);
+  touch-action: pan-y;
+}
+.scenario-tab:first-child {
+  border-radius: 7px 0 0 7px;
 }
 .scenario-tab button,
 .scenario-add {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
   border: 0;
   background: transparent;
+  color: inherit;
   font-size: 12px;
   cursor: pointer;
 }
 .scenario-tab button[aria-pressed] {
-  padding: 3px 2px 3px 6px;
+  padding: 4px 2px 4px 10px;
 }
 .scenario-tab:hover {
   background: var(--surface-3);
@@ -224,18 +234,39 @@ a {
 .scenario-tab.active button[aria-pressed] {
   font-weight: 600;
 }
-.scenario-tab .icon.xs {
-  border-radius: 50%;
+.scenario-tab.dragged {
+  z-index: 2;
+  border-radius: 7px;
+  box-shadow: var(--shadow);
 }
+/* A name as wide as it is bold, so a tab is as wide on screen or not */
 .scenario-tab .name {
+  display: inline-flex;
+  flex-direction: column;
   max-width: 140px;
+}
+.scenario-tab .name > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.scenario-tab .name::after {
+  content: attr(data-name);
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.scenario-tab input[type="text"] {
+  width: auto;
+  margin: 2px 0 2px 4px;
+  padding: 1px 5px;
+  font-size: 12px;
+}
 .scenario-close {
-  padding: 3px 7px 3px 4px !important;
-  color: var(--text-muted);
+  padding: 4px 8px 4px 5px !important;
+  color: var(--text-muted) !important;
   opacity: 0;
 }
 .scenario-tab.active .scenario-close,
@@ -243,33 +274,47 @@ a {
 .scenario-close:focus-visible {
   opacity: 1;
 }
+.scenario-close:hover {
+  color: var(--text-primary) !important;
+}
 /* Without hover, only the one on screen's: none to tap unseen */
 @media (hover: none) {
   .scenario-tab:not(.active) .scenario-close {
     display: none;
   }
   .scenario-tab:not(.active) button[aria-pressed] {
-    padding-right: 8px;
+    padding-right: 10px;
   }
 }
-.scenario-close:hover {
-  color: var(--text-primary);
-}
-/* At the end, where the tabs scroll too */
+/* Last, while the tabs are laid out by order too */
 .scenario-add {
-  position: sticky;
-  right: 0;
-  flex: none;
-  margin-left: -1px;
-  padding: 3px 10px;
-  border-left: 1px solid var(--border) !important;
-  background: var(--surface) !important;
+  order: 1000;
+  justify-content: center;
+  align-self: stretch;
+  padding: 0 10px;
+  border-radius: 0 7px 7px 0;
   color: var(--text-secondary);
-  font-size: 14px;
 }
 .scenario-add:hover {
-  background: var(--surface-3) !important;
+  background: var(--surface-3);
   color: var(--text-primary);
+}
+/* In a card's title, the build what's in it is the own of */
+.build-of {
+  margin-left: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--accent-wash);
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  vertical-align: 1px;
+}
+.combo-shared {
+  gap: 4px;
+  margin-right: 6px;
 }
 
 .layout {
@@ -930,27 +975,65 @@ input.combo-text {
   opacity: 1;
 }
 
-/* The Compare card (compare.tsx): a health bar each, then the table, its columns the scenarios */
-.compare-pick {
+/* The builds compared, in the Result card (compare.tsx): a health bar each, the one on screen's name
+   marked, then the table, its columns the builds, the one on screen's tinted */
+.compare-fold {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding-left: 3px;
+  gap: 4px;
+  margin: -4px 0 -4px 8px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
 }
-.compare-pick .icon.xs {
-  border-radius: 50%;
+.compare-fold .chevron {
+  transition: transform 0.2s;
+}
+.compare-fold[aria-expanded="false"] .chevron {
+  transform: rotate(-90deg);
 }
 .compare-bars {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 .compare-head {
-  gap: 6px;
-  margin-bottom: 4px;
+  gap: 8px;
+  margin-bottom: 3px;
 }
-.compare-head .icon.xs {
+.compare-head .delta {
+  min-width: 0;
+  margin-left: 4px;
+}
+.compare-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+.compare-name:hover {
+  text-decoration: underline;
+}
+.compare-name[aria-pressed="true"] {
+  color: var(--accent-text);
+  cursor: default;
+  text-decoration: none;
+}
+.compare-name[aria-pressed="true"]::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
   border-radius: 50%;
+  background: var(--accent);
+  vertical-align: 2px;
+}
+.compare-table th.on,
+.compare-table td.on {
+  background: var(--accent-wash);
 }
 .table-scroll.compare-table {
   max-height: none;
@@ -991,10 +1074,7 @@ input.combo-text {
   gap: 3px;
   max-width: 160px;
 }
-.compare-build .secondary {
-  margin-right: 3px;
-}
-/* The sources until all are shown: the top ones, fading out */
+/* The table until it's all shown: its top rows, fading out */
 .compare-peek tr:nth-child(2) {
   opacity: 0.6;
 }

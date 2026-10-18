@@ -8,11 +8,51 @@ import type { DamageInstance } from "../../engine/effects.ts";
 import type { Scenario, SimResult, Sim } from "../../engine/sim.ts";
 import { resistSweep } from "../../engine/analysis.ts";
 import { describeChampion } from "../../engine/describe.ts";
+import { Compared, useFolded } from "./compare.tsx";
+import { Chevron } from "./item-value.tsx";
+import type { Scenarios } from "./scenarios.tsx";
+import type { UIState } from "../state.ts";
 
-export function Summary({ r }: { r: SimResult }) {
+/** The build on screen's result; with more builds, theirs too under it, unless they're folded away (see Compared). */
+export function Summary({ r, scenarios, state }: { r: SimResult; scenarios: Scenarios; state: UIState }) {
   const [by, setBy] = useState<"time" | "size">("time");
+  const [folded, setFolded] = useFolded();
+  const n = scenarios.page.builds.length;
+  const controls = (
+    <div className="row">
+      <span className="muted small" style={{ flex: 1 }}>
+        {r.dotDamage > 1 && `${fmt(r.comboDamage)} burst + ${fmt(r.dotDamage)} damage over time.`}
+      </span>
+      <div className="segmented small" role="group" aria-label="Order the bar's sources">
+        <button aria-pressed={by === "time"} onClick={() => setBy("time")}>
+          Chronological
+        </button>
+        <button aria-pressed={by === "size"} onClick={() => setBy("size")}>
+          By source
+        </button>
+      </div>
+    </div>
+  );
   return (
-    <Card title="Result" right={<TypeLegend amounts={r.byType} />}>
+    <Card
+      title={
+        <>
+          Result
+          {n > 1 && (
+            <button
+              className="btn small ghost compare-fold"
+              aria-expanded={!folded}
+              title={folded ? `Show the ${n} builds compared` : "This build alone"}
+              onClick={() => setFolded(!folded)}
+            >
+              <Chevron />
+              {n} builds
+            </button>
+          )}
+        </>
+      }
+      right={<TypeLegend amounts={r.byType} />}
+    >
       <div className="hero">
         <div>
           <div className="label">Total damage</div>
@@ -35,30 +75,24 @@ export function Summary({ r }: { r: SimResult }) {
           </div>
         )}
       </div>
-      <div style={{ marginTop: 14 }}>
-        <HpBar
-          sources={r.bySource}
-          events={r.events}
-          by={by}
-          maxHp={r.target.maxHp}
-          startHp={r.target.startHp}
-          champion={r.champion.id}
-          executes={r.executeLines}
-        />
-      </div>
-      <div className="row">
-        <span className="muted small" style={{ flex: 1 }}>
-          {r.dotDamage > 1 && `${fmt(r.comboDamage)} burst + ${fmt(r.dotDamage)} damage over time.`}
-        </span>
-        <div className="segmented small" role="group" aria-label="Order the bar's sources">
-          <button aria-pressed={by === "time"} onClick={() => setBy("time")}>
-            Chronological
-          </button>
-          <button aria-pressed={by === "size"} onClick={() => setBy("size")}>
-            By source
-          </button>
-        </div>
-      </div>
+      {n > 1 && !folded ? (
+        <Compared scenarios={scenarios} state={state} result={r} by={by} controls={controls} />
+      ) : (
+        <>
+          <div style={{ marginTop: 14 }}>
+            <HpBar
+              sources={r.bySource}
+              events={r.events}
+              by={by}
+              maxHp={r.target.maxHp}
+              startHp={r.target.startHp}
+              champion={r.champion.id}
+              executes={r.executeLines}
+            />
+          </div>
+          {controls}
+        </>
+      )}
       <Warnings r={r} />
     </Card>
   );

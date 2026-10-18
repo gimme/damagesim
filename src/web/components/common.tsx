@@ -15,6 +15,13 @@ export function Card({ title, right, children }: { title: ReactNode; right?: Rea
   );
 }
 
+/** A card's title, with the name of the build what's in it is the own of, while there are several. */
+export const BuildTitle = ({ title, build }: { title: string; build?: string }) => (
+  <>
+    {title} {build && <span className="build-of">{build}</span>}
+  </>
+);
+
 export function NumberField({
   label,
   value,
