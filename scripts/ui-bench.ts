@@ -238,7 +238,9 @@ for (const action of ACTIONS) {
   const order = (n: string) => (n === BUSY ? 0 : n === LONGEST ? 1 : n.startsWith("slowest") ? 3 : 2);
   const stats = names.map((n) => [n, median(rows.map((r) => r.get(n) ?? 0))] as const);
   stats.sort((a, b) => order(a[0]) - order(b[0]) || b[1] - a[1]);
-  for (const [n, v] of stats) if (v >= 0.05) console.log(`  ${fmt(v)}  ${order(n) === 2 ? "  " : ""}${n}`);
+  // Event Timing reports only interactions of 16 ms or more.
+  for (const [n, v] of stats)
+    if (v >= 0.05 || order(n) === 3) console.log(`  ${order(n) === 3 && v < 16 ? "    <16" : fmt(v)}  ${order(n) === 2 ? "  " : ""}${n}`);
 }
 
 await browser.close();
