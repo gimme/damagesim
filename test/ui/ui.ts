@@ -4,7 +4,8 @@
 
 import { test as base, expect, type Locator, type Page } from "@playwright/test";
 import { loadGameData } from "../../src/node/load.ts";
-import { DEFAULT_STATE, decodeState, encodeState, type UIState } from "../../src/web/state.ts";
+import { DEFAULT_STATE, decodePage, encodePage, encodeSetup, encodeState, type UIState } from "../../src/web/state.ts";
+import type { Compare } from "../../src/web/scenarios.ts";
 
 export { expect };
 
@@ -45,20 +46,28 @@ function isSettled(itemValue: boolean) {
 /** The game data the page has, for the scenarios' addresses. */
 const DATA = loadGameData();
 
-/** A state's address on the dev server ("/zed/#5h2Kq…"); what's left out is the default, in the target and the settings field by field. */
-export const addressOf = (state: Record<string, any>) =>
-  "/" +
-  encodeState(DATA, {
-    ...DEFAULT_STATE,
-    ...state,
-    target: { ...DEFAULT_STATE.target, ...state.target },
-    settings: { ...DEFAULT_STATE.settings, ...state.settings },
-  });
+/** A state with what's left out the default, in the target and the settings field by field. */
+const filled = (state: Record<string, any>): UIState => ({
+  ...DEFAULT_STATE,
+  ...state,
+  target: { ...DEFAULT_STATE.target, ...state.target },
+  settings: { ...DEFAULT_STATE.settings, ...state.settings },
+});
 
-/** The state at a URL on the dev server. */
+/** A state's address on the dev server ("/zed/#5h2Kq…"); what's left out is the default, in the target and the settings field by field. */
+export const addressOf = (state: Record<string, any>) => "/" + encodeState(DATA, filled(state));
+
+/** The address of a page with a tab for each state (as addressOf), the one at `active` on screen, and Compare. */
+export function pageAddressOf(states: Record<string, any>[], active = 0, compare: Compare = "off") {
+  const all = states.map(filled);
+  const tabs = all.map((s) => ({ champion: s.champion, code: encodeSetup(DATA, s) }));
+  return "/" + encodePage(DATA, all[active], { tabs, active, compare });
+}
+
+/** The state on screen at a URL on the dev server. */
 export function stateOf(url: string): UIState {
   const { pathname, hash } = new URL(url);
-  const state = decodeState(DATA, pathname.slice(1) + hash);
+  const state = decodePage(DATA, pathname.slice(1) + hash)?.state;
   if (!state) throw new Error(`not a scenario's address: ${url}`);
   return state;
 }
@@ -74,8 +83,8 @@ export const attrs = (loc: Locator, name: string) => loc.evaluateAll((els, name)
 
 export interface UI {
   page: Page;
-  /** Opens the app at a state's address (what's left out is the default), or at its root, and waits for it to settle. */
-  open(state?: object): Promise<void>;
+  /** Opens the app at a state's address (what's left out is the default), at an address, or at its root, and waits for it to settle. */
+  open(state?: object | string): Promise<void>;
   /** Runs one step: `act`, then once the page has settled, `check`. */
   step(name: string, act: () => Promise<unknown>, check?: () => Promise<unknown>): Promise<void>;
   /** Waits until nothing changes for a few frames and nothing glides, and with the `itemValue` option, for Item value's ranking. */
@@ -128,7 +137,7 @@ export const test = base.extend<{ ui: UI; itemValue: boolean }>({
     const ui: UI = {
       page,
       open: async (state) => {
-        await page.goto(state ? addressOf(state) : "/");
+        await page.goto(typeof state === "string" ? state : state ? addressOf(state) : "/");
         await expect(page.locator("section.card").first()).toBeVisible();
         await settle(true);
       },

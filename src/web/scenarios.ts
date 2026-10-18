@@ -1,131 +1,64 @@
-// Saved scenarios: named setups to come back to and to compare, each its champion and its setup's
-// code (see encodeSetup), kept in localStorage. Switching between them loses nothing: the one open
-// keeps its changes until they're saved over it or reverted, and they stay with it while another is
-// open; work that isn't saved, left for a saved scenario, is kept as the unsaved one. Each change on
-// screen goes to the champion's memory as before (see pickChampion), so opening a scenario is as
-// opening its link. Nothing here reads the game data: the codes come and go as they are.
+// Scenarios: tabs on a page, each a champion and its setup's code (see encodeSetup), all in the
+// page's address with whether they're compared (see encodePage), so a link has them as they are. What's
+// on screen is the active tab: a change on screen is that tab's, and a new tab starts as a copy of
+// it. Nothing here reads the game data: the codes come and go as they are.
 
-/** A champion and its setup's code: a scenario as it's kept. */
+/** A champion and its setup's code: a scenario as a tab has it. */
 export interface Setup {
   champion: string;
   code: string;
 }
 
-export interface Saved extends Setup {
-  name: string;
-  /** Its changes since it was saved, while it has any. */
-  edited?: Setup;
+/** How the tabs are compared: not, each against its own target, or all against the one on screen's. */
+export type Compare = "off" | "own" | "same";
+
+export interface Page {
+  tabs: Setup[];
+  /** The tab on screen, by its place. */
+  active: number;
+  /** Off with one tab. */
+  compare: Compare;
 }
 
-export interface Shelf {
-  saved: Saved[];
-  /** The saved scenario on screen, by name; null when it's the unsaved one. */
-  open: string | null;
-  /** The work that isn't saved, while a saved scenario is open in its place. */
-  unsaved: Setup | null;
-}
-
-export const EMPTY_SHELF: Shelf = { saved: [], open: null, unsaved: null };
-
-export const sameSetup = (a: Setup | null | undefined, b: Setup | null | undefined) => !!a && !!b && a.champion === b.champion && a.code === b.code;
+export const sameSetup = (a: Setup, b: Setup) => a.champion === b.champion && a.code === b.code;
 
 const setup = ({ champion, code }: Setup): Setup => ({ champion, code });
 
-/** A saved scenario as it is now: with its changes. */
-export const current = (s: Saved): Setup => s.edited ?? setup(s);
+/** A page of one tab. */
+export const single = (screen: Setup): Page => ({ tabs: [setup(screen)], active: 0, compare: "off" });
 
-/** The screen changed: into the open scenario's changes, none when it's back as saved. */
-export function track(shelf: Shelf, screen: Setup): Shelf {
-  const open = shelf.saved.find((s) => s.name === shelf.open);
-  if (!open || sameSetup(current(open), screen)) return shelf;
-  const { edited: _, ...was } = open;
-  const next: Saved = sameSetup(open, screen) ? was : { ...was, edited: setup(screen) };
-  return { ...shelf, saved: shelf.saved.map((s) => (s === open ? next : s)) };
+/** The screen as it is now: the active tab's. */
+export function track(page: Page, screen: Setup): Page {
+  if (sameSetup(page.tabs[page.active], screen)) return page;
+  return { ...page, tabs: page.tabs.map((t, i) => (i === page.active ? setup(screen) : t)) };
 }
 
-/**
- * The shelf with `name` open (null: the unsaved one), and what goes on screen. Unsaved work left for
- * a saved scenario is kept, unless a saved one has it as it is.
- */
-export function openScenario(shelf: Shelf, name: string | null, screen: Setup): { shelf: Shelf; screen: Setup } {
-  if (name === shelf.open) return { shelf, screen };
-  const kept = shelf.open === null && !shelf.saved.some((s) => sameSetup(current(s), screen)) ? setup(screen) : shelf.unsaved;
-  if (name === null) return shelf.unsaved ? { shelf: { ...shelf, open: null, unsaved: null }, screen: shelf.unsaved } : { shelf, screen };
-  const to = shelf.saved.find((s) => s.name === name);
-  if (!to) return { shelf, screen };
-  return { shelf: { ...shelf, open: name, unsaved: kept }, screen: current(to) };
+/** A copy of the active tab in a new tab after it, on screen. */
+export const addTab = (page: Page): Page => ({
+  ...page,
+  tabs: [...page.tabs.slice(0, page.active + 1), page.tabs[page.active], ...page.tabs.slice(page.active + 1)],
+  active: page.active + 1,
+});
+
+export const selectTab = (page: Page, i: number): Page => (i >= 0 && i < page.tabs.length ? { ...page, active: i } : page);
+
+/** Without tab `i`, the last one kept. Closing the active one puts the next on screen, or the one before it where it was last. */
+export function closeTab(page: Page, i: number): Page {
+  if (page.tabs.length < 2 || i < 0 || i >= page.tabs.length) return page;
+  const tabs = page.tabs.filter((_, k) => k !== i);
+  return {
+    tabs,
+    active: i < page.active || (i === page.active && i === tabs.length) ? page.active - 1 : page.active,
+    compare: tabs.length > 1 ? page.compare : "off",
+  };
 }
 
-/**
- * The screen saved as `name`, over the scenario of that name if there is one, and open. The open
- * scenario's changes, saved under another name, are no longer its own.
- */
-export function saveScenario(shelf: Shelf, name: string, screen: Setup): Shelf {
-  const saved = shelf.saved.map((s): Saved => {
-    if (s.name === name) return { name, ...setup(screen) };
-    const { edited: _, ...was } = s;
-    return s.name === shelf.open ? was : s;
+/** Each tab's label: its champion's name, numbered from its second tab on: "Ahri", "Ahri 2", "Zed". */
+export function labels(tabs: Setup[], championName: (champion: string) => string): string[] {
+  const seen = new Map<string, number>();
+  return tabs.map((t) => {
+    const n = (seen.get(t.champion) ?? 0) + 1;
+    seen.set(t.champion, n);
+    return n > 1 ? `${championName(t.champion)} ${n}` : championName(t.champion);
   });
-  return { ...shelf, saved: saved.some((s) => s.name === name) ? saved : [...saved, { name, ...setup(screen) }], open: name };
-}
-
-export function renameScenario(shelf: Shelf, from: string, to: string): Shelf {
-  if (from === to || shelf.saved.some((s) => s.name === to)) return shelf;
-  return { ...shelf, saved: shelf.saved.map((s) => (s.name === from ? { ...s, name: to } : s)), open: shelf.open === from ? to : shelf.open };
-}
-
-/** The open scenario as saved, its changes gone. */
-export function revertScenario(shelf: Shelf): { shelf: Shelf; screen: Setup | null } {
-  const open = shelf.saved.find((s) => s.name === shelf.open);
-  if (!open) return { shelf, screen: null };
-  const { edited: _, ...was } = open;
-  return { shelf: { ...shelf, saved: shelf.saved.map((s) => (s === open ? was : s)) }, screen: setup(was) };
-}
-
-/**
- * The shelf without `name`. Deleting the open one leaves what's on screen as the unsaved work, or
- * where there's unsaved work kept, opens it.
- */
-export function deleteScenario(shelf: Shelf, name: string): { shelf: Shelf; screen: Setup | null } {
-  const saved = shelf.saved.filter((s) => s.name !== name);
-  if (shelf.open !== name) return { shelf: { ...shelf, saved }, screen: null };
-  return { shelf: { saved, open: null, unsaved: null }, screen: shelf.unsaved };
-}
-
-/** The unsaved work kept, dropped. */
-export const discardUnsaved = (shelf: Shelf): Shelf => (shelf.open === null ? shelf : { ...shelf, unsaved: null });
-
-/**
- * The shelf for a page that opens at `screen`: the scenario open before if it's still as on screen (a
- * reload), else one that is; none for a link to something else, which is then the unsaved work.
- */
-export function reconcile(shelf: Shelf, screen: Setup): Shelf {
-  const open = shelf.saved.find((s) => s.name === shelf.open);
-  if (open && sameSetup(current(open), screen)) return shelf;
-  const now = shelf.saved.find((s) => sameSetup(current(s), screen));
-  if (now) return { ...shelf, open: now.name, unsaved: open ? shelf.unsaved : null };
-  return open ? { ...shelf, open: null, unsaved: null } : shelf;
-}
-
-/** A name for the screen's setup not yet taken: `base`, or `base 2`, `base 3`… */
-export function freeName(shelf: Shelf, base: string): string {
-  const taken = new Set(shelf.saved.map((s) => s.name));
-  for (let n = 1; ; n++) if (!taken.has(n === 1 ? base : `${base} ${n}`)) return n === 1 ? base : `${base} ${n}`;
-}
-
-const isSetup = (x: any): boolean => !!x && typeof x.champion === "string" && typeof x.code === "string";
-
-/** A shelf as stored, or the empty one where it isn't one. */
-export function readShelf(text: string | null): Shelf {
-  try {
-    const x = JSON.parse(text ?? "null");
-    const saved: Saved[] = [];
-    for (const s of Array.isArray(x?.saved) ? x.saved : [])
-      if (isSetup(s) && typeof s.name === "string" && s.name.trim() && !saved.some((t) => t.name === s.name))
-        saved.push({ name: s.name, ...setup(s), ...(isSetup(s.edited) ? { edited: setup(s.edited) } : {}) });
-    const open = saved.some((s) => s.name === x?.open) ? (x.open as string) : null;
-    return { saved, open, unsaved: open !== null && isSetup(x?.unsaved) ? setup(x.unsaved) : null };
-  } catch {
-    return EMPTY_SHELF;
-  }
 }

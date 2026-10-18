@@ -1,305 +1,107 @@
-// The saved scenarios, in the top bar: a chip each, the one on screen pressed and a dot on one changed
-// since it was saved. A click on another opens it as it was left (see scenarios.ts); on the one open,
-// its menu: rename, revert its changes, delete. Save names what's on screen, a new scenario or, under a
-// name taken, over that one; Ctrl+S saves the open one's changes over it. Compare shows the Compare
-// card (compare.tsx).
+// The scenarios, in the top bar: tabs, the one on screen pressed, what changes on screen its own (see
+// scenarios.ts), all in the page's address. + opens a copy of it in a new tab, to change and to
+// compare with it; × closes one. Compare shows the Compare card (compare.tsx). With one tab, there's
+// only "+ Scenario".
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DATA, championIcon } from "../data.ts";
 import { Icon } from "./icons.tsx";
 import { decodeSetup, encodeSetup, type UIState } from "../state.ts";
-import {
-  current,
-  deleteScenario,
-  discardUnsaved,
-  freeName,
-  openScenario,
-  readShelf,
-  reconcile,
-  renameScenario,
-  revertScenario,
-  saveScenario,
-  track,
-  type Saved,
-  type Setup,
-  type Shelf,
-} from "../scenarios.ts";
-
-const STORAGE_KEY = "damagesim:scenarios";
+import { addTab, closeTab, labels, sameSetup, selectTab, single, track, type Compare, type Page, type Setup } from "../scenarios.ts";
 
 export const setupOf = (s: UIState): Setup => ({ champion: s.champion, code: encodeSetup(DATA, s) });
 export const stateOf = (s: Setup): UIState | null => decodeSetup(DATA, s.champion, s.code);
 
-/** The saved scenarios and what's on screen, shared by the top bar and the Compare card. */
+const championName = (champion: string) => DATA.champions[champion]?.name ?? champion;
+
+/** The page's tabs and what's on screen, shared by the top bar, the Compare card and the address. */
 export interface Scenarios {
-  shelf: Shelf;
+  /** With the tab on screen as it is now. */
+  page: Page;
+  /** Each tab's label, as page.tabs. */
+  labels: string[];
   screen: Setup;
   comparing: boolean;
-  setComparing: (on: boolean) => void;
-  open: (name: string | null) => void;
-  save: (name: string) => void;
-  rename: (from: string, to: string) => void;
-  revert: () => void;
-  remove: (name: string) => void;
-  discard: () => void;
+  /** Tabs from an address, their scenario on screen put there with them. */
+  load: (page: Page) => void;
+  select: (i: number) => void;
+  add: () => void;
+  close: (i: number) => void;
+  compare: (how: Compare) => void;
 }
 
-export function useScenarios(state: UIState, setState: (s: UIState) => void): Scenarios {
+export function useScenarios(state: UIState, setState: (s: UIState) => void, initial: Page | null): Scenarios {
   const screen = useMemo(() => setupOf(state), [state]);
-  const [shelf, setShelf] = useState<Shelf>(() => {
-    let stored: string | null = null;
-    try {
-      stored = localStorage.getItem(STORAGE_KEY);
-    } catch {
-      // storage unavailable: for the session only
-    }
-    return reconcile(readShelf(stored), screen);
-  });
-  const [comparing, setComparing] = useState(false);
-  useEffect(() => setShelf((sh) => track(sh, screen)), [screen]);
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(shelf));
-    } catch {
-      // storage unavailable
-    }
-  }, [shelf]);
-  /** A shelf, with what it puts on screen; one that doesn't load leaves the screen as it is. */
-  const go = (next: { shelf: Shelf; screen: Setup | null }) => {
-    const s = next.screen && stateOf(next.screen);
-    if (next.screen && !s) return;
-    setShelf(next.shelf);
+  const [kept, setPage] = useState(() => initial ?? single(screen));
+  const page = useMemo(() => track(kept, screen), [kept, screen]);
+  const named = useMemo(() => labels(page.tabs, championName), [page.tabs]);
+  /** Tabs, their active one put on screen. */
+  const go = (next: Page) => {
+    const tab = next.tabs[next.active];
+    const s = sameSetup(tab, screen) ? null : stateOf(tab);
+    setPage(next);
     if (s) setState(s);
   };
   return {
-    shelf,
+    page,
+    labels: named,
     screen,
-    comparing,
-    setComparing,
-    open: (name) => go(openScenario(shelf, name, screen)),
-    save: (name) => setShelf(saveScenario(shelf, name, screen)),
-    rename: (from, to) => setShelf(renameScenario(shelf, from, to)),
-    revert: () => go(revertScenario(shelf)),
-    remove: (name) => go(deleteScenario(shelf, name)),
-    discard: () => setShelf(discardUnsaved(shelf)),
+    comparing: page.compare !== "off",
+    load: setPage,
+    select: (i) => go(selectTab(page, i)),
+    add: () => go(addTab(page)),
+    close: (i) => go(closeTab(page, i)),
+    compare: (how) => go({ ...page, compare: how }),
   };
 }
 
-/** A name for what's on screen: its champion and level, and its first item. */
-function suggestedName(state: UIState) {
-  const item = state.items.find((x) => x != null);
-  return `${DATA.champions[state.champion].name} ${state.level}${item ? ` · ${DATA.items[item].name}` : ""}`;
-}
-
-/** A small panel under what opens it, inside the window, closed by Escape (back to what opened it) or a press outside it. */
-function Popover({ label, onClose, children }: { label: string; onClose: () => void; children: ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const el = ref.current!;
-    const over = el.getBoundingClientRect().right - (document.documentElement.clientWidth - 8);
-    if (over > 0) el.style.left = `${-over}px`;
-  }, []);
+export function ScenarioBar({ scenarios }: { scenarios: Scenarios }) {
+  const { page, labels } = scenarios;
+  // The tab on screen in view, where the tabs scroll.
+  const strip = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const close = (e: PointerEvent) => !ref.current?.parentElement?.contains(e.target as Node) && onClose();
-    document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
-  }, [onClose]);
-  return (
-    <div
-      ref={ref}
-      className="popover"
-      role="dialog"
-      aria-label={label}
-      onKeyDown={(e) => {
-        if (e.key !== "Escape") return;
-        ref.current?.parentElement?.querySelector("button")?.focus();
-        onClose();
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-/** A name typed, and what it does: the field starts with `initial`, selected. */
-function NameForm({ initial, action, onSubmit }: { initial: string; action: (name: string) => string; onSubmit: (name: string) => void }) {
-  const [name, setName] = useState(initial);
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    if (name.trim()) onSubmit(name.trim());
-  };
-  return (
-    <form className="row" style={{ flexWrap: "nowrap" }} onSubmit={submit}>
-      <input type="text" aria-label="Scenario name" value={name} autoFocus onFocus={(e) => e.target.select()} onChange={(e) => setName(e.target.value)} />
-      <button className="btn small primary" disabled={!name.trim()}>
-        {action(name.trim())}
-      </button>
-    </form>
-  );
-}
-
-function Chip({
-  setup,
-  name,
-  pressed,
-  edited,
-  broken,
-  title,
-  onClick,
-  children,
-}: {
-  setup: Setup;
-  name: string;
-  pressed: boolean;
-  edited?: boolean;
-  broken?: boolean;
-  title: string;
-  onClick: () => void;
-  children?: ReactNode;
-}) {
-  return (
-    <span className="scenario">
-      <button
-        className={`scenario-chip${broken ? " broken" : ""}${name ? "" : " unsaved"}`}
-        aria-pressed={pressed}
-        aria-label={`${name || "Unsaved"}${edited ? " (changed)" : ""}`}
-        title={title}
-        onClick={onClick}
-      >
-        <Icon src={championIcon(setup.champion)} label={DATA.champions[setup.champion]?.name ?? setup.champion} size="xs" />
-        <span className="name">{name || "Unsaved"}</span>
-        {edited && <span className="edited" aria-hidden />}
-      </button>
-      {children}
-    </span>
-  );
-}
-
-/** The open scenario's menu: its name to change, its changes to revert, and it to delete, at a second press. */
-function ScenarioMenu({ s, loads, scenarios, onClose }: { s: Saved; loads: boolean; scenarios: Scenarios; onClose: () => void }) {
-  const [deleting, setDeleting] = useState(false);
-  const taken = (n: string) => n !== s.name && scenarios.shelf.saved.some((x) => x.name === n);
-  return (
-    <Popover label={s.name} onClose={onClose}>
-      {!loads && <div className="notice warn small">This scenario doesn't load in this version.</div>}
-      <NameForm
-        initial={s.name}
-        action={(n) => (taken(n) ? "Name taken" : "Rename")}
-        onSubmit={(n) => {
-          if (taken(n)) return;
-          scenarios.rename(s.name, n);
-          onClose();
-        }}
-      />
-      <div className="row">
-        {s.edited && (
-          <button
-            className="btn small"
-            onClick={() => {
-              scenarios.revert();
-              onClose();
-            }}
-          >
-            Revert changes
-          </button>
-        )}
-        <button className="btn small danger" onClick={() => (deleting ? (scenarios.remove(s.name), onClose()) : setDeleting(true))}>
-          {deleting ? `Delete ${s.name}?` : "Delete"}
+    const el = strip.current;
+    const tab = el?.children[page.active] as HTMLElement | undefined;
+    if (!el || !tab) return;
+    const add = (el.lastElementChild as HTMLElement).offsetWidth;
+    if (tab.offsetLeft < el.scrollLeft) el.scrollLeft = tab.offsetLeft;
+    else if (tab.offsetLeft + tab.offsetWidth > el.scrollLeft + el.clientWidth - add) el.scrollLeft = tab.offsetLeft + tab.offsetWidth - el.clientWidth + add;
+  }, [page.active, page.tabs.length]);
+  const add = "A copy of this scenario in a new tab, to change and to compare with this one";
+  if (page.tabs.length < 2)
+    return (
+      <div className="scenario-bar">
+        <button className="btn small" title={add} onClick={scenarios.add}>
+          + Scenario
         </button>
       </div>
-    </Popover>
-  );
-}
-
-export function ScenarioBar({ scenarios, state }: { scenarios: Scenarios; state: UIState }) {
-  const { shelf } = scenarios;
-  const [menu, setMenu] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const open = shelf.saved.find((s) => s.name === shelf.open);
-  const loads = useMemo(() => new Map(shelf.saved.map((s) => [s.name, !!stateOf(current(s))])), [shelf.saved]);
-  const others = shelf.saved.length - (open ? 1 : 0) + (shelf.unsaved ? 1 : 0);
-  // Ctrl+S (⌘S): the open scenario's changes saved over it, or what's on screen named.
-  const saveKey = useRef(() => {});
-  saveKey.current = () => (open?.edited ? scenarios.save(open.name) : setSaving(true));
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() !== "s" || !(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
-      e.preventDefault();
-      saveKey.current();
-    };
-    window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
-  }, []);
+    );
   return (
-    <div className="scenario-bar" role="group" aria-label="Saved scenarios">
-      {((!open && shelf.saved.length > 0) || shelf.unsaved) && (
-        <Chip
-          setup={shelf.unsaved ?? scenarios.screen}
-          name=""
-          pressed={!open}
-          title={open ? "Your work that isn't saved: open it" : "What's on screen isn't saved: name it"}
-          onClick={() => (open ? scenarios.open(null) : setSaving(true))}
-        >
-          {open && (
-            <button className="scenario-discard" aria-label="Discard unsaved work" title="Discard the work that isn't saved" onClick={scenarios.discard}>
+    <div className="scenario-bar">
+      <div ref={strip} className="scenario-tabs" role="group" aria-label="Scenarios">
+        {page.tabs.map((t, i) => (
+          <span key={i} className={`scenario-tab${i === page.active ? " active" : ""}`}>
+            <button aria-pressed={i === page.active} aria-label={labels[i]} onClick={() => scenarios.select(i)}>
+              <Icon src={championIcon(t.champion)} label={championName(t.champion)} size="xs" />
+              <span className="name">{labels[i]}</span>
+            </button>
+            <button className="scenario-close" aria-label={`Close ${labels[i]}`} title={`Close ${labels[i]}`} onClick={() => scenarios.close(i)}>
               ×
             </button>
-          )}
-        </Chip>
-      )}
-      {shelf.saved.map((s) => (
-        <Chip
-          key={s.name}
-          setup={current(s)}
-          name={s.name}
-          pressed={s === open}
-          edited={!!s.edited}
-          broken={!loads.get(s.name)}
-          title={
-            !loads.get(s.name)
-              ? "Doesn't load in this version"
-              : s === open
-                ? `${s.name}${s.edited ? ", changed since it was saved" : ""}: rename, revert or delete it`
-                : `Open ${s.name}${s.edited ? ", with its changes" : ""}`
-          }
-          onClick={() => (s === open || !loads.get(s.name) ? setMenu(menu === s.name ? null : s.name) : scenarios.open(s.name))}
-        >
-          {menu === s.name && <ScenarioMenu s={s} loads={!!loads.get(s.name)} scenarios={scenarios} onClose={() => setMenu(null)} />}
-        </Chip>
-      ))}
-      <span className="scenario">
-        <button
-          className="btn small"
-          aria-expanded={saving}
-          title={open?.edited ? `Save the changes over ${open.name}, or as a new scenario (Ctrl+S saves over)` : "Save what's on screen as a scenario (Ctrl+S)"}
-          onClick={() => setSaving(!saving)}
-        >
-          Save
+          </span>
+        ))}
+        <button className="scenario-add" aria-label="New scenario" title={add} onClick={scenarios.add}>
+          +
         </button>
-        {saving && (
-          <Popover label="Save scenario" onClose={() => setSaving(false)}>
-            <NameForm
-              initial={open?.edited ? open.name : freeName(shelf, suggestedName(state))}
-              action={(n) => (shelf.saved.some((s) => s.name === n) ? "Save over" : "Save")}
-              onSubmit={(n) => {
-                scenarios.save(n);
-                setSaving(false);
-              }}
-            />
-          </Popover>
-        )}
-      </span>
-      {shelf.saved.length > 0 && (
-        <button
-          className="btn small"
-          aria-pressed={scenarios.comparing}
-          disabled={!others && !scenarios.comparing}
-          title={others ? "Compare what's on screen with the other scenarios" : "Save another scenario to compare with"}
-          onClick={() => scenarios.setComparing(!scenarios.comparing)}
-        >
-          Compare
-        </button>
-      )}
+      </div>
+      <button
+        className="btn small"
+        aria-pressed={scenarios.comparing}
+        title="This scenario beside the other tabs"
+        onClick={() => scenarios.compare(scenarios.comparing ? "off" : "own")}
+      >
+        Compare
+      </button>
     </div>
   );
 }

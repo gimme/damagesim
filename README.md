@@ -16,10 +16,10 @@ the combo out on a timeline and reports every damage instance.
   row, two from the secondary tree, a shard per row); hovering a rune shows its tooltip like an item's, and whether its
   adaptive damage is physical or magic for you. The page's address is a link to its scenario: the champion in the path and
   the rest as a short code in the hash (`/zed/#…`, about 70 characters for a full build), none at the defaults.
-  Scenarios saved under a name sit in the top bar, a click apart: each keeps its changes until they're saved over it or
-  reverted, and work that isn't saved is kept beside them, so switching loses nothing. Compare shows the one on screen
-  beside the others picked: their health bars at the combo's end, and a table of their builds, totals, time to kill and
-  damage by source, each against the one on screen, optionally all against its target.
+  More scenarios open as tabs in the top bar, each a copy of the one on screen to change, a click apart. Compare
+  shows the one on screen beside the other tabs: their health bars at the combo's end, and a table of their builds,
+  totals, time to kill and damage by source, each against the one on screen, optionally all against its target. The
+  tabs and Compare are in the address too (`/zed/#ahri-…~…!compare`), so a link opens the comparison as it is.
 * **AI agents:** an MCP server (simulate, compare, rank items, optimize builds and combo order) and a
   CLI with `--json` output.
 * **Accuracy:** every number comes from Riot's own game files for the patch (via CommunityDragon),

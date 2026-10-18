@@ -615,7 +615,7 @@ export function Sparkle({ className }: { className?: string }) {
   );
 }
 
-const Chevron = () => (
+export const Chevron = () => (
   <svg className="chevron" viewBox="0 0 10 10" aria-hidden>
     <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
   </svg>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DATA, loadBundledIcons } from "./data.ts";
-import { DEFAULT_STATE, decodeState, encodeState, loadSavedState, resetState, saveState, scenarioKey, toScenario, type UIState } from "./state.ts";
+import { DEFAULT_STATE, decodePage, encodePage, loadSavedPage, resetState, saveState, scenarioKey, toScenario, type UIState } from "./state.ts";
 import { simulate, Sim, type SimResult } from "../engine/sim.ts";
 import { clampCombo, formatCombo, parseCombo } from "../engine/combo.ts";
 import { AttackerPanel } from "./components/attacker.tsx";
@@ -36,14 +36,14 @@ function useTheme() {
   return { dark, toggle: () => setTheme(dark ? "light" : "dark") };
 }
 
-// The page's address is its scenario's (the champion in the path, the rest in the hash) where the
+// The page's address is its scenarios' (the champion on screen in the path, the rest in the hash) where the
 // server serves the app at any path under its own (the dev server, GitHub Pages by its 404.html), not
 // in the artifact build, which can't choose its page's address.
 const ROUTED = typeof __ARTIFACT__ === "undefined" || !__ARTIFACT__;
 const BASE = import.meta.env.BASE_URL;
 
-/** The scenario at the page's address, or null. */
-const atAddress = () => (location.pathname.startsWith(BASE) ? decodeState(DATA, location.pathname.slice(BASE.length) + location.hash) : null);
+/** The page at the page's address, or null. */
+const atAddress = () => (location.pathname.startsWith(BASE) ? decodePage(DATA, location.pathname.slice(BASE.length) + location.hash) : null);
 
 /** The combo with its numbers within what `sim`'s build allows (see clampCombo); unchanged, as typed, when they are. */
 function clampShorthand(combo: string, sim: Sim): string {
@@ -57,32 +57,37 @@ function clampShorthand(combo: string, sim: Sim): string {
 }
 
 export function App() {
-  const [state, setState] = useState<UIState>(() => (ROUTED ? atAddress() : null) ?? loadSavedState(DATA) ?? DEFAULT_STATE);
+  const [initial] = useState(() => (ROUTED ? atAddress() : null) ?? loadSavedPage(DATA));
+  const [state, setState] = useState<UIState>(initial?.state ?? DEFAULT_STATE);
   const [, setIconsReady] = useState(false);
   const theme = useTheme();
-  const scenarios = useScenarios(state, setState);
+  const scenarios = useScenarios(state, setState, initial?.page ?? null);
 
   useEffect(() => {
     loadBundledIcons().then((ok) => ok && setIconsReady(true));
   }, []);
 
-  // The address is a link to the scenario, written over as it changes (no history entry for each
+  // The address is a link to the scenarios, written over as they change (no history entry for each
   // change), with replaceState, which fires no hashchange.
-  const address = useMemo(() => BASE + encodeState(DATA, state), [state]);
+  const address = useMemo(() => BASE + encodePage(DATA, state, scenarios.page), [state, scenarios.page]);
   const shown = useRef(address);
-  useEffect(() => saveState(DATA, state), [state]);
+  useEffect(() => saveState(DATA, state, address.slice(BASE.length)), [state, address]);
   useEffect(() => {
     shown.current = address;
     if (ROUTED && location.href !== new URL(address, location.href).href) history.replaceState(null, "", address);
   }, [address]);
   // A link entered in the address bar on the page with only its hash different reloads nothing, nor
-  // do Back and Forward between two such: its scenario loads here. An address that isn't a scenario's
+  // do Back and Forward between two such: its scenarios load here. An address that isn't a page's
   // goes back to this one's.
+  const { load } = scenarios;
   useEffect(() => {
     if (!ROUTED) return;
     const follow = () => {
       const next = atAddress();
-      if (next && BASE + encodeState(DATA, next) !== shown.current) return setState(next);
+      if (next && BASE + encodePage(DATA, next.state, next.page) !== shown.current) {
+        setState(next.state);
+        return load(next.page);
+      }
       history.replaceState(null, "", shown.current);
     };
     window.addEventListener("hashchange", follow);
@@ -91,7 +96,7 @@ export function App() {
       window.removeEventListener("hashchange", follow);
       window.removeEventListener("popstate", follow);
     };
-  }, []);
+  }, [load]);
 
   // The scenario stays as it was, with what's worked out from it, while what it simulates does
   // (scenarioKey): items moved between slots, a space typed in the combo.
@@ -117,7 +122,7 @@ export function App() {
       <header className="topbar">
         <h1>damagesim</h1>
         <span className="badge">patch {DATA.meta.patch}</span>
-        <ScenarioBar scenarios={scenarios} state={state} />
+        <ScenarioBar scenarios={scenarios} />
         <span className="spacer" />
         <button
           className="btn small"

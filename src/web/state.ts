@@ -1,8 +1,9 @@
 // UI state ⇄ engine Scenario, plus the scenario's address, which is what a link to it is (the page's
 // own address, so the address bar is how a scenario is shared): the champion in the path and the rest
-// of the state as a code in the hash. localStorage keeps the address for a reload where the page can't
-// write its own (the artifact frame), and each champion's setup as you left it, for when it's picked
-// again. It takes the game data as an argument, so Node reads them too.
+// of the state as a code in the hash, with the page's other tabs and Compare after it where it has
+// them. localStorage keeps the address for a reload where the page can't write its own (the artifact
+// frame), and each champion's setup as you left it, for when it's picked again. It takes the game data
+// as an argument, so Node reads them too.
 
 import type { GameData } from "../engine/gamedata.ts";
 import type { Scenario, SimSettings, TargetSpec } from "../engine/sim.ts";
@@ -10,6 +11,7 @@ import type { TargetPreset } from "../engine/presets.ts";
 import { pageRunes, type RunePage } from "../engine/rune-page.ts";
 import { fitCombo, formatCombo, parseCombo } from "../engine/combo.ts";
 import { getKit } from "../kits/index.ts";
+import type { Compare, Page, Setup } from "./scenarios.ts";
 
 /** Health, armor and magic resist. */
 export interface TargetStats {
@@ -483,21 +485,71 @@ export function decodeState(data: GameData, address: string): UIState | null {
   }
 }
 
-const STORAGE_KEY = "damagesim:state";
+/** Compare in an address, after the tabs' codes and "!". */
+const COMPARE: Record<Exclude<Compare, "off">, string> = { own: "compare", same: "compare-same-target" };
 
-export function loadSavedState(data: GameData): UIState | null {
+/**
+ * A page's address after the app's own: the address of its scenario on screen, `s`, with the page's
+ * other tabs around its code in the hash, in their order, each its champion's path and its code
+ * ("ahri-3fGh"), then Compare: "zed/#ahri-3fGh~5h2Kq!compare". A page of one tab and no Compare has
+ * the scenario's own (see encodeState).
+ */
+export function encodePage(data: GameData, s: UIState, page: Page): string {
+  const code = encodeSetup(data, s);
+  const tabs = page.tabs.map((t, i) => (i === page.active ? code : `${championSlug(data, t.champion)}-${t.code}`));
+  const hash = tabs.join("~") + (page.tabs.length > 1 && page.compare !== "off" ? `!${COMPARE[page.compare]}` : "");
+  return `${championSlug(data, s.champion)}/${hash ? "#" + hash : ""}`;
+}
+
+/** The page at an address after the app's own, with its scenario on screen, or null if it isn't a page's; a tab that doesn't load is left out. */
+export function decodePage(data: GameData, address: string): { state: UIState; page: Page } | null {
   try {
-    return decodeState(data, localStorage.getItem(STORAGE_KEY) ?? "");
+    const [, slug, hash = ""] = /^\/?([^/#]+)\/?(?:#(.*))?$/.exec(address.trim()) ?? fail("not a champion's path");
+    const champion = championBySlug(data, decodeURIComponent(slug));
+    const [list, flag] = hash.split("!");
+    let state: UIState | null = null;
+    const tabs: Setup[] = [];
+    let active = -1;
+    for (const tab of list.split("~")) {
+      const dash = tab.lastIndexOf("-");
+      if (dash < 0) {
+        state = active < 0 ? decodeSetup(data, champion, tab) : null;
+        if (!state) return null;
+        active = tabs.length;
+        tabs.push({ champion, code: tab });
+        continue;
+      }
+      try {
+        const t = { champion: championBySlug(data, decodeURIComponent(tab.slice(0, dash))), code: tab.slice(dash + 1) };
+        if (decodeSetup(data, t.champion, t.code)) tabs.push(t);
+      } catch {
+        // no such champion: left out
+      }
+    }
+    if (!state) return null;
+    const compare = tabs.length > 1 ? ((Object.keys(COMPARE) as (keyof typeof COMPARE)[]).find((k) => COMPARE[k] === flag) ?? "off") : "off";
+    return { state, page: { tabs, active, compare } };
   } catch {
     return null;
   }
 }
 
-/** Keeps the state's address for a reload, and its setup for its champion (see pickChampion). */
-export function saveState(data: GameData, s: UIState): void {
+const STORAGE_KEY = "damagesim:state";
+
+/** The page whose address was kept last (see saveState). */
+export function loadSavedPage(data: GameData): { state: UIState; page: Page } | null {
+  try {
+    return decodePage(data, localStorage.getItem(STORAGE_KEY) ?? "");
+  } catch {
+    return null;
+  }
+}
+
+/** Keeps the page's address after the app's own (see encodePage) for a reload, and the state's setup for its champion (see pickChampion). */
+export function saveState(data: GameData, s: UIState, address: string): void {
   remember(data, s);
   try {
-    localStorage.setItem(STORAGE_KEY, encodeState(data, s));
+    localStorage.setItem(STORAGE_KEY, address);
   } catch {
     // storage unavailable
   }

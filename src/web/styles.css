@@ -171,13 +171,13 @@ a {
   white-space: nowrap;
 }
 
-/* The saved scenarios in the top bar (scenarios.tsx): a chip each, the open one pressed, a dot on one
-   changed since it was saved; their menus and the Save form under them. On a phone, a line of their own. */
+/* The scenarios in the top bar (scenarios.tsx): tabs in one outline, as a segmented control, the one
+   on screen pressed, each with its × (on the one on screen, else while hovered), + at the end. On a
+   phone, a line of their own, scrolled sideways where they don't fit. */
 .scenario-bar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 @media (max-width: 640px) {
@@ -186,103 +186,90 @@ a {
     flex-basis: 100%;
   }
 }
-.scenario {
+.scenario-tabs {
   position: relative;
   display: inline-flex;
-  align-items: center;
   min-width: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
-.scenario-chip {
+.scenario-tab {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  border-right: 1px solid var(--border);
+}
+.scenario-tab button,
+.scenario-add {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  max-width: 220px;
-  padding: 2px 10px 2px 3px;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--surface-2);
+  gap: 5px;
+  border: 0;
+  background: transparent;
   font-size: 12px;
   cursor: pointer;
 }
-.scenario-chip:hover {
+.scenario-tab button[aria-pressed] {
+  padding: 3px 2px 3px 6px;
+}
+.scenario-tab:hover {
   background: var(--surface-3);
 }
-.scenario-chip[aria-pressed="true"] {
+.scenario-tab.active {
   background: var(--accent-wash);
-  border-color: var(--accent);
   color: var(--accent-text);
 }
-.scenario-chip .icon.xs {
+.scenario-tab.active button[aria-pressed] {
+  font-weight: 600;
+}
+.scenario-tab .icon.xs {
   border-radius: 50%;
 }
-.scenario-chip .name {
+.scenario-tab .name {
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.scenario-chip.unsaved .name {
-  font-style: italic;
-}
-.scenario-chip.broken .name {
-  text-decoration: line-through;
+.scenario-close {
+  padding: 3px 7px 3px 4px !important;
   color: var(--text-muted);
-}
-.scenario-chip .edited {
-  flex: none;
-  width: 6px;
-  height: 6px;
-  margin-left: -2px;
-  border-radius: 50%;
-  background: currentColor;
-}
-/* The unsaved work's ×, over the chip's end while it's hovered or focused */
-.scenario-discard {
-  position: absolute;
-  right: -5px;
-  top: -5px;
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: 50%;
-  background: var(--surface);
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 12px;
-  cursor: pointer;
   opacity: 0;
 }
-.scenario:hover .scenario-discard,
-.scenario-discard:focus-visible {
+.scenario-tab.active .scenario-close,
+.scenario-tab:hover .scenario-close,
+.scenario-close:focus-visible {
   opacity: 1;
 }
-.popover {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 6px);
-  left: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: max-content;
-  max-width: calc(100vw - 32px);
-  padding: 8px;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
+/* Without hover, only the one on screen's: none to tap unseen */
+@media (hover: none) {
+  .scenario-tab:not(.active) .scenario-close {
+    display: none;
+  }
+  .scenario-tab:not(.active) button[aria-pressed] {
+    padding-right: 8px;
+  }
 }
-.popover input[type="text"] {
-  width: 220px;
-  min-width: 0;
-  flex: 1;
+.scenario-close:hover {
+  color: var(--text-primary);
 }
-.btn.danger {
-  color: var(--critical);
+/* At the end, where the tabs scroll too */
+.scenario-add {
+  position: sticky;
+  right: 0;
+  flex: none;
+  margin-left: -1px;
+  padding: 3px 10px;
+  border-left: 1px solid var(--border) !important;
+  background: var(--surface) !important;
+  color: var(--text-secondary);
+  font-size: 14px;
 }
-.btn.primary:disabled {
-  opacity: 0.45;
-  cursor: default;
+.scenario-add:hover {
+  background: var(--surface-3) !important;
+  color: var(--text-primary);
 }
 
 .layout {
@@ -1006,6 +993,13 @@ input.combo-text {
 }
 .compare-build .secondary {
   margin-right: 3px;
+}
+/* The sources until all are shown: the top ones, fading out */
+.compare-peek tr:nth-child(2) {
+  opacity: 0.6;
+}
+.compare-peek tr:nth-child(3) {
+  opacity: 0.25;
 }
 .compare-combo {
   white-space: normal !important;
