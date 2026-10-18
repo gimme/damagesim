@@ -1827,13 +1827,13 @@ details summary {
 .shard-pick[aria-pressed="true"]::after {
   box-shadow: inset 0 0 0 2px var(--accent);
 }
-/* A keystone is art, not a disc: a pick glows in its tree's color. The art doesn't fill its 40px, so
-   they're 2px apart, as far apart as the 30px runes 12px apart under them: three keystones over their
-   three columns. */
+/* A keystone is art, not a disc: a pick glows in its tree's color. Its art fills some 80% of its
+   image, drawn 48px so it shows just bigger than a 30px rune; its button is 42px, as far apart as the
+   runes under it (30px, 12px apart), three keystones over their three columns. */
 .rune-row.keystones {
-  min-height: 40px;
+  min-height: 48px;
   align-items: center;
-  gap: 2px;
+  gap: 0;
 }
 /* The keystones between lines, the first under their title, the second halfway to the next row. */
 .keystones-title {
@@ -1860,7 +1860,10 @@ details summary {
   gap: 12px;
 }
 .keystones .rune-pick {
-  flex-basis: 40px;
+  flex-basis: 42px;
+}
+.keystones .rune-pick img {
+  scale: calc(48 / 42);
 }
 .keystones .rune-pick::after {
   content: none;
