@@ -11,7 +11,7 @@ import type { TargetPreset } from "../engine/presets.ts";
 import { pageRunes, type RunePage } from "../engine/rune-page.ts";
 import { fitCombo, formatCombo, parseCombo } from "../engine/combo.ts";
 import { getKit } from "../kits/index.ts";
-import { single, withBuild, type Build, type Page } from "./scenarios.ts";
+import { FIRST, single, withBuild, type Build, type Page } from "./scenarios.ts";
 
 /** Health, armor and magic resist. */
 export interface TargetStats {
@@ -485,12 +485,14 @@ export function decodeState(data: GameData, address: string): UIState | null {
   }
 }
 
-/** A build's name in an address: "Build n" as its number, anything else as a URI component, with what the address's own parts are written with escaped. */
+/** A build's name in an address: as a URI component, its spaces as "_", and escaped what the address's own parts are written with ("Build 2" is "Build_2"). */
 const nameCode = (name: string) =>
-  /^Build \d+$/.test(name) ? name.slice(6) : encodeURIComponent(name).replace(/[.~!*'()]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase());
+  encodeURIComponent(name)
+    .replace(/[.~!*'()_]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase())
+    .replace(/%20/g, "_");
 function nameOf(code: string): string | null {
   try {
-    return /^\d+$/.test(code) ? `Build ${code}` : decodeURIComponent(code).trim() || null;
+    return decodeURIComponent(code.replace(/_/g, " ")).trim() || null;
   } catch {
     return null;
   }
@@ -501,14 +503,16 @@ const ofBuild = (s: UIState, combo: boolean) => ({ items: s.items, runes: s.rune
 
 /**
  * A page's address after the app's own: its first build's, with what they share, as if it were alone
- * (see encodeState), then each other build in its order, its code and its name ("Build n" as n, the
- * first build's too unless it's Build 1), the one on screen after "*" unless it's the first, then
- * "!combos" where each has its own combo and "!folded" where the comparison is folded away:
- * "ahri/#5h2Kq~*3fGh.2~9aB.Burst!combos".
+ * (see encodeState), then each other build in its order, its code and its name (see nameCode; the
+ * first build's too unless it's the one it had alone, FIRST), the one on screen after "*" unless it's
+ * the first, then "!combos" where each has its own combo and "!folded" where the comparison is folded
+ * away: "ahri/#5h2Kq~*3fGh.Build_2~9aB.Burst!combos". Every build after the first has its name, so
+ * none of them is ever an empty part, and the address never ends in "~" or "*", which a link
+ * found in text often loses.
  */
 export function encodePage(data: GameData, s: UIState, page: Page): string {
   if (page.builds.length < 2) return encodeState(data, s);
-  const named = (name: string, i: number) => (i === 0 && name === "Build 1" ? "" : `.${nameCode(name)}`);
+  const named = (name: string, i: number) => (i === 0 && name === FIRST ? "" : `.${nameCode(name)}`);
   const builds = page.builds.map((b, i) => {
     const own = i === page.active ? s : withBuild(s, page, i);
     const code = i === 0 ? encodeSetup(data, own) : encodeSetup(data, { ...DEFAULT_STATE, champion: s.champion, ...ofBuild(own, page.ownCombos) });
@@ -529,7 +533,7 @@ export function decodePage(data: GameData, address: string): { state: UIState; p
     const base = decodeSetup(data, champion, code);
     if (!base) return null;
     if (!tabs.length) return { state: base, page: single(base) };
-    const builds: Build[] = [{ id: 1, name: (name && nameOf(name)) || "Build 1", items: base.items, runes: base.runes, combo: base.combo }];
+    const builds: Build[] = [{ id: 1, name: (name && nameOf(name)) || FIRST, items: base.items, runes: base.runes, combo: base.combo }];
     let active = 0;
     for (const tab of tabs) {
       const [, on, own, name] = /^(\*?)([^.]*)(?:\.(.*))?$/.exec(tab) ?? [];

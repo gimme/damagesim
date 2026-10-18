@@ -49,7 +49,7 @@ test("builds", async ({ ui }) => {
     async () => {
       expect(await tabs(ui)).toEqual(["Build 1", "Build 2 *"]);
       expect(await ui.total()).toBe(at11);
-      expect(hash(ui)).toBe("#~*.2");
+      expect(hash(ui)).toBe("#~*.Build_2");
       await expect(ui.card("Items").locator(".build-of")).toHaveText("Build 2");
       await expect(ui.card("Runes").locator(".build-of")).toHaveText("Build 2");
       await expect(same).toBeChecked();
@@ -120,7 +120,7 @@ test("builds", async ({ ui }) => {
     () => ui.drag(bar(ui).locator(".scenario-tab").nth(1), bar(ui).locator(".scenario-tab").nth(0)),
     async () => {
       expect(await tabs(ui)).toEqual(["Burst *", "Build 1"]);
-      expect(hash(ui)).toMatch(/^#\w+\.Burst~\w*\.1!combos$/);
+      expect(hash(ui)).toMatch(/^#\w+\.Burst~\w*\.Build_1!combos$/);
     },
   );
   await step(

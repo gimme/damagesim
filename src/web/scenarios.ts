@@ -43,8 +43,11 @@ function freeName(builds: Build[]): string {
 
 const buildOf = (s: UIState, id: number, name: string): Build => ({ id, name, items: s.items, runes: s.runes, combo: s.combo });
 
+/** The name of a build alone, which it keeps when a second is added. */
+export const FIRST = "Build 1";
+
 /** A page of one build: the state's. */
-export const single = (s: UIState): Page => ({ champion: s.champion, builds: [buildOf(s, 1, "Build 1")], active: 0, ownCombos: false, folded: false });
+export const single = (s: UIState): Page => ({ champion: s.champion, builds: [buildOf(s, 1, FIRST)], active: 0, ownCombos: false, folded: false });
 
 /** The screen as it is now: the active build's items, runes and combo. */
 export function track(page: Page, s: UIState): Page {

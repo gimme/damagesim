@@ -244,9 +244,10 @@ export function Compared({
                 ))}
               </tr>
             </thead>
-            <tbody className={all ? undefined : "compare-peek"}>{all ? rows : rows.slice(0, PEEK)}</tbody>
+            <tbody>{all ? rows : rows.slice(0, PEEK)}</tbody>
           </table>
         </div>
+        {!all && <div className="compare-veil" />}
       </div>
       <button className="iv-more" aria-expanded={all} onClick={() => setAll(!all)}>
         <span>

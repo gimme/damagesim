@@ -1021,7 +1021,8 @@ input.combo-text {
   cursor: default;
   text-decoration: none;
 }
-/* Where the columns scroll, a fade at a side with more to scroll to: on the left, at the names' edge */
+/* Where the columns scroll, a fade at a side with more to scroll to: on the left, from the names'
+   cells' own edge */
 .compare-scroll {
   --names: 150px;
   position: relative;
@@ -1031,8 +1032,9 @@ input.combo-text {
     --names: 108px;
   }
 }
-.compare-scroll::before,
-.compare-scroll::after {
+.compare-scroll::after,
+.compare-table table.data th[scope="row"]::after,
+.compare-table thead th:first-child::after {
   content: "";
   position: absolute;
   z-index: 2;
@@ -1043,16 +1045,19 @@ input.combo-text {
   pointer-events: none;
   transition: opacity 0.15s;
 }
-.compare-scroll::before {
-  left: var(--names);
-  background: linear-gradient(to right, var(--surface), transparent);
-}
 .compare-scroll::after {
   right: 0;
   background: linear-gradient(to left, var(--surface), transparent);
 }
-.compare-scroll.more-left::before,
-.compare-scroll.more-right::after {
+.compare-table table.data th[scope="row"]::after,
+.compare-table thead th:first-child::after {
+  bottom: -1px;
+  left: 100%;
+  background: linear-gradient(to right, var(--surface), transparent);
+}
+.compare-scroll.more-right::after,
+.compare-scroll.more-left table.data th[scope="row"]::after,
+.compare-scroll.more-left table.data thead th:first-child::after {
   opacity: 1;
 }
 .compare-scroll.more-left th[scope="row"],
@@ -1119,12 +1124,17 @@ input.combo-text {
   justify-content: flex-end;
   gap: 3px;
 }
-/* The table until it's all shown: its top rows, fading out */
-.compare-peek tr:nth-child(2) {
-  opacity: 0.6;
-}
-.compare-peek tr:nth-child(3) {
-  opacity: 0.25;
+/* The table until it's all shown: its top rows, the last two fading out under one veil, over the
+   rows' names too, which stay opaque over the columns scrolled under them */
+.compare-veil {
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 60px;
+  background: linear-gradient(to bottom, transparent, var(--surface));
+  pointer-events: none;
 }
 .compare-combo {
   white-space: normal !important;

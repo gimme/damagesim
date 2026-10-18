@@ -66,11 +66,15 @@ test("a page's address: one build's is its scenario's; more, the first's as if a
   page = selectTab(page, 1);
   const on = withBuild(s, page, 1);
   const address = encodePage(data, on, page);
-  assert.match(address, /^ahri\/#\w+~\*\.2~\w+\.Burst%2E%20%7E%21%2A%281%29$/);
+  // Names as written, spaces as "_", and what the address is written with escaped.
+  assert.match(address, /^ahri\/#\w+~\*\.Build_2~\w+\.Burst%2E_%7E%21%2A%281%29$/);
   assert.equal(address.split("~")[0], encodeState(data, withBuild(s, page, 0)));
   // The first on screen: no mark; renamed, its name after its code.
-  assert.match(encodePage(data, withBuild(s, page, 0), selectTab(page, 0)), /^ahri\/#\w+~\.2~\w+\.Burst[^*]*$/);
-  assert.match(encodePage(data, on, renameTab(page, 0, "Main")), /^ahri\/#\w+\.Main~\*\.2~/);
+  assert.match(encodePage(data, withBuild(s, page, 0), selectTab(page, 0)), /^ahri\/#\w+~\.Build_2~\w+\.Burst[^*]*$/);
+  assert.match(encodePage(data, on, renameTab(page, 0, "Main")), /^ahri\/#\w+\.Main~\*\.Build_2~/);
+  const underscored = renameTab(page, 1, "Burst_poke now");
+  assert.match(encodePage(data, on, underscored), /~\*\.Burst%5Fpoke_now~/);
+  assert.equal(decodePage(data, encodePage(data, on, underscored))!.page.builds[1].name, "Burst_poke now");
   const back = decodePage(data, address)!;
   assert.deepEqual(back.state, on);
   assert.deepEqual(
@@ -121,8 +125,9 @@ test("the builds' codes are the setup's, version 3: energize a byte from its tab
 
 test("what isn't a page's address holds none; a build in it that doesn't load is left out", () => {
   for (const bad of ["", "nobody/#~.1~.2", "ahri/#hello~.1~.2"]) assert.equal(decodePage(data, bad), null, bad);
-  const back = decodePage(data, "ahri/#~hello.1~*.Two~.3")!;
-  assert.deepEqual([back.page.builds.map((b) => b.name), back.page.active], [["Build 1", "Two", "Build 3"], 1]);
+  const back = decodePage(data, "ahri/#~hello.Build_2~*.Two~.Build_3~")!;
+  // A build without a name (the address cut, or written by hand): named by its place.
+  assert.deepEqual([back.page.builds.map((b) => b.name), back.page.active], [["Build 1", "Two", "Build 3", "Build 4"], 1]);
   // None left: the shared state alone.
-  assert.deepEqual(decodePage(data, "ahri/#~hello.1!combos"), { state: DEFAULT_STATE, page: single(DEFAULT_STATE) });
+  assert.deepEqual(decodePage(data, "ahri/#~hello.Build_2!combos"), { state: DEFAULT_STATE, page: single(DEFAULT_STATE) });
 });
