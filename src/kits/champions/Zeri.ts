@@ -26,7 +26,11 @@ const charged: BuffSpec = {
 };
 
 // Burst Fire's rounds fly at 2600 (the data's), 3400 while Overcharged (wiki, not in the data).
-const Q_TRAVEL = "reach / (buff.zeriR ? 3400 : missileSpeed)";
+// They're 40 wide (ZeriQMis mMissileWidth) and hit as their edge reaches the target's: 40 short of
+// the distance between their hitboxes. So the first lands before the attack after Burst Fire,
+// whose hit arms Spellblade, also at 1.5 attack speed at her attack range (in game, it never
+// procs on Burst Fire from the attack after it).
+const Q_TRAVEL = "max(0, reach - 40) / (buff.zeriR ? 3400 : missileSpeed)";
 // 7 rounds, 3 while Overcharged, fired over the cast time (wiki): the first as it starts, the last
 // as it ends.
 const ROUNDS = "(buff.zeriR ? dv.EnergizedMissiles : dv.NumberOfMissiles)";
@@ -45,7 +49,7 @@ const kit: ChampionKit = {
   notes: [
     "Basic attacks (AA) are Zeri's right-click, an ability with an attack's timing (a windup of 15.6% of the attack timer, then the hit, no missile): Q.calc.MinDamage magic damage that executes below PassiveExecuteThreshold health (marked on the health bar; Settings turn executes off). They are spell damage (Liandry's, Luden's…) and count as a cast as they hit (arming Spellblade then), but can't crit and apply no on-hit or on-attack effects (Spellblade's hit, Kraken Slayer, Energize charges…).",
     "P is her fully charged attack (PassiveMaxDamage + % max health), an attack in timing like AA. The charge it takes isn't modeled: AA is always uncharged, and P is where the combo has her at full charge.",
-    "Burst Fire (Q) is her attack in all but timing: basic damage without spell effects, can crit, applies on-hit and on-attack effects (it uses an armed Spellblade: AA Q, not Q AA, where the attack arms it as it lands, after Burst Fire's first round). It is an ability cast that doesn't arm Spellblade. Its cast time is her attack windup (80% while Overcharged); its 7 rounds (3 while Overcharged) fire over it, the first as it starts and the last as it ends, and fly to the target, each with its share of the damage; the first to hit applies the on-hit and on-attack effects (and uses Spellblade; one Black Cleaver stack a cast), so an attack after Burst Fire comes too late for that one, and lands about as the last rounds do. Its cooldown is its own attack timer, separate from the AA's: max(MinCooldown, 1 / attack speed), not shortened by haste or Navori; Spark Surge resets it.",
+    "Burst Fire (Q) is her attack in all but timing: basic damage without spell effects, can crit, applies on-hit and on-attack effects (it uses an armed Spellblade: AA Q, not Q AA, where the attack arms it as it lands, after Burst Fire's first round). It is an ability cast that doesn't arm Spellblade. Its cast time is her attack windup (80% while Overcharged); its 7 rounds (3 while Overcharged) fire over it, the first as it starts and the last as it ends, and fly to the target, each with its share of the damage; the first to hit applies the on-hit and on-attack effects (and uses Spellblade), so an attack after Burst Fire comes too late for that one, and lands about as the last rounds do. Its cooldown is its own attack timer, separate from the AA's: max(MinCooldown, 1 / attack speed), not shortened by haste or Navori; Spark Surge resets it.",
     "Her attack speed cap is Q.dv.AttackSpeedCap (1.5), raised only by Overcharged's attack speed, by as much as it adds (not Hail of Blades); she gains Q.dv.ExcessAttackSpeedToADMult (0.6) bonus AD per 1% bonus attack speed past it, Overcharged's not counted.",
     "Spark Surge adds its magic damage to Burst Fire casts for 5s; charged attacks and Burst Fire shorten its cooldown by 0.5s (1.5s on a Burst Fire crit, its expected value by default). Lightning Crash: champion hits by abilities and charged attacks extend Overcharge by 2.5s (up to 5s remaining); chain damage to other enemies is ignored.",
   ],

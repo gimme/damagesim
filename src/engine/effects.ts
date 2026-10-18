@@ -36,9 +36,6 @@ export interface DamageFlags {
   aura?: boolean;
   /** Basic damage other than the attack itself (Kraken Slayer, attack-like ability hits). */
   basic?: boolean;
-  /** A later hit of an attack fired as several (ComponentSpec.onHitOnce: Zeri's Burst Fire rounds):
-   *  more of that attack's damage, not another hit for what counts hits (Black Cleaver's Carve). */
-  restOfAttack?: boolean;
   /** On-hit damage that reduced on-hit effectiveness doesn't scale (Grasp, Heartsteel, Electrospark). */
   fullOnHit?: boolean;
   /** What an ability or passive adds to the attack it empowers (Garen Q, Vayne Q): the results show

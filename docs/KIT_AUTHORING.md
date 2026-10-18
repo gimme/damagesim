@@ -268,7 +268,7 @@ one whose cooldown is an attack timer (`1 / as`) `attackTimer: true`: ability ha
 shorten it, and attack resets reset it (Zeri's Burst Fire, reset by Spark Surge). An attack fired as
 several hits that apply on-hit effects once (Burst Fire's rounds: "to the first enemy hit") is one
 `attack: true` component with `hits`, `interval` and `onHitOnce: true`: the first hit to land is the
-attack, the rest deal its basic damage only (`flags.restOfAttack`: one Black Cleaver stack).
+attack, the rest deal its basic damage only.
 
 **Attacks that are abilities** (Zeri's right-click, "treated as Abilities"): `attack: { ability: true }`
 keeps the attack's timing (attack timer, windup, range) but casts it as an ability: on-cast effects

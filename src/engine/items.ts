@@ -831,7 +831,7 @@ const ITEMS: Record<number, Factory> = {
         if (sim.time <= until && stacks) return { armorPercent: stacks * dv(item, "ShredPerStack") };
       },
       afterDamage(sim, inst) {
-        if (inst.type !== "physical" || inst.flags.restOfAttack) return;
+        if (inst.type !== "physical") return;
         // Once per frame, except a few effects that add a stack on top of the attack's.
         const extraAllowed = /Spellblade|Bring It Down|Colossal Consumption|Shipwrecker|Firmament|Ever Rising Moon/.test(inst.label);
         if (Math.abs(sim.time - lastStack) < 1e-6 && !extraAllowed) return;

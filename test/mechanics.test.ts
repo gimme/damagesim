@@ -1011,11 +1011,21 @@ test("Zeri's P is her fully charged attack: an attack in timing, a cast as it hi
   assert.ok(!zeri("P", { target: { maxHp: 150, armor: 30, mr: 30 } }).events.some((e) => e.flags.execute));
 });
 
-test("Black Cleaver: one Carve stack a Burst Fire, not one a round", () => {
+test("Black Cleaver: a Carve stack from each of Burst Fire's rounds (in game)", () => {
   const r = simulate(data, { champion: "Zeri", level: 11, items: ["Black Cleaver"], combo: "Q", target: { maxHp: 5000, armor: 100, mr: 0 } });
-  const rounds = bySource(r, "Q");
-  assert.equal(rounds.length, 7);
-  // The first round's stack shreds 6% of the armor for the rest: all deal the same.
-  assert.ok(rounds.slice(2).every((e) => Math.abs(e.final! - rounds[1].final!) < 1e-9));
-  assert.ok(rounds[1].final! > rounds[0].final!);
+  const dealt = bySource(r, "Q").map((e) => e.final!);
+  assert.equal(dealt.length, 7);
+  // Each round deals more with the stacks of those before it, up to 5.
+  for (let k = 1; k <= 5; k++) assert.ok(dealt[k] > dealt[k - 1], `round ${k + 1}`);
+  assert.ok(Math.abs(dealt[6] - dealt[5]) < 1e-9);
+});
+
+test("Burst Fire's first round lands before the attack after it, also at her attack speed cap at her range (no Spellblade from that attack, in game)", () => {
+  const items = ["Sheen", "Berserker's Greaves", "Runaan's Hurricane", "Statikk Shiv", "Phantom Dancer", "Rapid Firecannon"];
+  const zeri = (combo: string) => simulate(data, { champion: "Zeri", level: 18, items, combo, target: dummy });
+  for (const combo of ["Q AA", "R Q AA"]) {
+    const r = zeri(combo);
+    assert.ok(bySource(r, "Q")[0].time < bySource(r, "AA").at(-1)!.time, combo);
+  }
+  assert.ok(!zeri("Q AA").events.some((e) => e.label === "Spellblade"));
 });

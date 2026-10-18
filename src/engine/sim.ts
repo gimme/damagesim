@@ -1448,7 +1448,7 @@ export class Sim {
         type: comp.type,
         amount: amount * c.factor,
         castId: ctx.castId,
-        flags: { kind: "ability", slot: ctx.slot, ability: !comp.noProc, crit: c.crit, basic: true, restOfAttack: true },
+        flags: { kind: "ability", slot: ctx.slot, ability: !comp.noProc, crit: c.crit, basic: true },
       });
       return;
     }
