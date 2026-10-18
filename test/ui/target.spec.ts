@@ -381,9 +381,10 @@ test("executes: the line on the health bar, and the setting that turns them off"
   );
   await step("the pointer away", () => ui.unhover());
   await step(
-    "uncheck it: no execute, no line",
+    "uncheck it: no execute, no line; the address keeps it",
     () => box.click(),
     async () => {
+      expect((await ui.state()).settings).toEqual({ finishDots: true, executes: false });
       await expect(bar).not.toHaveAttribute("aria-label", /execute/);
       await expect(ui.card("Result").locator(".stat-tile.end")).toHaveCount(0);
       expect(await ui.total()).toBeLessThan(total);

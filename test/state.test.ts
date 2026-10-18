@@ -30,7 +30,7 @@ const ALL: UIState = {
     hpPercent: 37,
     damageReduction: 0.07,
   },
-  settings: { finishDots: false },
+  settings: { finishDots: false, executes: false },
 };
 
 test("every field comes back, numbers exactly", () => {

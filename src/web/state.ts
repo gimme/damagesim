@@ -366,6 +366,7 @@ const FIELDS: [path: string, codec: Codec<any>][] = [
   ["options", record(str, num)],
   ["runes.held", runeIds],
   ["settings.finishDots", bool],
+  ["settings.executes", bool],
 ];
 
 const valueAt = (s: any, path: string) => path.split(".").reduce((x, k) => x[k], s);
