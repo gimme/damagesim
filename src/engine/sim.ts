@@ -134,6 +134,10 @@ function settingWarning(label: string, step: AbilityStep, s: CastSetting, asked:
   return `${label} ${verb} ${range}, so ${formatCombo([step])} ${verb} ${set}${s.kind === "count" ? "" : "s"}`;
 }
 
+/** What each ability key casts at a point of the combo: its variant in the form or state it's in
+ *  (Elise's Q after R: Venomous Bite), that one's icon and name. */
+export type KeyCasts = Partial<Record<Slot, { variant?: string; icon?: string; name: string }>>;
+
 export interface SourceTotal {
   source: string;
   label: string;
@@ -183,6 +187,8 @@ export interface SimResult {
   /** The combo's steps as done: an ability as cast (`index` its step's, its variant and icon as the
    *  state it was cast in made them: W:ruin), attacks, waits, actives. */
   timeline: { step: string; start: number; end: number; note?: string; index?: number; variant?: string; icon?: string }[];
+  /** What each ability key casts before each step (`keyCasts[k]`: before step k), and after the last. */
+  keyCasts: KeyCasts[];
   /** Seconds from first action to last damage. */
   duration: number;
   /** Seconds the combo's actions take (cast/attack windups). */
@@ -220,6 +226,8 @@ interface ActiveBuff {
   charges?: number;
   mods?: Partial<StatMods>;
   amp?: number;
+  /** The distance of the cast that applied it (variableDistance), for what it deals. */
+  distance?: number;
 }
 
 /** A basic attack or attack-like ability hit landing on the target (Sim.performAttackHit). */
@@ -249,6 +257,7 @@ interface BuffPart {
   slot?: Slot;
   onHit?: ComponentSpec[];
   empower?: NonNullable<BuffSpec["empowerAttacks"]>;
+  distance?: number;
 }
 
 interface ActiveDebuff {
@@ -1583,7 +1592,14 @@ export class Sim {
       if (b.expires < this.time || !b.spec) continue;
       const empower = !fromAbility && (b.charges ?? 0) > 0 ? b.spec.empowerAttacks : undefined;
       if (!b.spec.onHit && !empower) continue;
-      out.push({ id: b.id, label: b.label, slot: b.slot, ...(b.spec.onHit ? { onHit: b.spec.onHit } : {}), ...(empower ? { empower } : {}) });
+      out.push({
+        id: b.id,
+        label: b.label,
+        slot: b.slot,
+        ...(b.spec.onHit ? { onHit: b.spec.onHit } : {}),
+        ...(empower ? { empower } : {}),
+        ...(b.distance !== undefined ? { distance: b.distance } : {}),
+      });
       if (empower) b.charges = (b.charges ?? 1) - 1;
     }
     return out;
@@ -1662,20 +1678,20 @@ export class Sim {
 
     // Champion passive on-hits, every-Nth procs and empowered attacks from buffs.
     const kitAtk = this.kit.attack;
-    const pushCompsTo = (target: AttackInfo, comps: ComponentSpec[], sourceLabel: string, from: Slot = "P", empowered = false) => {
+    const pushCompsTo = (target: AttackInfo, comps: ComponentSpec[], sourceLabel: string, from: Slot = "P", empowered = false, distance?: number) => {
       for (const comp of comps) {
         if (comp.optional && !o.enable?.includes(comp.id)) continue;
         const slot = comp.slot ?? from;
         const spell = this.spellFor(slot);
         const rank = this.abilityRank(slot);
-        const hits = Math.max(0, Math.round(this.evalExpr(comp.hits ?? 1, { slot, spell, rank })));
+        const hits = Math.max(0, Math.round(this.evalExpr(comp.hits ?? 1, { slot, spell, rank, distance })));
         for (let h = 0; h < hits; h++) {
-          let amount = this.evalExpr(comp.amount, { slot, spell, rank, hit: h, hits });
-          if (comp.min !== undefined) amount = Math.max(amount, this.evalExpr(comp.min, { slot, spell, rank }));
-          if (comp.max !== undefined) amount = Math.min(amount, this.evalExpr(comp.max, { slot, spell, rank }));
+          let amount = this.evalExpr(comp.amount, { slot, spell, rank, hit: h, hits, distance });
+          if (comp.min !== undefined) amount = Math.max(amount, this.evalExpr(comp.min, { slot, spell, rank, distance }));
+          if (comp.max !== undefined) amount = Math.min(amount, this.evalExpr(comp.max, { slot, spell, rank, distance }));
           if (comp.canCrit) {
             if (comp.critMultiplier !== undefined) {
-              const m = this.evalExpr(comp.critMultiplier, { slot, spell, rank });
+              const m = this.evalExpr(comp.critMultiplier, { slot, spell, rank, distance });
               amount *= c.crit ? m : expected ? 1 + this.stats.critChance * (m - 1) : 1;
             } else amount *= factor;
           }
@@ -1699,14 +1715,16 @@ export class Sim {
             },
           };
           // Delayed / periodic parts of an empowered attack (bleeds, lightning) land later.
-          const delay = this.landsAt(comp, { slot, spell, rank }) + (comp.interval !== undefined ? this.evalExpr(comp.interval, { slot, spell, rank }) * h : 0);
+          const delay =
+            this.landsAt(comp, { slot, spell, rank, distance }) +
+            (comp.interval !== undefined ? this.evalExpr(comp.interval, { slot, spell, rank, distance }) * h : 0);
           if (delay > 0) this.schedule(delay, () => this.deal(req));
           else target.extra.push(req);
         }
       }
     };
-    const pushComps = (comps: ComponentSpec[], sourceLabel: string, slot: Slot = "P", empowered = false) =>
-      pushCompsTo(atk, comps, sourceLabel, slot, empowered);
+    const pushComps = (comps: ComponentSpec[], sourceLabel: string, slot: Slot = "P", empowered = false, distance?: number) =>
+      pushCompsTo(atk, comps, sourceLabel, slot, empowered, distance);
     const pendingCC: (() => void)[] = [];
     let empoweredEff: number | undefined;
     /** The ability whose spell damage the attack itself also is (empowerAttacks.spell). */
@@ -1722,11 +1740,11 @@ export class Sim {
         } else this.setCounter(key, n);
       }
       const parts = o.buffParts ?? this.takeBuffParts(!!o.fromAbility);
-      for (const { onHit, empower, label, slot } of parts) {
-        if (onHit) pushComps(onHit, label, slot);
+      for (const { onHit, empower, label, slot, distance } of parts) {
+        if (onHit) pushComps(onHit, label, slot, false, distance);
         if (!empower) continue;
         const before = atk.extra.length;
-        pushComps(empower.components, label, slot, true);
+        pushComps(empower.components, label, slot, true, distance);
         if (empower.onHitRepeats !== undefined) {
           const n = Math.round(this.evalExpr(empower.onHitRepeats, { slot: slot ?? "P" }));
           if (n > 0) addOnHitRepeat(atk, n);
@@ -1767,7 +1785,7 @@ export class Sim {
       // the attack flew gets Yunara's Q, which the attack doesn't.
       const again: AttackInfo = { ...atk, extra: [], phantom: true, repeatOnHit: 0 };
       if (kitAtk?.onHit && !o.fromAbility) pushCompsTo(again, kitAtk.onHit, this.champ.passive.name);
-      for (const b of this.buffs.values()) if (b.expires >= this.time && b.spec?.onHit) pushCompsTo(again, b.spec.onHit, b.label, b.slot);
+      for (const b of this.buffs.values()) if (b.expires >= this.time && b.spec?.onHit) pushCompsTo(again, b.spec.onHit, b.label, b.slot, false, b.distance);
       for (const e of effects) e.onAttack?.(this, again);
       atk.extra.push(...again.extra);
     }
@@ -1878,6 +1896,19 @@ export class Sim {
     return icons?.[Math.round(at ? this.evalExpr(at, { slot }) : 0)] ?? icons?.[0] ?? spell.icons?.[0];
   }
 
+  /** What each ability key casts now (KeyCasts). */
+  private keyCasts(): KeyCasts {
+    const out: KeyCasts = {};
+    for (const slot of ["Q", "W", "E", "R"] as Slot[]) {
+      const spec = this.abilitySpec(slot);
+      const key = this.stateVariant(spec, slot) ?? spec.defaultVariant;
+      const variant = key ? findVariant(spec, key)?.[1] : undefined;
+      const icon = this.castIcon(slot, spec, variant, this.spellFor(slot, (variant as any) ?? spec));
+      out[slot] = { ...(variant ? { variant: key } : {}), ...(icon ? { icon } : {}), name: this.castLabel(this.slotName(slot), variant) };
+    }
+    return out;
+  }
+
   /** The variant cast in place of the ability in the state it's in now (VariantSpec.when). */
   private stateVariant(spec: AbilitySpec, slot: Slot): string | undefined {
     return Object.entries(spec.variants ?? {}).find(([, v]) => v.when !== undefined && this.evalExpr(v.when, { slot }))?.[0];
@@ -1902,11 +1933,14 @@ export class Sim {
       return { kind: "held", value: held, min: Math.min(min, held), max: Math.max(held, max), unit: "s" };
     }
     const comps = variant?.components ?? spec.components ?? [];
-    if (variant?.variableDistance ?? spec.variableDistance) {
-      // How far the target stands: by default where it does, up to the cast's range.
+    const vd = variant?.variableDistance === false ? undefined : spec.variableDistance;
+    if (vd) {
+      // How far it goes: by default the target's distance, up to the cast's range (see variableDistance).
+      const cfg = typeof vd === "object" ? vd : {};
       const range = ctx.spell.castRange?.[Math.min(ctx.rank, ctx.spell.castRange.length - 1)];
-      const max = range ?? Math.max(this.distance, 1);
-      return { kind: "distance", value: Math.round(Math.min(this.distance, max)), min: 0, max, unit: "u" };
+      const max = cfg.max !== undefined ? this.evalExpr(cfg.max, ctx) : (range ?? Math.max(this.distance, 1));
+      const value = cfg.default !== undefined ? this.evalExpr(cfg.default, ctx) : this.distance;
+      return { kind: "distance", value: Math.round(Math.min(value, max)), min: 0, max, unit: "u" };
     }
     if (spec.variableCount) {
       const { times, byDefault } = this.firedTimes(comps, enable, ctx);
@@ -2119,7 +2153,7 @@ export class Sim {
       this.warn(`${label} doesn't depend on how far the target is: ${formatCombo([step])} is cast at its distance`);
     if (setting?.kind === "held") this.chargeHeld.set(slot, set ?? setting.value);
     // The target stands that far for the cast: its travel and damage go by it.
-    if (setting?.kind === "distance" && set !== undefined) ectx.distance = set;
+    if (setting?.kind === "distance") ectx.distance = set ?? setting.value;
     const comps = variant?.components ?? spec.components ?? [];
     const span =
       set === undefined || setting?.kind === "held" || setting?.kind === "distance"
@@ -2154,6 +2188,7 @@ export class Sim {
       castTime,
       recast,
       ...(spec.noSpellblade ? { noSpellblade: true } : {}),
+      ...(ectx.distance !== undefined ? { distance: ectx.distance } : {}),
     };
     // A P step is a passive proc, not an ability cast: only the kit's own hooks see it.
     for (const e of this.effects) if (slot !== "P" || e.source === "kit") e.onCast?.(this, cast);
@@ -2183,7 +2218,7 @@ export class Sim {
 
     // Self buff(s) apply on cast.
     const buffs = variant?.buff ?? spec.buff;
-    for (const b of Array.isArray(buffs) ? buffs : buffs ? [buffs] : []) this.applyBuff(b, slot, spell, rank, recast, castTime);
+    for (const b of Array.isArray(buffs) ? buffs : buffs ? [buffs] : []) this.applyBuff(b, slot, spell, rank, recast, castTime, ectx.distance);
 
     const end = start + castTime;
     const lockExpr = variant?.lockout ?? spec.lockout;
@@ -2336,8 +2371,8 @@ export class Sim {
     }
   }
 
-  applyBuff(buff: BuffSpec, slot: Slot, spell: SpellData, rank: number, recast?: number, castTime?: number) {
-    const ctx = { slot, spell, rank, recast, castTime };
+  applyBuff(buff: BuffSpec, slot: Slot, spell: SpellData, rank: number, recast?: number, castTime?: number, distance?: number) {
+    const ctx = { slot, spell, rank, recast, castTime, distance };
     const mods: Partial<StatMods> = {};
     for (const [k, v] of Object.entries(buff.stats ?? {})) (mods as any)[k] = this.evalExpr(v as Expr, ctx);
     if (buff.armorPenPercent !== undefined) mods.armorPenPercent = [this.evalExpr(buff.armorPenPercent, ctx)];
@@ -2353,6 +2388,7 @@ export class Sim {
       mods,
       ...(buff.empowerAttacks ? { charges: Math.round(this.evalExpr(buff.empowerAttacks.count, ctx)) } : {}),
       ...(buff.damageAmp !== undefined ? { amp: this.evalExpr(buff.damageAmp, ctx) } : {}),
+      ...(distance !== undefined ? { distance } : {}),
     });
     if (buff.empowerAttacks?.resetsAttack) this.resetAttack();
   }
@@ -2502,7 +2538,17 @@ export class Sim {
     const startHp = this.target.hp;
     const initialRed = this.targetReductions();
 
+    // An ability whose icon the kit picks (Kayn's by form) shows it on what hooks deal under it too.
+    for (const slot of ["P", "Q", "W", "E", "R"] as Slot[]) {
+      const spec = this.kit.abilities[slot];
+      const icon = spec?.icon && this.castIcon(slot, spec, undefined, this.spellFor(slot, spec));
+      if (!icon) continue;
+      this.castIcons.set(`${slot}|${this.slotName(slot)}`, icon);
+      if (slot === "P") this.castIcons.set(`P|${this.champ.passive.name}`, icon);
+    }
+    const keyCasts: KeyCasts[] = [];
     for (const [index, step] of steps.entries()) {
+      keyCasts.push(this.keyCasts());
       this.stepIndex = index;
       const skip = this.skipReason(step);
       if (skip) {
@@ -2545,6 +2591,7 @@ export class Sim {
     this.action = undefined;
     const comboEnd = Math.max(this.time, this.freeAt);
     this.processUntil(comboEnd);
+    keyCasts.push(this.keyCasts());
     // Delayed hits (projectiles, detonations) always land; DoTs continue only with finishDots.
     this.processUntil(comboEnd + (this.settings.finishDots ? 30 : 3));
     const dotDamage = this.events.reduce((s, e) => s + (e.flags.dot ? (e.final ?? 0) : 0), 0);
@@ -2615,6 +2662,7 @@ export class Sim {
       bySource: [...bySourceMap.values()].sort((a, b) => b.damage - a.damage),
       events: this.events,
       timeline,
+      keyCasts,
       duration: lastDamage,
       comboTime: comboEnd,
       killed: this.target.killTime !== undefined,

@@ -203,6 +203,8 @@ export interface CastInfo {
   recast?: number;
   /** Not an ability cast for Spellblade (AbilitySpec.noSpellblade). */
   noSpellblade?: boolean;
+  /** How far it goes, where its step sets it (AbilitySpec.variableDistance; expressions' `distance`). */
+  distance?: number;
 }
 
 /**

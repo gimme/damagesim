@@ -335,11 +335,13 @@ export interface AbilitySpec {
    */
   variableCount?: string;
   /**
-   * What it deals depends on how far the target stands (Nidalee's Javelin Toss): a combo step sets the
-   * distance for the cast (`Q{1300u}`, edge to edge, up to its range), `distance` and `reach` in its
-   * expressions; by default the target's distance.
+   * What it deals goes by how far it goes, which a combo step sets (`Q{1300u}`): the target's distance
+   * for what flies at it (Nidalee's Javelin Toss, Fizz's lure), the star's whole flight (Zoe's Paddle
+   * Star), the run before the attack it empowers (Hecarim's Devastating Charge). Its expressions, and
+   * its buffs', read it as `distance` (`reach` capped at its range). By default `default`, else the
+   * target's distance; at most `max`, else its range.
    */
-  variableDistance?: boolean;
+  variableDistance?: boolean | { default?: Expr; max?: Expr };
   /**
    * Held to charge (Sion Q, Varus Q): a combo step sets the seconds held (`Q{0.5s}`), which
    * expressions read as `charge` (castTime, amounts, cc). `default`: the hold when the step doesn't

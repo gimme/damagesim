@@ -22,7 +22,7 @@ const kit: ChampionKit = {
   notes: [
     "Warpath: bonus AD from bonus move speed is computed once from items/runes; temporary move speed (Devastating Charge, boots actives, Phase Rush…) is not included.",
     "Rampage: each Q that hits adds a stack: later Qs deal +calc.RampageBonusDamagePerc % per stack and have dv.RampageCooldownReduction s less base cooldown per stack (4/3.25/2.5/1.75 at rank 5).",
-    "Devastating Charge defaults to minimum damage (no travel); E:max after travelling dv.DistanceToMaxDamage units. Bonus damage on top of the attack.",
+    "Devastating Charge deals more the farther Hecarim runs before the attack, the step's distance (E{1200u}; none by default, the minimum): twice as much at dv.DistanceToMaxDamage units. Bonus damage on top of the attack.",
   ],
   stats: ({ evalExpr }) => ({ ad: evalExpr("P.calc.BonusAD") }),
   marks: [{ id: "rampage", label: "Rampage", slot: "Q", maxStacks: "Q.dv.MaxStacks", duration: "Q.dv.BuffDuration", appliedBy: ["Q"] }],
@@ -55,10 +55,10 @@ const kit: ChampionKit = {
       noTarget: true,
       resetsAttack: true,
       notes: ["Empowers the next attack (bonus damage + knockback). Follow with AA."],
-      buff: charge("E.calc.MinDamage"),
-      variants: {
-        max: { label: "max", note: "Charged the full distance: maximum damage.", resetsAttack: true, buff: charge("E.calc.MaxDamage"), components: [] },
-      },
+      // How far Hecarim runs before the attack (E{1200u}; none by default): from MinDamage to MaxDamage
+      // at DistanceToMaxDamage.
+      variableDistance: { default: 0, max: "dv.DistanceToMaxDamage" },
+      buff: charge("lerp(E.calc.MinDamage, E.calc.MaxDamage, clamp(distance / E.dv.DistanceToMaxDamage, 0, 1))"),
     },
     R: {
       dash: true,

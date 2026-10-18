@@ -160,11 +160,14 @@ shots), mark it `variableCount: 'shots'` instead: a step sets the count (`R{3}`,
 first that many of its hits in the order they're fired (Jhin's 4th shot, its own component, is
 always the last), and its lockout ends when the last of them is fired.
 
-When what it deals goes by how far it flies (Nidalee's Javelin Toss), mark it `variableDistance: true`
-rather than giving it near and far variants: a step sets how far the target stands for the cast
-(`Q{1300u}`, edge to edge, from 0 up to its range; by default the target's distance), which its
-expressions read as `distance` and `reach`, travel and damage alike. A variant that doesn't go by it
-(another form's spell) sets `variableDistance: false`.
+When what it deals goes by how far it goes, mark it `variableDistance: true` rather than giving it
+near and far variants: a step sets the distance for the cast (`Q{1300u}`), which its expressions, and
+those of the buffs it applies, read as `distance` (`reach` capped at its range), travel and damage
+alike. By default it's the target's distance, at most the cast's range: right for what flies at the
+target (Nidalee's Javelin Toss, Fizz's lure). Otherwise give `{ default, max }`: Zoe's star, redirected
+past her range, `{ max: 2550 }`; the run before the attack Hecarim's Devastating Charge empowers,
+`{ default: 0, max: 'dv.DistanceToMaxDamage' }`. Hooks get it as `cast.distance`. A variant that
+doesn't go by it (another form's spell) sets `variableDistance: false`.
 
 An ability held to charge (Sion Q, Varus Q) takes `charge: { default, min, max }`: the step's seconds
 are the hold (usually the full charge by default; `min` is the earliest release, `max` the longest

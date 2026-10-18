@@ -132,7 +132,11 @@ const kit: ChampionKit = {
       },
     },
     R: {
+      // Named as the transform buffs are, so the next attack each empowers shows its icon.
+      name: toCannon.label,
       noTarget: true,
+      // Its other spell in Mercury Cannon form (the same numbers but for its icon).
+      variants: { cannon: { label: "cannon", name: toHammer.label, icon: "JayceStanceGtH", when: "stacks.jayceCannon", components: [] } },
       notes: [
         "To Hammer: next attack deals R.calc.Damage bonus magic damage. To Cannon: next attack reduces armor and MR by R.calc.RangedFormShred for R.dv.ShredDuration s.",
         "The Hammer stance armor/MR bonus is not modeled.",

@@ -12,14 +12,21 @@ const sparkles: BuffSpec = {
   empowerAttacks: { count: 1, components: [{ id: "sparkles", label: "More Sparkles!", type: "magic", amount: "P.calc.PassiveDamage", proc: true }] },
 };
 
+// Paddle Star's bonus by the distance travelled, +25% at each of the wiki's points (800, 950, 1350, 1650,
+// 1950, 2250, 2550 units: +0% to +150%), linear between them (assumed): the steps passed, 0 to 6.
+const STAR_POINTS = [800, 950, 1350, 1650, 1950, 2250, 2550];
+const STAR_STEPS = STAR_POINTS.slice(1)
+  .map((p, i) => `clamp((distance - ${STAR_POINTS[i]}) / ${p - STAR_POINTS[i]}, 0, 1)`)
+  .join(" + ");
+
 const kit: ChampionKit = {
   id: "Zoe",
   status: "curated",
   notes: [
     "More Sparkles!: every ability cast empowers the next attack within 5s.",
-    "Paddle Star: minimum damage by default (short travel); Q:max for a full-distance (redirected) star.",
+    "Paddle Star deals more the farther the star flies, the step's distance (Q{2550u}, redirected past 800; by default the target's, the least): +0% at 800 units to +150% at 2550, linear between the wiki's points (assumed; the wiki notes a bug capping it at +146.6%).",
     "Spell Thief: casting W (a picked-up shard) fires 3 bolts; the stolen spell itself and the bolts from summoner spell casts are not modeled.",
-    'Sleepy Trouble Bubble: the target falls asleep DrowsyDuration after the hit — wait before the waking hit (e.g. "E wait{1.4s} Q:max") to get the MR reduction and the capped true-damage wake bonus.',
+    'Sleepy Trouble Bubble: the target falls asleep DrowsyDuration after the hit — wait before the waking hit (e.g. "E wait{1.4s} Q{2550u}") to get the MR reduction and the capped true-damage wake bonus.',
   ],
   hooks: {
     afterDamage(sim, inst) {
@@ -58,24 +65,20 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       buff: sparkles,
-      variants: {
-        // Wiki: the star flies its 800 range at 1200 speed, then, redirected (no cast time), at 2500 speed
-        // on to the 2550 units travelled for full damage.
-        max: {
-          label: "max distance",
-          components: [
-            {
-              id: "star",
-              label: "Paddle Star! (max)",
-              type: "magic",
-              amount: "calc.MaxDamageTooltip",
-              aoe: true,
-              travel: "castRange / missileSpeed + (2550 - castRange) / 2500",
-            },
-          ],
+      // How far the star flies, redirected past its 800 range (Q{2550u}; wiki): it deals more from 800
+      // units, up to MaxDamageTooltip (2.5 times as much) at 2550, through the wiki's points.
+      variableDistance: { max: 2550 },
+      components: [
+        {
+          id: "star",
+          label: "Paddle Star!",
+          type: "magic",
+          amount: `calc.TotalDamageTooltip + (calc.MaxDamageTooltip - calc.TotalDamageTooltip) * (${STAR_STEPS}) / 6`,
+          aoe: true,
+          // Wiki: its 800 range at 1200 speed, then, redirected (no cast time), at 2500.
+          travel: "min(distance, castRange) / missileSpeed + max(0, distance - castRange) / 2500",
         },
-      },
-      components: [{ id: "star", label: "Paddle Star!", type: "magic", amount: "calc.TotalDamageTooltip", aoe: true, travel: true }],
+      ],
     },
     W: {
       buff: sparkles,

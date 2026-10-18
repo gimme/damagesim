@@ -7,13 +7,10 @@ import type { Sim } from "../../engine/sim.ts";
 // attaches, before the shark (the cast's first hit).
 
 const W_ACTIVE_LABEL = "Seastone Trident (active)";
-// Chum the Waters: the fish flies to the target at its speed, as far as its shark's size says (wiki:
-// under 455 units, 455 to 910, over 910).
-const R_FLIGHT: Record<string, string> = {
-  "": "min(reach, 455) / missileSpeed",
-  medium: "clamp(reach, 455, 910) / missileSpeed",
-  large: "max(reach, 910) / missileSpeed",
-};
+// Chum the Waters: the fish flies to the target at its speed, its shark the larger the farther (the
+// step's distance, R{900u}; wiki: under 455 units, 455 to 910, over 910).
+const R_FLIGHT = "reach / missileSpeed";
+const R_SHARK = "reach > 910 ? calc.BigSharkDamage : reach >= 455 ? calc['{262c3c02}'] : calc.SmallSharkDamage";
 
 const kit: ChampionKit = {
   id: "Fizz",
@@ -21,7 +18,7 @@ const kit: ChampionKit = {
   notes: [
     "Seastone Trident passive: attacks and Urchin Strike apply a bleed (W.calc.DoTDamage over W.dv.BleedDuration, ticking every 0.5s, refreshed by new hits, not stacking).",
     "Seastone Trident active: the next attack deals bonus damage; if it does not kill, attacks deal W.calc.OnHitBuffDamage on-hit for W.dv.OnHitBuffDuration s afterwards (basic attacks only).",
-    "Chum the Waters: default is the smallest shark (short throw); R:medium / R:large for longer throws. The slow starts when the fish attaches (cast end); the knock-up comes with the shark.",
+    "Chum the Waters: the shark is the larger the farther the fish flies, the step's distance (R{900u}; by default the target's): under 455 units, 455 to 910, over 910 (wiki). The slow starts when the fish attaches; the knock-up comes with the shark.",
   ],
   marks: [
     {
@@ -78,45 +75,10 @@ const kit: ChampionKit = {
     },
     R: {
       notes: ["Shark erupts dv.DetonationTime s after the fish attaches; the attached champion is knocked up for 1s (tooltip)."],
+      variableDistance: true,
       // The fish flies to the target, then the shark erupts dv.DetonationTime later.
       cc: [{ kind: "immobilize", duration: 1 }],
-      components: [
-        { id: "shark", label: "Chum the Waters", type: "magic", amount: "calc.SmallSharkDamage", aoe: true, delay: "dv.DetonationTime", travel: R_FLIGHT[""] },
-      ],
-      variants: {
-        medium: {
-          label: "medium",
-          note: "Fish travelled a medium distance, 455 to 910 units (×dv.MidDamageMulti).",
-          cc: [{ kind: "immobilize", duration: 1 }],
-          components: [
-            {
-              id: "shark",
-              label: "Chum the Waters",
-              type: "magic",
-              amount: "calc['{262c3c02}']",
-              aoe: true,
-              delay: "dv.DetonationTime",
-              travel: R_FLIGHT.medium,
-            },
-          ],
-        },
-        large: {
-          label: "large",
-          note: "Fish travelled over 910 units (×dv.LargeDamageMulti).",
-          cc: [{ kind: "immobilize", duration: 1 }],
-          components: [
-            {
-              id: "shark",
-              label: "Chum the Waters",
-              type: "magic",
-              amount: "calc.BigSharkDamage",
-              aoe: true,
-              delay: "dv.DetonationTime",
-              travel: R_FLIGHT.large,
-            },
-          ],
-        },
-      },
+      components: [{ id: "shark", label: "Chum the Waters", type: "magic", amount: R_SHARK, aoe: true, delay: "dv.DetonationTime", travel: R_FLIGHT }],
     },
   },
   hooks: {
@@ -124,7 +86,7 @@ const kit: ChampionKit = {
       if (cast.slot !== "R" || !cast.hitsTarget) return;
       const castId = cast.castId;
       // The slow applies as the fish attaches, after its flight.
-      sim.schedule(sim.evalExpr(`castTime + ${R_FLIGHT[cast.variant ?? ""] ?? R_FLIGHT[""]}`, { slot: "R" }), () =>
+      sim.schedule(sim.evalExpr(`castTime + ${R_FLIGHT}`, { slot: "R", distance: cast.distance }), () =>
         sim.applyCC("slow", sim.evalExpr("R.dv.SlowDuration", { slot: "R" }), castId, "R"),
       );
     },

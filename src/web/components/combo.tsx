@@ -281,9 +281,12 @@ export function ComboBuilder({ state, set, sim, result }: { state: UIState; set:
   // How each ability step was cast, by its index: in the form or state it was in (W:ruin in
   // Transcendent State), its icon and setting that one's.
   const casts = new Map((result?.timeline ?? []).flatMap((t) => (t.index !== undefined ? [[t.index, t] as const] : [])));
-  const asCast = (st: ComboStep, i: number) => (st.type === "ability" && !st.variant && casts.get(i)?.variant ? { ...st, variant: casts.get(i)!.variant } : st);
+  const asCast = (st: ComboStep, i: number) => {
+    const variant = landing(i) ? landing(i)![st.type === "ability" ? st.slot : "Q"]?.variant : casts.get(i)?.variant;
+    return st.type === "ability" && !st.variant && variant ? { ...st, variant } : st;
+  };
   const stepIcon = (st: ComboStep, i: number) => {
-    if (st.type === "ability") return icon(st.slot, spellName(st.slot), "xs", casts.get(i)?.icon);
+    if (st.type === "ability") return icon(st.slot, spellName(st.slot), "xs", landing(i) ? landing(i)![st.slot]?.icon : casts.get(i)?.icon);
     if (st.type === "attack") return icon("AA", "Basic attack", "xs");
     if (st.type === "summoner") return icon("summoner:ignite", "Ignite", "xs");
     const it = stepItem(st);
@@ -328,12 +331,21 @@ export function ComboBuilder({ state, set, sim, result }: { state: UIState; set:
     },
   });
   const drag = order.drag;
+  // What the keys cast where a step dragged among the others lands (Elise's Q after her R: Venomous
+  // Bite): the dragged step's, before the step it lands ahead of (as the combo is now, without the
+  // move); the keys', at the end.
+  const keyCasts = result?.keyCasts ?? [];
+  const landing = (i: number) => {
+    if (incoming && i === steps.length) return keyCasts[drag && !drag.away ? drag.to : steps.length];
+    return drag && drag.from === i && !drag.away && drag.from !== drag.to ? keyCasts[drag.from > drag.to ? drag.to : drag.to + 1] : undefined;
+  };
+  const atEnd = keyCasts[steps.length];
   const keys: { key: string; step: ComboStep; title: string; icon?: ReactNode; text: string }[] = [
     ...(["Q", "W", "E", "R"] as Slot[]).map((s) => ({
       key: s,
       step: { type: "ability", slot: s } as ComboStep,
-      title: spellName(s),
-      icon: icon(s, spellName(s), "sm"),
+      title: atEnd?.[s]?.name ?? spellName(s),
+      icon: icon(s, atEnd?.[s]?.name ?? spellName(s), "sm", atEnd?.[s]?.icon),
       text: s,
     })),
     ...(hasP

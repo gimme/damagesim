@@ -24,6 +24,7 @@ const kit: ChampionKit = {
   ],
   // The HUD's icons by form: base, Shadow Assassin, Rhaast.
   abilities: {
+    P: { icon: "KaynPassive#opt.form", components: [] },
     Q: {
       icon: "KaynQ#opt.form",
       dash: true,
@@ -56,6 +57,13 @@ const kit: ChampionKit = {
       notes: ["Slows 90% decaying over 1.5s. Rhaast form also knocks up for 1s."],
       components: [{ id: "reach", label: "Blade's Reach", type: "physical", amount: "calc.TotalDamage", aoe: true }],
       variants: {
+        // Its own spell in the game (longer range, not modeled): here only for its icon.
+        assassin: {
+          label: "Shadow Assassin",
+          icon: "KaynAssW",
+          when: "opt.form == 1",
+          components: [{ id: "reach", label: "Blade's Reach", type: "physical", amount: "calc.TotalDamage", aoe: true }],
+        },
         darkin: {
           label: "Rhaast",
           when: isRhaast,

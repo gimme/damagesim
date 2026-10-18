@@ -305,7 +305,7 @@ test("A form's spells are cast by themselves in it, under their own names: Elise
   assert.deepEqual(cast(elise), ["Q", "R", "Q:spider", "R"]);
   assert.deepEqual(hits(elise).slice(0, 2), ["Neurotoxin", "Venomous Bite"]);
   assert.deepEqual(cast(run("Jayce", "Q R Q")), ["Q", "R", "Q:cannon"]);
-  assert.deepEqual(cast(run("Jayce", "Q R Q", { cannon: 1 })), ["Q:cannon", "R", "Q"]);
+  assert.deepEqual(cast(run("Jayce", "Q R Q", { cannon: 1 })), ["Q:cannon", "R:cannon", "Q"]);
   assert.deepEqual(cast(run("Nidalee", "Q R W E Q")), ["Q", "R", "W:pounce", "E:swipe", "Q:takedown"]);
   // Rek'Sai starts burrowed; W toggles it, each form with its own Q cooldown (Queen's Wrath right after Prey Seeker).
   const reksai = run("RekSai", "Q W Q W Q");
@@ -370,6 +370,60 @@ test("Nidalee's Javelin Toss deals more the farther it flies: the step's distanc
   assert.equal(sim.castSetting({ slot: "Q", variant: "takedown" }), null);
   assert.deepEqual(parseCombo("Q{1300u}"), [{ type: "ability", slot: "Q", distance: 1300 }]);
   assert.equal(formatCombo(parseCombo("Q{1300u}")), "Q{1300u}");
+});
+
+test("Fizz's shark, Zoe's star and Hecarim's charge go by the step's distance (wiki)", () => {
+  const run = (champion: string, combo: string) => simulate(data, { champion, level: 16, combo, target: dummy });
+  const hit = (champion: string, combo: string, label: string) => run(champion, combo).events.find((e) => e.label === label)!.raw;
+  const sim = (champion: string) => new Sim(data, { champion, level: 16, combo: [] });
+  // Fizz: under 455 units, 455 to 910, over 910 (by default the target's distance, in melee).
+  const fizz = sim("Fizz");
+  const sharks = ["calc.SmallSharkDamage", "calc['{262c3c02}']", "calc.BigSharkDamage"].map((e) => fizz.evalExpr(e, { slot: "R" }));
+  assert.deepEqual(
+    ["R", "R{454u}", "R{455u}", "R{910u}", "R{911u}"].map((c) => hit("Fizz", c, "Chum the Waters")),
+    [sharks[0], sharks[0], sharks[1], sharks[1], sharks[2]],
+  );
+  // Zoe: +0% to +150% from 800 to 2550 units, +25% at each of the wiki's points; its range at 1200 speed, then 2500.
+  const zoe = sim("Zoe");
+  const [min, max] = [zoe.evalExpr("calc.TotalDamageTooltip", { slot: "Q" }), zoe.evalExpr("calc.MaxDamageTooltip", { slot: "Q" })];
+  assert.ok(near(hit("Zoe", "Q", "Paddle Star!"), min) && near(hit("Zoe", "Q{800u}", "Paddle Star!"), min));
+  assert.ok(near(hit("Zoe", "Q{950u}", "Paddle Star!"), min + (max - min) / 6));
+  assert.ok(near(hit("Zoe", "Q{1800u}", "Paddle Star!"), min + ((max - min) * 3.5) / 6));
+  assert.ok(near(hit("Zoe", "Q{2550u}", "Paddle Star!"), max));
+  const star = run("Zoe", "Q{2550u}").events.find((e) => e.label === "Paddle Star!")!;
+  assert.ok(near(star.time, zoe.evalExpr("castTime", { slot: "Q" }) + 800 / 1200 + 1750 / 2500), `${star.time}`);
+  // Hecarim: the run before the attack, none by default; the buff keeps it through other casts.
+  const hec = sim("Hecarim");
+  const [hmin, hmax] = [hec.evalExpr("calc.MinDamage", { slot: "E" }), hec.evalExpr("calc.MaxDamage", { slot: "E" })];
+  assert.deepEqual(
+    ["E AA", "E{600u} AA", "E{1200u} Q AA"].map((c) => hit("Hecarim", c, "Devastating Charge")),
+    [hmin, (hmin + hmax) / 2, hmax],
+  );
+  assert.deepEqual(hec.castSetting({ slot: "E" }), { kind: "distance", value: 0, min: 0, max: 1200, unit: "u" });
+  assert.equal(zoe.castSetting({ slot: "Q" })?.max, 2550);
+});
+
+test("What each ability key casts through the combo: the form at each step, for the combo card's keys", () => {
+  const file = (p?: string) => p?.split("/").pop();
+  const r = simulate(data, { champion: "Elise", level: 16, combo: "Q R", target: dummy });
+  assert.deepEqual(
+    r.keyCasts.map((k) => [k.Q?.name, file(k.Q?.icon)]),
+    [
+      ["Neurotoxin", "elisehumanq.png"],
+      ["Neurotoxin", "elisehumanq.png"],
+      ["Venomous Bite", "elisespiderq.png"],
+    ],
+  );
+  // Jayce's R is its other spell in cannon form, and so is the empowered attack it gives.
+  const jayce = simulate(data, { champion: "Jayce", level: 16, combo: "R AA", options: { cannon: 1 }, target: dummy });
+  assert.equal(file(jayce.timeline[0].icon), "jaycer_melee.png");
+  assert.equal(file(jayce.bySource.find((s) => s.label === "Transform: Mercury Hammer")?.icon), "jaycer_melee.png");
+  // Shadow Assassin's W, its own spell, and Kayn's passive by form.
+  const kayn = simulate(data, { champion: "Kayn", level: 16, combo: "W", options: { form: 1 }, target: dummy });
+  assert.deepEqual(
+    kayn.bySource.map((s) => file(s.icon)),
+    ["kayn_w_ass.png", "kayn_passive_ass.png"],
+  );
 });
 
 test("A charge held for a step's seconds: damage, crowd control and cast time follow the hold", () => {
