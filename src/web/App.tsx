@@ -11,6 +11,8 @@ import { SettingsPanel } from "./components/settings.tsx";
 import { ComboBuilder } from "./components/combo.tsx";
 import { Details, Summary } from "./components/results.tsx";
 import { ItemValueCard } from "./components/item-value.tsx";
+import { ScenarioBar, useScenarios } from "./components/scenarios.tsx";
+import { CompareCard } from "./components/compare.tsx";
 
 function useTheme() {
   const [theme, setTheme] = useState<"light" | "dark" | null>(() => {
@@ -56,9 +58,9 @@ function clampShorthand(combo: string, sim: Sim): string {
 
 export function App() {
   const [state, setState] = useState<UIState>(() => (ROUTED ? atAddress() : null) ?? loadSavedState(DATA) ?? DEFAULT_STATE);
-  const [pinned, setPinned] = useState<{ label: string; state: UIState }[]>([]);
   const [, setIconsReady] = useState(false);
   const theme = useTheme();
+  const scenarios = useScenarios(state, setState);
 
   useEffect(() => {
     loadBundledIcons().then((ok) => ok && setIconsReady(true));
@@ -110,17 +112,12 @@ export function App() {
     if (combo !== scenario.combo) setState((s) => ({ ...s, combo }));
   }, [combo, scenario.combo]);
 
-  const pin = () => {
-    const items = state.items.filter((x) => x != null).map((id) => DATA.items[id!]?.name);
-    const label = `${DATA.champions[state.champion].name} ${state.level}${items.length ? ": " + items.slice(0, 3).join(", ") + (items.length > 3 ? "…" : "") : ""} · ${state.combo}`;
-    setPinned((p) => [...p, { label, state }]);
-  };
-
   return (
     <div className="app">
       <header className="topbar">
         <h1>damagesim</h1>
         <span className="badge">patch {DATA.meta.patch}</span>
+        <ScenarioBar scenarios={scenarios} state={state} />
         <span className="spacer" />
         <button
           className="btn small"
@@ -143,21 +140,14 @@ export function App() {
           <SettingsPanel state={state} set={setState} />
         </div>
         <div style={{ minWidth: 0 }}>
+          <CompareCard scenarios={scenarios} state={state} result={result} />
           <ComboBuilder state={state} set={setState} sim={sim} result={result} />
           {error && <div className="notice warn">{error}</div>}
           {result && (
             <>
               <Summary r={result} />
               <ItemValueCard state={state} set={setState} scenario={scenario} sim={sim} />
-              <Details
-                r={result}
-                scenario={scenario}
-                sim={sim}
-                state={state}
-                pinned={pinned}
-                onPin={pin}
-                onUnpin={(i) => setPinned((p) => p.filter((_, j) => j !== i))}
-              />
+              <Details r={result} scenario={scenario} sim={sim} />
             </>
           )}
           <p className="muted small">Numbers come from the patch {DATA.meta.patch} game files.</p>

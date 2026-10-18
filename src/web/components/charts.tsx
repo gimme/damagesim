@@ -692,67 +692,6 @@ function barPath(x: number, y: number, w: number, h: number, roundEnd = true) {
 }
 
 // -----------------------------------------------------------------------------
-// Simple horizontal bars (single hue) with labels — item ranking, build comparison.
-
-export function SimpleBars({
-  rows,
-  unit = "",
-  format = (v: number) => fmt(v),
-}: {
-  rows: { label: string; value: number; sub?: string; icon?: ReactNode; highlight?: boolean }[];
-  unit?: string;
-  format?: (v: number) => string;
-}) {
-  const tt = useTooltip();
-  const W = tt.width;
-  const rowH = 32;
-  const labelW = Math.min(300, W * 0.4);
-  const H = rows.length * rowH + 8;
-  const max = niceMax(Math.max(1e-9, ...rows.map((r) => r.value)));
-  const sx = (v: number) => (Math.max(0, v) / max) * (W - labelW - (W < 600 ? 70 : 150));
-  const maxChars = Math.floor((labelW - 12) / 7);
-  return (
-    <div className="chart-wrap" ref={tt.ref}>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Bar chart">
-        {rows.map((r, i) => {
-          const y = i * rowH + 6;
-          return (
-            <g
-              key={i}
-              onPointerMove={(e) =>
-                tt.show(
-                  e,
-                  <>
-                    <div className="tt-title">{r.label}</div>
-                    <div className="tt-row">
-                      <span>{unit || "Value"}</span>
-                      <strong>{format(r.value)}</strong>
-                    </div>
-                    {r.sub && <div className="muted">{r.sub}</div>}
-                  </>,
-                )
-              }
-              onPointerLeave={tt.hide}
-            >
-              <rect x={0} y={y - 4} width={W} height={rowH} fill="transparent" />
-              <text x={labelW - 10} y={y + 15} textAnchor="end" fontSize={13} fill="var(--text-primary)" fontWeight={r.highlight ? 650 : 400}>
-                {r.label.length > maxChars ? r.label.slice(0, maxChars - 1) + "…" : r.label}
-              </text>
-              <path d={barPath(labelW, y, Math.max(1, sx(r.value)), 20)} fill="var(--accent)" opacity={r.highlight ? 1 : 0.85} />
-              <text x={labelW + sx(r.value) + 8} y={y + 15} fontSize={12.5} fill="var(--text-secondary)" className="num">
-                {format(r.value)}
-                {r.sub && W >= 600 ? `  ·  ${r.sub}` : ""}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-      {tt.node}
-    </div>
-  );
-}
-
-// -----------------------------------------------------------------------------
 // Line chart (resist sweep): x = resist, y = damage, one line per series.
 
 export function LineChart({

@@ -1,5 +1,5 @@
 // The results: the summary and its health bar, the charts in each tab, the events' modifier cards,
-// the abilities, stats and resist sweep, and pinning setups to compare.
+// the abilities, stats and resist sweep.
 
 import { test, expect, num, texts, type UI } from "./ui.ts";
 
@@ -204,75 +204,6 @@ test("details tabs", async ({ ui }) => {
     async () => {
       await expect(details.locator(".stats-grid > div")).not.toHaveCount(0);
       await expect(details).toContainText("Target: Squishy");
-    },
-  );
-});
-
-test("compare and pinning", async ({ ui }) => {
-  const { step } = ui;
-  const details = ui.details();
-  const pin = details.getByRole("button", { name: "Pin current" });
-  const pins = details.getByRole("button", { name: /✕$/ });
-  const charts = details.getByRole("img", { name: "Bar chart" });
-
-  await step("load", () => ui.open());
-  await step(
-    "Compare: nothing pinned",
-    () => details.getByRole("tab", { name: "Compare" }).click(),
-    async () => {
-      await expect(details).toContainText("Nothing pinned yet.");
-      await expect(charts).toHaveCount(0);
-    },
-  );
-  await step(
-    "Pin current: named for the setup, a chart",
-    () => pin.click(),
-    async () => {
-      await expect(pins).toHaveCount(1);
-      await expect(pins.first()).toHaveText(/^Ahri 11: Luden's Echo, Sorcerer's Shoes · E Q W R AA R ✕$/);
-      await expect(charts).toHaveCount(1);
-    },
-  );
-  await step(
-    "level 16, pin again",
-    async () => {
-      const level = ui.card("Champion").getByRole("slider", { name: "Champion level" });
-      await level.focus();
-      for (let i = 0; i < 5; i++) await level.press("ArrowRight");
-      await pin.click();
-    },
-    async () => {
-      await expect(pins).toHaveCount(2);
-      await expect(pins.last()).toHaveText(/^Ahri 16:/);
-    },
-  );
-  await step(
-    "hover the bars: a setup's total",
-    () => over(ui, "Bar chart", 0.5, 0.1),
-    () => expect(ui.tooltip).toContainText("Total damage"),
-  );
-  await step("the pointer away", () => ui.unhover());
-  await step(
-    "unpin the first",
-    () => pins.first().click(),
-    async () => {
-      await expect(pins).toHaveCount(1);
-      await expect(pins.first()).toHaveText(/^Ahri 16:/);
-    },
-  );
-  await step(
-    "Find best order: a chart of the orders",
-    () => details.getByRole("button", { name: "Find best order" }).click(),
-    () => expect(charts).toHaveCount(2),
-  );
-  await step(
-    "six pins: no more",
-    async () => {
-      for (let i = 0; i < 5; i++) await pin.click();
-    },
-    async () => {
-      await expect(pins).toHaveCount(6);
-      await expect(pin).toBeDisabled();
     },
   );
 });

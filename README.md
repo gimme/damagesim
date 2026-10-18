@@ -5,7 +5,7 @@ A League of Legends damage simulator and item build optimizer: pick a **champion
 tank preset at a level relative to yours, an enemy champion with items, or raw HP/armor/MR. It plays
 the combo out on a timeline and reports every damage instance.
 
-* **Humans:** a web UI with HP bar, timeline, breakdown, build comparison and a resist sweep, plus a
+* **Humans:** a web UI with HP bar, timeline, breakdown and a resist sweep, plus a
   live **item value** ranking: which item adds the most damage (per gold or in total) to your next
   slot or in place of an item you own, as a list (each bar split into what the item adds to your
   other damage, the damage it deals itself and the hits it adds, like Electrocute it procs, its end
@@ -16,6 +16,10 @@ the combo out on a timeline and reports every damage instance.
   row, two from the secondary tree, a shard per row); hovering a rune shows its tooltip like an item's, and whether its
   adaptive damage is physical or magic for you. The page's address is a link to its scenario: the champion in the path and
   the rest as a short code in the hash (`/zed/#…`, about 70 characters for a full build), none at the defaults.
+  Scenarios saved under a name sit in the top bar, a click apart: each keeps its changes until they're saved over it or
+  reverted, and work that isn't saved is kept beside them, so switching loses nothing. Compare shows the one on screen
+  beside the others picked: their health bars at the combo's end, and a table of their builds, totals, time to kill and
+  damage by source, each against the one on screen, optionally all against its target.
 * **AI agents:** an MCP server (simulate, compare, rank items, optimize builds and combo order) and a
   CLI with `--json` output.
 * **Accuracy:** every number comes from Riot's own game files for the patch (via CommunityDragon),

@@ -3,13 +3,11 @@ import { DATA, castIcon } from "../data.ts";
 import { Icon, sourceMark } from "./icons.tsx";
 import { useHoverCard } from "./hover.tsx";
 import { Card, fmt } from "./common.tsx";
-import { HpBar, LineChart, SimpleBars, SourceBars, SourceName, Timeline, TypeLegend, TYPE_COLOR, TYPE_LABEL, type DmgType } from "./charts.tsx";
+import { HpBar, LineChart, SourceBars, SourceName, Timeline, TypeLegend, TYPE_COLOR, TYPE_LABEL, type DmgType } from "./charts.tsx";
 import type { DamageInstance } from "../../engine/effects.ts";
 import type { Scenario, SimResult, Sim } from "../../engine/sim.ts";
-import { resistSweep, optimizeCombo, compare } from "../../engine/analysis.ts";
+import { resistSweep } from "../../engine/analysis.ts";
 import { describeChampion } from "../../engine/describe.ts";
-import type { UIState } from "../state.ts";
-import { pageRunes } from "../../engine/rune-page.ts";
 
 export function Summary({ r }: { r: SimResult }) {
   const [by, setBy] = useState<"time" | "size">("time");
@@ -97,26 +95,10 @@ function Warnings({ r }: { r: SimResult }) {
   );
 }
 
-const TABS = ["Timeline", "Breakdown", "Events", "Abilities", "Compare", "Resist sweep", "Stats"] as const;
+const TABS = ["Timeline", "Breakdown", "Events", "Abilities", "Resist sweep", "Stats"] as const;
 type Tab = (typeof TABS)[number];
 
-export function Details({
-  r,
-  scenario,
-  sim,
-  state,
-  pinned,
-  onPin,
-  onUnpin,
-}: {
-  r: SimResult;
-  scenario: Scenario;
-  sim: Sim | null;
-  state: UIState;
-  pinned: { label: string; state: UIState }[];
-  onPin: () => void;
-  onUnpin: (i: number) => void;
-}) {
+export function Details({ r, scenario, sim }: { r: SimResult; scenario: Scenario; sim: Sim | null }) {
   const [tab, setTab] = useState<Tab>("Timeline");
   return (
     <section className="card">
@@ -171,7 +153,6 @@ export function Details({
       )}
       {tab === "Events" && <Events r={r} />}
       {tab === "Abilities" && sim && <Abilities sim={sim} />}
-      {tab === "Compare" && <Compare r={r} pinned={pinned} onPin={onPin} onUnpin={onUnpin} scenario={scenario} />}
       {tab === "Resist sweep" && <Sweep scenario={scenario} r={r} />}
       {tab === "Stats" && <Stats r={r} />}
     </section>
@@ -332,102 +313,6 @@ function Abilities({ sim }: { sim: Sim }) {
         </div>
       ))}
     </div>
-  );
-}
-
-function Compare({
-  r,
-  pinned,
-  onPin,
-  onUnpin,
-  scenario,
-}: {
-  r: SimResult;
-  pinned: { label: string; state: UIState }[];
-  onPin: () => void;
-  onUnpin: (i: number) => void;
-  scenario: Scenario;
-}) {
-  const [combos, setCombos] = useState<ReturnType<typeof optimizeCombo> | null>(null);
-  return (
-    <div className="stack">
-      <div className="row">
-        <button className="btn primary" onClick={onPin} disabled={pinned.length >= 6}>
-          Pin current
-        </button>
-      </div>
-      <PinnedBars r={r} pinned={pinned} onUnpin={onUnpin} scenario={scenario} />
-      <div className="row" style={{ marginTop: 8 }}>
-        <button className="btn" onClick={() => setCombos(optimizeCombo(DATA, scenario, { top: 8 }))}>
-          Find best order
-        </button>
-      </div>
-      {combos && (
-        <SimpleBars
-          unit="Total damage"
-          rows={combos.best.map((c) => ({
-            label: c.combo,
-            value: c.summary.totalDamage,
-            sub: c.summary.killed ? `kill ${c.summary.killTime}s` : undefined,
-            highlight: c.combo === r.combo,
-          }))}
-        />
-      )}
-    </div>
-  );
-}
-
-function PinnedBars({
-  r,
-  pinned,
-  onUnpin,
-  scenario,
-}: {
-  r: SimResult;
-  pinned: { label: string; state: UIState }[];
-  onUnpin: (i: number) => void;
-  scenario: Scenario;
-}) {
-  const results = useMemo(
-    () =>
-      compare(
-        DATA,
-        scenario,
-        pinned.map((p) => {
-          const s = p.state;
-          return {
-            label: p.label,
-            changes: {
-              champion: s.champion,
-              level: s.level,
-              ranks: s.ranks ?? undefined,
-              skillOrder: s.skillOrder,
-              items: s.items.filter((x): x is number => x != null),
-              runes: pageRunes(DATA, s.runes),
-              options: s.options,
-              combo: s.combo,
-            },
-          };
-        }),
-      ).results,
-    [pinned, scenario],
-  );
-  if (!pinned.length) return <div className="muted small">Nothing pinned yet.</div>;
-  const rows = [
-    { label: "Current", value: r.totalDamage, sub: `${r.gold}g${r.killed ? ` · kill ${r.killTime!.toFixed(2)}s` : ""}`, highlight: true },
-    ...results.map((x) => ({ label: x.label, value: x.totalDamage, sub: `${x.gold}g${x.killed ? ` · kill ${x.killTime}s` : ""}` })),
-  ];
-  return (
-    <>
-      <SimpleBars unit="Total damage" rows={rows} />
-      <div className="row" style={{ gap: 4 }}>
-        {pinned.map((p, i) => (
-          <button key={i} className="btn small" onClick={() => onUnpin(i)} title="Remove pinned setup">
-            {p.label} ✕
-          </button>
-        ))}
-      </div>
-    </>
   );
 }
 
