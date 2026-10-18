@@ -93,10 +93,10 @@ export function Compared({
       else was.most = Math.max(was.most, s.damage);
     }
   const dealt = (c: Column, key: string) => c.result?.bySource.find((s) => `${s.source}|${s.label}` === key)?.damage;
-  /** A column's cell's props: the one on screen tinted, another's shaded under the mouse and opened by a click (see the table's handlers). */
+  /** A column's cell's props: the one on screen tinted, another's shaded under the mouse and opened by a click (see the table's handlers); figures right-aligned ("r"), its name and its items to the left as the rows' names are. */
   const col = (c: Column, i: number, className = "") => ({
     "data-col": i,
-    className: `r ${className}${c.on ? " on" : " pick"}${hot === i ? " hot" : ""}`,
+    className: `${className}${c.on ? " on" : " pick"}${hot === i ? " hot" : ""}`.trim(),
   });
   /** The column of what's under the pointer, none on the rows' names. */
   const at = (e: { target: EventTarget }) => {
@@ -119,7 +119,7 @@ export function Compared({
     return () => ro.disconnect();
   }, []);
   const cell = (c: Column, i: number, v: number | undefined, base: number | undefined, digits = 0, unit = "") => (
-    <td key={c.id} {...col(c, i)}>
+    <td key={c.id} {...col(c, i, "r")}>
       {v == null ? "–" : `${fmt(v, digits)}${unit}`}
       <Delta v={i ? v : undefined} base={base} digits={digits} unit={unit === "%" ? " pts" : unit} room />
     </td>
@@ -149,7 +149,7 @@ export function Compared({
           <tr key="combo">
             <th scope="row">Combo</th>
             {columns.map((c, i) => (
-              <td key={c.id} {...col(c, i, "small compare-combo")}>
+              <td key={c.id} {...col(c, i, "r small compare-combo")}>
                 {c.result?.combo ?? c.state.combo}
               </td>
             ))}

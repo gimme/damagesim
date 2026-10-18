@@ -1010,6 +1010,7 @@ input.combo-text {
   color: var(--text-primary);
   font-weight: 600;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 @media (hover: hover) {
   .compare-name:hover {
@@ -1025,11 +1026,23 @@ input.combo-text {
    cells' own edge */
 .compare-scroll {
   --names: 150px;
+  --col: 132px;
   position: relative;
 }
+/* On a phone, a difference under its figure, so a column is narrow enough for two builds to fit
+   beside the names, and a third's figures to be in view with its neighbour's */
 @media (max-width: 600px) {
   .compare-scroll {
     --names: 108px;
+    --col: 92px;
+  }
+  .compare-table td.r {
+    vertical-align: baseline;
+  }
+  .compare-table .delta {
+    display: block;
+    min-width: 0;
+    margin-left: 0;
   }
 }
 .compare-scroll::after,
@@ -1074,7 +1087,9 @@ input.combo-text {
 }
 .compare-table table.data {
   table-layout: fixed;
-  width: max(100%, calc(var(--names) + var(--builds) * 132px));
+  width: max(100%, calc(var(--names) + var(--builds) * var(--col)));
+  /* A tap in a column doesn't flash it */
+  -webkit-tap-highlight-color: transparent;
 }
 .compare-table col.names {
   width: var(--names);
@@ -1126,7 +1141,6 @@ input.combo-text {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
   gap: 3px;
 }
 /* The table until it's all shown: its top rows, the last two fading out under one veil, over the
