@@ -1832,10 +1832,18 @@ details summary {
   min-height: 40px;
   align-items: center;
 }
-/* The secondary column, with the shards, is the taller: the space it adds goes above and below the
-   keystones, so both end together. */
-.rune-tree > .keystones {
-  margin-block: auto;
+/* The keystones under their title, between lines. The secondary column, with the shards, is the
+   taller: the space it adds goes in here, around them, so both trees end together. */
+.keystones-block {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 0;
+  border-block: 1px solid var(--border);
 }
 .keystones .rune-pick {
   flex-basis: 40px;
