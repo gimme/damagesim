@@ -7,22 +7,10 @@ import { RuneTip, useHoverCard } from "./hover.tsx";
 import { Card } from "./common.tsx";
 import type { Set, UIState } from "../state.ts";
 import type { Sim } from "../../engine/sim.ts";
-import { runeText } from "../../engine/tooltip.ts";
 import { choosePrimary, chooseSecondary, pickRune, type RunePage } from "../../engine/rune-page.ts";
 import type { RuneData, RuneTreeData } from "../../engine/data-types.ts";
 
 const TREES = DATA.runePage.trees;
-/** A shard's stat as its row shows it: abbreviated, in the color of its shard's icon (--stat-*); those of
- *  ability haste and move speed are white, so they're plain text. */
-const SHARD_STATS: Record<string, { abbr: string; color?: string }> = {
-  "Attack Damage": { abbr: "AD", color: "--stat-ad" },
-  "Ability Power": { abbr: "AP", color: "--stat-ap" },
-  "Attack Speed": { abbr: "AS", color: "--stat-as" },
-  "Ability Haste": { abbr: "AH" },
-  "Move Speed": { abbr: "MS" },
-  Health: { abbr: "HP", color: "--stat-hp" },
-  "Tenacity and Slow Resist": { abbr: "Tenacity & Slow Resist", color: "--stat-tenacity" },
-};
 const treeRow = (tree: string, row: number) => DATA.runes.filter((r) => r.tree === tree && r.row === row);
 /** Sets --tree to a tree's color, for what's inside. */
 const treeColor = (tree: string) => ({ "--tree": `var(--tree-${tree.toLowerCase()})` }) as CSSProperties;
@@ -43,30 +31,6 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
       <Icon src={runeIcon(r.icon)} label={r.name} />
     </button>
   );
-  // A shard's whole text is short, so the rows show it, with numbers at your level: "+9 AP", "+110
-  // HP (based on level)".
-  const shardText = (id?: number) => {
-    if (id === undefined) return "";
-    const rune = DATA.runes.find((r) => r.id === id);
-    if (!rune) return String(id);
-    const text = runeText(rune, sim).body.replace(/<[^>]+>/g, "") || rune.name;
-    const m = /^([+-][\d.,]+(?:-[\d.,]+)?%?) ([^(]+?)\s*(\(.*\))?$/.exec(text);
-    const stat = m && SHARD_STATS[m[2]];
-    if (!stat) return text;
-    return (
-      <>
-        <span className="it-value" style={stat.color ? { color: `var(${stat.color})` } : undefined}>
-          {m[1]} {stat.abbr}
-        </span>
-        {m[3] && (
-          <>
-            {" "}
-            <span className="muted">{m[3]}</span>
-          </>
-        )}
-      </>
-    );
-  };
   return (
     <Card title="Runes">
       <div className="rune-page">
@@ -93,29 +57,26 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
               {treeRow(page.secondary, row).map(pick)}
             </div>
           ))}
-          {/* Under the secondary tree's rows, as in the client */}
+          {/* Under the secondary tree's rows, as in the client; what a shard gives is in its hover card */}
           <div className="shard-rows">
             {DATA.runePage.shards.map((row, i) => (
               <div key={row.label} className="shard-row" role="group" aria-label={`${row.label} shard`}>
-                <div className="row" style={{ gap: 6, flexWrap: "nowrap" }}>
-                  {row.options.map((id) => {
-                    const r = DATA.runes.find((x) => x.id === id)!;
-                    return (
-                      <button
-                        key={id}
-                        className="shard-pick"
-                        aria-pressed={page.shards[i] === id}
-                        aria-label={r.name}
-                        // A page has a shard in each row, or none (Reset's): the first pick on one without fills the other rows with their first.
-                        onClick={() => change((p) => ({ ...p, shards: DATA.runePage.shards.map((r, j) => (j === i ? id : (p.shards[j] ?? r.options[0]))) }))}
-                        {...hover.bind(<RuneTip id={id} sim={sim} />)}
-                      >
-                        <Icon src={runeIcon(r.icon)} label={r.name} />
-                      </button>
-                    );
-                  })}
-                </div>
-                <span className="small shard-text">{shardText(page.shards[i])}</span>
+                {row.options.map((id) => {
+                  const r = DATA.runes.find((x) => x.id === id)!;
+                  return (
+                    <button
+                      key={id}
+                      className="shard-pick"
+                      aria-pressed={page.shards[i] === id}
+                      aria-label={r.name}
+                      // A page has a shard in each row, or none (Reset's): the first pick on one without fills the other rows with their first.
+                      onClick={() => change((p) => ({ ...p, shards: DATA.runePage.shards.map((r, j) => (j === i ? id : (p.shards[j] ?? r.options[0]))) }))}
+                      {...hover.bind(<RuneTip id={id} sim={sim} />)}
+                    >
+                      <Icon src={runeIcon(r.icon)} label={r.name} />
+                    </button>
+                  );
+                })}
               </div>
             ))}
           </div>

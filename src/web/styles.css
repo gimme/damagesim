@@ -1716,33 +1716,6 @@ details summary {
   --tree-resolve: #a1d586;
   --tree-inspiration: #49aab9;
 }
-/* A shard's stat in its icon's color (assets/perks/statmods): AP #99fdf7, AD #bd7d4a, attack speed
-   #ecc054, health #20985d, tenacity #8445ff. Darker on a light page; on a dark one the icon's own,
-   lighter where it falls short (>= 4.5:1 on --surface and --surface-2). */
-:root {
-  --stat-ap: #027b74;
-  --stat-ad: #986237;
-  --stat-as: #8d6910;
-  --stat-hp: #1a7d4c;
-  --stat-tenacity: #8140ff;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --stat-ap: #99fdf7;
-    --stat-ad: #bd7d4a;
-    --stat-as: #ecc054;
-    --stat-hp: #219c60;
-    --stat-tenacity: #9d6bff;
-  }
-}
-:root[data-theme="dark"] {
-  --stat-ap: #99fdf7;
-  --stat-ad: #bd7d4a;
-  --stat-as: #ecc054;
-  --stat-hp: #219c60;
-  --stat-tenacity: #9d6bff;
-}
-
 /* A rune page as in the client: the primary tree beside the secondary one, each a column of rows
    whose picks are in color and the rest grey. */
 .rune-page {
@@ -1859,6 +1832,11 @@ details summary {
   min-height: 40px;
   align-items: center;
 }
+/* The secondary column, with the shards, is the taller: the space it adds goes above and below the
+   keystones, so both end together. */
+.rune-tree > .keystones {
+  margin-block: auto;
+}
 .keystones .rune-pick {
   flex-basis: 40px;
 }
@@ -1869,7 +1847,7 @@ details summary {
   background: radial-gradient(closest-side, color-mix(in srgb, var(--tree) 45%, transparent), transparent);
 }
 
-/* The shards, under the secondary tree's rows as in the client: each row's three, its pick's stat under them. */
+/* The shards, under the secondary tree's rows as in the client: past a line, each row's three. */
 .shard-rows {
   display: flex;
   flex-direction: column;
@@ -1880,9 +1858,8 @@ details summary {
 }
 .shard-row {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 6px;
 }
 .shard-pick {
   width: 24px;
@@ -1894,14 +1871,6 @@ details summary {
 }
 .shard-pick img {
   opacity: 0.6;
-}
-.shard-text {
-  line-height: 1.25;
-  text-align: center;
-}
-/* "(based on level)" goes under the number whole. */
-.shard-text .muted {
-  white-space: nowrap;
 }
 @media (max-width: 520px) {
   .hero .value {

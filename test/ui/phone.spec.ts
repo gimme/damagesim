@@ -50,7 +50,7 @@ test("phone width", async ({ ui }) => {
   };
   await step("load: one column, nothing past the screen's edge", () => ui.open(), fits);
   await step(
-    "Runes: the shards and their stats inside the secondary tree's column",
+    "Runes: the shards inside the secondary tree's column",
     async () => {},
     async () => {
       const column = (await ui.card("Runes").locator(".rune-tree").nth(1).boundingBox())!;

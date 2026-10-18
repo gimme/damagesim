@@ -1,4 +1,4 @@
-// The Runes card: a rune page that keeps to the game's rules, its tooltips, and shards whose numbers follow the level.
+// The Runes card: a rune page that keeps to the game's rules, its tooltips, and shards whose cards' numbers follow the level.
 
 import { test, expect, attrs, num, type UI } from "./ui.ts";
 
@@ -12,23 +12,19 @@ const parts = (ui: UI) => {
     picked: async (name: string) => (await attrs(group(name).locator("[aria-pressed=true]"), "aria-label")) as string[],
     tree: (i: number) => card.locator(".rune-tree").nth(i),
     treeName: (i: number) => card.locator(".rune-tree").nth(i).locator(".tree-name"),
-    /** A shard row's stat, as "+9 AP". */
-    stat: (row: string) => group(`${row} shard`).locator(".shard-text .it-value"),
-    /** A color token (--stat-ap) as the page computes it. */
-    color: (token: string) =>
-      ui.page.evaluate((t) => {
-        const el = document.body.appendChild(document.createElement("span"));
-        el.style.color = `var(${t})`;
-        const c = getComputedStyle(el).color;
-        el.remove();
-        return c;
-      }, token),
+    /** A shard's hover card, opened, and the text of what it gives. */
+    shardCard: async (row: string, name: string) => {
+      await ui.unhover();
+      await group(`${row} shard`).getByRole("button", { name }).hover();
+      await expect(ui.hovercard).toContainText(name);
+      return ui.hovercard.locator(".it-body").innerText();
+    },
   };
 };
 
 test("rune page rules", async ({ ui }) => {
   const { step } = ui;
-  const { card, group, picked, tree, treeName, stat, color } = parts(ui);
+  const { card, group, picked, tree, treeName, shardCard } = parts(ui);
   const rows = (t: string) => [1, 2, 3].map((r) => `${t} row ${r}`);
 
   await step(
@@ -44,18 +40,16 @@ test("rune page rules", async ({ ui }) => {
     },
   );
   await step(
-    "the shards: under the secondary tree's rows, no row titles, each stat abbreviated and in its icon's color, Ahri's adaptive force as AP",
+    "the shards: under the secondary tree's rows, icons without text or row titles, the trees ending together",
     async () => {},
     async () => {
       for (const row of ["Offense", "Flex", "Defense"]) await expect(tree(1).getByRole("group", { name: `${row} shard` })).toBeVisible();
       const last = (await group("Sorcery row 3").boundingBox())!;
       expect((await group("Offense shard").boundingBox())!.y).toBeGreaterThan(last.y + last.height);
-      for (const row of ["Offense", "Flex", "Defense"]) await expect(card.getByText(row, { exact: true })).toHaveCount(0);
+      await expect(tree(1).locator(".shard-rows")).toHaveText("");
       await expect(card).not.toContainText("Two, from different rows");
-      await expect(group("Offense shard").locator(".shard-text")).toHaveText("+9 AP");
-      await expect(stat("Offense")).toHaveCSS("color", await color("--stat-ap"));
-      await expect(group("Defense shard").locator(".shard-text")).toHaveText(/^\+\d+ HP \(based on level\)$/);
-      await expect(stat("Defense")).toHaveCSS("color", await color("--stat-hp"));
+      const [a, b] = [(await group("Domination row 3").boundingBox())!, (await group("Defense shard").boundingBox())!];
+      expect(Math.abs(a.y + a.height - (b.y + b.height))).toBeLessThan(1);
     },
   );
   await step(
@@ -129,27 +123,12 @@ test("rune page rules", async ({ ui }) => {
     },
     () => expect(group("Keystone").getByRole("button").last()).toHaveAttribute("aria-pressed", "true"),
   );
-  // Attack speed, move speed (a white icon: plain text) and tenacity.
-  for (const [row, abbr, token] of [
-    ["Offense", "AS", "--stat-as"],
-    ["Flex", "MS", "--text-primary"],
-    ["Defense", "Tenacity & Slow Resist", "--stat-tenacity"],
-  ]) {
-    let text = "";
+  for (const row of ["Offense", "Flex", "Defense"])
     await step(
-      `${row} shard: another replaces it, its text with it, ${abbr} in its icon's color`,
-      async () => {
-        text = await group(`${row} shard`).locator(".shard-text").innerText();
-        await group(`${row} shard`).getByRole("button").nth(1).click();
-      },
-      async () => {
-        expect(await picked(`${row} shard`)).toEqual([(await attrs(group(`${row} shard`).getByRole("button"), "aria-label"))[1]]);
-        await expect(group(`${row} shard`).locator(".shard-text")).not.toHaveText(text);
-        await expect(stat(row)).toHaveText(new RegExp(` ${abbr}$`));
-        await expect(stat(row)).toHaveCSS("color", await color(token));
-      },
+      `${row} shard: another replaces it`,
+      () => group(`${row} shard`).getByRole("button").nth(1).click(),
+      async () => expect(await picked(`${row} shard`)).toEqual([(await attrs(group(`${row} shard`).getByRole("button"), "aria-label"))[1]]),
     );
-  }
   await step(
     "hover the keystone: its card names it",
     () => group("Keystone").getByRole("button").first().hover(),
@@ -166,35 +145,33 @@ test("rune page rules", async ({ ui }) => {
   await step("the pointer away", () => ui.unhover());
   let health = 0;
   await step(
-    "Health Scaling",
+    "Health Scaling: its card gives health at this level",
     () => group("Defense shard").getByRole("button", { name: "Health Scaling" }).click(),
     async () => {
-      health = num(await group("Defense shard").locator(".shard-text").innerText());
+      health = num(await shardCard("Defense", "Health Scaling"));
       expect(health).toBeGreaterThan(0);
     },
   );
   await step(
-    "Jinx without AP items, with Adaptive Force: AD in its icon's color",
+    "Jinx without AP items: Adaptive Force's card gives AD",
     async () => {
+      await ui.unhover();
       const search = ui.card("Champion").getByRole("searchbox", { name: "Champion" });
       await search.fill("jinx");
       await search.press("Enter");
       await ui.card("Items").getByRole("button", { name: "Clear" }).click();
-      await group("Offense shard").getByRole("button", { name: "Adaptive Force" }).click();
     },
-    async () => {
-      await expect(group("Offense shard").locator(".shard-text")).toHaveText(/^\+[\d.]+ AD$/);
-      await expect(stat("Offense")).toHaveCSS("color", await color("--stat-ad"));
-    },
+    async () => expect(await shardCard("Offense", "Adaptive Force")).toMatch(/^\+[\d.]+ Attack Damage$/),
   );
   await step(
     "level 18: more health from it",
     async () => {
+      await ui.unhover();
       const level = ui.card("Champion").getByRole("slider", { name: "Champion level" });
       await level.focus();
       for (let i = 0; i < 7; i++) await level.press("ArrowRight");
     },
-    async () => expect(num(await group("Defense shard").locator(".shard-text").innerText())).toBeGreaterThan(health),
+    async () => expect(num(await shardCard("Defense", "Health Scaling"))).toBeGreaterThan(health),
   );
 });
 
