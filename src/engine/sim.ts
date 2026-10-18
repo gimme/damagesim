@@ -1194,10 +1194,48 @@ export class Sim {
     this.target.killTime = this.events.find((e) => e.targetHpAfter! <= 0)?.time;
   }
 
-  /** A hit as the results show it: in two when part of it is what a normal attack would have dealt
-   *  (DamageRequest.normalAttack), the rest first, then that part as the attack's hit, still spell
-   *  damage when the hit was (Garen Q). Effects saw it whole. */
+  /** A hit as the results show it: what its multipliers recorded as hits of their own add (amps'
+   *  `hit`: Shadowflame's Cinderbloom) after it, under their sources, and the hit in two when part of
+   *  it is what a normal attack would have dealt (see attackPart). Effects saw it whole. */
   private recorded(inst: DamageInstance, req: DamageRequest): DamageInstance[] {
+    const own = inst.amps.filter((a) => a.hit && a.id && a.kind === "multiplier");
+    if (!own.length) return this.attackPart(inst, req);
+    // A part's raw damage is what its multiplier adds on top of those before it; the hit and its
+    // parts are mitigated and amplified alike, by the rest of the amps.
+    const amps = inst.amps.filter((a) => !own.includes(a));
+    const perRaw = inst.raw > 0 ? (inst.final ?? 0) / inst.raw / own.reduce((m, a) => m * (1 + a.value), 1) : 0;
+    let hp = (inst.targetHpBefore ?? 0) - inst.raw * perRaw;
+    const out = this.attackPart({ ...inst, amps, ampMult: combineAmps(amps), final: inst.raw * perRaw, targetHpAfter: hp }, req);
+    const { note: _, ...same } = inst;
+    let raw = inst.raw;
+    for (const a of own) {
+      const part = raw * a.value;
+      raw += part;
+      const flags: DamageFlags = { ...inst.flags, kind: sourceKind(a.id!), ability: false, attack: false, onHit: false, proc: true };
+      delete flags.slot;
+      delete flags.empowered;
+      if (flags.kind === "ability") flags.slot = a.id as Slot;
+      out.push({
+        ...same,
+        id: this.nextInstId++,
+        source: a.id!,
+        sourceLabel: a.source,
+        label: a.hit!,
+        raw: part,
+        flags,
+        amps,
+        ampMult: combineAmps(amps),
+        final: part * perRaw,
+        targetHpBefore: hp,
+        targetHpAfter: (hp -= part * perRaw),
+      });
+    }
+    return out;
+  }
+
+  /** A hit in two when part of it is what a normal attack would have dealt (DamageRequest.normalAttack):
+   *  the rest first, then that part as the attack's hit, still spell damage when the hit was (Garen Q). */
+  private attackPart(inst: DamageInstance, req: DamageRequest): DamageInstance[] {
     const normal = req.normalAttack;
     if (!normal || !(normal.amount > 0) || !(req.amount > 0)) return [inst];
     const share = Math.min(1, normal.amount / req.amount);
@@ -1806,15 +1844,18 @@ export class Sim {
       return times.length ? { kind: "count", value: byDefault, min: 1, max: times.length, unit: spec.variableCount } : null;
     }
     if (!spec.variableDuration) return null;
+    const repeating = this.repeating(comps, enable, ctx);
+    const lockout = variant?.lockout ?? spec.lockout;
+    // Nothing for its seconds to end: a variant without the repeating hits (Yunara's Arc of Ruin).
+    if (!repeating.length && lockout === undefined) return null;
     // Its lockout, or as long as its repeating hits take: by default, and at most; at least until
     // the first is fired (and the earliest it can be ended).
     let [first, last, lastMax] = [Infinity, 0, 0];
-    for (const r of this.repeating(comps, enable, ctx)) {
+    for (const r of repeating) {
       first = Math.min(first, Math.max(0, r.first));
       last = Math.max(last, r.first + (r.hits - 1) * r.interval);
       lastMax = Math.max(lastMax, r.first + (r.maxHits - 1) * r.interval);
     }
-    const lockout = variant?.lockout ?? spec.lockout;
     const seconds = Math.max(last, lockout !== undefined ? this.evalExpr(lockout, ctx) - this.castTimeOf(spec, variant, ctx) : 0);
     const max = spec.maxDuration !== undefined ? this.evalExpr(spec.maxDuration, ctx) : lockout !== undefined ? seconds : lastMax;
     const min = Math.max(Number.isFinite(first) ? first : 0, spec.minDuration !== undefined ? this.evalExpr(spec.minDuration, ctx) : 0);
@@ -2488,6 +2529,12 @@ export function combineAmps(amps: DamageInstance["amps"]): number {
     else mult *= 1 + a.value;
   }
   return Math.max(0, dealt) * mult;
+}
+
+/** What kind of damage a source deals, by its id ('item:3165', 'rune:8005', 'summoner:ignite', a slot). */
+function sourceKind(id: string): DamageFlags["kind"] {
+  const kind = id.split(":")[0];
+  return kind === "item" || kind === "rune" || kind === "summoner" ? kind : "ability";
 }
 
 /** Damage flags of a kit component's hit. Proc damage is not ability damage: it applies no spell

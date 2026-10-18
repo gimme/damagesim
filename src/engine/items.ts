@@ -738,7 +738,7 @@ const ITEMS: Record<number, Factory> = {
       stats: () => ({ basicAbilityHaste: dv(item, "AHBase") }),
       beforeDamage(sim, inst) {
         // Ability damage that is also basic damage (Garen Q, Darius W) is amplified too.
-        if (inst.flags.kind !== "ability" || sim.time > until || !stacks || inst.flags.unamplified) return;
+        if (inst.flags.kind !== "ability" || sim.time > until || !stacks) return;
         const per = dv(item, "SpellDamageIncrease") * (setup.ranged && sim.opt["shojin.rangedPenalty"] ? dv(item, "RangedMod") : 1);
         inst.amps.push({ id: `item:${item.id}`, source: item.name, value: per * stacks, kind: "dealt" });
       },
@@ -873,10 +873,15 @@ const ITEMS: Record<number, Factory> = {
     effect(item, {
       description: "Magic and true damage critically strike targets below 40% health for +20% (scales with bonus crit damage).",
       beforeDamage(sim, inst) {
-        if (inst.type === "physical" || inst.flags.kind === "summoner") return;
+        // Unamplified hits (First Strike's bonus) would lose it.
+        if (inst.type === "physical" || inst.flags.kind === "summoner" || inst.flags.unamplified) return;
         if (Math.max(0, sim.target.hp) / sim.target.maxHp >= dv(item, "HealthThreshold")) return;
+        // The wiki: damage × (1 + amp × the crit damage modifiers' product), Infinity Edge's 1.3 making
+        // it 26%; damage over time and pets have their own amp. The results show it as its own hit.
+        const amp = dv(item, inst.flags.dot || inst.flags.pet ? "DamageOverTimeAmp" : "SpellItemDamageAmp");
         const bonusCrit = sim.stats.critDamage - sim.champ.stats.critDamageMultiplier;
-        inst.amps.push({ id: `item:${item.id}`, source: item.name, value: dv(item, "SpellItemDamageAmp") * (1 + Math.max(0, bonusCrit)), kind: "multiplier" });
+        inst.amps.push({ id: `item:${item.id}`, source: item.name, value: amp * (1 + Math.max(0, bonusCrit)), kind: "multiplier", hit: "Cinderbloom" });
+        for (const e of sim.effects) e.onCrit?.(sim, inst);
       },
     }),
   3036: (item) =>
@@ -927,7 +932,7 @@ const ITEMS: Record<number, Factory> = {
       description: "Active: for 8s abilities deal increased damage (15% + 0.5% per 100 bonus mana) and basic ability cooldowns progress 30% faster.",
       limitations: ["The doubled mana costs are not modeled."],
       beforeDamage(sim, inst) {
-        if (sim.time > until || inst.flags.kind !== "ability" || inst.flags.attack || inst.flags.unamplified) return;
+        if (sim.time > until || inst.flags.kind !== "ability" || inst.flags.attack) return;
         inst.amps.push({ id: `item:${item.id}`, source: item.name, value: calc(sim, item, "ManaCalc"), kind: "dealt" });
       },
       active: {

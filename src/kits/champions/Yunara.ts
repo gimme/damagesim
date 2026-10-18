@@ -4,13 +4,20 @@ import type { ChampionKit } from "../../engine/kit-types.ts";
 // Vow of the First Lands: critical strikes deal bonus magic damage equal to Calc_Damage_Amp of the
 // crit's total pre-mitigation damage (wiki). In expected-crit mode the bonus is weighted by crit
 // chance; the hook needs the attack's crit state, which component expressions can't see.
+// Shadowflame's Cinderbloom crits are hers too (wiki): a magic one the passive amps directly; another
+// gets the bonus as a new instance of magic damage, which Cinderbloom crits again, so the passive amps
+// it once more (a bug the wiki notes), as it does the bonus of her attacks' crits.
+const VOW = "Vow of the First Lands";
+
 const kit: ChampionKit = {
   id: "Yunara",
   status: "curated",
   notes: [
     "Cultivation of Spirit: the passive on-hit always applies; the active (5s) adds attack speed and a second on-hit. Unleash stacks (4 champion attacks) are not tracked — cast Q when you would have them.",
     "Transcendent State (R) keeps the Q active for its duration (no need to cast Q); use W:ruin and E:dash while it lasts.",
-    "Arc of Judgment: impact plus the lingering bead for 1s (15% of impact every 0.25s per the wiki). Its 10s cooldown (wiki) is set in the kit — the data has none.",
+    "Vow of the First Lands amps Shadowflame's crits (below 40% health) of her magic damage, W and Q's on-hits included, and its own bonus damage again (a bug the wiki notes); the results show it as the passive's.",
+    "Arc of Judgment: the impact, then 15% of it every 0.25s while the bead lingers on the target (wiki). On an enemy the bead slows to 150 units/s and keeps going, so how long it stays on the target depends on how the target moves, and nothing moves here: set the seconds on the step. The default, 1.5s (6 ticks), is a target standing in its path (the bead's 120 width plus a ~65 champion radius each side: 250 units to cross). A target running straight away (380 move speed) is held in it by the impact's slow for about a second, then the bead keeps up with it to the end of its range: about W{2s}. One stepping out sideways: W{1s}. One standing at the end of its range (1150) also takes the 1s linger where the bead stops: add 1s. A second impact when the bead runs into the target again is not modeled.",
+    "Arc of Judgment's 10s cooldown (wiki) is set in the kit — the data has none.",
     "Attacks spreading to other enemies (Q active) are ignored (single target).",
   ],
   // The wiki: Cultivation of Spirit's passive and active on-hits are proc damage.
@@ -26,13 +33,34 @@ const kit: ChampionKit = {
       const critDamage = st.ad * atk.baseMult * st.critDamage;
       atk.extra.push({
         source: "P",
-        sourceLabel: "Vow of the First Lands",
-        label: atk.crit ? "Vow of the First Lands (crit)" : "Vow of the First Lands (avg. crit)",
+        sourceLabel: VOW,
+        label: atk.crit ? `${VOW} (crit)` : `${VOW} (avg. crit)`,
         type: "magic",
         amount: share * sim.evalExpr("P.calc.Calc_Damage_Amp", { slot: "P" }) * critDamage,
         castId: atk.castId,
         flags: { kind: "ability", slot: "P", ability: false, proc: true, onHit: true },
       });
+    },
+    onCrit(sim, inst) {
+      const amp = sim.evalExpr("P.calc.Calc_Damage_Amp", { slot: "P" });
+      if (inst.type === "magic") {
+        inst.amps.push({ id: "P", source: VOW, value: amp, kind: "multiplier", hit: `${VOW} (crit)` });
+        return;
+      }
+      // True damage: a new instance of magic damage, of the crit's whole damage, after the hit (as
+      // her attacks' crits add theirs).
+      const crit = inst.raw * inst.amps.reduce((m, a) => (a.kind === "multiplier" ? m * (1 + a.value) : m), 1);
+      sim.schedule(0, () =>
+        sim.deal({
+          source: "P",
+          sourceLabel: VOW,
+          label: `${VOW} (crit)`,
+          type: "magic",
+          amount: amp * crit,
+          castId: inst.castId,
+          flags: { kind: "ability", slot: "P", ability: false, proc: true, crit: true },
+        }),
+      );
     },
   },
   abilities: {
@@ -52,6 +80,8 @@ const kit: ChampionKit = {
       cooldown: 10, // missing from the data; wiki: 10s (Arc of Ruin too)
       // Cast time shrinks linearly from Cast_Time_Base to Cast_Time_Min at Cast_Time_Attack_Speed_Cap % bonus AS.
       castTime: "dv.Cast_Time_Base - (dv.Cast_Time_Base - dv.Cast_Time_Min) * min(1, bonusAs * 100 / dv.Cast_Time_Attack_Speed_Cap)",
+      // Not the player's choice but the target's movement (see the notes): W{2s} lingers 2s on it.
+      variableDuration: true,
       cc: [{ kind: "slow", duration: "dv.Slow_Duration" }],
       variants: {
         ruin: {
@@ -66,14 +96,17 @@ const kit: ChampionKit = {
       },
       components: [
         { id: "impact", label: "Arc of Judgment", type: "magic", amount: "calc.Calc_Damage_Initial", travel: true },
-        // Linger: Calc_Damage_Per_Second spread over 0.25s ticks (wiki) for Linger_Duration seconds after the impact.
+        // Linger: Calc_Damage_Per_Second spread over 0.25s ticks (wiki) while the bead is on the target.
+        // Slowed to 150 units/s on an enemy (wiki), it crosses a standing champion (250 units, see the
+        // notes) in 1.67s: 6 ticks. At most it keeps that speed with the target to the end of its range
+        // and lingers there for Linger_Duration.
         {
           id: "linger",
           label: "Arc of Judgment (linger)",
           type: "magic",
           amount: "calc.Calc_Damage_Per_Second / 4",
-          hits: "dv.Linger_Duration * 4",
-          maxHits: "dv.Linger_Duration * 4",
+          hits: 6,
+          maxHits: "4 * ((castRange - reach) / 150 + dv.Linger_Duration)",
           interval: 0.25,
           delay: 0.25,
           travel: true,

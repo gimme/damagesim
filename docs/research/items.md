@@ -285,6 +285,7 @@ Madness works exactly like Suffering:
   - **Crit-damage modifiers:** Infinity Edge raises it to 0.2 × 1.3 = 26%. A target with Randuin's lowers it by ×0.7.
   - **If the instance already crits:** multiply instead (200% × 1.2 = 240%).
   - **Scope:** applies to every source except summoner spells, so burns, item procs and magic on-hits all qualify. Does not apply against structures.
+  - **Crit effects:** its crits count as crits for champion passives. Yunara's Vow of the First Lands adds its 10% (+10% per 100 AP) of the crit's damage to a magic one, and deals it as a new instance of magic damage for a true one, which Cinderbloom crits again (wiki: Template:Data Yunara/Vow of the First Lands).
 - **Stacking with the outgoing pool:** not documented. Treat it as its own multiplier.
 
 #### Riftmaker (4633), H/M

@@ -65,9 +65,11 @@ export interface DamageInstance {
    * Damage modifiers (fractions). Since 26.9 "dealt" amplifiers (PTA, Coup de Grace, Liandry's…)
    * add together; "taken" modifiers (Abyssal Mask, damage reduction) and "crit"-like effects
    * (Shadowflame) multiply. `id` is the source as a damage instance's `source` names it
-   * ('item:3165', 'rune:8005', 'R'); `source` is its name.
+   * ('item:3165', 'rune:8005', 'R'); `source` is its name. A multiplier with a `hit` (and an `id`)
+   * is recorded as a hit of its own, so named, under its source: what it adds to the damage, on top
+   * of the multipliers before it (Shadowflame's Cinderbloom, then Yunara's passive amping the crit).
    */
-  amps: { id?: string; source: string; value: number; kind?: "dealt" | "taken" | "multiplier" }[];
+  amps: { id?: string; source: string; value: number; kind?: "dealt" | "taken" | "multiplier"; hit?: string }[];
   /** Filled in when applied. */
   effectiveResist?: number;
   resistMult?: number;
@@ -275,6 +277,12 @@ export interface EffectHooks {
   onAttack?(sim: Sim, atk: AttackInfo): void;
   /** Adjust a damage instance before mitigation (push amps, change raw). */
   beforeDamage?(sim: Sim, inst: DamageInstance): void;
+  /**
+   * An effect's beforeDamage made the hit a critical strike (Shadowflame's Cinderbloom, on magic and
+   * true damage), its amp pushed: push what a crit gets (Yunara's passive). An attack's own crit is
+   * onAttack's (atk.crit, critFactor).
+   */
+  onCrit?(sim: Sim, inst: DamageInstance): void;
   /** React to damage that was dealt (procs, burns, stack counters). */
   afterDamage?(sim: Sim, inst: DamageInstance): void;
   /** The target was crowd-controlled by an ability (immobilize: stun/root/knock-up/charm…). */
