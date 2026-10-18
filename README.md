@@ -184,7 +184,8 @@ Only the stats of a target's items count: it never fights back, so their passive
   Lucian's Lightslinger).
 * **Situational stacks** are options with defaults: Dark Harvest souls, Legend stacks, Gathering
   Storm game time, Heartsteel stacks, champion stacks (Nasus, Veigar…), and stacks from hits just
-  before the combo (Kraken Slayer, Guinsoo's, Black Cleaver…; none by default). See `get_champion`
+  before the combo (Kraken Slayer, Guinsoo's, Black Cleaver, Conqueror, Lethal Tempo, Press the Attack…; none
+  by default). See `get_champion`
   and `scenario_help`.
 * **Item slots don't matter.** Items take effect in one order, by id, wherever they sit, so an
   attack's on-hits land in the same order in any build order (the wiki gives them none).

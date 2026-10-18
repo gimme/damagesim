@@ -1454,3 +1454,22 @@ test("Galvanize fires every Energized effect before the champion ability's damag
   assert.equal(r.events[3].source, "Q");
   assert.notEqual(r.events[3].castId, firmament.castId);
 });
+
+test("Runes' stacks at start: Press the Attack at 2 procs on the first attack, at 3 it procced just before (its amp on, the proc on cooldown); Lethal Tempo at 6 fires a bolt on it; Conqueror's adaptive force from the start", () => {
+  const jinx = (rune: string, options: Record<string, number>) =>
+    simulate(data, { champion: "Jinx", level: 18, runes: [rune], options, combo: "AA*3", target: dummy });
+  const onFirst = (r: ReturnType<typeof simulate>, src: string) => r.events.filter((e) => e.source === src && e.castId === bySource(r, "AA")[0].castId).length;
+  assert.equal(onFirst(jinx("Press the Attack", { "pressTheAttack.stacks": 1 }), "rune:8005"), 0);
+  assert.equal(onFirst(jinx("Press the Attack", { "pressTheAttack.stacks": 2 }), "rune:8005"), 1);
+  const procced = jinx("Press the Attack", { "pressTheAttack.stacks": 3 });
+  assert.equal(bySource(procced, "rune:8005").length, 0);
+  assert.ok(bySource(procced, "AA").every((e) => e.amps.some((a) => a.source === "Press the Attack")));
+  assert.equal(onFirst(jinx("Lethal Tempo", { "lethalTempo.stacks": 5 }), "rune:8008"), 0);
+  assert.equal(onFirst(jinx("Lethal Tempo", { "lethalTempo.stacks": 6 }), "rune:8008"), 1);
+  // Attack speed from the start: the first attack's windup is shorter.
+  assert.ok(bySource(jinx("Lethal Tempo", { "lethalTempo.stacks": 6 }), "AA")[0].time < bySource(jinx("Lethal Tempo", {}), "AA")[0].time);
+  const garen = (n: number) =>
+    simulate(data, { champion: "Garen", level: 18, runes: ["Conqueror"], options: { "conqueror.stacks": n }, combo: "AA", target: dummy });
+  assert.ok(bySource(garen(12), "AA")[0].raw > bySource(garen(0), "AA")[0].raw);
+  assert.equal(garen(0).totalDamage, simulate(data, { champion: "Garen", level: 18, runes: ["Conqueror"], combo: "AA", target: dummy }).totalDamage);
+});

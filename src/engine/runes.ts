@@ -2,7 +2,7 @@
 // research notes in docs/research/runes.md (trigger rules, damage types, stacking).
 
 import type { RuneData } from "./data-types.ts";
-import { DISTANCE, IN_COMBAT, SELF_HP, selfHp, type DamageInstance, type Effect, type SetupCtx } from "./effects.ts";
+import { DISTANCE, IN_COMBAT, optStacks, pct, SELF_HP, selfHp, startStacks, type DamageInstance, type Effect, type SetupCtx } from "./effects.ts";
 import type { Sim } from "./sim.ts";
 import { GAME, type StatMods } from "./stats.ts";
 import { ITEM_STAT_TYPES } from "./items.ts";
@@ -112,9 +112,27 @@ const RUNES: Record<number, Factory> = {
     const v = rune.values;
     const key = `rune:${rune.id}`;
     const ampActive = (sim: Sim) => sim.time >= ampFrom && sim.time - sim.lastCombatTime <= v.OutOfCombatTimer;
+    // One more than it takes: it procced just before.
+    const start = startStacks(
+      rune.name,
+      "pressTheAttack.stacks",
+      v.HitsRequired,
+      `Attacks on the target just before the combo, each within ${v.TimeBetweenHits}s of the last: at ${v.HitsRequired - 1} the first attack procs; at ${v.HitsRequired} it procced just before, so its +${pct(v.BonusPercentDamage)}% is on from the start and the proc on its ${v.Cooldown}s cooldown.`,
+    );
     return base(rune, {
       description: "3 consecutive basic attacks deal adaptive damage (6s cooldown), then +8% damage dealt until 5s after combat ends.",
       limitations: ["Combat with the target is assumed to end at your last damage to it."],
+      options: [start],
+      onStart(sim) {
+        const n = optStacks(sim, start);
+        lastHit = sim.time;
+        if (n < v.HitsRequired) {
+          stacks = n;
+          return;
+        }
+        sim.startCooldown(key, v.Cooldown);
+        ampFrom = sim.time;
+      },
       onAttack(sim, atk) {
         // Single-target on-hits stack it, including abilities that apply on-hit and repeated
         // applications (Guinsoo's Phantom Hit); area on-hits don't (wiki).
@@ -158,8 +176,20 @@ const RUNES: Record<number, Factory> = {
     // When the duration ends one stack expires, then one more every 0.3s (wiki).
     const DECAY = 0.3;
     const current = (t: number) => (t <= expires ? stacks : Math.max(0, stacks - 1 - Math.floor((t - expires) / DECAY + 1e-9)));
+    const start = startStacks(
+      rune.name,
+      "lethalTempo.stacks",
+      v.MaxStacks,
+      `Stacks from attacks just before the combo, lasting ${v.Duration}s: attack speed each, and at ${v.MaxStacks} the first attack fires a bolt.`,
+    );
     return base(rune, {
       description: "Each attack grants a stack of attack speed (max 6). At max stacks attacks fire an adaptive bolt that scales with bonus attack speed.",
+      options: [start],
+      onStart(sim) {
+        stacks = optStacks(sim, start);
+        expires = sim.time + v.Duration;
+        sim.invalidateStats();
+      },
       dynamicStats(sim) {
         const n = current(sim.time);
         if (!n) return;
@@ -196,8 +226,20 @@ const RUNES: Record<number, Factory> = {
     let expires = -Infinity;
     const perCast = new Map<number, number>();
     const v = rune.values;
+    const start = startStacks(
+      rune.name,
+      "conqueror.stacks",
+      v.MaxStacks,
+      `Stacks from hits just before the combo, lasting ${v.BuffDuration}s: adaptive force each, up to ${v.MaxStacks}.`,
+    );
     return base(rune, {
       description: "Attacks (2 melee / 1 ranged) and other damage (2, once per 4s per cast) grant adaptive force stacks, max 12.",
+      options: [start],
+      onStart(sim) {
+        stacks = optStacks(sim, start);
+        expires = sim.time + v.BuffDuration;
+        sim.invalidateStats();
+      },
       dynamicStats(sim) {
         const n = sim.time <= expires ? stacks : 0;
         if (!n) return;

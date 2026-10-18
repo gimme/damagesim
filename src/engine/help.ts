@@ -53,5 +53,6 @@ deadmans.stacks, luden.targets, combat.seconds (seconds already in combat when t
 Liandry's, Riftmaker and Haunting Guise ramp, Grasp's charge), stacks from hits just before the
 combo (default 0; 2 Kraken stacks proc on the first attack): kraken.stacks (0-2), guinsoo.stacks
 (0-6: 4 is full, 6 makes the first attack a Phantom Hit), hullbreaker.stacks (0-4), terminus.stacks
-(0-3), shojin.stacks (0-4), blackCleaver.stacks (0-5), bloodletter.stacks (0-4),
-plus champion-specific options listed by "damagesim champion <name>" (e.g. stack counts).`;
+(0-3), shojin.stacks (0-4), blackCleaver.stacks (0-5), bloodletter.stacks (0-4), conqueror.stacks
+(0-12), lethalTempo.stacks (0-6), pressTheAttack.stacks (0-3: 2 procs on the first attack, 3 procced
+just before), plus champion-specific options listed by "damagesim champion <name>" (e.g. stack counts).`;

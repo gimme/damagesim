@@ -10,8 +10,11 @@ import {
   DISTANCE,
   forceCrit,
   IN_COMBAT,
+  optStacks,
+  pct,
   SELF_HP,
   selfHp,
+  startStacks,
   triggersOnAttack,
   type AttackInfo,
   type DamageInstance,
@@ -19,7 +22,6 @@ import {
   type Effect,
   type SetupCtx,
 } from "./effects.ts";
-import type { KitOption } from "./kit-types.ts";
 import type { Sim } from "./sim.ts";
 import type { StatMods } from "./stats.ts";
 
@@ -71,18 +73,6 @@ const isChampionAbilityDamage = (inst: DamageInstance) => inst.flags.kind === "a
 
 /** End time stored in a counter by a timed effect; -Infinity if it never started. */
 const timerEnd = (sim: Sim, key: string) => sim.counters.get(key) ?? -Infinity;
-
-/**
- * An item's stacks as the combo starts, from hits just before it (none by default), `max` at most:
- * they're fresh, lasting as long from the start as stacks gained then would. They count hits already
- * made, so the combo's first is the next: Kraken Slayer at 2 procs on the first attack.
- */
-function startStacks(item: ItemData, key: string, max: number, description: string): KitOption {
-  return { key, label: `${item.name} stacks at start`, default: 0, min: 0, max, step: 1, description };
-}
-const optStacks = (sim: Sim, o: KitOption) => Math.max(0, Math.min(o.max ?? Infinity, Math.round(sim.opt[o.key] ?? 0)));
-/** A fraction as a percentage for a description: 0.075 → 7.5. */
-const pct = (x: number) => +(x * 100).toFixed(1);
 
 /**
  * Seconds in combat with champions, for "+X% per second in combat" passives. Combo start counts as
@@ -339,7 +329,7 @@ const ITEMS: Record<number, Factory> = {
     let stacksBefore = 0;
     const maxDark = Math.round(dv(item, "PenMax") / dv(item, "PenPerHit"));
     const start = startStacks(
-      item,
+      item.name,
       "terminus.stacks",
       maxDark,
       `Dark stacks from attacks just before the combo, lasting ${dv(item, "BuffDuration")}s: ${pct(dv(item, "PenPerHit"))}% armor and magic penetration each. The combo's first attack is Light.`,
@@ -382,7 +372,7 @@ const ITEMS: Record<number, Factory> = {
     const max = dv(item, "MaxStacks");
     // Past full stacks, the count goes on as Phantom Hit's: its every third attack at full stacks.
     const start = startStacks(
-      item,
+      item.name,
       "guinsoo.stacks",
       max + 2,
       `Seething Strike stacks from attacks just before the combo, lasting ${dv(item, "BuffDuration")}s: +${pct(dv(item, "AttackSpeedPerStack"))}% attack speed each, up to ${max}. Past ${max} they count toward Phantom Hit, every third attack at full stacks: at ${max + 2} the first attack is one.`,
@@ -427,7 +417,7 @@ const ITEMS: Record<number, Factory> = {
     let until = -Infinity;
     const ready = dv(item, "AttackCount") - 1;
     const start = startStacks(
-      item,
+      item.name,
       "kraken.stacks",
       ready,
       `Bring It Down stacks from attacks just before the combo, lasting ${dv(item, "BuffDuration")}s: at ${ready} the first attack procs.`,
@@ -459,7 +449,7 @@ const ITEMS: Record<number, Factory> = {
     let n = 0;
     let lastAttack = -Infinity;
     const start = startStacks(
-      item,
+      item.name,
       "hullbreaker.stacks",
       4,
       `Skipper stacks from attacks on champions just before the combo, lasting ${dv(item, "SkipperStackDuration")}s: at 4 the first attack procs.`,
@@ -812,7 +802,7 @@ const ITEMS: Record<number, Factory> = {
     // Innate abilities don't grant stacks, except these special cases (wiki).
     const innateStacks = setup.champion === "Urgot" || setup.champion === "Rengar";
     const start = startStacks(
-      item,
+      item.name,
       "shojin.stacks",
       dv(item, "StackCount"),
       `Stacks from champion-ability hits just before the combo, lasting ${dv(item, "StackDuration")}s: +${pct(dv(item, "SpellDamageIncrease"))}% ability damage each.`,
@@ -915,7 +905,7 @@ const ITEMS: Record<number, Factory> = {
     let until = -Infinity;
     let lastStack = -Infinity;
     const start = startStacks(
-      item,
+      item.name,
       "blackCleaver.stacks",
       dv(item, "MaxStacks"),
       `Carve stacks on the target from physical damage just before the combo, lasting ${dv(item, "DebuffDuration")}s: ${pct(dv(item, "ShredPerStack"))}% armor reduction each.`,
@@ -947,7 +937,7 @@ const ITEMS: Record<number, Factory> = {
     let until = -Infinity;
     const lastByCast = new Map<number, number>();
     const start = startStacks(
-      item,
+      item.name,
       "bloodletter.stacks",
       dv(item, "MaxStacks"),
       `Stacks on the target from ability magic damage just before the combo, lasting ${dv(item, "DebuffDuration")}s: ${pct(dv(item, "ShredPerStack"))}% magic resist reduction each.`,

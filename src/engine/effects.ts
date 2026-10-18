@@ -256,6 +256,21 @@ export const IN_COMBAT: KitOption = {
   description: "Starts the combo as if you had been fighting the target this long, so what builds up over a fight starts partway.",
 };
 
+/**
+ * An item's or rune's stacks as the combo starts, from hits just before it (none by default), `max`
+ * at most: they're fresh, lasting as long from the start as stacks gained then would. They count hits
+ * already made, so the combo's first is the next: Kraken Slayer at 2 procs on the first attack.
+ */
+export function startStacks(name: string, key: string, max: number, description: string): KitOption {
+  return { key, label: `${name} stacks at start`, default: 0, min: 0, max, step: 1, description };
+}
+
+/** The stacks a startStacks option sets, a whole number within its range. */
+export const optStacks = (sim: Sim, o: KitOption) => Math.max(0, Math.min(o.max ?? Infinity, Math.round(sim.opt[o.key] ?? 0)));
+
+/** A fraction as a percentage for a description: 0.075 → 7.5. */
+export const pct = (x: number) => +(x * 100).toFixed(1);
+
 /** Your current health as a fraction of your maximum (the option is a percentage). */
 export const selfHp = (opt: Record<string, number>) => (opt[SELF_HP.key] ?? SELF_HP.default) / 100;
 
