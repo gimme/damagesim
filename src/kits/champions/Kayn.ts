@@ -22,8 +22,10 @@ const kit: ChampionKit = {
     "Shadow Assassin passive (form 1): for 3s after the first damage to the champion, Kayn deals P.calc.KaynAssBonusDamage of his post-mitigation physical/magic damage as bonus magic damage. Re-arms after 8s out of combat or when Umbral Trespass emerges (hook).",
     "Rhaast healing, Shadow Assassin range/cast-time changes and wall walking are not modelled.",
   ],
+  // The HUD's icons by form: base, Shadow Assassin, Rhaast.
   abilities: {
     Q: {
+      icon: "KaynQ#opt.form",
       dash: true,
       // Wiki: the swing after the dash has a 0.25s lockout; the dash and swing take about 0.66s.
       // No dash speed in the data: the dash hits ~0.25s in, the swing ~0.5s.
@@ -49,6 +51,7 @@ const kit: ChampionKit = {
       ],
     },
     W: {
+      icon: "KaynW#(opt.form == 2 ? 1 : 0)",
       cc: [{ kind: "slow", duration: "dv.SlowDuration" }],
       notes: ["Slows 90% decaying over 1.5s. Rhaast form also knocks up for 1s."],
       components: [{ id: "reach", label: "Blade's Reach", type: "physical", amount: "calc.TotalDamage", aoe: true }],
@@ -64,8 +67,9 @@ const kit: ChampionKit = {
         },
       },
     },
-    E: { noTarget: true, components: [] },
+    E: { icon: "KaynE#opt.form", noTarget: true, components: [] },
     R: {
+      icon: "KaynR#(opt.form == 2 ? 2 : 0)",
       dash: true,
       // Earliest exit: 0.25s dash + 0.5s before the channel + 0.1s, then the damage 0.5s after the recast.
       castTime: 1.35,

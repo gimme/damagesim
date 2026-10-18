@@ -299,6 +299,9 @@ const RESOURCE_TYPES: Record<number, string> = {
   14: "other",
 };
 
+/** A HUD icon as CommunityDragon serves it: a path under its game folder, lowercase .png. */
+const iconPath = (icon: string) => icon.toLowerCase().replace(/\.dds$/, ".png");
+
 /** The spell's range per rank, as its tooltip shows it; none for global ones (25000). */
 function castRange(sp: any): number[] | undefined {
   const r: number[] | undefined = sp.castRangeDisplayOverride ?? sp.castRange;
@@ -336,6 +339,8 @@ function convSpell(path: string, obj: any): SpellData | null {
     ...(sp.mSpellTags ? { tags: sp.mSpellTags } : {}),
     ...(sp.mCooldownNotAffectedByCDR ? { cooldownFixed: true } : {}),
   };
+  const icons = (sp.mImgIconName ?? []).filter((i: unknown) => typeof i === "string" && i.startsWith("ASSETS/")).map(iconPath);
+  if (icons.length) spell.icons = icons;
   return spell;
 }
 
@@ -568,7 +573,7 @@ function buildChampion(dd: any, bin: any): ChampionData {
     const ready = READY_ICONS[`${dd.id} ${slot}`];
     const icon = ready ? icons.find((i) => i.endsWith(`/${ready}`)) : icons[0];
     if (ready && !icon) console.warn(`${dd.id} ${slot}: no icon ${ready} (READY_ICONS)`);
-    if (icon?.startsWith("ASSETS/")) abilityIcons[slot] = icon.toLowerCase().replace(/\.dds$/, ".png");
+    if (icon?.startsWith("ASSETS/")) abilityIcons[slot] = iconPath(icon);
   }
 
   return {

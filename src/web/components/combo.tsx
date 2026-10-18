@@ -6,8 +6,8 @@ import { Icon, sourceMark } from "./icons.tsx";
 import { useDragOrder } from "./drag.tsx";
 import { Card, mergeProps } from "./common.tsx";
 import type { Set, UIState } from "../state.ts";
-import type { CastSetting, Sim } from "../../engine/sim.ts";
-import { critMarking, formatCombo, hasPassiveStep, markCrit, parseCombo, type AbilityStep, type ComboStep, type CritMode } from "../../engine/combo.ts";
+import type { CastSetting, Sim, SimResult } from "../../engine/sim.ts";
+import { critMarking, formatCombo, hasPassiveStep, markCrit, parseCombo, settingKey, type AbilityStep, type ComboStep, type CritMode } from "../../engine/combo.ts";
 import { findItem } from "../../engine/gamedata.ts";
 import { getKit } from "../../kits/index.ts";
 import type { Slot } from "../../engine/effects.ts";
@@ -47,11 +47,14 @@ function StepNumber({
   onChange: (v?: number) => void;
 }) {
   const [text, setText] = useState<string | null>(null);
+  // Room for the most it takes (1500 units).
+  const digits = String(Math.round(max ?? 0)).length;
   return (
     <span className="step-number" title={title}>
       <input
         type="number"
         aria-label={label}
+        style={digits > 3 ? { width: `${digits + 1.5}ch` } : undefined}
         value={text ?? value ?? ""}
         placeholder={String(Math.round(placeholder * 100) / 100)}
         min={min}
@@ -77,22 +80,23 @@ const SETTING_TITLE: Record<CastSetting["kind"], string> = {
   lasts: "How long it lasts, in seconds",
   held: "How long it charges, in seconds",
   count: "How many it fires",
+  distance: "How far the target stands, in units",
 };
 
 /** A cast's setting in its step (see CastSetting). */
 function CastSettingField({ step, setting, onChange }: { step: AbilityStep; setting: CastSetting; onChange: (s: AbilityStep) => void }) {
-  const key = setting.kind === "count" ? "count" : "duration";
+  const key = settingKey(setting.kind);
   const num = (x: number) => String(Math.round(x * 100) / 100);
-  const { duration: _d, count: _c, ...rest } = step;
+  const { duration: _d, count: _c, distance: _x, ...rest } = step;
   return (
     <StepNumber
       value={step[key]}
       placeholder={setting.value}
       min={setting.min}
       max={setting.max}
-      step={setting.kind === "count" ? 1 : 0.25}
+      step={setting.kind === "count" ? 1 : setting.kind === "distance" ? 25 : 0.25}
       unit={setting.unit}
-      label={`${step.slot} ${setting.unit === "s" ? "seconds" : setting.unit}`}
+      label={`${step.slot} ${setting.unit === "s" ? "seconds" : setting.unit === "u" ? "distance" : setting.unit}`}
       title={`${SETTING_TITLE[setting.kind]}: ${num(setting.min)} to ${num(setting.max)}`}
       onChange={(v) => onChange(v === undefined ? rest : { ...rest, [key]: v })}
     />
@@ -207,7 +211,7 @@ function VariantMenu({
   );
 }
 
-export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; sim: Sim | null }) {
+export function ComboBuilder({ state, set, sim, result }: { state: UIState; set: Set; sim: Sim | null; result: SimResult | null }) {
   const [text, setText] = useState(state.combo);
   // The combo shows as steps; the pencil turns it into its shorthand, typed in place, until Enter,
   // Escape or a click elsewhere.
@@ -269,11 +273,17 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
   };
   // A step's label in its chip, without the number its field shows.
   const chipLabel = (st: ComboStep) =>
-    st.type === "ability" ? label({ ...st, duration: undefined, count: undefined }) : st.type === "wait" ? "wait" : label(st);
+    st.type === "ability" ? label({ ...st, duration: undefined, count: undefined, distance: undefined }) : st.type === "wait" ? "wait" : label(st);
   // A step's icon, as its damage shows it in the results; none for a wait or an item not found.
-  const icon = (source: string, name: string, size: "xs" | "sm") => <Icon src={sourceMark(source, name, state.champion).icon} label={name} size={size} />;
-  const stepIcon = (st: ComboStep) => {
-    if (st.type === "ability") return icon(st.slot, spellName(st.slot), "xs");
+  const icon = (source: string, name: string, size: "xs" | "sm", castPath?: string) => (
+    <Icon src={sourceMark(source, name, state.champion, castPath).icon} label={name} size={size} />
+  );
+  // How each ability step was cast, by its index: in the form or state it was in (W:ruin in
+  // Transcendent State), its icon and setting that one's.
+  const casts = new Map((result?.timeline ?? []).flatMap((t) => (t.index !== undefined ? [[t.index, t] as const] : [])));
+  const asCast = (st: ComboStep, i: number) => (st.type === "ability" && !st.variant && casts.get(i)?.variant ? { ...st, variant: casts.get(i)!.variant } : st);
+  const stepIcon = (st: ComboStep, i: number) => {
+    if (st.type === "ability") return icon(st.slot, spellName(st.slot), "xs", casts.get(i)?.icon);
     if (st.type === "attack") return icon("AA", "Basic attack", "xs");
     if (st.type === "summoner") return icon("summoner:ignite", "Ignite", "xs");
     const it = stepItem(st);
@@ -391,7 +401,8 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
           {shown.map((st, i) => {
             // Not those cast by themselves in a state (Yunara's W and E in Transcendent State).
             const variants = st.type === "ability" ? Object.entries(kit.abilities[st.slot]?.variants ?? {}).filter(([, v]) => v.when === undefined) : [];
-            const setting = st.type === "ability" ? sim?.castSetting(st) : null;
+            const cast = asCast(st, i);
+            const setting = cast.type === "ability" ? sim?.castSetting(cast) : null;
             const replace = (next: ComboStep) => commit(steps.map((x, j) => (j === i ? next : x)));
             // A step that does nothing now (its item sold, a P the champion hasn't) stays, muted, for when it applies again.
             const skip = sim?.skipReason(st);
@@ -412,7 +423,7 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
                   },
                 })}
               >
-                {stepIcon(st)}
+                {stepIcon(st, i)}
                 {variants.length > 0 && st.type === "ability" ? (
                   <VariantMenu
                     label={`${st.slot} variant`}

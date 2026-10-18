@@ -53,6 +53,12 @@ export const abilityIcon = (champion: string, slot: "P" | "Q" | "W" | "E" | "R")
   const path = DATA.champions[champion]?.abilityIcons[slot];
   return path ? bundledOr(`ability/${champion}/${slot}`, `https://raw.communitydragon.org/${DATA.meta.patch}/game/${path}`) : "";
 };
+/** The icon an ability's cast showed (another form's spell, Arc of Ruin: DamageInstance.icon, a path
+ *  under CommunityDragon's game folder), else its slot's. */
+export const castIcon = (champion: string, slot: "P" | "Q" | "W" | "E" | "R", path?: string) =>
+  !path || path === DATA.champions[champion]?.abilityIcons[slot]
+    ? abilityIcon(champion, slot)
+    : bundledOr(`icon/${path}`, `https://raw.communitydragon.org/${DATA.meta.patch}/game/${path}`);
 export const summonerIcon = (key: string) => bundledOr(`summoner/${key}`, `${DD}spell/${key}.png`);
 // The Death Recap's icon for basic attacks.
 export const autoAttackIcon = () => bundledOr("ui/autoattack", `https://raw.communitydragon.org/${DATA.meta.patch}/game/assets/ux/deathrecap/autoattack.png`);

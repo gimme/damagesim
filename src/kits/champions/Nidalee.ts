@@ -1,7 +1,7 @@
 import type { ChampionKit, DebuffSpec } from "../../engine/kit-types.ts";
 
 // Nidalee — patch 16.20.
-// Human abilities are the default variants; cougar abilities are the variants takedown / pounce /
+// Human abilities are the abilities themselves; cougar abilities are the variants takedown / pounce /
 // swipe cast in cougar form (their numbers live in AspectOfTheCougar). Each form has its own
 // cooldowns: a hook swaps the Q/W/E cooldowns whenever R (transform) is cast. Combo example:
 // "Q R W E Q AA" (Javelin Toss, then Pounce, Swipe and Takedown).
@@ -17,6 +17,7 @@ const kit: ChampionKit = {
   status: "curated",
   notes: [
     'R switches between human and cougar form: in cougar form Q, W and E cast Takedown, Pounce and Swipe. Option "cougar" starts the combo in cougar form.',
+    "Javelin Toss deals more the farther it flies: the step's distance (Q{1300u}, by default the target's), from 525 units up to 3.25 times as much at 1300 (wiki).",
     "Hunted (from Javelin Toss / Bushwhack) makes Takedown deal 30% more and refreshes Aspect of the Cougar; Pounce on a Hunted target has its cooldown reduced.",
   ],
   options: [{ key: "cougar", label: "Start in cougar form", default: 0, min: 0, max: 1, toggle: true }],
@@ -24,39 +25,29 @@ const kit: ChampionKit = {
   attack: { melee: `stacks.${FORM}` },
   abilities: {
     Q: {
-      defaultVariant: "javelin",
-      variants: {
-        javelin: {
+      name: "Javelin Toss",
+      // How far the javelin flies (Q{1300u}): from 525 units it deals more, up to DamageMulti times as
+      // much from 1300 (wiki; edge to edge here, the wiki's to the target's center).
+      variableDistance: true,
+      debuff: hunted,
+      components: [
+        {
+          id: "javelin",
           label: "Javelin Toss",
-          name: "Javelin Toss",
-          debuff: hunted,
-          note: "Thrown from ≤525 units: minimum damage.",
-          // {{Effect at cast time start}} (wiki): the javelin flies to the target from the start of the cast, here at most 525 units.
-          components: [
-            {
-              id: "javelin",
-              label: "Javelin Toss",
-              type: "magic",
-              amount: "calc.HumanMinimumDamage",
-              travel: "min(reach, dv.RangeThreshold) / missileSpeed - castTime",
-            },
-          ],
+          type: "magic",
+          amount: "calc.HumanMinimumDamage * (1 + (dv.DamageMulti - 1) * clamp((reach - dv.RangeThreshold) / (1300 - dv.RangeThreshold), 0, 1))",
+          // {{Effect at cast time start}} (wiki): the javelin flies to the target from the start of the cast.
+          travel: "max(0, reach / missileSpeed - castTime)",
         },
-        max: {
-          label: "Javelin Toss (max range)",
-          name: "Javelin Toss",
-          debuff: hunted,
-          note: "Thrown from maximum distance: maximum damage.",
-          // {{Effect at cast time start}} (wiki): the javelin flies its max range from the start of the cast.
-          components: [
-            { id: "javelin", label: "Javelin Toss", type: "magic", amount: "calc.HumanMaximumDamage", travel: "max(0, castRange / missileSpeed - castTime)" },
-          ],
-        },
+      ],
+      variants: {
         takedown: {
           label: "Takedown",
           name: "Takedown",
           when: `stacks.${FORM}`,
           spell: "Takedown",
+          variableDistance: false,
+          debuff: null,
           resetsAttack: true,
           note: "Empowers the next attack: it deals Takedown magic damage instead of its normal damage (follow with AA).",
           buff: {
@@ -84,22 +75,17 @@ const kit: ChampionKit = {
       },
     },
     W: {
-      defaultVariant: "trap",
+      name: "Bushwhack",
+      notes: ["The enemy steps on a trap: magic damage each second for 4 s."],
+      debuff: hunted,
+      components: [{ id: "trap", label: "Bushwhack", type: "magic", amount: "calc.DamagePerSecond", hits: "dv.DotDuration", interval: 1, delay: 1, dot: true }],
       variants: {
-        trap: {
-          label: "Bushwhack",
-          name: "Bushwhack",
-          debuff: hunted,
-          note: "The enemy steps on a trap: magic damage each second for 4 s.",
-          components: [
-            { id: "trap", label: "Bushwhack", type: "magic", amount: "calc.DamagePerSecond", hits: "dv.DotDuration", interval: 1, delay: 1, dot: true },
-          ],
-        },
         pounce: {
           label: "Pounce",
           name: "Pounce",
           when: `stacks.${FORM}`,
           spell: "Pounce",
+          debuff: null,
           dash: true,
           // Pouncing at a Hunted target reduces the cooldown.
           cooldown: "debuff.hunted ? R.dv.PounceCooldown : cooldown",
@@ -110,20 +96,17 @@ const kit: ChampionKit = {
       },
     },
     E: {
-      defaultVariant: "surge",
+      name: "Primal Surge",
+      notes: ["Self-cast heal and attack speed."],
+      buff: { id: "primalSurge", label: "Primal Surge", duration: "dv.ASDuration", stats: { attackSpeed: "dv.BonusAS" } },
+      components: [],
       variants: {
-        surge: {
-          label: "Primal Surge",
-          name: "Primal Surge",
-          note: "Self-cast heal and attack speed.",
-          buff: { id: "primalSurge", label: "Primal Surge", duration: "dv.ASDuration", stats: { attackSpeed: "dv.BonusAS" } },
-          components: [],
-        },
         swipe: {
           label: "Swipe",
           name: "Swipe",
           when: `stacks.${FORM}`,
           spell: "Swipe",
+          buff: [],
           // {{Effect at cast time start}} (wiki): it has hit by the end of the cast time.
           components: [{ id: "swipe", label: "Swipe", type: "magic", amount: "R.calc.TotalSwipeDamage", aoe: true }],
         },
@@ -131,6 +114,8 @@ const kit: ChampionKit = {
     },
     R: {
       noTarget: true,
+      // The form it turns from.
+      icon: `AspectOfTheCougar#stacks.${FORM}`,
       notes: ["Transforms between human and cougar form (swaps the Q/W/E cooldowns)."],
       components: [],
     },

@@ -147,8 +147,8 @@ const partName = (p: Part) => (p.hit?.startsWith(`${p.label} (`) ? p.hit : p.lab
 /** The source of a block with several sources' DoTs. */
 const DOTS = "dots";
 /** A block's source in a few letters and its icon; several sources' DoTs show Brand's burn (Blaze), a common stand-in for damage over time. */
-const blockMark = (source: string, label: string, champion: string) =>
-  source === DOTS ? { text: "DoTs", icon: abilityIcon("Brand", "P") } : sourceMark(source, label, champion);
+const blockMark = (source: string, label: string, champion: string, icon?: string) =>
+  source === DOTS ? { text: "DoTs", icon: abilityIcon("Brand", "P") } : sourceMark(source, label, champion, icon);
 
 const addHit = (s: SourceTotal, e: DamageInstance) => {
   s.damage += e.final ?? 0;
@@ -185,17 +185,30 @@ function moments(events: DamageInstance[]) {
     let i = open.get(key);
     if (i === undefined || out.slice(i + 1).some((m) => !m.dot && (dot || m.action !== e.action))) {
       open.set(key, (i = out.length));
-      out.push({ source: e.source, label: e.sourceLabel, action: e.action, dot, parts: [], damage: 0, raw: 0, hits: 0, type: {}, from: e.time, to: e.time });
+      out.push({
+        source: e.source,
+        label: e.sourceLabel,
+        icon: e.icon,
+        action: e.action,
+        dot,
+        parts: [],
+        damage: 0,
+        raw: 0,
+        hits: 0,
+        type: {},
+        from: e.time,
+        to: e.time,
+      });
     }
     const m = out[i];
     if (e.flags.empowered ? !led.has(m) : !e.flags.proc && !named.has(m)) {
       named.add(m);
       if (e.flags.empowered) led.add(m);
-      Object.assign(m, { source: e.source, label: e.sourceLabel });
+      Object.assign(m, { source: e.source, label: e.sourceLabel, icon: e.icon });
     }
     let part = m.parts.find((p) => p.source === e.source && p.label === e.sourceLabel);
     if (!part) {
-      part = { source: e.source, label: e.sourceLabel, hit: e.label, damage: 0, raw: 0, hits: 0, type: {} };
+      part = { source: e.source, label: e.sourceLabel, icon: e.icon, hit: e.label, damage: 0, raw: 0, hits: 0, type: {} };
       const at = e.flags.empowered ? m.parts.findIndex((p) => attacks.has(p)) : -1;
       m.parts.splice(at < 0 ? m.parts.length : at, 0, part);
       if (e.flags.attack && !e.flags.empowered) attacks.add(part);
@@ -204,7 +217,7 @@ function moments(events: DamageInstance[]) {
     addHit(m, e);
     m.to = e.time;
   }
-  for (const m of out) if (m.dot && m.parts.length > 1) Object.assign(m, { source: DOTS, label: "DoTs" });
+  for (const m of out) if (m.dot && m.parts.length > 1) Object.assign(m, { source: DOTS, label: "DoTs", icon: undefined });
   return out;
 }
 
@@ -365,7 +378,7 @@ export function HpBar({
           ))}
           {/* Over the notches */}
           {blocks.map(({ s, x, w }, i) => {
-            const mark = blockMark(s.source, s.label, champion);
+            const mark = blockMark(s.source, s.label, champion, s.icon);
             const icon = mark.icon && !broken.has(mark.icon) ? mark.icon : "";
             // A source's icon names it, and an ability's key (the passive's P too) with it where there's
             // room: a champion's ability icons are less known than which key they're on. Letters stand
@@ -438,10 +451,22 @@ export function HpBar({
 const executeName = (l: ExecuteLine) => (l.label.includes(l.sourceLabel) ? l.label : `${l.sourceLabel}: ${l.label}`);
 
 /** A source's name, or `children` in its place, with its icon on the left (the initials of its name when it has none). */
-export function SourceName({ source, label, champion, children = label }: { source: string; label: string; champion: string; children?: ReactNode }) {
+export function SourceName({
+  source,
+  label,
+  champion,
+  icon,
+  children = label,
+}: {
+  source: string;
+  label: string;
+  champion: string;
+  icon?: string;
+  children?: ReactNode;
+}) {
   return (
     <span className="source-name">
-      <Icon src={blockMark(source, label, champion).icon} label={label} size="xs" />
+      <Icon src={blockMark(source, label, champion, icon).icon} label={label} size="xs" />
       {children}
     </span>
   );
@@ -457,7 +482,7 @@ function SourceTip({ s, maxHp, champion }: { s: SourceTotal | Moment; maxHp: num
     <>
       {("parts" in s ? s.parts : [s]).map((p: Part) => (
         <div className="tt-row" key={`${p.source}|${p.label}`}>
-          <SourceName source={p.source} label={p.label} champion={champion}>
+          <SourceName source={p.source} label={p.label} champion={champion} icon={p.icon}>
             {partName(p)}
           </SourceName>
           <span>
@@ -526,7 +551,7 @@ export function Timeline({
         </div>
         {near.slice(0, 8).map((ev) => (
           <div className="tt-row" key={ev.id}>
-            <SourceName source={ev.source} label={ev.sourceLabel} champion={champion}>
+            <SourceName source={ev.source} label={ev.sourceLabel} champion={champion} icon={ev.icon}>
               {ev.label.includes(ev.sourceLabel) ? ev.label : `${ev.sourceLabel}: ${ev.label}`}
             </SourceName>
             <strong style={{ color: TYPE_TEXT[ev.type] }}>{fmt(ev.final ?? 0)}</strong>
@@ -614,7 +639,7 @@ export function SourceBars({ sources, maxHp, champion }: { sources: SourceTotal[
           let x = labelW;
           const y = i * rowH + 6;
           const parts = TYPE_ORDER.filter((t) => (s.type[t] ?? 0) > 0);
-          const { icon } = sourceMark(s.source, s.label, champion);
+          const { icon } = sourceMark(s.source, s.label, champion, s.icon);
           return (
             <g key={i} onPointerMove={(e) => tt.show(e, <SourceTip s={s} maxHp={maxHp} champion={champion} />)} onPointerLeave={tt.hide}>
               <rect x={0} y={y - 4} width={W} height={rowH} fill="transparent" />

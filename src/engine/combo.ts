@@ -16,6 +16,8 @@ export type ComboStep =
       duration?: number;
       /** How many of its hits it fires, the first in the order they're fired, where the player chooses it (Xerath R's and Jhin R's shots). */
       count?: number;
+      /** How far the target stands for the cast, in units, where what it deals goes by it (Nidalee's Javelin Toss). */
+      distance?: number;
       /** Enable optional components by id. */
       enable?: string[];
       /** Treat this cast as missing the target (still triggers on-cast effects). */
@@ -64,6 +66,7 @@ const SLOTS = new Set(["P", "Q", "W", "E", "R"]);
  *   Q{out:1,back:0}    override component hit counts
  *   E{0.5s}  R{3}      how long the cast lasts (a channel ended early, a toggle left on, a
  *                      charge held), or how many hits it fires (Xerath R's and Jhin R's shots)
+ *   Q{1300u}           how far the target stands for the cast (Nidalee's Javelin Toss)
  *   Q+bonus            enable an optional component
  *   AA  A  AA*3  3AA   basic attacks;  AA! = forced crit,  AA? = forced non-crit
  *   Q!  Q?             a cast whose hits that can crit all crit, or none do
@@ -107,15 +110,16 @@ export function parseCombo(src: string): ComboStep[] {
       if (m[2]) step.variant = m[2];
       if (m[3]) {
         for (const kv of m[3].slice(1, -1).split(/[;,]/).filter(Boolean)) {
-          const n = /^(\d*\.?\d+)(s?)$/i.exec(kv.trim());
+          const n = /^(\d*\.?\d+)(s|u)?$/i.exec(kv.trim());
           if (n) {
-            if (n[2]) step.duration = Number(n[1]);
+            if (n[2]?.toLowerCase() === "s") step.duration = Number(n[1]);
+            else if (n[2]) step.distance = Number(n[1]);
             else step.count = Number(n[1]);
             continue;
           }
           const [k, v] = kv.split(":");
           if (v === undefined || !/^\s*\d+\s*$/.test(v))
-            throw new Error(`bad "${kv}" in "${tok}" (expected seconds like {0.5s}, a count like {3}, or hits like {id:3})`);
+            throw new Error(`bad "${kv}" in "${tok}" (expected seconds like {0.5s}, a count like {3}, a distance like {1300u}, or hits like {id:3})`);
           (step.hits ??= {})[k.trim()] = Number(v);
         }
       }
@@ -140,6 +144,7 @@ export function formatCombo(steps: ComboStep[]): string {
           const inner = [
             ...(s.duration !== undefined ? [`${s.duration}s`] : []),
             ...(s.count !== undefined ? [String(s.count)] : []),
+            ...(s.distance !== undefined ? [`${s.distance}u`] : []),
             ...Object.entries(s.hits ?? {}).map(([k, v]) => `${k}:${v}`),
           ];
           if (inner.length) t += "{" + inner.join(",") + "}";
@@ -198,7 +203,7 @@ export function fitCombo(steps: ComboStep[], kit: ChampionKit): ComboStep[] {
     }
     if (step.type !== "ability") return step;
     const spec = kit.abilities[step.slot];
-    const { variant: key, duration, count, hits, enable, ...rest } = step;
+    const { variant: key, duration, count, distance, hits, enable, ...rest } = step;
     const [variant, vspec] = (key && findVariant(spec, key)) || [];
     const comps = vspec?.components ?? spec?.components ?? [];
     const keptHits = Object.entries(hits ?? {}).filter(([id]) => comps.some((c) => c.id === id));
@@ -208,6 +213,7 @@ export function fitCombo(steps: ComboStep[], kit: ChampionKit): ComboStep[] {
       ...(variant ? { variant } : {}),
       ...(duration !== undefined && (spec?.variableDuration || spec?.charge) ? { duration } : {}),
       ...(count !== undefined && spec?.variableCount ? { count } : {}),
+      ...(distance !== undefined && spec?.variableDistance ? { distance } : {}),
       ...(keptHits.length ? { hits: Object.fromEntries(keptHits) } : {}),
       ...(kept ? { enable: kept } : {}),
     });
@@ -221,16 +227,22 @@ export function fitCombo(steps: ComboStep[], kit: ChampionKit): ComboStep[] {
  */
 export function clampCombo(steps: ComboStep[], range: (step: AbilityStep) => Pick<CastSetting, "kind" | "min" | "max"> | null): ComboStep[] {
   return steps.map((step) => {
-    if (step.type !== "ability" || (step.duration === undefined && step.count === undefined)) return step;
+    if (step.type !== "ability" || (step.duration === undefined && step.count === undefined && step.distance === undefined)) return step;
     const r = range(step);
-    const [key, other] = r?.kind === "count" ? (["count", "duration"] as const) : (["duration", "count"] as const);
+    const key = settingKey(r?.kind ?? "lasts");
     const v = step[key];
     const c = r && v !== undefined ? Math.max(r.min, Math.min(key === "count" ? Math.round(v) : v, r.max)) : undefined;
-    if (c === v && step[other] === undefined) return step;
-    const { duration: _d, count: _c, ...rest } = step;
+    if (c === v && SETTING_KEYS.every((k) => k === key || step[k] === undefined)) return step;
+    const { duration: _d, count: _c, distance: _x, ...rest } = step;
     return c === undefined ? rest : { ...rest, [key]: c };
   });
 }
+
+/** The step fields the cast settings set. */
+export const SETTING_KEYS = ["duration", "count", "distance"] as const;
+/** Which of them a cast setting's number goes in. */
+export const settingKey = (kind: CastSetting["kind"]): (typeof SETTING_KEYS)[number] =>
+  kind === "count" ? "count" : kind === "distance" ? "distance" : "duration";
 
 /** How crits resolve: their expected value, or every crit-capable hit crits or doesn't. */
 export type CritMode = "expected" | "always" | "never";

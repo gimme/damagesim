@@ -140,7 +140,7 @@ export function App() {
           <SettingsPanel state={state} set={setState} />
         </div>
         <div style={{ minWidth: 0 }}>
-          <ComboBuilder state={state} set={setState} sim={sim} />
+          <ComboBuilder state={state} set={setState} sim={sim} result={result} />
           {error && <div className="notice warn">{error}</div>}
           {result && (
             <>

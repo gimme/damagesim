@@ -160,6 +160,12 @@ shots), mark it `variableCount: 'shots'` instead: a step sets the count (`R{3}`,
 first that many of its hits in the order they're fired (Jhin's 4th shot, its own component, is
 always the last), and its lockout ends when the last of them is fired.
 
+When what it deals goes by how far it flies (Nidalee's Javelin Toss), mark it `variableDistance: true`
+rather than giving it near and far variants: a step sets how far the target stands for the cast
+(`Q{1300u}`, edge to edge, from 0 up to its range; by default the target's distance), which its
+expressions read as `distance` and `reach`, travel and damage alike. A variant that doesn't go by it
+(another form's spell) sets `variableDistance: false`.
+
 An ability held to charge (Sion Q, Varus Q) takes `charge: { default, min, max }`: the step's seconds
 are the hold (usually the full charge by default; `min` is the earliest release, `max` the longest
 hold), which `castTime`, amounts and `cc` read as `charge`, e.g. `castTime: 'charge'` and
@@ -245,7 +251,10 @@ holds (Elise's `'buff.eliseSpiderForm'`, Jayce's and Nidalee's form counters `'s
 Rek'Sai's burrow, Gnar's Mega buff, Karma's Mantra, Yunara's Transcendent State `'buff.yunaraR'`, a
 buff her R applies for it). The combo card doesn't offer it. A variant that's a spell of its own sets
 its `name` (`'Venomous Bite'`, `'Arc of Ruin'`): its hits show under it, not as "Neurotoxin (Venomous
-Bite)".
+Bite)". Its hits and its step show its spell's icon; one whose icon isn't its spell's first sets `icon`,
+a spell's script name and after `#` which of its icons (Yunara's Arc of Ruin `'YunaraW2'`, Karma's
+Soulflare `'KarmaQ#1'`; an expression, as Kayn's `'KaynQ#opt.form'` on the ability itself). Give a
+form the player can start in an option (Jayce's `cannon`, Elise's `spider`, Gnar's `mega`).
 
 **Stacking champion stats** (Nasus Q stacks, Veigar AP, Senna, Smolder, Cho'Gath R, Sion, Kindred,
 Thresh, Swain): declare an option and use it:

@@ -12,6 +12,8 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync, copyFileSync } from
 import { join } from "node:path";
 import sharp from "sharp";
 import { loadGameData } from "../src/node/load.ts";
+import { loadAllKits } from "../src/node/kits.ts";
+import { curatedChampionIds, getKit } from "../src/kits/index.ts";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const OUT = join(ROOT, "dist-artifact");
@@ -30,6 +32,19 @@ for (const c of data.championIndex) wanted.push([`champion/${c.id}`, `${dd}${c.i
 for (const c of Object.values(data.champions))
   for (const [slot, path] of Object.entries(c.abilityIcons))
     wanted.push([`ability/${c.id}/${slot}`, `https://raw.communitydragon.org/${data.meta.patch}/game/${path}`, 48]);
+// The icons of the spells kits cast other than the slots' (another form's, Arc of Ruin), all of them.
+await loadAllKits();
+const castIcons = new Set<string>();
+for (const id of curatedChampionIds()) {
+  const c = data.champions[id];
+  if (!c) continue;
+  const spells = new Map(c.abilities.flatMap((a) => a.spells.map((s) => [s.scriptName.toLowerCase(), s] as const)));
+  for (const spec of Object.values(getKit(c).abilities))
+    for (const x of [spec, ...Object.values(spec?.variants ?? {})])
+      for (const script of [x?.spell, x?.icon?.split("#")[0]])
+        for (const path of (script && spells.get(script.toLowerCase())?.icons) || []) if (!Object.values(c.abilityIcons).includes(path)) castIcons.add(path);
+}
+for (const path of castIcons) wanted.push([`icon/${path}`, `https://raw.communitydragon.org/${data.meta.patch}/game/${path}`, 48]);
 for (const it of Object.values(data.items))
   if ((it.inStore || [3040, 3042, 3121].includes(it.id)) && it.gold.total > 0) wanted.push([`item/${it.id}`, `${dd}item/${it.id}.png`]);
 for (const r of data.runes) if (r.icon.startsWith("perk-images")) wanted.push([`rune/${r.icon}`, `https://ddragon.leagueoflegends.com/cdn/img/${r.icon}`]);

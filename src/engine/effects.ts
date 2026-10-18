@@ -56,6 +56,9 @@ export interface DamageInstance {
   action?: number;
   source: string;
   sourceLabel: string;
+  /** The HUD icon of the cast it shows under, where the kit picks one (another form's spell, Arc of
+   *  Ruin): a path under CommunityDragon's game folder. */
+  icon?: string;
   label: string;
   type: DamageType;
   /** Pre-mitigation damage after crit. */

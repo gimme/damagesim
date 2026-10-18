@@ -67,6 +67,9 @@ export interface SpellData {
   ammoRecharge?: number[] | number;
   tags?: string[];
   cooldownFixed?: boolean;
+  /** Its HUD icons (one per form or state: Karma's Q, then its Mantra one), as paths under
+   *  CommunityDragon's game folder. */
+  icons?: string[];
 }
 
 export interface AbilityData {

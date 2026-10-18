@@ -20,6 +20,7 @@ const kit: ChampionKit = {
         mantra: {
           label: "Soulflare",
           name: "Soulflare",
+          icon: "KarmaQ#1",
           when: "buff.mantra",
           note: "Impact deals Inner Flame + R.calc.RQImpactDamage; the field ruptures R.dv.RQSlowDuration s later for R.calc.RQFieldDamage.",
           cc: [{ kind: "slow", duration: "dv.SlowDuration + R.dv.RQSlowDuration" }],
@@ -41,6 +42,7 @@ const kit: ChampionKit = {
         mantra: {
           label: "Renewal",
           name: "Renewal",
+          icon: "KarmaSpiritBind#1",
           when: "buff.mantra",
           cc: [{ kind: "immobilize", duration: "dv.RootDuration + R.dv.RWBonusRoot", delay: "dv.TetherDuration" }],
           components: [
@@ -54,7 +56,7 @@ const kit: ChampionKit = {
       noTarget: true,
       notes: ["Shield and move speed (no damage)."],
       components: [],
-      variants: { mantra: { label: "Defiance", name: "Defiance", when: "buff.mantra", components: [] } },
+      variants: { mantra: { label: "Defiance", name: "Defiance", icon: "KarmaSolKimShield#1", when: "buff.mantra", components: [] } },
     },
     R: {
       noTarget: true,

@@ -159,7 +159,7 @@ export function Details({
               {r.bySource.map((s) => (
                 <tr key={s.source + s.label}>
                   <td>
-                    <SourceName source={s.source} label={s.label} champion={r.champion.id} />
+                    <SourceName source={s.source} label={s.label} champion={r.champion.id} icon={s.icon} />
                   </td>
                   <td className="r">{s.hits}</td>
                   <td className="r">{fmt(s.raw)}</td>
@@ -207,7 +207,7 @@ function Events({ r }: { r: SimResult }) {
             <tr key={e.id}>
               <td className="r">{e.time.toFixed(2)}s</td>
               <td>
-                <SourceName source={e.source} label={e.sourceLabel} champion={champion} />
+                <SourceName source={e.source} label={e.sourceLabel} champion={champion} icon={e.icon} />
               </td>
               <td>{e.label}</td>
               <td>

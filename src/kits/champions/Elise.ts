@@ -35,6 +35,7 @@ const kit: ChampionKit = {
   status: "curated",
   attack: { melee: `buff.${spiderForm.id}` },
   options: [
+    { key: "spider", label: "Start in Spider Form", default: 0, toggle: true },
     {
       key: "spiderlings",
       label: "Spiderlings",
@@ -45,13 +46,18 @@ const kit: ChampionKit = {
     },
   ],
   notes: [
-    "Combo: human Q W E, then R (Spider Form), then Q W E cast as Venomous Bite, Skittering Frenzy and Rappel; R again returns to Human Form. Each form keeps its own Q/W/E cooldowns.",
+    'Combo: human Q W E, then R (Spider Form), then Q W E cast as Venomous Bite, Skittering Frenzy and Rappel; R again returns to Human Form. Each form keeps its own Q/W/E cooldowns. Option "spider" starts in Spider Form.',
     "Spider Form: attacks deal Spider Queen bonus magic damage (+RappelDamageAmp % for 5s after Rappel). Spiderlings (option, default 3 = one per human ability hit) are approximated as each attacking once per Elise attack.",
     "Venomous Bite applies on-hit effects, including the Spider Form ones above.",
     "Volatile Spiderling is assumed to reach the target ~0.75s after the cast.",
     "Spider Form attacks in melee (no missile); the simulator keeps her ranged for melee/ranged item effects.",
   ],
   hooks: {
+    onStart(sim) {
+      if (!sim.opt.spider || sim.abilityRank("R") <= 0) return;
+      sim.setCounter("eliseSpider", 1);
+      sim.applyBuff(spiderForm, "R", sim.spellFor("R"), sim.abilityRank("R"));
+    },
     // Form switching: swap the Q/W/E cooldowns of the two forms and toggle the Spider Form buff.
     onCast(sim, cast) {
       if (cast.slot !== "R") return;

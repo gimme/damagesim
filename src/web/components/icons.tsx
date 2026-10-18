@@ -1,7 +1,7 @@
 // Icons: an image, or the name's initials where there is none; and a damage source's mark.
 
 import { useEffect, useState } from "react";
-import { DATA, abilityIcon, autoAttackIcon, championIcon, itemIcon, runeIcon, summonerIcon } from "../data.ts";
+import { DATA, castIcon, autoAttackIcon, championIcon, itemIcon, runeIcon, summonerIcon } from "../data.ts";
 
 /** What stands in for a missing icon: the first letters of the name's first two words. */
 export const initials = (label: string) =>
@@ -39,10 +39,12 @@ export const RuneIcon = ({ id }: { id: number }) => {
 /**
  * A damage source in a few letters, with its icon when it has one: the key of an ability (Q, P, AA),
  * else the first letters of its name's words (ER for Essence Reaver, BoTRK), or of a one-word name its
- * first two, so it isn't taken for an ability (EL for Electrocute, not E).
+ * first two, so it isn't taken for an ability (EL for Electrocute, not E). An ability's is `castPath`
+ * where its cast had one of its own (another form's spell).
  */
-export function sourceMark(source: string, label: string, champion: string): { text: string; icon: string } {
-  if (source === "P" || source === "Q" || source === "W" || source === "E" || source === "R") return { text: source, icon: abilityIcon(champion, source) };
+export function sourceMark(source: string, label: string, champion: string, castPath?: string): { text: string; icon: string } {
+  if (source === "P" || source === "Q" || source === "W" || source === "E" || source === "R")
+    return { text: source, icon: castIcon(champion, source, castPath) };
   if (source === "AA") return { text: "AA", icon: autoAttackIcon() };
   const words = label.split(/[\s-]+/).map((w) => w.replace(/[^\p{L}\d]/gu, ""));
   const text = words.length === 1 ? words[0].slice(0, 2).toUpperCase() : words.map((w) => w[0] ?? "").join("");

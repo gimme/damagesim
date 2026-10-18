@@ -7,7 +7,7 @@ import { loadAllKits } from "../src/node/kits.ts";
 import { Sim, simulate, type Scenario, type TargetSpec } from "../src/engine/sim.ts";
 import type { DamageInstance } from "../src/engine/effects.ts";
 import { findItem } from "../src/engine/gamedata.ts";
-import { parseCombo } from "../src/engine/combo.ts";
+import { formatCombo, parseCombo } from "../src/engine/combo.ts";
 import { rankItems } from "../src/engine/analysis.ts";
 import { getKit, curatedChampionIds } from "../src/kits/index.ts";
 
@@ -322,6 +322,54 @@ test("A form's spells are cast by themselves in it, under their own names: Elise
   assert.deepEqual(cast(run("Karma", "R Q W")), ["R", "Q:mantra", "W"]);
   assert.deepEqual(cast(run("Kayn", "W", { form: 2 })), ["W:darkin"]);
   assert.deepEqual(cast(run("Kayn", "W")), ["W"]);
+  // Options start in the other form.
+  assert.deepEqual(cast(run("Elise", "Q R Q", { spider: 1 })), ["Q:spider", "R", "Q"]);
+  assert.deepEqual(cast(run("Gnar", "Q", { mega: 1 })), ["Q:mega"]);
+  assert.deepEqual(cast(run("Jayce", "Q", { cannon: 1 })), ["Q:cannon"]);
+  assert.deepEqual(cast(run("Nidalee", "Q", { cougar: 1 })), ["Q:takedown"]);
+});
+
+test("A form's spells show their own icons: on their hits, by source and on their steps", () => {
+  const run = (champion: string, combo: string, options?: Record<string, number>) =>
+    simulate(data, { champion, level: 16, combo, options, target: { maxHp: 9000, armor: 50, mr: 50 } });
+  const file = (p?: string) => p?.split("/").pop();
+  const icons = (r: ReturnType<typeof simulate>) => Object.fromEntries(r.bySource.map((s) => [s.label, file(s.icon)]));
+  const elise = run("Elise", "Q R Q");
+  assert.deepEqual(
+    elise.timeline.map((t) => file(t.icon)),
+    ["elisehumanq.png", "eliser.png", "elisespiderq.png"],
+  );
+  assert.equal(icons(elise)["Venomous Bite"], "elisespiderq.png");
+  assert.ok(elise.events.filter((e) => e.sourceLabel === "Venomous Bite").every((e) => file(e.icon) === "elisespiderq.png"));
+  // A variant without a spell of its own names its icon (Arc of Ruin), or which of its spell's (Soulflare).
+  assert.equal(icons(run("Yunara", "R W"))["Arc of Ruin"], "yunara_rw.png");
+  assert.equal(icons(run("Karma", "R Q"))["Soulflare"], "karma_q2.png");
+  // The empowered attack a cast's buff gives shows the cast's (Takedown); Kayn's icons follow his form.
+  assert.equal(icons(run("Nidalee", "Q AA", { cougar: 1 }))["Takedown"], "nidalee_q2.png");
+  assert.equal(icons(run("Kayn", "Q", { form: 2 }))["Reaping Slash"], "kayn_q_slay.png");
+  assert.equal(icons(run("Kayn", "Q"))["Reaping Slash"], "kayn_q_primary.png");
+});
+
+test("Nidalee's Javelin Toss deals more the farther it flies: the step's distance, from 525 to 1300 units (wiki)", () => {
+  const javelin = (combo: string) => {
+    const r = simulate(data, { champion: "Nidalee", level: 16, combo, target: dummy });
+    return { r, hit: r.events.find((e) => e.label === "Javelin Toss")! };
+  };
+  const sim = new Sim(data, { champion: "Nidalee", level: 16, combo: [] });
+  const [min, multi] = [sim.evalExpr("calc.HumanMinimumDamage", { slot: "Q" }), sim.evalExpr("dv.DamageMulti", { slot: "Q" })];
+  // By default the target's distance, her attack range: the minimum.
+  assert.ok(near(javelin("Q").hit.raw, min));
+  assert.ok(near(javelin("Q{900u}").hit.raw, min * (1 + (multi - 1) * (375 / 775))));
+  assert.ok(near(javelin("Q{1300u}").hit.raw, min * multi));
+  // It flies there at its speed (1300) from the start of the cast.
+  const far = javelin("Q{1300u}");
+  assert.ok(near(far.hit.time, 1300 / 1300), `${far.hit.time}`);
+  // At most its range; nothing to set on Takedown.
+  assert.ok(javelin("Q{2000u}").r.warnings.some((w) => /0 to 1500 units/.test(w)));
+  assert.deepEqual(sim.castSetting({ slot: "Q" }), { kind: "distance", value: 525, min: 0, max: 1500, unit: "u" });
+  assert.equal(sim.castSetting({ slot: "Q", variant: "takedown" }), null);
+  assert.deepEqual(parseCombo("Q{1300u}"), [{ type: "ability", slot: "Q", distance: 1300 }]);
+  assert.equal(formatCombo(parseCombo("Q{1300u}")), "Q{1300u}");
 });
 
 test("A charge held for a step's seconds: damage, crowd control and cast time follow the hold", () => {

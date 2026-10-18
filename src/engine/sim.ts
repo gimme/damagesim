@@ -91,16 +91,17 @@ export interface Scenario {
 
 /**
  * What a combo step sets about a cast, where the player chooses it: the seconds it lasts after its
- * cast time (AbilitySpec.variableDuration), the seconds it's held to charge (charge), or how many of
- * its hits it fires (variableCount). By default `value`, at most `max`.
+ * cast time (AbilitySpec.variableDuration), the seconds it's held to charge (charge), how many of
+ * its hits it fires (variableCount), or how far the target stands for it (variableDistance). By
+ * default `value`, at most `max`.
  */
 export interface CastSetting {
-  kind: "lasts" | "held" | "count";
+  kind: "lasts" | "held" | "count" | "distance";
   value: number;
   /** The least that does something: the first hit, the earliest release, one shot. */
   min: number;
   max: number;
-  /** "s", or what the hits are called ("shots"). */
+  /** "s", "u" (units of distance), or what the hits are called ("shots"). */
   unit: string;
 }
 
@@ -108,8 +109,9 @@ export interface CastSetting {
 const hitsWithin = (first: number, interval: number, maxHits: number, seconds: number) =>
   seconds + 1e-6 < first ? 0 : Math.min(maxHits, Math.floor((seconds - first) / interval + 1e-6) + 1);
 
-/** castTime: the cast's own cast time, where it differs from its spell's (a kit's castTime). */
-type CastCtx = { slot: Slot; spell: SpellData; rank: number; recast?: number; castTime?: number };
+/** castTime: the cast's own cast time, where it differs from its spell's (a kit's castTime);
+ *  distance: how far the target stands for it, where its step says (variableDistance). */
+type CastCtx = { slot: Slot; spell: SpellData; rank: number; recast?: number; castTime?: number; distance?: number };
 /** An execute as dealt, and as the results show it (DamageRequest.normalAttack can split it). */
 type Execution = { inst: DamageInstance; records: DamageInstance[] };
 
@@ -125,6 +127,7 @@ const round2 = (x: number) => Math.round(x * 100) / 100;
 
 /** Why a step's number became `set`: "… lasts 0.1s to 1.25s, so E{5s} lasts 1.25s", "… fires whole shots, so R{2.5} fires 3". */
 function settingWarning(label: string, step: AbilityStep, s: CastSetting, asked: number, set: number) {
+  if (s.kind === "distance") return `${label} reaches ${s.min} to ${s.max} units, so ${formatCombo([step])} is cast at ${set}`;
   const verb = s.kind === "lasts" ? "lasts" : s.kind === "held" ? "is held" : "fires";
   const within = asked >= s.min && asked <= s.max;
   const range = s.kind !== "count" ? `${s.min}s to ${s.max}s` : within ? `whole ${s.unit}` : `${s.min} to ${s.max} ${s.unit}`;
@@ -134,6 +137,8 @@ function settingWarning(label: string, step: AbilityStep, s: CastSetting, asked:
 export interface SourceTotal {
   source: string;
   label: string;
+  /** Its hits' icon (DamageInstance.icon). */
+  icon?: string;
   damage: number;
   raw: number;
   hits: number;
@@ -175,7 +180,9 @@ export interface SimResult {
   byType: Record<DamageType, number>;
   bySource: SourceTotal[];
   events: DamageInstance[];
-  timeline: { step: string; start: number; end: number; note?: string }[];
+  /** The combo's steps as done: an ability as cast (`index` its step's, its variant and icon as the
+   *  state it was cast in made them: W:ruin), attacks, waits, actives. */
+  timeline: { step: string; start: number; end: number; note?: string; index?: number; variant?: string; icon?: string }[];
   /** Seconds from first action to last damage. */
   duration: number;
   /** Seconds the combo's actions take (cast/attack windups). */
@@ -700,7 +707,10 @@ export class Sim {
   }
 
   /** Evaluate a kit expression in the context of an ability slot. */
-  evalExpr(e: Expr, ctx: { slot: Slot; spell?: SpellData; rank?: number; hit?: number; hits?: number; recast?: number; castTime?: number }): number {
+  evalExpr(
+    e: Expr,
+    ctx: { slot: Slot; spell?: SpellData; rank?: number; hit?: number; hits?: number; recast?: number; castTime?: number; distance?: number },
+  ): number {
     if (typeof e === "number") return e;
     const spell = ctx.spell ?? this.spellFor(ctx.slot);
     const rank = ctx.rank ?? this.abilityRank(ctx.slot);
@@ -724,9 +734,10 @@ export class Sim {
 
   private resolvePath(
     path: string[],
-    ctx: { slot: Slot; spell: SpellData; rank: number; hit?: number; hits?: number; recast?: number; castTime?: number },
+    ctx: { slot: Slot; spell: SpellData; rank: number; hit?: number; hits?: number; recast?: number; castTime?: number; distance?: number },
   ): number {
     const [h, ...rest] = path;
+    const distance = ctx.distance ?? this.distance;
     const st = this.stats;
     const t = this.target;
     const sub = (spell: SpellData, rank: number, p: string[]): number => {
@@ -749,7 +760,7 @@ export class Sim {
           return spell.missileSpeed;
         case "reach":
           // How far it goes to the target: there, or as far as its range if that's shorter.
-          return spell.castRange ? Math.min(this.distance, spell.castRange[Math.min(rank, spell.castRange.length - 1)]) : this.distance;
+          return spell.castRange ? Math.min(distance, spell.castRange[Math.min(rank, spell.castRange.length - 1)]) : distance;
         default:
           throw new Error(`unknown name ${p.join(".")}`);
       }
@@ -894,7 +905,7 @@ export class Sim {
       case "range":
         return st.range;
       case "distance":
-        return this.distance;
+        return distance;
       case "ah":
         return st.abilityHaste;
       case "ranged":
@@ -1160,6 +1171,10 @@ export class Sim {
     if (this.target.hp <= 0 && this.target.killTime === undefined) this.target.killTime = this.time;
     if (!inst.flags.aura) this.lastCombatTime = this.time;
     const records = this.recorded(inst, req);
+    for (const r of records) {
+      const icon = this.castIcons.get(`${r.source}|${r.sourceLabel}`);
+      if (icon) r.icon = icon;
+    }
     this.events.push(...records);
     if (execute) {
       this.execution = { inst, records };
@@ -1468,9 +1483,29 @@ export class Sim {
 
   private dealComponent(
     comp: ComponentSpec,
-    ctx: { slot: Slot; spell: SpellData; rank: number; castId: number; sourceLabel: string; hit: number; hits: number; recast?: number; castTime?: number },
+    ctx: {
+      slot: Slot;
+      spell: SpellData;
+      rank: number;
+      castId: number;
+      sourceLabel: string;
+      hit: number;
+      hits: number;
+      recast?: number;
+      castTime?: number;
+      distance?: number;
+    },
   ) {
-    const ectx = { slot: ctx.slot, spell: ctx.spell, rank: ctx.rank, hit: ctx.hit, hits: ctx.hits, recast: ctx.recast, castTime: ctx.castTime };
+    const ectx = {
+      slot: ctx.slot,
+      spell: ctx.spell,
+      rank: ctx.rank,
+      hit: ctx.hit,
+      hits: ctx.hits,
+      recast: ctx.recast,
+      castTime: ctx.castTime,
+      distance: ctx.distance,
+    };
     let amount = this.evalExpr(comp.amount, ectx);
     if (comp.min !== undefined) amount = Math.max(amount, this.evalExpr(comp.min, ectx));
     if (comp.max !== undefined) amount = Math.min(amount, this.evalExpr(comp.max, ectx));
@@ -1826,6 +1861,23 @@ export class Sim {
     return !variant ? name : (variant.name ?? `${name} (${variant.label})`);
   }
 
+  /** The icons of the casts so far, by the source and label their hits show under (and their buffs':
+   *  Takedown's empowered attack). */
+  private castIcons = new Map<string, string>();
+  /** The combo step being done. */
+  private stepIndex = 0;
+
+  /** A cast's icon (AbilitySpec.icon), else its spell's: the slot's HUD icon for the slot's own. */
+  private castIcon(slot: Slot, spec: AbilitySpec, variant: VariantSpec | undefined, spell: SpellData): string | undefined {
+    const ref = variant?.icon ?? (variant?.spell === undefined ? spec.icon : undefined);
+    if (!ref)
+      return (slot !== "P" && spell === this.champ.abilities.find((a) => a.slot === slot)?.spells[0] && this.champ.abilityIcons[slot]) || spell.icons?.[0];
+    const [script, at] = ref.split("#");
+    const icons = this.findSpell(script)?.icons;
+    if (!icons) this.warn(`kit references unknown spell "${script}" for an icon`);
+    return icons?.[Math.round(at ? this.evalExpr(at, { slot }) : 0)] ?? icons?.[0] ?? spell.icons?.[0];
+  }
+
   /** The variant cast in place of the ability in the state it's in now (VariantSpec.when). */
   private stateVariant(spec: AbilitySpec, slot: Slot): string | undefined {
     return Object.entries(spec.variants ?? {}).find(([, v]) => v.when !== undefined && this.evalExpr(v.when, { slot }))?.[0];
@@ -1850,6 +1902,12 @@ export class Sim {
       return { kind: "held", value: held, min: Math.min(min, held), max: Math.max(held, max), unit: "s" };
     }
     const comps = variant?.components ?? spec.components ?? [];
+    if (variant?.variableDistance ?? spec.variableDistance) {
+      // How far the target stands: by default where it does, up to the cast's range.
+      const range = ctx.spell.castRange?.[Math.min(ctx.rank, ctx.spell.castRange.length - 1)];
+      const max = range ?? Math.max(this.distance, 1);
+      return { kind: "distance", value: Math.round(Math.min(this.distance, max)), min: 0, max, unit: "u" };
+    }
     if (spec.variableCount) {
       const { times, byDefault } = this.firedTimes(comps, enable, ctx);
       return times.length ? { kind: "count", value: byDefault, min: 1, max: times.length, unit: spec.variableCount } : null;
@@ -1920,7 +1978,7 @@ export class Sim {
   }
 
   /** Seconds a component's hits fly before they land (ComponentSpec.travel). */
-  private travelOf(c: ComponentSpec, ctx: { slot: Slot; spell?: SpellData; rank?: number }) {
+  private travelOf(c: ComponentSpec, ctx: { slot: Slot; spell?: SpellData; rank?: number; distance?: number }) {
     if (c.travel === undefined) return 0;
     return this.evalExpr(c.travel === true ? "reach / missileSpeed" : c.travel, ctx);
   }
@@ -2029,6 +2087,11 @@ export class Sim {
       spell = this.spellFor(slot, (variant as any) ?? spec);
       label = this.castLabel(name, variant);
     }
+    const icon = this.castIcon(slot, spec, variant, spell);
+    if (icon) {
+      const buffs = variant && "buff" in variant ? variant.buff : spec.buff;
+      for (const l of [label, ...[buffs ?? []].flat().map((b) => b.label)]) this.castIcons.set(`${slot}|${l}`, icon);
+    }
 
     if (ammo) {
       ammo.state.charges = Math.max(0, ammo.state.charges - 1);
@@ -2043,19 +2106,27 @@ export class Sim {
     // its last counted hit is fired (`span`): its repeating hits land within them, and its lockout
     // ends with them.
     const setting = this.settingOf(spec, variant, step.enable, ectx);
-    const asked = !setting ? undefined : setting.kind === "count" ? step.count : step.duration;
+    const asked = !setting ? undefined : setting.kind === "count" ? step.count : setting.kind === "distance" ? step.distance : step.duration;
     let set: number | undefined;
     if (setting && asked !== undefined) {
       set = Math.max(setting.min, Math.min(setting.kind === "count" ? Math.round(asked) : asked, setting.max));
       if (Math.abs(set - asked) > 1e-9) this.warn(settingWarning(label, step, setting, asked, set));
     }
-    if (step.duration !== undefined && (!setting || setting.kind === "count"))
+    if (step.duration !== undefined && (!setting || setting.kind === "count" || setting.kind === "distance"))
       this.warn(`${label} can't be ended early, kept on or charged: ${formatCombo([step])} casts it in full`);
     if (step.count !== undefined && setting?.kind !== "count") this.warn(`${label}'s hits aren't counted: ${formatCombo([step])} casts it in full`);
+    if (step.distance !== undefined && setting?.kind !== "distance")
+      this.warn(`${label} doesn't depend on how far the target is: ${formatCombo([step])} is cast at its distance`);
     if (setting?.kind === "held") this.chargeHeld.set(slot, set ?? setting.value);
+    // The target stands that far for the cast: its travel and damage go by it.
+    if (setting?.kind === "distance" && set !== undefined) ectx.distance = set;
     const comps = variant?.components ?? spec.components ?? [];
     const span =
-      set === undefined || setting?.kind === "held" ? undefined : setting?.kind === "count" ? this.firedTimes(comps, step.enable, ectx).times[set - 1] : set;
+      set === undefined || setting?.kind === "held" || setting?.kind === "distance"
+        ? undefined
+        : setting?.kind === "count"
+          ? this.firedTimes(comps, step.enable, ectx).times[set - 1]
+          : set;
     const repeating = span !== undefined ? this.repeating(comps, step.enable, ectx) : [];
     // Hit counts and optional hits the cast doesn't have (another champion's, a typo).
     const ids = (optional: boolean) => comps.filter((c) => !optional || c.optional).map((c) => c.id);
@@ -2133,7 +2204,14 @@ export class Sim {
     }
     // As cast: W:ruin for a W in Transcendent State.
     const asCast = variantKey === step.variant || (!step.variant && variantKey === spec.defaultVariant) ? step : { ...step, variant: variantKey };
-    timeline.push({ step: formatCombo([asCast]), start, end: this.freeAt });
+    timeline.push({
+      step: formatCombo([asCast]),
+      start,
+      end: this.freeAt,
+      index: this.stepIndex,
+      ...(variantKey ? { variant: variantKey } : {}),
+      ...(icon ? { icon } : {}),
+    });
 
     if (!hitsTarget) return;
     const debuff = variant && "debuff" in variant ? (variant.debuff ?? undefined) : spec.debuff;
@@ -2174,7 +2252,7 @@ export class Sim {
         landing.get(at)!.push(() => {
           const n = ++landed;
           onHitN(n, "before");
-          this.dealComponent(comp, { slot, spell, rank, castId, sourceLabel: label, hit: hitIdx, hits, recast, castTime });
+          this.dealComponent(comp, { slot, spell, rank, castId, sourceLabel: label, hit: hitIdx, hits, recast, castTime, distance: ectx.distance });
           onHitN(n, "after");
         });
       }
@@ -2424,7 +2502,8 @@ export class Sim {
     const startHp = this.target.hp;
     const initialRed = this.targetReductions();
 
-    for (const step of steps) {
+    for (const [index, step] of steps.entries()) {
+      this.stepIndex = index;
       const skip = this.skipReason(step);
       if (skip) {
         this.warn(`${skip}; step skipped`);
@@ -2479,7 +2558,7 @@ export class Sim {
       byType[e.type] += e.final ?? 0;
       const key = `${e.source}|${e.sourceLabel}`;
       let s = bySourceMap.get(key);
-      if (!s) bySourceMap.set(key, (s = { source: e.source, label: e.sourceLabel, damage: 0, raw: 0, hits: 0, type: {} }));
+      if (!s) bySourceMap.set(key, (s = { source: e.source, label: e.sourceLabel, ...(e.icon ? { icon: e.icon } : {}), damage: 0, raw: 0, hits: 0, type: {} }));
       s.damage += e.final ?? 0;
       s.raw += e.raw;
       s.hits++;

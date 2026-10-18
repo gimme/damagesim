@@ -252,6 +252,8 @@ export interface VariantSpec {
    * under it rather than under the ability's name with the label ("Neurotoxin (Venomous Bite)").
    */
   name?: string;
+  /** Its icon, where not its `spell`'s (see AbilitySpec.icon): Yunara's Arc of Ruin 'YunaraW2'. */
+  icon?: string;
   /**
    * Cast in place of the ability while this holds, the step naming no variant (Yunara's W and E in
    * Transcendent State: `buff.yunaraR`); only then when it names it. The combo card doesn't offer it.
@@ -271,6 +273,8 @@ export interface VariantSpec {
   /** `null` clears the ability's debuff for this variant. */
   debuff?: DebuffSpec | null;
   castTime?: Expr;
+  /** Not the ability's variableDistance (another form's spell: Takedown). */
+  variableDistance?: boolean;
   note?: string;
 }
 
@@ -279,6 +283,11 @@ export interface AbilitySpec {
   spell?: string;
   /** Display name override. */
   name?: string;
+  /**
+   * The HUD icon its hits and steps show, where not its spell's first: a spell's script name and,
+   * after `#`, which of its icons, an expression (Karma's Mantra 'KarmaQ#1', Kayn's 'KaynQ#opt.form').
+   */
+  icon?: string;
   /** Passive only: rank used for its data values (e.g. 'R.rank + 1' or 'level >= 11 ? 3 : 1'). Default 1. */
   rank?: Expr;
   /** Seconds the cast takes (default: the spell's cast time); may be an expression. */
@@ -325,6 +334,12 @@ export interface AbilitySpec {
    * ends when the last of them is fired.
    */
   variableCount?: string;
+  /**
+   * What it deals depends on how far the target stands (Nidalee's Javelin Toss): a combo step sets the
+   * distance for the cast (`Q{1300u}`, edge to edge, up to its range), `distance` and `reach` in its
+   * expressions; by default the target's distance.
+   */
+  variableDistance?: boolean;
   /**
    * Held to charge (Sion Q, Varus Q): a combo step sets the seconds held (`Q{0.5s}`), which
    * expressions read as `charge` (castTime, amounts, cc). `default`: the hold when the step doesn't

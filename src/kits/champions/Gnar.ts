@@ -27,10 +27,11 @@ const kit: ChampionKit = {
   id: "Gnar",
   status: "curated",
   notes: [
-    "Mini Gnar by default. Rage generation is not modeled: cast P when Rage is full to turn Mega for 15s; W (Wallop) and R, Mega only, also do (each Mega cast refreshes it). In Mega form Q and E cast Boulder Toss and Crunch.",
+    'Mini Gnar by default (option "mega" starts Mega, for 15s). Rage generation is not modeled: cast P when Rage is full to turn Mega for 15s; W (Wallop) and R, Mega only, also do (each Mega cast refreshes it). In Mega form Q and E cast Boulder Toss and Crunch.',
     "Hyper (Mini only): every third attack or ability hit (one per cast) deals W.calc.MiniTotalDamage + W.dv.MiniPercentHPDamage max health magic damage.",
     "Boomerang Throw: a single target is hit once (each enemy only once per throw).",
   ],
+  options: [{ key: "mega", label: "Start as Mega Gnar", default: 0, toggle: true }],
   stats: ({ evalExpr }) => ({
     attackSpeed: evalExpr("P.calc.TotalAS"),
     range: evalExpr("P.calc.TotalAttackRange"),
@@ -81,6 +82,7 @@ const kit: ChampionKit = {
         mega: {
           label: "mega",
           name: "Boulder Toss",
+          icon: "GnarBigQ",
           when: `buff.${mega.id}`,
           note: "Boulder Toss (Mega Gnar).",
           buff: mega,
@@ -124,6 +126,7 @@ const kit: ChampionKit = {
         mega: {
           label: "mega",
           name: "Crunch",
+          icon: "GnarBigE",
           when: `buff.${mega.id}`,
           note: "Crunch (Mega Gnar).",
           dash: true,
@@ -152,6 +155,11 @@ const kit: ChampionKit = {
           components: [{ id: "gnar", label: "GNAR! (wall)", type: "physical", amount: "calc.WallDamage", aoe: true }],
         },
       },
+    },
+  },
+  hooks: {
+    onStart(sim) {
+      if (sim.opt.mega) sim.applyBuff(mega, "P", sim.spellFor("P"), 1);
     },
   },
 };
