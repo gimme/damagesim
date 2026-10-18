@@ -36,12 +36,11 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
       <div className="rune-page">
         <div className="rune-tree" style={treeColor(page.primary)}>
           <TreePicker label="Primary" value={page.primary} trees={TREES} onPick={(t) => change((p) => choosePrimary(DATA, p, t))} />
-          <div className="keystones-block">
-            <div className="small secondary">Keystones</div>
-            <div className="rune-row keystones" role="group" aria-label="Keystone">
-              {treeRow(page.primary, 0).map(pick)}
-            </div>
+          <div className="keystones-title small secondary">Keystones</div>
+          <div className="rune-row keystones" role="group" aria-label="Keystone">
+            {treeRow(page.primary, 0).map(pick)}
           </div>
+          <div className="rune-rule" aria-hidden />
           {[1, 2, 3].map((row) => (
             <div key={row} className="rune-row" role="group" aria-label={`${page.primary} row ${row}`}>
               {treeRow(page.primary, row).map(pick)}

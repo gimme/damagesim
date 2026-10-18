@@ -48,7 +48,7 @@ test("rune page rules", async ({ ui }) => {
       expect((await group("Offense shard").boundingBox())!.y).toBeGreaterThan(last.y + last.height);
       await expect(tree(1).locator(".shard-rows")).toHaveText("");
       await expect(card).not.toContainText("Two, from different rows");
-      await expect(tree(0).locator(".keystones-block")).toHaveText("Keystones");
+      await expect(tree(0).locator(".keystones-title")).toHaveText("Keystones");
       const [a, b] = [(await group("Domination row 3").boundingBox())!, (await group("Defense shard").boundingBox())!];
       expect(Math.abs(a.y + a.height - (b.y + b.height))).toBeLessThan(1);
     },
