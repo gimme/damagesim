@@ -3,8 +3,9 @@
 # web UI. The build is published to GitHub Pages when the repository has Pages enabled (settings →
 # Pages → source "GitHub Actions"); until then the deploy job is skipped, not failed.
 #
-# The app is one page whose whole state lives in the URL hash, which never reaches the server, so no
-# 404 redirect trick is needed for deep links: every link is index.html plus a hash.
+# A scenario's link is the champion's path below the site's plus a hash (/damagesim/zed/#lv=16), so the
+# build takes the site's path as its base (BASE_PATH), and its 404.html is the app's page, which GitHub
+# Pages serves for a path without a file of its own.
 
 name: CI
 
@@ -31,6 +32,8 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:ui
       - run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

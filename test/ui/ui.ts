@@ -1,6 +1,6 @@
 // What the web UI's smoke test shares: a page whose icons are stubbed, steps that act, wait for the
-// page to settle and check what should have happened, readers for the state in the URL hash and the
-// numbers shown, and the one check every test makes: the console stays empty.
+// page to settle and check what should have happened, readers for the state in the page's address and
+// the numbers shown, and the one check every test makes: the console stays empty.
 
 import { test as base, expect, type Locator, type Page } from "@playwright/test";
 import { loadGameData } from "../../src/node/load.ts";
@@ -42,11 +42,12 @@ function isSettled(itemValue: boolean) {
   return window.__quiet.frames() >= 3;
 }
 
-/** The game data the page has, for the scenario codes. */
+/** The game data the page has, for the scenarios' addresses. */
 const DATA = loadGameData();
 
-/** A state's code; what's left out is the default, in the target and the settings field by field. */
-export const codeOf = (state: Record<string, any>) =>
+/** A state's address on the dev server ("/zed/#lv=16"); what's left out is the default, in the target and the settings field by field. */
+export const addressOf = (state: Record<string, any>) =>
+  "/" +
   encodeState(DATA, {
     ...DEFAULT_STATE,
     ...state,
@@ -54,10 +55,11 @@ export const codeOf = (state: Record<string, any>) =>
     settings: { ...DEFAULT_STATE.settings, ...state.settings },
   });
 
-/** The state in a code, a hash or a link. */
-export function stateOf(code: string): UIState {
-  const state = decodeState(DATA, code);
-  if (!state) throw new Error(`not a scenario code: ${code}`);
+/** The state at a URL on the dev server. */
+export function stateOf(url: string): UIState {
+  const { pathname, hash } = new URL(url);
+  const state = decodeState(DATA, pathname.slice(1) + hash);
+  if (!state) throw new Error(`not a scenario's address: ${url}`);
   return state;
 }
 
@@ -72,13 +74,13 @@ export const attrs = (loc: Locator, name: string) => loc.evaluateAll((els, name)
 
 export interface UI {
   page: Page;
-  /** Opens the app with a state in the hash (what's left out is the default), and waits for it to settle. */
+  /** Opens the app at a state's address (what's left out is the default), or at its root, and waits for it to settle. */
   open(state?: object): Promise<void>;
   /** Runs one step: `act`, then once the page has settled, `check`. */
   step(name: string, act: () => Promise<unknown>, check?: () => Promise<unknown>): Promise<void>;
   /** Waits until nothing changes for a few frames and nothing glides, and with the `itemValue` option, for Item value's ranking. */
   settle(): Promise<void>;
-  /** The state in the URL hash. */
+  /** The state at the page's address. */
   state(): Promise<UIState>;
   /** A card by its heading. */
   card(title: string): Locator;
@@ -126,7 +128,7 @@ export const test = base.extend<{ ui: UI; itemValue: boolean }>({
     const ui: UI = {
       page,
       open: async (state) => {
-        await page.goto("/" + (state ? "#" + codeOf(state) : ""));
+        await page.goto(state ? addressOf(state) : "/");
         await expect(page.locator("section.card").first()).toBeVisible();
         await settle(true);
       },
@@ -138,7 +140,7 @@ export const test = base.extend<{ ui: UI; itemValue: boolean }>({
           await check?.();
         }),
       settle: () => settle(),
-      state: async () => stateOf(new URL(page.url()).hash),
+      state: async () => stateOf(page.url()),
       card: (title) => page.locator("section.card").filter({ has: page.locator("h2", { hasText: new RegExp(`^${title}(?![a-z])`) }) }),
       details: () => page.locator("section.card").filter({ has: page.getByRole("tablist") }),
       total: async () => num(await page.locator(".hero .value").first().innerText()),

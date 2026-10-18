@@ -51,6 +51,14 @@ export function findVariant(spec: AbilitySpec | undefined, key: string): [string
 
 const SLOTS = new Set(["P", "Q", "W", "E", "R"]);
 
+/** The shorthand's tokens, unparsed: what's between spaces, commas or ">", a brace's commas and spaces as ";". */
+export function comboTokens(src: string): string[] {
+  return src
+    .replace(/\{[^}]*\}/g, (m) => m.replace(/[\s,]+/g, ";"))
+    .split(/[\s,>]+/)
+    .filter(Boolean);
+}
+
 /**
  * Shorthand grammar (tokens separated by spaces, commas or ">"):
  *   Q W E R P          cast an ability (P = passive proc where the kit defines one)
@@ -67,11 +75,7 @@ const SLOTS = new Set(["P", "Q", "W", "E", "R"]);
  */
 export function parseCombo(src: string): ComboStep[] {
   const steps: ComboStep[] = [];
-  const tokens = src
-    .replace(/\{[^}]*\}/g, (m) => m.replace(/[\s,]+/g, ";"))
-    .split(/[\s,>]+/)
-    .filter(Boolean);
-  for (const raw of tokens) {
+  for (const raw of comboTokens(src)) {
     const tok = raw.trim();
     let m: RegExpExecArray | null;
     if ((m = /^(?:(\d+)\s*[x*]?\s*)?(AA|A)(?:\s*[x*]\s*(\d+))?([!?])?((?:\+[A-Za-z0-9_-]+)*)$/i.exec(tok))) {

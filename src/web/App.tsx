@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DATA, loadBundledIcons } from "./data.ts";
-import { DEFAULT_STATE, decodeState, encodeState, loadSavedState, saveCode, toScenario, type UIState } from "./state.ts";
+import { DEFAULT_STATE, decodeState, encodeState, loadSavedState, saveState, toScenario, type UIState } from "./state.ts";
 import { simulate, Sim, type SimResult } from "../engine/sim.ts";
 import { clampCombo, formatCombo, parseCombo } from "../engine/combo.ts";
 import { AttackerPanel } from "./components/attacker.tsx";
@@ -11,7 +11,6 @@ import { SettingsPanel } from "./components/settings.tsx";
 import { ComboBuilder } from "./components/combo.tsx";
 import { Details, Summary } from "./components/results.tsx";
 import { ItemValueCard } from "./components/item-value.tsx";
-import { Share } from "./components/share.tsx";
 
 function useTheme() {
   const [theme, setTheme] = useState<"light" | "dark" | null>(() => {
@@ -35,6 +34,15 @@ function useTheme() {
   return { dark, toggle: () => setTheme(dark ? "light" : "dark") };
 }
 
+// The page's address is its scenario's (the champion in the path, the rest in the hash) where the
+// server serves the app at any path under its own (the dev server, GitHub Pages by its 404.html), not
+// in the artifact build, which can't choose its page's address.
+const ROUTED = typeof __ARTIFACT__ === "undefined" || !__ARTIFACT__;
+const BASE = import.meta.env.BASE_URL;
+
+/** The scenario at the page's address, or null. */
+const atAddress = () => (location.pathname.startsWith(BASE) ? decodeState(DATA, location.pathname.slice(BASE.length) + location.hash) : null);
+
 /** The combo with its numbers within what `sim`'s build allows (see clampCombo); unchanged, as typed, when they are. */
 function clampShorthand(combo: string, sim: Sim): string {
   try {
@@ -47,44 +55,46 @@ function clampShorthand(combo: string, sim: Sim): string {
 }
 
 export function App() {
-  const [state, setState] = useState<UIState>(() => decodeState(DATA, location.hash) ?? loadSavedState(DATA) ?? DEFAULT_STATE);
+  const [state, setState] = useState<UIState>(() => {
+    const saved = loadSavedState(DATA);
+    const linked = ROUTED ? atAddress() : null;
+    if (!linked) return saved ?? DEFAULT_STATE;
+    // The page's own address, reloaded: with what the address leaves out (another target's numbers).
+    return saved && encodeState(DATA, saved) === encodeState(DATA, linked) ? saved : linked;
+  });
   const [pinned, setPinned] = useState<{ label: string; state: UIState }[]>([]);
   const [, setIconsReady] = useState(false);
   const theme = useTheme();
-  const embedded = typeof window !== "undefined" && window.self !== window.top;
 
   useEffect(() => {
     loadBundledIcons().then((ok) => ok && setIconsReady(true));
   }, []);
 
-  // The hash holds the state's code, so the address is a link to the scenario. Writing it with
-  // replaceState fires no hashchange.
-  const code = useMemo(() => encodeState(DATA, state), [state]);
-  const shown = useRef(code);
+  // The address is a link to the scenario, written over as it changes (no history entry for each
+  // change), with replaceState, which fires no hashchange.
+  const address = useMemo(() => BASE + encodeState(DATA, state), [state]);
+  const shown = useRef(address);
+  useEffect(() => saveState(state), [state]);
   useEffect(() => {
-    shown.current = code;
-    saveCode(code);
-    try {
-      if (location.hash !== "#" + code) history.replaceState(null, "", "#" + code);
-    } catch {
-      // Sandboxed frames may refuse history changes; the state just isn't mirrored to the URL.
-    }
-  }, [code]);
-  // A link pasted into the address bar on the page changes only the hash, which reloads nothing (nor
-  // do Back and Forward between two): its scenario loads here. A hash without another one goes back
-  // to this one's code.
+    shown.current = address;
+    if (ROUTED && location.href !== new URL(address, location.href).href) history.replaceState(null, "", address);
+  }, [address]);
+  // A link entered in the address bar on the page with only its hash different reloads nothing, nor
+  // do Back and Forward between two such: its scenario loads here. An address that isn't a scenario's
+  // goes back to this one's.
   useEffect(() => {
+    if (!ROUTED) return;
     const follow = () => {
-      const next = decodeState(DATA, location.hash);
-      if (next && encodeState(DATA, next) !== shown.current) return setState(next);
-      try {
-        history.replaceState(null, "", "#" + shown.current);
-      } catch {
-        // As above.
-      }
+      const next = atAddress();
+      if (next && BASE + encodeState(DATA, next) !== shown.current) return setState(next);
+      history.replaceState(null, "", shown.current);
     };
     window.addEventListener("hashchange", follow);
-    return () => window.removeEventListener("hashchange", follow);
+    window.addEventListener("popstate", follow);
+    return () => {
+      window.removeEventListener("hashchange", follow);
+      window.removeEventListener("popstate", follow);
+    };
   }, []);
 
   const scenario = useMemo(() => toScenario(DATA, state), [state]);
@@ -115,7 +125,6 @@ export function App() {
         <h1>damagesim</h1>
         <span className="badge">patch {DATA.meta.patch}</span>
         <span className="spacer" />
-        <Share code={code} scenario={scenario} embedded={embedded} onLoad={setState} />
         <button className="btn small" onClick={() => setState(DEFAULT_STATE)}>
           Reset
         </button>
