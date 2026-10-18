@@ -781,10 +781,6 @@ input.combo-text {
   -webkit-appearance: none;
   margin: 0;
 }
-/* Empty, it has no text to mark: a handle like the rest of its step, until typed in */
-.chip .step-number input:placeholder-shown:not(:focus) {
-  cursor: grab;
-}
 .chip .step-number input::placeholder {
   color: var(--text-muted);
   opacity: 1;
