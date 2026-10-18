@@ -314,11 +314,12 @@ const slots: Codec<(number | null)[]> = {
       .map((id) => (i.data.items[id] ? id : null)),
 };
 
-/** The six slots, up to the last item. */
+/** The six slots, up to the last item; with the bot lane role quest's seventh, all seven, so it comes back empty too. */
 const build: Codec<(number | null)[]> = {
-  put: (o, xs) => slots.put(o, xs.slice(0, xs.findLastIndex((x) => x != null) + 1)),
+  put: (o, xs) => slots.put(o, xs.length > DEFAULT_STATE.items.length ? xs : xs.slice(0, xs.findLastIndex((x) => x != null) + 1)),
   get: (i) => {
     const xs = slots.get(i);
+    if (xs.length > DEFAULT_STATE.items.length + 1) fail("more than seven slots");
     return [...xs, ...Array<null>(Math.max(0, DEFAULT_STATE.items.length - xs.length)).fill(null)];
   },
 };

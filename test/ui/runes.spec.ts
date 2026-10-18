@@ -186,7 +186,7 @@ test("an empty page", async ({ ui }) => {
     () => ui.open({ runes: { primary: "Domination", secondary: "Sorcery", picks: [], held: [], shards: [] } }),
     async () => {
       await expect(card.locator("[aria-pressed=true].rune-pick, [aria-pressed=true].shard-pick")).toHaveCount(0);
-      await expect(card.locator(".shard-text").first()).toHaveText("");
+      await expect(card.locator(".shard-rows")).toHaveText("");
     },
   );
   await step(

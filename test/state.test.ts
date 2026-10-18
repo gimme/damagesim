@@ -63,6 +63,25 @@ test("a full build's code: under 80 characters, letters and digits", () => {
   assert.deepEqual(decodeState(data, `zed/#${code}`), full);
 });
 
+test("the bot lane role quest's boots slot comes back, empty or with boots; the tier 3 boots setting too, after the rest", () => {
+  for (const items of [
+    [6655, 3020, null, null, null, null, null],
+    [3031, null, null, null, null, null, 3006],
+    [null, null, null, null, null, null, null],
+  ])
+    assert.deepEqual(roundTrip({ ...DEFAULT_STATE, items })?.items, items);
+  assert.equal(roundTrip({ ...DEFAULT_STATE, settings: { ...DEFAULT_STATE.settings, questBoots: true } })?.settings.questBoots, true);
+  // A code from before both, with the six slots and every setting it had: what it was, the setting off.
+  assert.deepEqual(decodeSetup(data, "Zed", "HFSIMq2SEcbzjWQd8a"), {
+    ...DEFAULT_STATE,
+    champion: "Zed",
+    level: 16,
+    items: [3142, null, 3158, null, null, null],
+    settings: { finishDots: false, executes: false, questBoots: false },
+  });
+  assert.equal(decodeSetup(data, "Zed", encodeSetup(data, { ...DEFAULT_STATE, items: [...DEFAULT_STATE.items, null, null] })), null);
+});
+
 test("a setup's code holds no champion: another champion takes it as it is", () => {
   const code = encodeSetup(data, { ...DEFAULT_STATE, champion: "Zed", level: 16, items: [3142, null, null, null, null, null] });
   assert.deepEqual(decodeSetup(data, "Talon", code), { ...DEFAULT_STATE, champion: "Talon", level: 16, items: [3142, null, null, null, null, null] });

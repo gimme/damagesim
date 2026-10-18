@@ -576,22 +576,22 @@ test.describe(() => {
 
     await step("load", () => ui.open());
     await step(
-      "Yunara, Q W:ruin E:dash AA typed, R rank 1",
+      "Yunara, Q R W E AA typed (in her R, W and E are its forms by themselves), R rank 1",
       async () => {
         await pickChampion(ui, "yunara");
-        await type("Q W:ruin E:dash AA");
+        await type("Q R W E AA");
         await rank("R").fill("1");
       },
-      async () => expect(await steps()).toEqual(["Q", "W:ruin", "E:dash", "AA"]),
+      async () => expect(await steps()).toEqual(["Q", "R", "W", "E", "AA"]),
     );
     await step(
-      "Katarina: Yunara's variants dropped, default leveling; then P",
+      "Katarina: Yunara's combo, default leveling; then P",
       async () => {
         await pickChampion(ui, "katarina");
         await key("P").click();
       },
       async () => {
-        expect(await steps()).toEqual(["Q", "W", "E", "AA", "P"]);
+        expect(await steps()).toEqual(["Q", "R", "W", "E", "AA", "P"]);
         expect((await ui.state()).ranks).toBeNull();
         await expect(inert).toHaveCount(0);
       },
@@ -600,20 +600,20 @@ test.describe(() => {
       "back to Yunara: her combo as she had it, her R rank",
       () => pickChampion(ui, "yunara"),
       async () => {
-        expect(await steps()).toEqual(["Q", "W:ruin", "E:dash", "AA"]);
+        expect(await steps()).toEqual(["Q", "R", "W", "E", "AA"]);
         await expect(rank("R")).toHaveValue("1");
       },
     );
     await step(
       "back to Katarina: hers, P and all",
       () => pickChampion(ui, "katarina"),
-      async () => expect(await steps()).toEqual(["Q", "W", "E", "AA", "P"]),
+      async () => expect(await steps()).toEqual(["Q", "R", "W", "E", "AA", "P"]),
     );
     await step(
       "on to Lux, who has no P step: P kept, muted, saying why",
       () => pickChampion(ui, "lux"),
       async () => {
-        expect(await steps()).toEqual(["Q", "W", "E", "AA", "P"]);
+        expect(await steps()).toEqual(["Q", "R", "W", "E", "AA", "P"]);
         await expect(key("P")).toHaveCount(0);
         await expect(inert).toHaveCount(1);
         await expect(chips.last()).toHaveClass(/\binert\b/);
