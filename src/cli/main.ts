@@ -7,7 +7,7 @@ import { parseArgs } from "node:util";
 import { loadGameData } from "../node/load.ts";
 import { loadAllKits } from "../node/kits.ts";
 import { simulate, Sim, type Scenario, type TargetSpec, type SimResult } from "../engine/sim.ts";
-import { compare, rankItems, rankItemSets, optimizeItems, optimizeCombo, resistSweep, summarize, type Metric } from "../engine/analysis.ts";
+import { compare, rankItems, rankItemSets, optimizeItems, optimizeCombo, resistSweep, summarize, type GainParts, type Metric } from "../engine/analysis.ts";
 import { describeChampion, describeItem, listItems, listRunes, listChampions } from "../engine/describe.ts";
 import { SCENARIO_HELP } from "../engine/help.ts";
 import { isTargetPreset } from "../engine/presets.ts";
@@ -146,6 +146,10 @@ function buildScenario(): Scenario {
 const pad = (s: string | number, n: number) => String(s).padEnd(n);
 const num = (v: number, d = 0) => v.toFixed(d);
 
+/** What an item's or a set's gain procs and takes away, and the adaptive force it turns. */
+const partsOf = (x: Pick<GainParts, "procs" | "lost" | "adaptive">) =>
+  `${x.procs.length ? `  procs ${x.procs.map((p) => `${p.name} +${num(p.damage)}`).join(", ")}` : ""}${x.lost.length ? `  lost ${x.lost.map((l) => `${l.name} ${num(l.damage)}`).join(", ")}` : ""}${x.adaptive ? `  (adaptive force ${x.adaptive === "physical" ? "AD" : "AP"})` : ""}`;
+
 function printResult(r: SimResult, events: boolean) {
   const st = r.stats;
   console.log(
@@ -241,7 +245,7 @@ async function main() {
           );
           sets.forEach((x, i) =>
             console.log(
-              `${pad(i + 1 + ".", 4)}${x.items.map((it) => it.item).join(" + ")}  +${num(x.gain)} (${num(x.totalDamage)} total, ${x.gold}g${x.replaces ? ` upgrading ${x.replaces.map((r) => r.item).join(", ")}` : ""}, ${x.gainPerGold}/1000g)`,
+              `${pad(i + 1 + ".", 4)}${x.items.map((it) => it.item).join(" + ")}  +${num(x.gain)} (${num(x.totalDamage)} total, ${x.gold}g${x.replaces ? ` upgrading ${x.replaces.map((r) => r.item).join(", ")}` : ""}, ${x.gainPerGold}/1000g)${partsOf(x)}`,
             ),
           );
         });
@@ -251,7 +255,7 @@ async function main() {
         console.log(`Base: ${num(res.base.totalDamage)} dmg with ${res.base.items.join(", ") || "no items"}. Adding one item (ranked by ${metric}):`);
         res.items.forEach((x, i) =>
           console.log(
-            `${pad(i + 1 + ".", 4)}${pad(x.item, 28)}+${pad(num(x.gain), 8)} (${num(x.totalDamage)} total, ${x.gold}g${x.replaces ? ` upgrading ${x.replaces.map((r) => r.item).join(", ")}` : ""}, ${x.gainPerGold}/1000g)${x.procs.length ? `  procs ${x.procs.map((p) => `${p.name} +${num(p.damage)}`).join(", ")}` : ""}${x.lost.length ? `  lost ${x.lost.map((l) => `${l.name} ${num(l.damage)}`).join(", ")}` : ""}${x.adaptive ? `  (adaptive force ${x.adaptive === "physical" ? "AD" : "AP"})` : ""}`,
+            `${pad(i + 1 + ".", 4)}${pad(x.item, 28)}+${pad(num(x.gain), 8)} (${num(x.totalDamage)} total, ${x.gold}g${x.replaces ? ` upgrading ${x.replaces.map((r) => r.item).join(", ")}` : ""}, ${x.gainPerGold}/1000g)${partsOf(x)}`,
           ),
         );
       });

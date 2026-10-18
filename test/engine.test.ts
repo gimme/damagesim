@@ -563,6 +563,57 @@ test("item sets: bought as the shop buys them, fitting the build's slots", () =>
   for (const s of fitted) assert.equal(s.items.filter((x) => data.items[x.id].tags.includes("Boots")).length, 1, names(s).join(" + "));
 });
 
+test("item sets: their gain split as an item's is, their own hits by item; a set of one as its item's row", () => {
+  // Smolder's Rapid Firecannon takes away from Voltaic's Firmament and Achooo! (see rank items' lost test).
+  const base = {
+    champion: "Smolder",
+    level: 15,
+    items: ["Essence Reaver", "Voltaic Cyclosword", "Lord Dominik's Regards"],
+    runes: ["Electrocute", "Cheap Shot"],
+    options: { stacks: 225 },
+    combo: "W Q AA",
+    target: { preset: "squishy" as const },
+  };
+  const candidates = ["Rapid Firecannon", "Stormsurge", "Rabadon's Deathcap", "Infinity Edge"];
+  const rows = rankItems(data, base, { candidates, limit: Infinity }).items;
+  const ones = rankItemSets(data, base, { size: 1, candidates }).sets;
+  assert.equal(ones.length, rows.length);
+  for (const s of ones) {
+    const { baseDamage, itemDamage, itemHits, procDamage, procs, lostDamage, lost, adaptive } = s;
+    const row = rows.find((r) => r.id === s.items[0].id)!;
+    assert.ok(itemHits.every((h) => h.source === `item:${row.id}`));
+    assert.deepEqual(
+      { baseDamage, itemDamage, itemHits: itemHits.map(({ name, damage }) => ({ name, damage })), procDamage, procs, lostDamage, lost, adaptive },
+      {
+        baseDamage: row.baseDamage,
+        itemDamage: row.itemDamage,
+        itemHits: row.itemHits,
+        procDamage: row.procDamage,
+        procs: row.procs,
+        lostDamage: row.lostDamage,
+        lost: row.lost,
+        adaptive: row.adaptive,
+      },
+      row.item,
+    );
+  }
+  assert.ok(ones.some((s) => s.lostDamage < -50));
+  const pairs = rankItemSets(data, base, { size: 2, candidates }).sets;
+  const both = pairs.find((s) => s.items.some((x) => x.item === "Stormsurge") && s.items.some((x) => x.item === "Rapid Firecannon"))!;
+  // Each item's own hits, named by it: Stormsurge's Squall and Rapid Firecannon's Sharpshooter.
+  assert.deepEqual(new Set(both.itemHits.map((h) => h.source)), new Set(["item:4646", "item:3094"]));
+  for (const s of pairs) {
+    const own = new Set(s.items.map((x) => `item:${x.id}`));
+    assert.ok(s.itemHits.every((h) => own.has(h.source)));
+    near(
+      s.itemHits.reduce((sum, h) => sum + h.damage, 0),
+      s.itemDamage,
+      0.1 * s.itemHits.length + 0.6,
+    );
+    near(s.baseDamage + s.itemDamage + s.procDamage + s.lostDamage, s.gain, 0.3);
+  }
+});
+
 test("item sets: progress, one simulation at a time, never going back", () => {
   const base = { champion: "Jinx", level: 13, items: ["Infinity Edge"], combo: "AA AA AA W AA AA", target: { preset: "bruiser" as const } };
   const search = searchItemSets(data, base, { size: 2, limit: 5 });

@@ -119,9 +119,7 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
     const r = simulate(data, { ...base, items: [...kept.map((b) => b.id), it.id] });
     const gain = r.totalDamage - baseRes.totalDamage;
     const perGold = gold > 0 ? (gain / gold) * 1000 : 0;
-    const source = `item:${it.id}`;
-    const own = r.bySource.filter((s) => s.source === source);
-    const parts = attribute(baseTally, tally(r), source);
+    const parts = gainParts(baseRes, baseTally, r, new Set([`item:${it.id}`]));
     rows.push({
       item: it.name,
       id: it.id,
@@ -131,24 +129,9 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
       totalDamage: round(r.totalDamage),
       gain: round(gain),
       gainPerGold: round(perGold, 2),
-      /** Part of the gain from the item's stats and amplifiers making your other hits deal more. */
-      baseDamage: round(parts.base),
-      /** Part of the gain dealt by the item itself (its procs, burns, actives). */
-      itemDamage: round(own.reduce((sum, s) => sum + s.damage, 0)),
-      /** The itemDamage by hit (Squall, Spellblade, Echo), largest first. */
-      itemHits: ownHits(r, source),
-      /** Part of the gain dealt by hits of your other damage that land only with the item (Electrocute it procs, an execute it brings the target into range of). */
-      procDamage: round(sum(parts.procs)),
-      /** The procDamage by what it is (Electrocute, Liandry's Torment, Super Scorcher Breath (execute)), largest first. */
-      procs: byName(parts.procs),
-      /** Damage of your other hits the item takes away, negative: hits that land only without it, and hits
-       *  that deal less with it (adaptive force turning AD, a proc landing later). gain = baseDamage +
-       *  itemDamage + procDamage + lostDamage. */
-      lostDamage: round(-sum(parts.lost)) || 0,
-      /** The lostDamage by what it is, most lost first. */
-      lost: byName(parts.lost).map((l) => ({ ...l, damage: -l.damage })),
-      /** Your adaptive force's type with the item, where it turns it (from AP to AD with an AD item). */
-      ...(r.stats.adaptiveType !== baseRes.stats.adaptiveType ? { adaptive: r.stats.adaptiveType } : {}),
+      ...parts,
+      // The item's hits by name alone: they're all its own.
+      itemHits: parts.itemHits.map(({ name, damage }) => ({ name, damage })),
       killed: r.killed,
       ...(r.killTime !== undefined ? { killTime: round(r.killTime, 2) } : {}),
       // Per gold ranks the item's own efficiency (gain ÷ its cost), not the whole build's damage per gold.
@@ -188,11 +171,11 @@ const byName = (named: Named) =>
     .sort((a, b) => b[1].damage - a[1].damage)
     .map(([key, n]) => ({ source: n.source, name: key.slice(key.indexOf("|") + 1), damage: round(n.damage) }));
 
-/** The damage of an item's own hits by their name (Squall, Spellblade, Echo), largest first. */
-function ownHits(r: SimResult, item: string) {
+/** The damage of the items' own hits (their sources: item:3089) by their name (Squall, Spellblade, Echo), largest first. */
+function ownHits(r: SimResult, items: ReadonlySet<string>) {
   const hits: Named = new Map();
-  for (const e of r.events) if (e.source === item) addTo(hits, `${item}|${hitName(e.label)}`, item, e.final ?? 0);
-  return byName(hits).map(({ name, damage }) => ({ name, damage }));
+  for (const e of r.events) if (items.has(e.source)) addTo(hits, `${e.source}|${hitName(e.label)}`, e.source, e.final ?? 0);
+  return byName(hits);
 }
 
 /** A result's kinds of hit (source, its label and the hit's: Smolder's Q hit, its burn, its execute):
@@ -231,8 +214,35 @@ function tally(r: SimResult) {
 }
 
 /**
- * An item's gain from your other damage (its own hits aside), by comparing your hits with and without
- * it, source by source by their makeup:
+ * What a build gains over the base with items added (their sources: item:3089), in parts, as Item value
+ * splits a row's bar. gain = baseDamage + itemDamage + procDamage + lostDamage.
+ */
+function gainParts(baseRes: SimResult, baseTally: ReturnType<typeof tally>, r: SimResult, items: ReadonlySet<string>) {
+  const parts = attribute(baseTally, tally(r), items);
+  return {
+    /** Part of the gain from the items' stats and amplifiers making your other hits deal more. */
+    baseDamage: round(parts.base),
+    /** Part of the gain dealt by the items themselves (their procs, burns, actives). */
+    itemDamage: round(r.bySource.filter((s) => items.has(s.source)).reduce((sum, s) => sum + s.damage, 0)),
+    /** The itemDamage by hit (Squall, Spellblade, Echo) and item, largest first. */
+    itemHits: ownHits(r, items),
+    /** Part of the gain dealt by hits of your other damage that land only with the items (Electrocute they proc, an execute they bring the target into range of). */
+    procDamage: round(sum(parts.procs)),
+    /** The procDamage by what it is (Electrocute, Liandry's Torment, Super Scorcher Breath (execute)), largest first. */
+    procs: byName(parts.procs),
+    /** Damage of your other hits the items take away, negative: hits that land only without them, and
+     *  hits that deal less with them (adaptive force turning AD, a proc landing later). */
+    lostDamage: round(-sum(parts.lost)) || 0,
+    /** The lostDamage by what it is, most lost first. */
+    lost: byName(parts.lost).map((l) => ({ ...l, damage: -l.damage })),
+    /** Your adaptive force's type with the items, where they turn it (from AP to AD with AD items). */
+    ...(r.stats.adaptiveType !== baseRes.stats.adaptiveType ? { adaptive: r.stats.adaptiveType } : {}),
+  };
+}
+
+/**
+ * Items' gain from your other damage (their own hits aside), by comparing your hits with and without
+ * them, source by source by their makeup:
  * - procs: the hits that land only with it, a makeup's more hits: Electrocute striking only with it,
  *   Dusk and Dawn's second Spider Queen and Spiderlings, an execute it brings the target into range of.
  *   Not a hit that changed: fewer hits of one makeup and more of another with a name in common are the
@@ -245,9 +255,9 @@ function tally(r: SimResult) {
  * - base: by name, what the same hits deal more with it.
  * A kind's and a name's new hits are at most what it gained (First Strike's hit on an aura tick is
  * smaller than its average), their lost ones at most what it lost. base + procs − lost is the gain less
- * the item's own damage. Named by the rune or item, or by the champion's hit (nameOf).
+ * the items' own damage. Named by the rune or item, or by the champion's hit (nameOf).
  */
-function attribute(was: ReturnType<typeof tally>, now: ReturnType<typeof tally>, item: string) {
+function attribute(was: ReturnType<typeof tally>, now: ReturnType<typeof tally>, items: ReadonlySet<string>) {
   // The events of each kind the hits that land only with the item (+) or only without it (−) have.
   const landed = new Map<string, number>();
   for (const src of new Set([...was.makeups.keys(), ...now.makeups.keys()])) {
@@ -277,7 +287,7 @@ function attribute(was: ReturnType<typeof tally>, now: ReturnType<typeof tally>,
   for (const [kind, n] of landed) {
     const [a, b] = [was.kinds.get(kind), now.kinds.get(kind)];
     const k = (a ?? b)!;
-    if (k.source === item) continue;
+    if (items.has(k.source)) continue;
     const sign = Math.sign(n);
     const events = Math.min(Math.abs(n), sign * ((b?.events ?? 0) - (a?.events ?? 0)));
     if (!(events > 0)) continue;
@@ -290,7 +300,7 @@ function attribute(was: ReturnType<typeof tally>, now: ReturnType<typeof tally>,
   let base = 0;
   for (const name of new Set([...was.names.keys(), ...now.names.keys()])) {
     const { source } = (was.names.get(name) ?? now.names.get(name))!;
-    if (source === item) continue;
+    if (items.has(source)) continue;
     const d = (now.names.get(name)?.damage ?? 0) - (was.names.get(name)?.damage ?? 0);
     const [p, l] = [procs.get(name), lost.get(name)];
     if (p) p.damage = Math.min(p.damage, Math.max(0, d));
@@ -392,8 +402,8 @@ export function optimizeItems(
 // counts for what it adds to the others (Rabadon's Deathcap on more AP, Void Staff on more magic
 // damage). A generator, so its caller can show progress and give way between simulations.
 
-/** A set of items bought together, as rankItems' rows: what it gains for the gold it costs. */
-export interface ItemSet {
+/** A set of items bought together, as rankItems' rows: what it gains for the gold it costs, and from what. */
+export interface ItemSet extends GainParts {
   /** The items bought, in the order the search added them. */
   items: { item: string; id: number }[];
   /** The build's items they're built from, which they replace (Boots, for a pair of boots). */
@@ -406,6 +416,9 @@ export interface ItemSet {
   killed: boolean;
   killTime?: number;
 }
+
+/** The parts of a gain (gainParts); a set's own hits name their item (its source, item:3089). */
+export type GainParts = ReturnType<typeof gainParts>;
 
 export interface ItemSetOptions {
   /** How many items each set adds. */
@@ -526,6 +539,7 @@ export function* searchItemSets(
     found.push(...(yield* run(near, pass + 1 < REFINE_ROUNDS ? swaps() : 0)));
   }
 
+  const baseTally = tally(baseRes);
   const sets = best(found, opts.limit ?? 25).map((n): ItemSet => ({
     items: n.added.map((it) => ({ item: it.name, id: it.id })),
     ...(n.replaced.length ? { replaces: n.replaced.map((it) => ({ item: it.name, id: it.id })) } : {}),
@@ -533,6 +547,7 @@ export function* searchItemSets(
     totalDamage: round(n.r!.totalDamage),
     gain: round(n.gain),
     gainPerGold: round(n.perGold, 2),
+    ...gainParts(baseRes, baseTally, n.r!, new Set(n.added.map((it) => `item:${it.id}`))),
     killed: n.r!.killed,
     ...(n.r!.killTime !== undefined ? { killTime: round(n.r!.killTime, 2) } : {}),
   }));
