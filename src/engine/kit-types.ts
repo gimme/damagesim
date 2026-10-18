@@ -247,6 +247,11 @@ export interface CCSpec {
  */
 export interface VariantSpec {
   label: string;
+  /**
+   * Cast in place of the ability while this holds, the step naming no variant (Yunara's W and E in
+   * Transcendent State: `buff.yunaraR`); only then when it names it. The combo card doesn't offer it.
+   */
+  when?: Expr;
   /** Script name of the spell providing calc./dv. for this variant (e.g. another form's spell). */
   spell?: string;
   components: ComponentSpec[];

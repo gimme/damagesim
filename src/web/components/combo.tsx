@@ -389,7 +389,8 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
           aria-label="Combo sequence"
         >
           {shown.map((st, i) => {
-            const variants = st.type === "ability" ? Object.entries(kit.abilities[st.slot]?.variants ?? {}) : [];
+            // Not those cast by themselves in a state (Yunara's W and E in Transcendent State).
+            const variants = st.type === "ability" ? Object.entries(kit.abilities[st.slot]?.variants ?? {}).filter(([, v]) => v.when === undefined) : [];
             const setting = st.type === "ability" ? sim?.castSetting(st) : null;
             const replace = (next: ComboStep) => commit(steps.map((x, j) => (j === i ? next : x)));
             // A step that does nothing now (its item sold, a P the champion hasn't) stays, muted, for when it applies again.

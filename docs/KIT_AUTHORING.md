@@ -153,7 +153,7 @@ be ended later (a recast after 0.5s: Urgot W). Hits fired before it ends still l
 (Fiddlesticks W's last tick) doesn't. Don't mark what the player can't end (burns, fixed zones),
 unless it goes with the target as it moves, which nothing in the simulator does (Yunara W's bead
 follows a target running away): the step's seconds are then how long it stays on the target, the
-default a target standing still.
+default a target standing still, the most what the target could make it.
 
 When the player chooses how many hits it fires rather than for how long (Xerath R's and Jhin R's
 shots), mark it `variableCount: 'shots'` instead: a step sets the count (`R{3}`, at least 1), the
@@ -239,6 +239,9 @@ the engine checks the target's health), or use `target.hp`, `target.missingHpPct
 **Forms and alternate spells** (Jayce, Nidalee, Elise, Gnar, Kayle R…): variants with `spell: 'ScriptName'`
 pointing at the other form's spell (inspect with `--all-spells` lists unslotted spells), e.g.
 `Q: { variants: { cannon: { label: 'cannon', spell: 'JayceShockBlast', components: [...] } } }`.
+A variant the game casts by itself in a state, not one the player picks, sets `when`, an expression:
+the step names the ability and casts it while that holds (Yunara's `when: 'buff.yunaraR'` on W and E,
+a buff her R applies for it).
 
 **Stacking champion stats** (Nasus Q stacks, Veigar AP, Senna, Smolder, Cho'Gath R, Sion, Kindred,
 Thresh, Swain): declare an option and use it:
@@ -356,10 +359,10 @@ other on-hit effects apply, but Guinsoo's/Lethal Tempo/Energize charges don't st
 For mechanics the declarative format can't express, `hooks` accepts the same hook interface items and
 runes use (`src/engine/effects.ts`): `onCast(sim, cast)`, `onAttack(sim, atk)`, `beforeDamage(sim, inst)`,
 `afterDamage(sim, inst)`, `dynamicStats(sim)`, `onStart(sim)`, `onCrit(sim, inst)` (an item made the
-hit a crit: Shadowflame's Cinderbloom; Yunara's passive amps it). An amp a hook pushes can be shown as
-a hit of its own: a `multiplier` with a `hit` name (and an `id`) is recorded as that, under its
-source. A ranged attack is launched at the end of its windup and hits when its missile arrives,
-flying from attack range at most (a form that attacks in melee sets `attack.melee`, an expression:
+hit a crit: Shadowflame's Cinderbloom; Yunara's passive amps it). A champion's damage the game deals
+as an amp on another hit can be shown as a hit of its own, under its source: a `multiplier` with a
+`hit` name (and an `id`); item and rune amps stay in the hit. A ranged attack is launched at the end
+of its windup and hits when its missile arrives, flying from attack range at most (a form that attacks in melee sets `attack.melee`, an expression:
 Elise's `'buff.eliseSpiderForm'`, and hits at once):
 `onLaunch(sim, launch)` runs at the launch, for what
 happens on-attack (Lucian's double shot, Kalista's Soul-Marked), `preAttack`/`onAttack` at the hit,

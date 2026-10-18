@@ -14,9 +14,9 @@ const kit: ChampionKit = {
   status: "curated",
   notes: [
     "Cultivation of Spirit: the passive on-hit always applies; the active (5s) adds attack speed and a second on-hit. Unleash stacks (4 champion attacks) are not tracked — cast Q when you would have them.",
-    "Transcendent State (R) keeps the Q active for its duration (no need to cast Q); use W:ruin and E:dash while it lasts.",
+    "Transcendent State (R) keeps the Q active for its duration (no need to cast Q); while it lasts, W casts Arc of Ruin and E Untouchable Shadow.",
     "Vow of the First Lands amps Shadowflame's crits (below 40% health) of her magic damage, W and Q's on-hits included, and its own bonus damage again (a bug the wiki notes); the results show it as the passive's.",
-    "Arc of Judgment: the impact, then 15% of it every 0.25s while the bead lingers on the target (wiki). On an enemy the bead slows to 150 units/s and keeps going, so how long it stays on the target depends on how the target moves, and nothing moves here: set the seconds on the step. The default, 1.5s (6 ticks), is a target standing in its path (the bead's 120 width plus a ~65 champion radius each side: 250 units to cross). A target running straight away (380 move speed) is held in it by the impact's slow for about a second, then the bead keeps up with it to the end of its range: about W{2s}. One stepping out sideways: W{1s}. One standing at the end of its range (1150) also takes the 1s linger where the bead stops: add 1s. A second impact when the bead runs into the target again is not modeled.",
+    "Arc of Judgment: the impact, then 15% of it every 0.25s while the bead lingers on the target (wiki). On an enemy the bead slows to 150 units/s and keeps going to the end of its range, where it lingers 1s, so how long it stays on the target is up to how the target moves: the step's seconds (W{2s}), up to 8.5s. The default, 1.5s (6 ticks), is about a champion standing in its path. A second impact when the bead runs into the target again is not modeled.",
     "Arc of Judgment's 10s cooldown (wiki) is set in the kit — the data has none.",
     "Attacks spreading to other enemies (Q active) are ignored (single target).",
   ],
@@ -80,13 +80,14 @@ const kit: ChampionKit = {
       cooldown: 10, // missing from the data; wiki: 10s (Arc of Ruin too)
       // Cast time shrinks linearly from Cast_Time_Base to Cast_Time_Min at Cast_Time_Attack_Speed_Cap % bonus AS.
       castTime: "dv.Cast_Time_Base - (dv.Cast_Time_Base - dv.Cast_Time_Min) * min(1, bonusAs * 100 / dv.Cast_Time_Attack_Speed_Cap)",
-      // Not the player's choice but the target's movement (see the notes): W{2s} lingers 2s on it.
+      // Not the player's choice but the target's movement (see the notes): W{2s} stays 2s on it.
       variableDuration: true,
       cc: [{ kind: "slow", duration: "dv.Slow_Duration" }],
       variants: {
         ruin: {
           label: "Arc of Ruin",
-          note: "Transcendent State only.",
+          when: "buff.yunaraR",
+          note: "Cast as W in Transcendent State.",
           // Its own cast time, 0.6s down to 0.45s with bonus attack speed (data); the beam hits as it ends (wiki).
           castTime:
             "dv.Cast_Time_Base_Empowered - (dv.Cast_Time_Base_Empowered - dv.Cast_Time_Min_Empowered) * min(1, bonusAs * 100 / dv.Cast_Time_Attack_Speed_Cap_Empowered)",
@@ -97,16 +98,16 @@ const kit: ChampionKit = {
       components: [
         { id: "impact", label: "Arc of Judgment", type: "magic", amount: "calc.Calc_Damage_Initial", travel: true },
         // Linger: Calc_Damage_Per_Second spread over 0.25s ticks (wiki) while the bead is on the target.
-        // Slowed to 150 units/s on an enemy (wiki), it crosses a standing champion (250 units, see the
-        // notes) in 1.67s: 6 ticks. At most it keeps that speed with the target to the end of its range
-        // and lingers there for Linger_Duration.
+        // Slowed to 150 units/s on an enemy (wiki), it crosses a standing champion (its 120 width and
+        // ~65 radius each side: 250 units) in 1.67s: 6 ticks. At most, hitting at once, it goes all its
+        // range at that speed with the target and lingers there for Linger_Duration.
         {
           id: "linger",
           label: "Arc of Judgment (linger)",
           type: "magic",
           amount: "calc.Calc_Damage_Per_Second / 4",
           hits: 6,
-          maxHits: "4 * ((castRange - reach) / 150 + dv.Linger_Duration)",
+          maxHits: "floor(4 * (castRange / 150 + dv.Linger_Duration))",
           interval: 0.25,
           delay: 0.25,
           travel: true,
@@ -121,7 +122,8 @@ const kit: ChampionKit = {
       variants: {
         dash: {
           label: "Untouchable Shadow",
-          note: "Transcendent State only.",
+          when: "buff.yunaraR",
+          note: "Cast as E in Transcendent State.",
           dash: true,
           resetsAttack: true,
           // Wiki: dashes up to 450 units at R.dv.RE_Dash_Speed; Arc of Ruin can be cast during the dash.
@@ -133,14 +135,18 @@ const kit: ChampionKit = {
     },
     R: {
       noTarget: true,
-      // Same buff id as Q's active: entering Transcendent State replaces (doesn't stack with) a running Q.
-      buff: {
-        id: "yunaraQ",
-        label: "Transcendent State",
-        duration: "dv.Buff_Duration",
-        stats: { attackSpeed: "Q.calc.Calc_Attack_Speed" },
-        onHit: [{ id: "active", label: "Cultivation of Spirit (active)", type: "magic", amount: "Q.calc.Calc_Damage", proc: true }],
-      },
+      buff: [
+        // Same buff id as Q's active: entering Transcendent State replaces (doesn't stack with) a running Q.
+        {
+          id: "yunaraQ",
+          label: "Transcendent State",
+          duration: "dv.Buff_Duration",
+          stats: { attackSpeed: "Q.calc.Calc_Attack_Speed" },
+          onHit: [{ id: "active", label: "Cultivation of Spirit (active)", type: "magic", amount: "Q.calc.Calc_Damage", proc: true }],
+        },
+        // The state itself, which a Q cast meanwhile doesn't end: W and E cast their empowered forms.
+        { id: "yunaraR", label: "Transcendent State", duration: "dv.Buff_Duration" },
+      ],
     },
   },
 };

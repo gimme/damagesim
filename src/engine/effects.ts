@@ -67,7 +67,9 @@ export interface DamageInstance {
    * (Shadowflame) multiply. `id` is the source as a damage instance's `source` names it
    * ('item:3165', 'rune:8005', 'R'); `source` is its name. A multiplier with a `hit` (and an `id`)
    * is recorded as a hit of its own, so named, under its source: what it adds to the damage, on top
-   * of the multipliers before it (Shadowflame's Cinderbloom, then Yunara's passive amping the crit).
+   * of the other amps. For a champion's damage the game deals as an amp, which the results credit to
+   * where it comes from (Yunara's passive amping a Shadowflame crit, as her attacks' crits deal it as
+   * a hit); an item's or a rune's amps stay in the hit (Shadowflame's own, Abyssal Mask).
    */
   amps: { id?: string; source: string; value: number; kind?: "dealt" | "taken" | "multiplier"; hit?: string }[];
   /** Filled in when applied. */

@@ -48,7 +48,7 @@ test("Energized: the attack after reaching 100 charges is Energized", () => {
   assert.equal(procs[0].castId, bySource(r, "AA")[1].castId);
 });
 
-test("Shadowflame crits magic damage below 40% health, shown as its own hit (Cinderbloom); Abyssal Mask multiplies", () => {
+test("Shadowflame crits magic damage below 40% health, an amp in the hit; Abyssal Mask multiplies", () => {
   const ahri = (hpPercent: number, items: string[]): Scenario => ({
     champion: "Ahri",
     level: 11,
@@ -56,30 +56,21 @@ test("Shadowflame crits magic damage below 40% health, shown as its own hit (Cin
     combo: "E",
     target: { maxHp: 5000, hpPercent, armor: 0, mr: 0 },
   });
+  const cinderbloom = (r: ReturnType<typeof simulate>) => bySource(r, "E")[0].amps.find((a) => a.id === "item:4645")?.value;
   const low = simulate(data, ahri(30, ["Shadowflame", "Abyssal Mask"]));
   const e = bySource(low, "E")[0];
-  const bloom = bySource(low, "item:4645");
-  // Right after E, of its cast: raw × 0.2; both × (1 + 0.12) (MR 0, Shadowflame's pen irrelevant).
-  assert.deepEqual(
-    bloom.map((x) => [x.label, x.castId, low.events.indexOf(x)]),
-    [["Cinderbloom", e.castId, low.events.indexOf(e) + 1]],
-  );
-  assert.ok(near(e.final!, e.raw * 1.12), `${e.final} vs ${e.raw * 1.12}`);
-  assert.ok(near(bloom[0].raw, e.raw * 0.2) && near(bloom[0].final!, e.raw * 0.2 * 1.12), `${bloom[0].final}`);
-  assert.ok(near(bloom[0].targetHpAfter!, e.targetHpAfter! - bloom[0].final!));
-  assert.ok(low.bySource.some((s) => s.source === "item:4645" && s.label === "Shadowflame"));
+  // × (1 + 0.2) × (1 + 0.12) (MR 0, Shadowflame's pen irrelevant), as other amps no hit of its own.
+  assert.ok(near(e.final!, e.raw * 1.2 * 1.12), `${e.final} vs ${e.raw * 1.2 * 1.12}`);
+  assert.ok(near(cinderbloom(low)!, 0.2));
+  assert.equal(bySource(low, "item:4645").length, 0);
   // Infinity Edge's +30% crit damage makes it 26% (wiki); above 40% health nothing crits.
-  const ie = simulate(data, ahri(30, ["Shadowflame", "Infinity Edge"]));
-  assert.ok(near(bySource(ie, "item:4645")[0].raw, bySource(ie, "E")[0].raw * 0.26));
-  assert.equal(bySource(simulate(data, ahri(50, ["Shadowflame"])), "item:4645").length, 0);
-  // Item value counts it as the item's own damage.
-  assert.deepEqual(
-    rankItems(data, ahri(30, []), { candidates: ["Shadowflame"] }).items[0].itemHits.map((h) => h.name),
-    ["Cinderbloom"],
-  );
+  assert.ok(near(cinderbloom(simulate(data, ahri(30, ["Shadowflame", "Infinity Edge"])))!, 0.26));
+  assert.equal(cinderbloom(simulate(data, ahri(50, ["Shadowflame"]))), undefined);
+  // Item value counts it with what the item adds to your other damage.
+  assert.deepEqual(rankItems(data, ahri(30, []), { candidates: ["Shadowflame"] }).items[0].itemHits, []);
 });
 
-test("Yunara's passive amps Shadowflame's crits of her magic damage, and its own bonus damage once more (wiki)", () => {
+test("Yunara's passive amps Shadowflame's crits of her magic damage, and its own bonus damage once more (wiki): the passive's hits", () => {
   const sc = (combo: string, hpPercent = 30, items = ["Shadowflame"]): Scenario => ({
     champion: "Yunara",
     level: 11,
@@ -88,13 +79,16 @@ test("Yunara's passive amps Shadowflame's crits of her magic damage, and its own
     target: { maxHp: 5000, hpPercent, armor: 0, mr: 0 },
   });
   const amp = new Sim(data, sc("")).evalExpr("P.calc.Calc_Damage_Amp", { slot: "P" });
-  // The two hits recorded after a hit: Cinderbloom's, then the passive's.
-  const next = (r: ReturnType<typeof simulate>, x: DamageInstance) => r.events.slice(r.events.indexOf(x) + 1, r.events.indexOf(x) + 3);
+  // The hit Cinderbloom crits, then the passive's, recorded right after it: of the crit's whole
+  // damage ("amps it directly"), the same amps.
   const pinned = (r: ReturnType<typeof simulate>, x: DamageInstance) => {
-    const [bloom, vow] = next(r, x);
-    assert.deepEqual([bloom.label, vow.label, vow.source], ["Cinderbloom", "Vow of the First Lands (crit)", "P"]);
-    // "Amps it directly": of the crit's whole damage, Cinderbloom's included.
-    assert.ok(near(bloom.raw, x.raw * 0.2) && near(vow.raw, x.raw * 1.2 * amp), `${x.label}: ${vow.raw} vs ${x.raw * 1.2 * amp}`);
+    const vow = r.events[r.events.indexOf(x) + 1];
+    assert.ok(
+      x.amps.some((a) => a.id === "item:4645" && near(a.value, 0.2)),
+      `${x.label} crit`,
+    );
+    assert.deepEqual([vow.label, vow.source, vow.castId], ["Vow of the First Lands (crit)", "P", x.castId]);
+    assert.ok(near(vow.raw, x.raw * amp) && near(vow.final!, x.final! * amp), `${x.label}: ${vow.final} vs ${x.final! * amp}`);
   };
   const r = simulate(data, sc("W AA!"));
   pinned(
@@ -109,11 +103,10 @@ test("Yunara's passive amps Shadowflame's crits of her magic damage, and its own
   const attack = bySource(r, "AA")[0];
   const bonus = r.events.find((e) => e.source === "P" && e.castId === attack.castId && near(e.raw, amp * attack.raw))!;
   pinned(r, bonus);
-  // A crit of true damage (Fiendhunter Bolts' Opening Barrage) gets it as a new instance too.
+  // A crit of true damage (Fiendhunter Bolts' Opening Barrage) gets it as a new instance of magic damage.
   const fh = simulate(data, sc("R AA!", 30, ["Shadowflame", "Fiendhunter Bolts"]));
   const barrage = fh.events.find((e) => e.label === "Opening Barrage")!;
-  const [bloom] = next(fh, barrage);
-  assert.deepEqual([bloom.label, bloom.type], ["Cinderbloom", "true"]);
+  assert.ok(barrage.type === "true" && barrage.amps.some((a) => a.id === "item:4645"));
   const vow = fh.events.find((e) => e.castId === barrage.castId && e.source === "P" && near(e.raw, barrage.raw * 1.2 * amp));
   assert.equal(vow?.type, "magic");
   pinned(fh, vow!);
@@ -131,6 +124,12 @@ test("Yunara's passive amps Shadowflame's crits of her magic damage, and its own
     const q = simulate(data, s);
     assert.equal(q.events.filter((e) => e.label === "Vow of the First Lands (crit)").length, 1);
   }
+  // Item value: Shadowflame's procs are what its crits unlock.
+  const row = rankItems(data, sc("W AA!", 30, []), { candidates: ["Shadowflame"] }).items[0];
+  assert.deepEqual(
+    row.procs.map((p) => [p.source, p.name]),
+    [["P", "Vow of the First Lands (crit)"]],
+  );
 });
 
 test("Luden's Echo: one full echo plus five at 20% on a single target", () => {
@@ -252,19 +251,37 @@ test("A toggle left on longer ticks longer, without busying the caster; a burn c
   assert.equal(new Sim(data, { champion: "Smolder", level: 11, combo: [] }).castSetting({ slot: "Q" }), null);
 });
 
-test("Yunara's W bead lingers on the target for the step's seconds: by default one standing in its path, at most to the end of its range and 1s more", () => {
+test("Yunara's W bead lingers on the target for the step's seconds: by default one standing in its path, at most all its range and 1s more", () => {
   const yunara = (combo: string) => simulate(data, { champion: "Yunara", level: 11, combo, target: dummy });
   const ticks = (combo: string) => yunara(combo).events.filter((e) => e.label === "Arc of Judgment (linger)").length;
   assert.equal(ticks("W"), 6, "1.5s: the bead crosses a standing champion at 150 units/s");
   assert.equal(ticks("W{2s}"), 8);
   assert.equal(ticks("W{0.25s}"), 1);
-  // From her attack range (575) at 150 units/s to its 1150 range, then the 1s linger there.
-  const sim = new Sim(data, { champion: "Yunara", level: 11, combo: [] });
-  assert.deepEqual(sim.castSetting({ slot: "W" }), { kind: "lasts", value: 1.5, min: 0.25, max: 4.75, unit: "s" });
-  assert.equal(ticks("W{10s}"), 19);
+  // Its 1150 range at 150 units/s, then the 1s linger there, however far the target stands.
+  for (const distance of [100, 550, 1000]) {
+    const sim = new Sim(data, { champion: "Yunara", level: 11, combo: [], options: { distance } });
+    assert.deepEqual(sim.castSetting({ slot: "W" }), { kind: "lasts", value: 1.5, min: 0.25, max: 8.5, unit: "s" });
+  }
+  assert.equal(ticks("W{10s}"), 34);
   assert.equal(yunara("W{4s} AA").timeline[1].start, yunara("W AA").timeline[1].start, "Yunara acts while it lingers");
+});
+
+test("Yunara's W and E cast Arc of Ruin and Untouchable Shadow while Transcendent State lasts", () => {
+  const yunara = (combo: string) => simulate(data, { champion: "Yunara", level: 16, combo, target: dummy });
+  const cast = (combo: string) => yunara(combo).timeline.map((t) => t.step);
+  assert.deepEqual(cast("W E R W E"), ["W", "E", "R", "W:ruin", "E:dash"]);
+  assert.ok(yunara("R W").events.some((e) => e.label === "Arc of Ruin"));
+  // Once it ends, W again; W:ruin outside it is W, with a warning.
+  const after = new Sim(data, { champion: "Yunara", level: 16, combo: [] }).evalExpr("R.dv.Buff_Duration", { slot: "R" });
+  assert.deepEqual(cast(`R wait{${Math.ceil(after) + 1}s} W`).at(-1), "W");
+  const named = yunara("W:ruin");
+  assert.deepEqual(
+    named.timeline.map((t) => t.step),
+    ["W"],
+  );
+  assert.ok(named.warnings.some((w) => /isn't castable now/.test(w)));
   // Arc of Ruin has no linger to set.
-  assert.equal(sim.castSetting({ slot: "W", variant: "ruin" }), null);
+  assert.equal(new Sim(data, { champion: "Yunara", level: 16, combo: [] }).castSetting({ slot: "W", variant: "ruin" }), null);
 });
 
 test("A charge held for a step's seconds: damage, crowd control and cast time follow the hold", () => {

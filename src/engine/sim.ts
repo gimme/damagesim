@@ -1195,8 +1195,8 @@ export class Sim {
   }
 
   /** A hit as the results show it: what its multipliers recorded as hits of their own add (amps'
-   *  `hit`: Shadowflame's Cinderbloom) after it, under their sources, and the hit in two when part of
-   *  it is what a normal attack would have dealt (see attackPart). Effects saw it whole. */
+   *  `hit`: Yunara's passive amping a Shadowflame crit) after it, under their sources, and the hit in
+   *  two when part of it is what a normal attack would have dealt (see attackPart). Effects saw it whole. */
   private recorded(inst: DamageInstance, req: DamageRequest): DamageInstance[] {
     const own = inst.amps.filter((a) => a.hit && a.id && a.kind === "multiplier");
     if (!own.length) return this.attackPart(inst, req);
@@ -1820,6 +1820,11 @@ export class Sim {
     return c ? this.evalExpr(c.default, { slot }) : 0;
   }
 
+  /** The variant cast in place of the ability in the state it's in now (VariantSpec.when). */
+  private stateVariant(spec: AbilitySpec, slot: Slot): string | undefined {
+    return Object.entries(spec.variants ?? {}).find(([, v]) => v.when !== undefined && this.evalExpr(v.when, { slot }))?.[0];
+  }
+
   /** What a cast step can set, where the player chooses it (see CastSetting). */
   castSetting(step: Pick<AbilityStep, "slot" | "variant" | "enable">): CastSetting | null {
     const spec = this.abilitySpec(step.slot);
@@ -1940,7 +1945,7 @@ export class Sim {
     const slot = step.slot;
     const spec = this.abilitySpec(slot);
     const rank = this.abilityRank(slot);
-    let variantKey = step.variant ?? spec.defaultVariant;
+    let variantKey = step.variant ?? this.stateVariant(spec, slot) ?? spec.defaultVariant;
     let variant: VariantSpec | undefined;
     if (variantKey) {
       variant = findVariant(spec, variantKey)?.[1];
@@ -1949,9 +1954,9 @@ export class Sim {
         variantKey = undefined;
       }
     }
-    const spell = this.spellFor(slot, (variant as any) ?? spec);
+    let spell = this.spellFor(slot, (variant as any) ?? spec);
     const name = this.slotName(slot);
-    const label = variant ? `${name} (${variant.label})` : name;
+    let label = variant ? `${name} (${variant.label})` : name;
 
     // Cooldown / recast handling. Process pending hits first: they can reset cooldowns
     // (Diana E, Ekko…) or refund charges.
@@ -2000,6 +2005,20 @@ export class Sim {
       this.processUntil(start);
     }
     if (start > waitFrom + 1e-6) this.note(`Waited ${(start - waitFrom).toFixed(2)}s for ${slot} to be available.`);
+    // The state it's cast in is the one it starts in (Transcendent State begun or ended meanwhile).
+    if (!step.variant && spec.variants && this.stateVariant(spec, slot) !== variantKey) {
+      variantKey = this.stateVariant(spec, slot) ?? spec.defaultVariant;
+      variant = variantKey ? findVariant(spec, variantKey)?.[1] : undefined;
+      spell = this.spellFor(slot, (variant as any) ?? spec);
+      label = variant ? `${name} (${variant.label})` : name;
+    }
+    if (variant?.when !== undefined && !this.evalExpr(variant.when, { slot, spell, rank })) {
+      this.warn(`${label} isn't castable now (${variant.when}): ${name} cast instead`);
+      variantKey = spec.defaultVariant;
+      variant = variantKey ? findVariant(spec, variantKey)?.[1] : undefined;
+      spell = this.spellFor(slot, (variant as any) ?? spec);
+      label = variant ? `${name} (${variant.label})` : name;
+    }
 
     if (ammo) {
       ammo.state.charges = Math.max(0, ammo.state.charges - 1);
@@ -2102,7 +2121,9 @@ export class Sim {
       const perSlot = typeof castLock === "object" ? castLock : { Q: castLock, W: castLock, E: castLock, R: castLock };
       for (const [s, e] of Object.entries(perSlot) as [Slot, Expr][]) this.lockCasts([s], until(e));
     }
-    timeline.push({ step: formatCombo([step]), start, end: this.freeAt });
+    // As cast: W:ruin for a W in Transcendent State.
+    const asCast = variantKey === step.variant || (!step.variant && variantKey === spec.defaultVariant) ? step : { ...step, variant: variantKey };
+    timeline.push({ step: formatCombo([asCast]), start, end: this.freeAt });
 
     if (!hitsTarget) return;
     const debuff = variant && "debuff" in variant ? (variant.debuff ?? undefined) : spec.debuff;
