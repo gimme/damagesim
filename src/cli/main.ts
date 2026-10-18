@@ -231,7 +231,7 @@ async function main() {
         console.log(`Base: ${num(res.base.totalDamage)} dmg with ${res.base.items.join(", ") || "no items"}. Adding one item (ranked by ${metric}):`);
         res.items.forEach((x, i) =>
           console.log(
-            `${pad(i + 1 + ".", 4)}${pad(x.item, 28)}+${pad(num(x.gain), 8)} (${num(x.totalDamage)} total, ${x.gold}g${x.replaces ? ` upgrading ${x.replaces.map((r) => r.item).join(", ")}` : ""}, ${x.gainPerGold}/1000g)${x.procs.length ? `  procs ${x.procs.map((p) => `${p.name} +${num(p.damage)}`).join(", ")}` : ""}`,
+            `${pad(i + 1 + ".", 4)}${pad(x.item, 28)}+${pad(num(x.gain), 8)} (${num(x.totalDamage)} total, ${x.gold}g${x.replaces ? ` upgrading ${x.replaces.map((r) => r.item).join(", ")}` : ""}, ${x.gainPerGold}/1000g)${x.procs.length ? `  procs ${x.procs.map((p) => `${p.name} +${num(p.damage)}`).join(", ")}` : ""}${x.lost.length ? `  lost ${x.lost.map((l) => `${l.name} ${num(l.damage)}`).join(", ")}` : ""}${x.adaptive ? `  (adaptive force ${x.adaptive === "physical" ? "AD" : "AP"})` : ""}`,
           ),
         );
       });

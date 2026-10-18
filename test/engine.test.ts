@@ -354,7 +354,8 @@ test("rank items: what an item's hits proc is split from its own damage and its 
   );
   near(storm.procDamage, electrocute, 0.1);
   // The rest of the gain beyond Squall itself is its AP raising W and Q.
-  assert.ok(storm.itemDamage > 0 && storm.gain - storm.itemDamage - storm.procDamage > 0);
+  assert.ok(storm.itemDamage > 0 && storm.baseDamage > 0);
+  near(storm.baseDamage + storm.itemDamage + storm.procDamage + storm.lostDamage, storm.gain, 0.2);
   const cap = res.items.find((x) => x.item === "Rabadon's Deathcap")!;
   assert.equal(cap.procDamage, 0);
   assert.deepEqual(cap.procs, []);
@@ -373,6 +374,56 @@ test("rank items: what an item's hits proc is split from its own damage and its 
     [["Q", "Super Scorcher Breath (execute)"]],
   );
   near(ldr.procDamage, execute.final!, 0.1);
+});
+
+test("rank items: a part a stat adds to hits that land anyway is the item's base, not a proc", () => {
+  // Katarina's knives deal an AD part only with bonus AD: with Infinity Edge, 15 more events but the same 15 knives.
+  const kat = { champion: "Katarina", level: 11, runes: ["Electrocute", "Absolute Focus"], combo: "R", target: { preset: "squishy" as const } };
+  const knivesAd = (items: string[]) => simulate(data, { ...kat, items }).events.filter((e) => e.label === "Death Lotus (knife, AD)").length;
+  assert.deepEqual([knivesAd([]), knivesAd(["Infinity Edge"])], [0, 15]);
+  const res = rankItems(data, kat, { candidates: ["Infinity Edge", "Rabadon's Deathcap"] });
+  const ie = res.items.find((x) => x.item === "Infinity Edge")!;
+  assert.deepEqual(ie.procs, []);
+  assert.ok(ie.baseDamage > ie.gain);
+  // Its AD turns the adaptive force AD, and Electrocute physical: less of it lands through the target's armor.
+  assert.equal(ie.adaptive, "physical");
+  assert.deepEqual(
+    ie.lost.map((l) => [l.source, l.name]),
+    [["rune:8112", "Electrocute"]],
+  );
+  const cap = res.items.find((x) => x.item === "Rabadon's Deathcap")!;
+  assert.deepEqual([cap.lost, cap.adaptive, cap.baseDamage], [[], undefined, cap.gain]);
+  // A hit applied twice is two: Dusk and Dawn's Spellblade applies Nashor's Tooth again, on the same attack.
+  const gwen = { champion: "Gwen", level: 11, items: ["Nashor's Tooth"], combo: "Q AA E AA W R", target: { preset: "squishy" as const } };
+  const dawn = rankItems(data, gwen, { candidates: ["Dusk and Dawn"] }).items[0];
+  assert.ok(dawn.procs.some((p) => p.name === "Nashor's Tooth"));
+});
+
+test("rank items: what an item takes away from your other damage is lost, and the parts add up to the gain", () => {
+  // Rapid Firecannon's attack speed launches the attack before Achooo! lands: the attack takes the Energize
+  // charge, so Voltaic's Firmament lands with it, later, on less health, and its lethality misses Achooo!.
+  const base = {
+    champion: "Smolder",
+    level: 15,
+    items: ["Essence Reaver", "Voltaic Cyclosword", "Lord Dominik's Regards"],
+    runes: ["Electrocute", "Cheap Shot"],
+    options: { stacks: 225 },
+    target: { preset: "squishy" as const },
+  };
+  const firmament = (combo: string, items: string[]) => simulate(data, { ...base, combo, items }).events.find((e) => e.label === "Firmament")!.time;
+  const rfc = (combo: string) => rankItems(data, { ...base, combo }, { candidates: ["Rapid Firecannon"] }).items[0];
+  const [waited, rushed] = [rfc("W wait Q AA"), rfc("W Q AA")];
+  assert.deepEqual([waited.lost, waited.lostDamage], [[], 0]);
+  assert.ok(firmament("W Q AA", [...base.items, "Rapid Firecannon"]) > firmament("W Q AA", base.items));
+  assert.deepEqual(
+    rushed.lost.map((l) => [l.source, l.name]),
+    [
+      ["item:6699", "Voltaic Cyclosword"],
+      ["W", "Achooo!"],
+    ],
+  );
+  assert.ok(rushed.lostDamage < -50);
+  for (const x of [waited, rushed]) near(x.baseDamage + x.itemDamage + x.procDamage + x.lostDamage, x.gain, 0.2);
 });
 
 test("rank items: a candidate's active in the combo is used with it, though the build hasn't the item", () => {

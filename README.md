@@ -8,7 +8,8 @@ the combo out on a timeline and reports every damage instance.
 * **Humans:** a web UI with HP bar, timeline, breakdown, build comparison and a resist sweep, plus a
   live **item value** ranking: which item adds the most damage (per gold or in total) to your next
   slot or in place of an item you own, as a list (each bar split into what the item adds to your
-  other damage, the damage it deals itself and the hits it adds, like Electrocute it procs)
+  other damage, the damage it deals itself and the hits it adds, like Electrocute it procs, its end
+  struck out by what the item takes away from your other damage, like a proc it makes land later)
   or a gold-vs-damage map; one click buys it, an upgrade (Boots into a pair) for the difference. Hovering
   an item shows its cost, stats, passives and actives, with the numbers for your champion's level and
   stats, melee or ranged. Runes go on a rune page laid out as in the client, which keeps to the game's rules (a rune per

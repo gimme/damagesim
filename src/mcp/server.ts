@@ -281,7 +281,7 @@ server.registerTool(
   "rank_items",
   {
     description:
-      "Marginal value of adding each candidate item to the scenario's build (default candidates: all legendaries and boots). Returns damage gain, gain per 1000 gold of the item (metric damagePerGold ranks by it), itemDamage, the part of the gain the item deals itself, and procDamage, the part dealt by hits of your other damage that land only with the item (procs: by source, e.g. Electrocute that Stormsurge's Squall strikes, an execute its damage brings the target into range of).",
+      "Marginal value of adding each candidate item to the scenario's build (default candidates: all legendaries and boots). Returns damage gain, gain per 1000 gold of the item (metric damagePerGold ranks by it), and the gain's parts, which add up to it: baseDamage, the item's stats making your other hits deal more; itemDamage, what the item deals itself; procDamage, hits of your other damage that land only with the item (procs: by source, e.g. Electrocute that Stormsurge's Squall strikes, an execute its damage brings the target into range of); and lostDamage (negative), what it takes away from your other damage: hits that land only without it, hits that deal less with it (lost: by source, e.g. a proc it makes land later, adaptive force turning AD; adaptive says when the item turns it).",
     inputSchema: { scenario: scenarioSchema, candidates: z.array(idOrName).optional(), metric, limit: z.number().optional() },
   },
   safe((a: { scenario: z.infer<typeof scenarioSchema>; candidates?: (string | number)[]; metric?: Metric; limit?: number }) =>

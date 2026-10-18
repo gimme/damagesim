@@ -25,19 +25,25 @@ const signed = (v: number) => `${v >= 0 ? "+" : "−"}${fmt(Math.abs(v))}`;
 
 /** The parts of an item's bar: base, what it adds to your other damage (its stats, Rabadon's-style
  *  multipliers); effect, the damage it deals itself (its procs, burns); procs, the hits of your other
- *  damage that land only with it (Electrocute it procs, an execute it brings the target into range of). */
-const PARTS = ["base", "effect", "procs"] as const;
+ *  damage that land only with it (Electrocute it procs, an execute it brings the target into range of);
+ *  lost, what it takes away from your other damage (a proc it makes land later, adaptive force
+ *  turning AD), struck out of the bar's end. */
+const PARTS = ["base", "effect", "procs", "lost"] as const;
 type Part = (typeof PARTS)[number];
 
 /** A row's bar: a segment per entry of its card, the base, each of the item's hits and each proc,
- *  largest first within each part; a negative or negligible one is left out. */
+ *  largest first within each part; a negligible one is left out. */
 function segments(r: Row): { part: Part; key: string; damage: number }[] {
   return [
-    { part: "base" as const, key: "base", damage: r.gain - r.itemDamage - r.procDamage },
+    { part: "base" as const, key: "base", damage: r.baseDamage },
     ...r.itemHits.map((h) => ({ part: "effect" as const, key: `effect|${h.name}`, damage: h.damage })),
     ...r.procs.map((p) => ({ part: "procs" as const, key: `procs|${p.source}|${p.name}`, damage: p.damage })),
   ].filter((s) => s.damage > 0.5);
 }
+
+/** What the bar's segments add up to, before what the item takes away. */
+const added = (r: Row) => r.baseDamage + r.itemDamage + r.procDamage;
+const loses = (r: Row) => r.lostDamage <= -0.5;
 
 const Swatch = ({ part, gap }: { part: Part; gap?: boolean }) => <span className={`swatch iv-${part}`} style={gap ? { marginRight: 6 } : undefined} />;
 
@@ -312,9 +318,12 @@ function RankList({
   const top = all.slice(0, shown);
   const rest = expanded ? all.slice(shown) : rank > shown ? [all[rank - 1]] : [];
   // The legend has the parts the bars listed have.
-  const drawn = PARTS.filter((p) => [...top, ...rest].some((r) => segments(r).some((s) => s.part === p)));
+  const drawn = PARTS.filter((p) => [...top, ...rest].some((r) => (p === "lost" ? loses(r) : segments(r).some((s) => s.part === p))));
   const hidden = all.length - shown - (rank > shown ? 1 : 0);
-  const max = Math.max(1e-9, ...all.map((r) => (by === "perGold" ? r.gainPerGold : r.gain)));
+  // A bar is as long as what the item adds, its end struck out by what it takes away: its solid part
+  // ends at its number, per gold or in all.
+  const perUnit = (r: Row) => (by === "perGold" ? (r.gold > 0 ? 1000 / r.gold : 0) : 1);
+  const max = Math.max(1e-9, ...all.map((r) => Math.max(added(r) * perUnit(r), by === "perGold" ? r.gainPerGold : r.gain)));
   // A click on a row buys its item. The item shows its details, the rest of the row where its damage
   // comes from; a card from hovering says a click buys, one from a tap has the Buy button.
   const show = (e: { clientX: number; clientY: number; pointerType?: string }, r: Row, col: string, how: "hover" | "hold" | "tap") => {
@@ -382,9 +391,9 @@ function RankList({
     </button>
   );
   const row = (r: Row) => {
-    const v = by === "perGold" ? r.gainPerGold : r.gain;
     const isCurrent = r.id === current;
-    const width = (Math.max(0, v) / max) * 100;
+    const width = (Math.max(0, added(r) * perUnit(r)) / max) * 100;
+    const struck = added(r) > 0 ? Math.min(1, -r.lostDamage / added(r)) * 100 : 0;
     const ahead = lead.has(r.id);
     const item = (
       <>
@@ -440,6 +449,7 @@ function RankList({
             {segments(r).map((s) => (
               <span key={s.key} className={`iv-bar iv-${s.part}`} style={{ flexGrow: s.damage }} />
             ))}
+            {loses(r) && <span className="iv-struck iv-lost" style={{ width: `${struck}%` }} />}
           </span>
         </span>
         <span role="cell" className={`iv-pg num ${by === "perGold" ? "on" : ""}`}>
@@ -533,10 +543,11 @@ function nearestColumn(e: PointerEvent<HTMLElement>): string {
 
 /** A row's card shows what its view doesn't: in the list, which already has the numbers, how the bar
  *  splits between base, effect and procs damage, the parts it has, the hits by name; on the map,
- *  whose dots only have positions, the numbers. Both name what the item procs. */
+ *  whose dots only have positions, the numbers. Both name what the item procs and what it takes away,
+ *  and say when it turns your adaptive force, which is often why. */
 function RowTip({ row: r, current, champion, view, action }: { row: Row; current: number | null; champion: string; view: "list" | "map"; action?: ReactNode }) {
-  const base = r.gain - r.itemDamage - r.procDamage;
   const procs = r.procs.map((p) => <SourceRow key={`${p.source}|${p.name}`} part="procs" {...p} champion={champion} />);
+  const lost = r.lost.map((l) => <SourceRow key={`lost|${l.source}|${l.name}`} part="lost" {...l} champion={champion} />);
   return (
     <>
       <div className="tt-title">
@@ -545,19 +556,20 @@ function RowTip({ row: r, current, champion, view, action }: { row: Row; current
       </div>
       {view === "list" ? (
         <>
-          {Math.abs(base) >= 0.5 && (
+          {r.baseDamage >= 0.5 && (
             <div className="tt-row">
               <span>
                 <Swatch part="base" gap />
                 Base
               </span>
-              <strong>{signed(base)}</strong>
+              <strong>{signed(r.baseDamage)}</strong>
             </div>
           )}
           {r.itemHits.map((h) => (
             <SourceRow key={h.name} part="effect" source={`item:${r.id}`} {...h} champion={champion} />
           ))}
           {procs}
+          {lost}
         </>
       ) : (
         <>
@@ -570,8 +582,10 @@ function RowTip({ row: r, current, champion, view, action }: { row: Row; current
             <strong>{fmt(r.gainPerGold, 1)}</strong>
           </div>
           {procs}
+          {lost}
         </>
       )}
+      {r.adaptive && <div className="tt-foot">Adaptive force turns {r.adaptive === "physical" ? "AD" : "AP"} with it</div>}
       {action && <div className="tt-foot">{action}</div>}
     </>
   );
