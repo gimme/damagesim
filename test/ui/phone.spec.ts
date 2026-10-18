@@ -127,5 +127,13 @@ test("phone width", async ({ ui }) => {
     },
     async () => expect((await ui.state()).combo).toBe("Q W E R AA R"),
   );
-  await step("the page still fits", async () => {}, fits);
+  await step(
+    "tap the key for the boots slot: seven slots, and the page still fits",
+    () => ui.card("Items").getByRole("button", { name: "Add the bot lane quest's boots slot" }).tap(),
+    async () => {
+      await expect(ui.card("Items").locator(".slots > .slot:not(.vacated)")).toHaveCount(7);
+      await expect(ui.card("Item value").locator(".slots > .slot:not(.vacated)")).toHaveCount(7);
+      await fits();
+    },
+  );
 });

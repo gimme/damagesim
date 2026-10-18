@@ -252,7 +252,7 @@ export function RuneTip({ id, sim }: { id: number; sim?: Sim | null }) {
 }
 
 /** Whether an item has a passive or active the simulator doesn't model; stat-only items have none. */
-export const effectsNotSimulated = (item: ItemData) => !hasItemModel(item.id) && /<(passive|active)>/i.test(item.description);
+const effectsNotSimulated = (item: ItemData) => !hasItemModel(item.id) && /<(passive|active)>/i.test(item.description);
 
 /** An item's hover card: cost, stats and passive/active text; numbers for the attacker when `sim` is given. `foot` replaces the note that its effects aren't simulated. */
 export function ItemTip({ id, sim, foot }: { id: number; sim?: Sim | null; foot?: ReactNode }) {

@@ -265,3 +265,59 @@ test("slots and the gold map", async ({ ui }) => {
     },
   );
 });
+
+test("the boots slot", async ({ ui }) => {
+  const { step } = ui;
+  const { card, slots, rows, names, caption, ranked } = parts(ui);
+  let boots: string[] = [];
+
+  // Luden's Echo, Sorcerer's Shoes, Rabadon's Deathcap, Void Staff, Shadowflame and Zhonya's Hourglass.
+  await step(
+    "load a full build: its last item reconsidered",
+    () => ui.open({ items: [6655, 3020, 3089, 3135, 4645, 3157] }),
+    async () => {
+      expect(await ranked()).toBe(5);
+      await expect(caption).toHaveText("In place of Zhonya's Hourglass");
+    },
+  );
+  await step(
+    "add the boots slot in Items: seven slots, the one the boots left ranked",
+    () => ui.card("Items").getByRole("button", { name: "Add the bot lane quest's boots slot" }).click(),
+    async () => {
+      await expect(slots).toHaveCount(7);
+      expect(await ranked()).toBe(1);
+      await expect(caption).toHaveText("Next item");
+    },
+  );
+  await step(
+    "click the boots slot: boots ranked, the shoes in it among them",
+    () => slots.nth(6).click(),
+    async () => {
+      expect(await ranked()).toBe(6);
+      await expect(caption).toHaveText("In place of Sorcerer's Shoes");
+      boots = await names();
+      expect(boots).toContain("Sorcerer's Shoes");
+      expect(boots.length).toBeLessThan(15);
+    },
+  );
+  await step(
+    "slot 2 again, every item shown: none of those boots",
+    async () => {
+      await slots.nth(1).click();
+      await card.getByRole("button", { name: "Show all" }).click();
+    },
+    async () => {
+      const all = await names();
+      expect(all.length).toBeGreaterThan(boots.length);
+      expect(all.filter((n) => boots.includes(n))).toEqual([]);
+    },
+  );
+  await step(
+    "buy the top one there: the build full, its last item reconsidered, not the boots",
+    () => rows.first().click(),
+    async () => {
+      expect((await ui.state()).items.every((x) => x != null)).toBe(true);
+      expect(await ranked()).toBe(5);
+    },
+  );
+});

@@ -1,4 +1,5 @@
-// The Items card: the shop and its filters, buying, the slots' drags, selling, undo and redo, Clear.
+// The Items card: the shop and its filters, buying, the slots' drags, selling, undo and redo, Clear,
+// and the bot lane quest's boots slot.
 
 import { test, expect, attrs, num, texts, type UI } from "./ui.ts";
 
@@ -42,6 +43,9 @@ test("shop and filters", async ({ ui }) => {
       await expect(filter("All")).toHaveAttribute("aria-pressed", "true");
       all = await names();
       expect(all.length).toBeGreaterThan(50);
+      // A price, and nothing about what the simulator models: that's in the item's card.
+      await expect(shop.locator(".item-option .muted").first()).toHaveText(/^\d+g$/);
+      await expect(shop).not.toContainText("stats only");
     },
   );
   for (const f of ["AP", "Boots"])
@@ -377,5 +381,137 @@ test("slots: drags, selling, undo and redo", async ({ ui }) => {
     "the pointer off it: none still",
     () => page.mouse.move(1, 1),
     () => expect(ui.hovercard).toHaveCount(0),
+  );
+});
+
+test("the bot lane quest's boots slot", async ({ ui }) => {
+  const { page, step } = ui;
+  const { card, shop, slots, search, names, filter, undo } = parts(ui);
+  const items = async () => (await ui.state()).items;
+  const add = card.getByRole("button", { name: "Add the bot lane quest's boots slot" });
+  let boots: string[] = [];
+  let was: (number | null)[] = [];
+
+  // Luden's Echo, Sorcerer's Shoes, Rabadon's Deathcap, Void Staff, Shadowflame and Zhonya's Hourglass.
+  await step(
+    "load a full build: six slots, and the key that adds the boots slot",
+    () => ui.open({ items: [6655, 3020, 3089, 3135, 4645, 3157] }),
+    async () => {
+      await expect(slots).toHaveCount(6);
+      await expect(add).toBeVisible();
+    },
+  );
+  await step(
+    "add it: a seventh slot, the boots moved into it as in game, the slot they left free, no warning",
+    () => add.click(),
+    async () => {
+      expect(await items()).toEqual([6655, null, 3089, 3135, 4645, 3157, 3020]);
+      await expect(slots).toHaveCount(7);
+      await expect(slots.nth(6)).toHaveAttribute("aria-label", /^Boots slot: Sorcerer's Shoes\./);
+      await expect(add).toHaveCount(0);
+      await expect(page.locator(".notice.warn")).toHaveCount(0);
+    },
+  );
+  await step(
+    "its shop: boots alone, without filters or tiers",
+    () => slots.nth(6).click(),
+    async () => {
+      boots = await names();
+      expect(boots).toEqual(expect.arrayContaining(["Berserker's Greaves", "Sorcerer's Shoes"]));
+      expect(boots.length).toBeLessThan(30);
+      await expect(shop.getByRole("button", { name: "Completed" })).toHaveCount(0);
+      await expect(filter("All")).toHaveCount(0);
+    },
+  );
+  await step(
+    "Enter on berserker buys them, in place of the shoes",
+    async () => {
+      await search.fill("berserker");
+      await search.press("Enter");
+    },
+    async () => expect((await items())[6]).toBe(3006),
+  );
+  await step(
+    "the slot the boots left: its shop, every tier, lists no boots and has no Boots filter",
+    async () => {
+      await slots.nth(1).click();
+      await shop.locator(".segmented").getByRole("button", { name: "All" }).click();
+    },
+    async () => {
+      await expect(filter("All")).toBeVisible();
+      await expect(filter("Boots")).toHaveCount(0);
+      const all = await names();
+      expect(all.length).toBeGreaterThan(50);
+      expect(all.filter((n) => boots.includes(n))).toEqual([]);
+    },
+  );
+  await step(
+    "drag slot 1 onto the boots slot: it goes back",
+    async () => {
+      await search.press("Escape");
+      was = await items();
+      await ui.drag(slots.nth(0), slots.nth(6), () => expect(card.locator(".slot.landing")).toHaveCount(0));
+    },
+    async () => expect(await items()).toEqual(was),
+  );
+  await step(
+    "drag the boots onto the empty slot 2: they go back",
+    () => ui.drag(slots.nth(6), slots.nth(1)),
+    async () => expect(await items()).toEqual(was),
+  );
+  await step(
+    "ArrowRight on slot 6, ArrowLeft on the boots slot: nothing moves",
+    async () => {
+      await slots.nth(5).focus();
+      await page.keyboard.press("ArrowRight");
+      await slots.nth(6).focus();
+      await page.keyboard.press("ArrowLeft");
+    },
+    async () => expect(await items()).toEqual(was),
+  );
+  await step(
+    "Delete sells the boots: the slot stays, empty, marked for boots",
+    () => page.keyboard.press("Delete"),
+    async () => {
+      expect(await items()).toEqual([...was.slice(0, 6), null]);
+      await expect(slots.nth(6)).toHaveAttribute("aria-label", /^Empty boots slot/);
+      await expect(slots.nth(6).locator(".boots-glyph")).toHaveCount(1);
+    },
+  );
+  await step(
+    "its ✕ removes it: six slots, the key back and focused",
+    async () => {
+      await slots.nth(6).hover();
+      await slots.nth(6).getByRole("button", { name: "Remove the boots slot" }).click();
+    },
+    async () => {
+      expect(await items()).toEqual(was.slice(0, 6));
+      await expect(slots).toHaveCount(6);
+      await expect(add).toBeFocused();
+    },
+  );
+  await step(
+    "Undo brings it back",
+    () => undo.click(),
+    async () => expect(await items()).toEqual([...was.slice(0, 6), null]),
+  );
+  await step(
+    "Delete on it, empty, removes it too",
+    async () => {
+      await slots.nth(6).focus();
+      await page.keyboard.press("Delete");
+    },
+    async () => {
+      expect(await items()).toEqual(was.slice(0, 6));
+      await expect(add).toBeFocused();
+    },
+  );
+  await step(
+    "Enter on the key adds it, empty and focused",
+    () => page.keyboard.press("Enter"),
+    async () => {
+      expect(await items()).toEqual([...was.slice(0, 6), null]);
+      await expect(slots.nth(6)).toBeFocused();
+    },
   );
 });

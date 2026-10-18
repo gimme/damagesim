@@ -1,4 +1,4 @@
-// Icons: an image, or the name's initials where there is none; and a damage source's mark.
+// Icons: an image, or the name's initials where there is none; a damage source's mark; the boots slot's.
 
 import { useEffect, useState } from "react";
 import { DATA, castIcon, autoAttackIcon, championIcon, itemIcon, runeIcon, summonerIcon } from "../data.ts";
@@ -35,6 +35,14 @@ export const RuneIcon = ({ id }: { id: number }) => {
   const r = DATA.runes.find((x) => x.id === id);
   return <Icon src={r ? runeIcon(r.icon) : ""} label={r?.name ?? String(id)} size="sm" />;
 };
+
+/** A boot: the mark of the bot lane quest's boots slot, with a plus on what adds it. */
+export const BootsGlyph = ({ plus }: { plus?: boolean }) => (
+  <svg className="boots-glyph" viewBox="0 0 16 16" aria-hidden>
+    <path d="M4.5 2.5h4v5.5l4 2.2V13h-8z M4.5 11h8" />
+    {plus && <path d="M12.5 1.5v4M10.5 3.5h4" />}
+  </svg>
+);
 
 /**
  * A damage source in a few letters, with its icon when it has one: the key of an ability (Q, P, AA),

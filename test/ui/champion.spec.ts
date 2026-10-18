@@ -7,6 +7,8 @@ const parts = (ui: UI) => {
   const card = ui.card("Champion");
   return {
     card,
+    /** The champion picker: the champion's icon and name, nothing under it. */
+    picker: card.locator(".picker").first(),
     search: card.getByRole("searchbox", { name: "Champion" }),
     list: card.getByRole("listbox"),
     options: card.getByRole("listbox").getByRole("option"),
@@ -18,15 +20,17 @@ const parts = (ui: UI) => {
 
 test("search and picking", async ({ ui }) => {
   const { page, step } = ui;
-  const { search, list, options } = parts(ui);
+  const { picker, search, list, options } = parts(ui);
   let all = 0;
   let total = 0;
 
   await step(
-    "load: Ahri",
+    "load: Ahri, by name alone: no title, no kit status",
     () => ui.open(),
     async () => {
       await expect(search).toHaveValue("Ahri");
+      await expect(picker).not.toContainText("Nine-Tailed Fox");
+      await expect(picker.locator(".badge")).toHaveCount(0);
       total = await ui.total();
       expect(total).toBeGreaterThan(0);
     },
@@ -38,6 +42,7 @@ test("search and picking", async ({ ui }) => {
       all = await options.count();
       expect(all).toBeGreaterThan(100);
       await expect(options.first()).toHaveAttribute("aria-selected", "true");
+      await expect(list.locator(".badge")).toHaveCount(0);
     },
   );
   await step(
@@ -77,7 +82,7 @@ test("search and picking", async ({ ui }) => {
     "ze, ArrowDown twice, ArrowUp, Enter: the second match",
     async () => {
       await search.pressSequentially("ze");
-      second = (await texts(options.nth(1).locator("span:not(.icon):not(.badge)")))[0];
+      second = (await texts(options.nth(1).locator("span:not(.icon)")))[0];
       for (const key of ["ArrowDown", "ArrowDown", "ArrowUp", "Enter"]) await search.press(key);
     },
     async () => {

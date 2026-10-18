@@ -185,6 +185,15 @@ test("Build legality warnings (two Spellblade items)", () => {
   assert.ok(r.warnings.some((w) => w.includes("Spellblade")));
 });
 
+test("Build legality warnings: a seventh item only as boots, in the bot lane quest's slot", () => {
+  const warnings = (items: string[]) => simulate(data, { champion: "Ahri", level: 18, items, combo: "Q", target: dummy }).warnings;
+  const six = ["Luden's Echo", "Rabadon's Deathcap", "Void Staff", "Shadowflame", "Zhonya's Hourglass", "Banshee's Veil"];
+  assert.deepEqual(warnings(six), []);
+  assert.deepEqual(warnings([...six, "Sorcerer's Shoes"]), []);
+  assert.match(warnings([...six, "Morellonomicon"])[0], /^7 items: a champion can hold 6/);
+  assert.match(warnings([...six, "Sorcerer's Shoes", "Morellonomicon"])[0], /^8 items/);
+});
+
 test("Abilities that apply on-hit and trigger on-attack (Smolder Q): Spellblade, Energized and Lethal Tempo stacks", () => {
   const r = simulate(data, {
     champion: "Smolder",

@@ -33,6 +33,17 @@ test("rune page rules", async ({ ui }) => {
     },
   );
   await step(
+    "the shards: no row titles, each stat abbreviated, Ahri's adaptive force as AP in magic's color",
+    async () => {},
+    async () => {
+      for (const row of ["Offense", "Flex", "Defense"]) await expect(card.getByText(row, { exact: true })).toHaveCount(0);
+      await expect(group("Offense shard").locator(".shard-text")).toHaveText("+9 AP");
+      await expect(group("Offense shard").locator(".shard-text .it-value")).toHaveClass(/\bmagic\b/);
+      await expect(group("Defense shard").locator(".shard-text")).toHaveText(/^\+\d+ HP \(based on level\)$/);
+      await expect(group("Defense shard").locator(".shard-text .it-value")).not.toHaveClass(/\b(magic|physical)\b/);
+    },
+  );
+  await step(
     "primary Precision: nothing picked in it yet, the secondary kept",
     () => group("Primary tree").getByRole("button", { name: "Precision" }).click(),
     async () => {
@@ -135,6 +146,20 @@ test("rune page rules", async ({ ui }) => {
     async () => {
       health = num(await group("Defense shard").locator(".shard-text").innerText());
       expect(health).toBeGreaterThan(0);
+    },
+  );
+  await step(
+    "Jinx without AP items, with Adaptive Force: AD in physical's color",
+    async () => {
+      const search = ui.card("Champion").getByRole("searchbox", { name: "Champion" });
+      await search.fill("jinx");
+      await search.press("Enter");
+      await ui.card("Items").getByRole("button", { name: "Clear" }).click();
+      await group("Offense shard").getByRole("button", { name: "Adaptive Force" }).click();
+    },
+    async () => {
+      await expect(group("Offense shard").locator(".shard-text")).toHaveText(/^\+[\d.]+ AD$/);
+      await expect(group("Offense shard").locator(".shard-text .it-value")).toHaveClass(/\bphysical\b/);
     },
   );
   await step(

@@ -1,9 +1,9 @@
 // Item value: what each legendary or pair of boots would add to the current build, ranked by damage
 // per gold or total damage, as a list or a gold-vs-damage map. Recomputed live as the build changes.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { DATA } from "../data.ts";
-import { Icon, ItemIcon, sourceMark } from "./icons.tsx";
+import { BootsGlyph, Icon, ItemIcon, sourceMark } from "./icons.tsx";
 import { ItemTip, useHoverCard } from "./hover.tsx";
 import { useItemSlots } from "./drag.tsx";
 import { Card, fmt } from "./common.tsx";
@@ -11,6 +11,7 @@ import { GoldScatter, useTooltip, type GoldPoint } from "./charts.tsx";
 import { rankItems, defaultCandidates } from "../../engine/analysis.ts";
 import type { Scenario, Sim } from "../../engine/sim.ts";
 import type { Set, UIState } from "../state.ts";
+import { BOOTS_SLOT, slotFits } from "../slots.ts";
 
 type Ranking = ReturnType<typeof rankItems>;
 type Row = Ranking["items"][number];
@@ -76,13 +77,18 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
     const to = now.findIndex((x, k) => x === was[chosen] && was[k] !== x);
     setChosen(to >= 0 ? to : null);
   }, [state.items]);
+  // A full build reconsiders its last item, the boots slot's aside.
   const firstEmpty = state.items.findIndex((x) => x == null);
-  const slot = chosen ?? (firstEmpty >= 0 ? firstEmpty : state.items.length - 1);
+  const slot = chosen != null && chosen < state.items.length ? chosen : firstEmpty >= 0 ? firstEmpty : Math.min(state.items.length, BOOTS_SLOT) - 1;
   const current = state.items[slot];
+  const bootsSlot = state.items.length > BOOTS_SLOT;
+  const forBoots = bootsSlot && slot === BOOTS_SLOT;
 
   const job = useMemo(() => {
     const base: Scenario = { ...scenario, items: state.items.filter((x, i): x is number => x != null && i !== slot) };
-    const candidates = current != null && !DEFAULT_IDS.includes(current) ? [...DEFAULT_IDS, current] : undefined;
+    // With the boots slot, it ranks boots and the others the rest.
+    const pool = DEFAULT_IDS.filter((id) => slotFits(state.items, slot, id));
+    const candidates = current != null && !pool.includes(current) ? [...pool, current] : pool.length < DEFAULT_IDS.length ? pool : undefined;
     return { key: JSON.stringify([base, candidates]), base, candidates };
   }, [scenario, state.items, slot, current]);
 
@@ -124,7 +130,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   const hover = useHoverCard();
   const slots = useItemSlots(state.items, (fn) => set((s) => ({ ...s, items: fn(s.items) })), { onPick: hover.hide, onSell: hover.hide });
 
-  const slotLabel = current != null ? `in place of ${DATA.items[current]?.name}` : `in slot ${slot + 1}`;
+  const slotLabel = current != null ? `in place of ${DATA.items[current]?.name}` : forBoots ? "in the boots slot" : `in slot ${slot + 1}`;
 
   return (
     <Card
@@ -143,7 +149,13 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
       {/* The slot being ranked, picked from the build's slots, which are also the build's inventory:
           an item is dragged to another slot, and sold with its ✕ */}
       <div className="iv-for">
-        <div className="slots compact" ref={slots.box} role="group" aria-label="Slot to rank items for">
+        <div
+          className="slots compact"
+          ref={slots.box}
+          role="group"
+          aria-label="Slot to rank items for"
+          style={{ "--slots": state.items.length } as CSSProperties}
+        >
           {state.items.map((id, i) => {
             const name = id != null ? DATA.items[id]?.name : null;
             const foot = i === slot ? undefined : "Click to rank what could take its place.";
@@ -151,8 +163,16 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
               <div
                 key={i}
                 aria-pressed={i === slot}
-                aria-label={name ? `In place of ${name}. Arrow keys move it, Delete sells it.` : `Next item, in slot ${i + 1}`}
-                title={id == null && i !== slot ? "Rank items for this slot" : undefined}
+                aria-label={
+                  bootsSlot && i === BOOTS_SLOT
+                    ? name
+                      ? `In place of ${name}, in the boots slot. Delete sells it.`
+                      : "Boots slot"
+                    : name
+                      ? `In place of ${name}. Arrow keys move it, Delete sells it.`
+                      : `Next item, in slot ${i + 1}`
+                }
+                title={id == null && i !== slot ? `Rank ${bootsSlot && i === BOOTS_SLOT ? "boots" : "items"} for this slot` : undefined}
                 {...slots.slot(i, {
                   ...(id != null ? hover.bind(<ItemTip id={id} sim={sim} foot={foot} />) : {}),
                   onClick: () => setChosen(i),
@@ -163,7 +183,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
                   },
                 })}
               >
-                {id != null ? <ItemIcon id={id} /> : "+"}
+                {id != null ? <ItemIcon id={id} /> : bootsSlot && i === BOOTS_SLOT ? <BootsGlyph /> : "+"}
                 {slots.remove(i)}
               </div>
             );
@@ -175,6 +195,8 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
             <>
               In place of <strong>{DATA.items[current]?.name}</strong>
             </>
+          ) : forBoots ? (
+            "Boots"
           ) : (
             "Next item"
           )}
@@ -186,7 +208,9 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
       {ranking && (
         <div className="iv-body" style={{ opacity: stale ? 0.55 : 1 }} aria-busy={stale}>
           {!rows.length ? (
-            <div className="muted small">No legendary item or pair of boots adds damage to this combo.</div>
+            <div className="muted small">
+              No {forBoots ? "pair of boots" : bootsSlot ? "legendary item" : "legendary item or pair of boots"} adds damage to this combo.
+            </div>
           ) : view === "list" ? (
             <RankList
               rows={rows}

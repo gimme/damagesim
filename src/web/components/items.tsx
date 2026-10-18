@@ -1,13 +1,15 @@
-// The Items card: the build's six slots, with the shop, drags between slots, and undo.
+// The Items card: the build's six slots, and the bot lane quest's for boots, with the shop, drags
+// between slots, and undo.
 
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { DATA } from "../data.ts";
-import { ItemIcon } from "./icons.tsx";
+import { BootsGlyph, ItemIcon } from "./icons.tsx";
 import { ItemPicker } from "./pickers.tsx";
 import { ItemTip, useHoverCard } from "./hover.tsx";
 import { useItemSlots } from "./drag.tsx";
 import { Card, fmt, useHistory } from "./common.tsx";
 import type { Set, UIState } from "../state.ts";
+import { BOOTS_SLOT, addBootsSlot } from "../slots.ts";
 import type { Sim } from "../../engine/sim.ts";
 import { conflicts } from "../../engine/analysis.ts";
 
@@ -15,6 +17,7 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
   const [picking, setPicking] = useState<number | null>(null);
   const hover = useHoverCard();
   const items = state.items;
+  const bootsSlot = items.length > BOOTS_SLOT;
   const build = items.filter((x): x is number => x != null).map((id) => DATA.items[id]);
   const warnings = build.flatMap((it, i) => {
     const c = conflicts(build.slice(0, i), it);
@@ -37,6 +40,25 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
     onMove: (from, to) => setPicking((p) => (p === from ? to : p === to ? from : p)),
     onSell: hover.hide,
   });
+  // Few builds have the bot lane quest's boots slot: a narrow button after the six adds it, and once
+  // empty, its ✕ or Delete takes it away. The focus goes from one to the other.
+  const addButton = useRef<HTMLButtonElement>(null);
+  const focusAdd = useRef(false);
+  useEffect(() => {
+    if (focusAdd.current) addButton.current?.focus();
+    focusAdd.current = false;
+  });
+  const addSlot = () => {
+    hover.hide();
+    slots.focusLater(BOOTS_SLOT);
+    set((s) => ({ ...s, items: addBootsSlot(s.items) }));
+  };
+  const removeSlot = () => {
+    hover.hide();
+    setPicking((p) => (p === BOOTS_SLOT ? null : p));
+    focusAdd.current = !!slots.box.current?.contains(document.activeElement);
+    set((s) => ({ ...s, items: s.items.slice(0, BOOTS_SLOT) }));
+  };
   // Every change to the items, from here or elsewhere (a buy in Item value, Reset), can be undone.
   const past = useHistory(
     items,
@@ -88,27 +110,74 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
       }
     >
       <div className="picker-host">
-        <div className="slots" ref={slots.box}>
-          {items.map((id, i) => (
-            <div
-              key={i}
-              aria-expanded={picking === i}
-              aria-label={id ? `Item slot ${i + 1}: ${DATA.items[id]?.name}. Arrow keys move it, Delete sells it.` : `Empty item slot ${i + 1}`}
-              title={id ? undefined : "Add item"}
-              {...slots.slot(i, {
-                className: picking === i ? "picking" : "",
-                ...(id ? hover.bind(<ItemTip id={id} sim={sim} />) : {}),
-                onClick: () => setPicking((p) => (p === i ? null : i)),
-                onKeyDown: (e: KeyboardEvent) => e.target === e.currentTarget && e.key === "Enter" && setPicking(i),
-              })}
+        <div className="slots-row">
+          <div className="slots" ref={slots.box} style={{ "--slots": items.length } as CSSProperties}>
+            {items.map((id, i) => {
+              const boots = bootsSlot && i === BOOTS_SLOT;
+              return (
+                <div
+                  key={i}
+                  aria-expanded={picking === i}
+                  aria-label={
+                    boots
+                      ? id
+                        ? `Boots slot: ${DATA.items[id]?.name}. Delete sells it.`
+                        : "Empty boots slot, from the bot lane quest. Delete removes it."
+                      : id
+                        ? `Item slot ${i + 1}: ${DATA.items[id]?.name}. Arrow keys move it, Delete sells it.`
+                        : `Empty item slot ${i + 1}`
+                  }
+                  title={id ? undefined : boots ? "Add boots" : "Add item"}
+                  {...slots.slot(i, {
+                    className: picking === i ? "picking" : "",
+                    ...(id ? hover.bind(<ItemTip id={id} sim={sim} />) : {}),
+                    onClick: () => setPicking((p) => (p === i ? null : i)),
+                    onKeyDown: (e: KeyboardEvent) => {
+                      if (e.target !== e.currentTarget) return;
+                      if (e.key === "Enter") setPicking(i);
+                      else if (boots && !id && (e.key === "Delete" || e.key === "Backspace")) {
+                        e.preventDefault();
+                        removeSlot();
+                      }
+                    },
+                  })}
+                >
+                  {id ? <ItemIcon id={id} /> : boots ? <BootsGlyph /> : "+"}
+                  {boots && !id ? (
+                    <button
+                      className="remove"
+                      aria-label="Remove the boots slot"
+                      title="Remove the boots slot"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeSlot();
+                      }}
+                    >
+                      <svg viewBox="0 0 10 10" aria-hidden>
+                        <path d="M3 3 7 7M7 3 3 7" />
+                      </svg>
+                    </button>
+                  ) : (
+                    slots.remove(i)
+                  )}
+                </div>
+              );
+            })}
+            {slots.vacated}
+          </div>
+          {!bootsSlot && (
+            <button
+              ref={addButton}
+              className="add-boots-slot"
+              aria-label="Add the bot lane quest's boots slot"
+              title="Bot lane quest done: a seventh slot, for boots"
+              onClick={addSlot}
             >
-              {id ? <ItemIcon id={id} /> : "+"}
-              {slots.remove(i)}
-            </div>
-          ))}
-          {slots.vacated}
+              <BootsGlyph plus />
+            </button>
+          )}
         </div>
-        {picking !== null && <ItemPicker onPick={pick} onClose={() => setPicking(null)} sim={sim} />}
+        {picking !== null && <ItemPicker onPick={pick} onClose={() => setPicking(null)} sim={sim} boots={bootsSlot ? picking === BOOTS_SLOT : undefined} />}
       </div>
       {hover.node}
       {!!build.length && (

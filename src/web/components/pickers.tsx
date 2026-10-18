@@ -3,28 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DATA } from "../data.ts";
 import { ChampIcon, ItemIcon } from "./icons.tsx";
-import { ItemTip, effectsNotSimulated, useHoverCard } from "./hover.tsx";
-import { getKit } from "../../kits/index.ts";
+import { ItemTip, useHoverCard } from "./hover.tsx";
 import type { ItemData } from "../../engine/data-types.ts";
 import type { Sim } from "../../engine/sim.ts";
 import { search } from "../search.ts";
-
-export function KitBadge({ id }: { id: string }) {
-  const status = getKit(DATA.champions[id]).status;
-  const text = status === "auto" ? "auto kit" : status;
-  return (
-    <span
-      className={`badge ${status === "auto" ? "auto" : "curated"}`}
-      title={
-        status === "auto"
-          ? "Abilities auto-mapped from tooltips: per-hit numbers exact, hit counts/conditions approximate."
-          : "Mechanics modeled by hand from the game data."
-      }
-    >
-      {text}
-    </span>
-  );
-}
 
 export function ChampionPicker({ value, onChange, label = "Champion" }: { value: string; onChange: (id: string) => void; label?: string }) {
   const [open, setOpen] = useState(false);
@@ -59,33 +41,28 @@ export function ChampionPicker({ value, onChange, label = "Champion" }: { value:
     <div className="picker" ref={ref}>
       <div className="row" style={{ flexWrap: "nowrap" }}>
         <ChampIcon id={value} size="lg" />
-        <div className="stack" style={{ gap: 4, flex: 1, minWidth: 0 }}>
-          <input
-            type="search"
-            aria-label={label}
-            placeholder={champ?.name ?? "Search champion"}
-            value={open ? q : (champ?.name ?? value)}
-            onFocus={() => startSearch("")}
-            onClick={() => !open && startSearch("")}
-            // Closed, the field held the champion's name: only what was typed counts (nothing, for a deletion).
-            onChange={(e) => startSearch(open ? e.target.value : ((e.nativeEvent as InputEvent).data ?? ""))}
-            onKeyDown={(e) => {
-              // A search field's Escape also empties it, which would open the list again.
-              if (e.key === "Escape") {
-                e.preventDefault();
-                setOpen(false);
-              } else if (!open) {
-                if (e.key === "ArrowDown" || e.key === "ArrowUp") startSearch("");
-              } else if (e.key === "ArrowDown") setActive((a) => Math.min(list.length - 1, a + 1));
-              else if (e.key === "ArrowUp") setActive((a) => Math.max(0, a - 1));
-              else if (e.key === "Enter" && list[active]) pick(list[active].id);
-            }}
-          />
-          <div className="row small secondary" style={{ gap: 6 }}>
-            <span>{champ?.title}</span>
-            <KitBadge id={value} />
-          </div>
-        </div>
+        <input
+          type="search"
+          style={{ flex: 1 }}
+          aria-label={label}
+          placeholder={champ?.name ?? "Search champion"}
+          value={open ? q : (champ?.name ?? value)}
+          onFocus={() => startSearch("")}
+          onClick={() => !open && startSearch("")}
+          // Closed, the field held the champion's name: only what was typed counts (nothing, for a deletion).
+          onChange={(e) => startSearch(open ? e.target.value : ((e.nativeEvent as InputEvent).data ?? ""))}
+          onKeyDown={(e) => {
+            // A search field's Escape also empties it, which would open the list again.
+            if (e.key === "Escape") {
+              e.preventDefault();
+              setOpen(false);
+            } else if (!open) {
+              if (e.key === "ArrowDown" || e.key === "ArrowUp") startSearch("");
+            } else if (e.key === "ArrowDown") setActive((a) => Math.min(list.length - 1, a + 1));
+            else if (e.key === "ArrowUp") setActive((a) => Math.max(0, a - 1));
+            else if (e.key === "Enter" && list[active]) pick(list[active].id);
+          }}
+        />
       </div>
       {open && (
         <div className="picker-list" role="listbox">
@@ -104,7 +81,6 @@ export function ChampionPicker({ value, onChange, label = "Champion" }: { value:
             >
               <ChampIcon id={c.id} size="sm" />
               <span style={{ flex: 1 }}>{c.name}</span>
-              <KitBadge id={c.id} />
             </div>
           ))}
           {!list.length && (
@@ -118,6 +94,8 @@ export function ChampionPicker({ value, onChange, label = "Champion" }: { value:
   );
 }
 
+const isBoots = (i: ItemData) => i.tags.includes("Boots");
+
 const ITEM_FILTERS: { label: string; test: (i: ItemData) => boolean }[] = [
   { label: "All", test: () => true },
   { label: "AP", test: (i) => !!i.stats.ap },
@@ -127,7 +105,7 @@ const ITEM_FILTERS: { label: string; test: (i: ItemData) => boolean }[] = [
   { label: "Lethality", test: (i) => !!i.stats.lethality || !!i.stats.armorPenPercent },
   { label: "Magic pen", test: (i) => !!i.stats.magicPenFlat || !!i.stats.magicPenPercent },
   { label: "Health", test: (i) => !!i.stats.hp },
-  { label: "Boots", test: (i) => i.tags.includes("Boots") },
+  { label: "Boots", test: isBoots },
 ];
 
 export const SHOP_ITEMS: ItemData[] = Object.values(DATA.items)
@@ -141,13 +119,20 @@ export const SHOP_ITEMS: ItemData[] = Object.values(DATA.items)
   )
   .sort((a, b) => b.depth - a.depth || a.name.localeCompare(b.name));
 
-export function ItemPicker({ onPick, onClose, sim }: { onPick: (id: number) => void; onClose: () => void; sim?: Sim | null }) {
+/** The shop. `boots`: only boots (for the boots slot, which every tier lists), or none (for the slots beside it). */
+export function ItemPicker({ onPick, onClose, sim, boots }: { onPick: (id: number) => void; onClose: () => void; sim?: Sim | null; boots?: boolean }) {
   const hover = useHoverCard();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState(0);
   const [tier, setTier] = useState<"legendary" | "all">("legendary");
+  const filters = boots ? [] : boots === false ? ITEM_FILTERS.filter((f) => f.test !== isBoots) : ITEM_FILTERS;
   const list = search(
-    SHOP_ITEMS.filter((i) => (tier === "all" || i.depth >= 3 || i.tags.includes("Boots") || i.gold.total >= 2200) && ITEM_FILTERS[filter].test(i)),
+    SHOP_ITEMS.filter(
+      (i) =>
+        (boots === undefined || isBoots(i) === boots) &&
+        (tier === "all" || i.depth >= 3 || isBoots(i) || i.gold.total >= 2200) &&
+        (filters[filter]?.test(i) ?? true),
+    ),
     (i) => i.name,
     q,
   );
@@ -177,26 +162,30 @@ export function ItemPicker({ onPick, onClose, sim }: { onPick: (id: number) => v
           onKeyDown={(e) => e.key === "Enter" && top !== undefined && onPick(top)}
         />
         <div className="row" style={{ gap: 4, flexWrap: "nowrap", marginLeft: "auto" }}>
-          <div className="segmented">
-            <button aria-pressed={tier === "legendary"} onClick={() => setTier("legendary")}>
-              Completed
-            </button>
-            <button aria-pressed={tier === "all"} onClick={() => setTier("all")}>
-              All
-            </button>
-          </div>
+          {!boots && (
+            <div className="segmented">
+              <button aria-pressed={tier === "legendary"} onClick={() => setTier("legendary")}>
+                Completed
+              </button>
+              <button aria-pressed={tier === "all"} onClick={() => setTier("all")}>
+                All
+              </button>
+            </div>
+          )}
           <button className="btn ghost small" onClick={onClose} aria-label="Close item picker">
             ✕
           </button>
         </div>
       </div>
-      <div className="row" style={{ marginTop: 6, gap: 4 }}>
-        {ITEM_FILTERS.map((f, i) => (
-          <button key={f.label} className="btn small" aria-pressed={filter === i} onClick={() => setFilter(i)}>
-            {f.label}
-          </button>
-        ))}
-      </div>
+      {!!filters.length && (
+        <div className="row" style={{ marginTop: 6, gap: 4 }}>
+          {filters.map((f, i) => (
+            <button key={f.label} className="btn small" aria-pressed={filter === i} onClick={() => setFilter(i)}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="item-grid">
         {list.map((i) => (
           <button
@@ -208,9 +197,7 @@ export function ItemPicker({ onPick, onClose, sim }: { onPick: (id: number) => v
             <ItemIcon id={i.id} size="sm" />
             <span className="stack" style={{ gap: 0, minWidth: 0 }}>
               <span className="name">{i.name}</span>
-              <span className="muted small">
-                {i.gold.total}g{effectsNotSimulated(i) ? " · stats only" : ""}
-              </span>
+              <span className="muted small">{i.gold.total}g</span>
             </span>
           </button>
         ))}

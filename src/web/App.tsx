@@ -157,10 +157,7 @@ export function App() {
               />
             </>
           )}
-          <p className="muted small">
-            Numbers come from the patch {DATA.meta.patch} game files ({DATA.meta.cdragonVersion}). Champions marked “auto kit” have abilities mapped from
-            tooltips automatically: per-hit values are exact, hit counts and conditions may not be.
-          </p>
+          <p className="muted small">Numbers come from the patch {DATA.meta.patch} game files.</p>
           <p className="muted small">
             damagesim isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or
             managing League of Legends. League of Legends and Riot Games are trademarks or registered trademarks of Riot Games, Inc.

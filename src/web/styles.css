@@ -170,14 +170,6 @@ a {
   color: var(--text-secondary);
   white-space: nowrap;
 }
-.badge.curated {
-  background: var(--accent-wash);
-  color: var(--accent-text);
-}
-.badge.auto {
-  background: rgba(250, 178, 25, 0.18);
-  color: var(--text-secondary);
-}
 
 .layout {
   display: grid;
@@ -416,12 +408,53 @@ label.field {
   width: 100%;
 }
 
-/* Item slots */
+/* Item slots: six, or seven with the bot lane quest's boots slot (--slots) */
 .slots {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(var(--slots, 6), 1fr);
   gap: 6px;
+}
+/* The boots slot's mark, in place of an empty slot's + */
+.boots-glyph {
+  width: 42%;
+  height: 42%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* Adds the boots slot: a narrow, faint key after the six, as few builds have it */
+.slots-row {
+  display: flex;
+  gap: 6px;
+}
+.slots-row > .slots {
+  flex: 1;
+  min-width: 0;
+}
+.add-boots-slot {
+  flex: 0 0 20px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px dashed transparent;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-muted);
+  opacity: 0.6;
+  cursor: pointer;
+}
+.add-boots-slot:hover,
+.add-boots-slot:focus-visible {
+  opacity: 1;
+  border-color: var(--border-strong);
+  color: var(--accent-text);
+}
+.add-boots-slot .boots-glyph {
+  width: 16px;
+  height: 16px;
 }
 .slot {
   aspect-ratio: 1;
@@ -1021,7 +1054,7 @@ table.data .source-name {
   border-top: 1px solid var(--grid);
 }
 
-/* Item value: the slot being ranked, picked from the build's six slots, which work as in Items. */
+/* Item value: the slot being ranked, picked from the build's slots, which work as in Items. */
 .iv-for {
   display: flex;
   align-items: center;
@@ -1031,7 +1064,7 @@ table.data .source-name {
 }
 .slots.compact {
   display: inline-grid;
-  grid-template-columns: repeat(6, 30px);
+  grid-template-columns: repeat(var(--slots, 6), 30px);
   gap: 5px;
 }
 .slots.compact .slot {
@@ -1817,7 +1850,7 @@ details summary {
 
 .shard-rows {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 8px 12px;
   margin-top: 12px;

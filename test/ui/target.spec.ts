@@ -202,7 +202,7 @@ test("champion and custom numbers", async ({ ui }) => {
     async () => {
       await search.click();
       await search.fill("gar");
-      first = await options.first().locator("span:not(.icon):not(.badge)").first().innerText();
+      first = await options.first().locator("span:not(.icon)").first().innerText();
       for (const key of ["ArrowDown", "ArrowUp", "Enter"]) await search.press(key);
     },
     () => expect(search).toHaveValue(first),

@@ -369,12 +369,15 @@ export class Sim {
     for (const o of this.kit.options ?? []) this.opt[o.key] = o.default;
 
     this.items = (scenario.items ?? []).map((q) => findItem(data, q));
-    if (this.items.length > 6) this.warn(`${this.items.length} items: a champion can hold 6`);
+    // Six slots, and a seventh for boots once the bot lane role quest is done.
+    const boots = this.items.filter((i) => i.tags.includes("Boots")).length;
+    if (this.items.length - Math.min(boots, 1) > 6)
+      this.warn(`${this.items.length} items: a champion can hold 6, and a pair of boots in the bot lane quest's slot`);
     for (const [group, ids] of Object.entries(ITEM_GROUPS)) {
       const owned = this.items.filter((i) => ids.includes(i.id));
       if (owned.length > 1) this.warn(`only one ${group} item can be owned (${owned.map((i) => i.name).join(", ")}); the game won't allow this build`);
     }
-    if (this.items.filter((i) => i.tags.includes("Boots")).length > 1) this.warn("more than one pair of boots");
+    if (boots > 1) this.warn("more than one pair of boots");
     const legendaryCount = this.items.filter((i) => isLegendary(i)).length;
     const setup: SetupCtx = { level: this.level, ranged: this.champ.attackType === "ranged", opt: this.opt, champion: this.champ.id, legendaryCount };
 

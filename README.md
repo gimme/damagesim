@@ -117,7 +117,8 @@ Only the stats of a target's items count: it never fights back, so their passive
    * crit damage is 200% (IE +30%); the attack speed cap is 3.0; lethality is 1:1 flat penetration;
    * penetration order is flat reduction → % reduction → % penetration → flat penetration;
    * damage-dealt amplifiers add together since 26.9, while damage-taken modifiers multiply;
-   * levels go up to 20 (Top role quest); Ignite is 70–475;
+   * levels go up to 20 (Top role quest), and boots get a seventh slot of their own (Bot role quest);
+     Ignite is 70–475;
    * item and rune trigger rules, damage types and stacking are modeled, including item groups.
 4. **Champion kits** (`src/kits/champions/`) say *which* formula is dealt *how*: hit counts,
    empowered attacks, marks, DoTs, CC, recasts, charges and passives. All 173 are `curated`, written

@@ -192,7 +192,7 @@ function OptionsEditor({ state, set, sim }: { state: UIState; set: Set; sim: Sim
           const isToggle = o.toggle || (o.max === 1 && (o.min ?? 0) === 0 && o.step === 1);
           return (
             <div key={o.key} className="row" style={{ flexWrap: "nowrap" }}>
-              <span className="small" style={{ flex: 1 }} title={o.description ?? o.key}>
+              <span className="small" style={{ flex: 1 }} title={o.description}>
                 {o.label}
               </span>
               <span className="opt-sources">

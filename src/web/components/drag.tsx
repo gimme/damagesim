@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 import { DATA } from "../data.ts";
 import { mergeProps } from "./common.tsx";
+import { slotFits } from "../slots.ts";
 
 /** Where a box's child is laid out in it. */
 export type Place = { x: number; y: number; w: number; h: number };
@@ -58,6 +59,8 @@ const inField = (el: Element) => {
  *   it is at `at` among them.
  * - `move(from, to)`: makes the move; for a child brought in, `from` is its index as the last one.
  * - `movable(i)`: whether child i is dragged and glides; one that isn't (an empty slot) just moves.
+ * - `canMove(from, to)`: whether child `from` may go to `to`; dragged over a place it may not, it
+ *   lands back where it was, and the keyboard doesn't move it there.
  * - `onPick(i)`: when child i is picked up.
  * - `drag`, returned: the child being dragged, where it would land, and whether it's brought in and
  *   away from the box.
@@ -70,6 +73,7 @@ export function useDragOrder({
   makeWay = true,
   byPointer = false,
   movable = () => true,
+  canMove = () => true,
   onPick,
 }: {
   count: number;
@@ -79,6 +83,7 @@ export function useDragOrder({
   makeWay?: boolean;
   byPointer?: boolean;
   movable?: (i: number) => boolean;
+  canMove?: (from: number, to: number) => boolean;
   onPick?: (i: number) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -116,7 +121,7 @@ export function useDragOrder({
     // land from where it's laid out among them.
     const away = !!g.bring && !(g.px >= b.left && g.px < b.right && g.py >= b.top && g.py < b.bottom);
     const [lx, ly] = byPointer ? [g.px - b.left, g.py - b.top] : [x + home.w / 2, y + home.h / 2];
-    const to =
+    const at =
       away || g.away
         ? g.from
         : landAt(
@@ -126,6 +131,7 @@ export function useDragOrder({
             makeWay ? g.to : g.from,
             g.from,
           );
+    const to = at === g.from || canMove(g.from, at) ? at : g.from;
     if (to !== g.to || away !== !!g.away) reorder(to, away);
   };
   const reorder = (to: number, away = false) => {
@@ -254,7 +260,7 @@ export function useDragOrder({
     onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
       if (cancel(e) || !movable(i) || e.target !== e.currentTarget) return;
       const to = e.key === "ArrowLeft" ? i - 1 : e.key === "ArrowRight" ? i + 1 : null;
-      if (to == null || to < 0 || to >= count) return;
+      if (to == null || to < 0 || to >= count || !canMove(i, to)) return;
       e.preventDefault();
       shift(i, to);
     },
@@ -278,12 +284,14 @@ type Slots = (number | null)[];
  * A build's item slots, as in the client's inventory (the Items card, Item value's slots): an item is
  * dragged to another slot, whose outline shows where it will land; nothing else moves meanwhile.
  * Dropped on an item, the two swap; on an empty slot, it moves there. Arrow keys swap a focused item
- * with its neighbour; its ✕ in the corner, or Delete, sells it.
+ * with its neighbour; its ✕ in the corner, or Delete, sells it. With the boots slot, the boots stay
+ * in it and the other items out of it (slotFits).
  *
  * - `slot(i, own)`: props for slot i, the box's child i, with the panel's own merged in.
  * - `remove(i)`: slot i's ✕, when it has an item.
  * - `vacated`: while an item is dragged, the empty slot it left, to render after the slots.
  * - `onMove(from, to)`, `onSell(i)`: after a move, before a sale, for what goes with the slots.
+ * - `focusLater(i)`: focuses slot i after the next render.
  */
 export function useItemSlots(
   items: Slots,
@@ -312,6 +320,7 @@ export function useItemSlots(
     makeWay: false,
     byPointer: true,
     movable: (i) => items[i] != null,
+    canMove: (from, to) => slotFits(items, to, items[from]) && slotFits(items, from, items[to]),
     onPick,
   });
   const landing = order.drag && order.drag.to !== order.drag.from ? order.drag.to : null;
@@ -359,5 +368,5 @@ export function useItemSlots(
       +
     </div>
   );
-  return { box: order.box, drag: order.drag, slot, remove, vacated };
+  return { box: order.box, drag: order.drag, slot, remove, vacated, focusLater: order.focusLater };
 }

@@ -138,8 +138,7 @@ export function Details({
       )}
       {tab === "Breakdown" && (
         <>
-          <div className="row small secondary" style={{ justifyContent: "space-between", marginBottom: 6 }}>
-            <span>Damage dealt by source.</span>
+          <div className="row small secondary" style={{ justifyContent: "flex-end", marginBottom: 6 }}>
             <TypeLegend />
           </div>
           <SourceBars sources={r.bySource} maxHp={r.target.maxHp} champion={r.champion.id} />

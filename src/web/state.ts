@@ -48,6 +48,7 @@ export interface UIState {
   /** null = default leveling. */
   ranks: { Q: number; W: number; E: number; R: number } | null;
   skillOrder: string;
+  /** The build's six slots, and a seventh for boots (BOOTS_SLOT) once the bot lane role quest is done. */
   items: (number | null)[];
   runes: RunePage;
   options: Record<string, number>;

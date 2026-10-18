@@ -301,7 +301,9 @@ Sources: https://wiki.leagueoflegends.com/en-us/Basic_attack · wiki templates `
   - **Role Quests:**
     - Top: level cap 20, +11% XP (set in V26.09).
     - Mid: free tier-3 boots, plus % bonus AD/AP from V26.09.
-    - Bot: boots move to a 7th slot, plus gold.
+    - Bot: boots move to a 7th slot, plus gold. The Role Quest slot is reserved for boots, and boots
+      in the inventory move there when the quest completes, so the six inventory slots are free for
+      other items (wiki Role Quests, revision of 2026-09-22).
   - **Omnivamp rework:** full value, but 33% against minions and monsters for area, damage-over-time and pet damage.
   - XP changes; turret plates on every non-Nexus turret.
 - **26.04:** omnivamp no longer heals from Smite or Ignite.

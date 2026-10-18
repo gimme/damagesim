@@ -12,6 +12,16 @@ import { choosePrimary, chooseSecondary, pickRune, type RunePage } from "../../e
 import type { RuneData, RuneTreeData } from "../../engine/data-types.ts";
 
 const TREES = DATA.runePage.trees;
+/** A shard's stat as its row shows it: abbreviated, AD and AP in their damage type's color. */
+const SHARD_STATS: Record<string, { abbr: string; type?: "physical" | "magic" }> = {
+  "Attack Damage": { abbr: "AD", type: "physical" },
+  "Ability Power": { abbr: "AP", type: "magic" },
+  "Attack Speed": { abbr: "AS" },
+  "Ability Haste": { abbr: "AH" },
+  "Move Speed": { abbr: "MS" },
+  Health: { abbr: "HP" },
+  "Tenacity and Slow Resist": { abbr: "Tenacity & Slow Resist" },
+};
 const treeRow = (tree: string, row: number) => DATA.runes.filter((r) => r.tree === tree && r.row === row);
 /** Sets --tree to a tree's color, for what's inside. */
 const treeColor = (tree: string) => ({ "--tree": `var(--tree-${tree.toLowerCase()})` }) as CSSProperties;
@@ -32,12 +42,24 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
       <Icon src={runeIcon(r.icon)} label={r.name} />
     </button>
   );
-  // A shard's whole text is one line, so the rows show it, with numbers at your level.
+  // A shard's whole text is one line, so the rows show it, with numbers at your level: "+9 AP", "+110
+  // HP (based on level)".
   const shardText = (id?: number) => {
     if (id === undefined) return "";
     const rune = DATA.runes.find((r) => r.id === id);
     if (!rune) return String(id);
-    return runeText(rune, sim).body.replace(/<[^>]+>/g, "") || rune.name;
+    const text = runeText(rune, sim).body.replace(/<[^>]+>/g, "") || rune.name;
+    const m = /^([+-][\d.,]+(?:-[\d.,]+)?%?) ([^(]+?)\s*(\(.*\))?$/.exec(text);
+    const stat = m && SHARD_STATS[m[2]];
+    if (!stat) return text;
+    return (
+      <>
+        <span className={`it-value ${stat.type ?? ""}`}>
+          {m[1]} {stat.abbr}
+        </span>
+        {m[3] && <span className="muted"> {m[3]}</span>}
+      </>
+    );
   };
   return (
     <Card title="Runes">
@@ -71,7 +93,6 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
       <div className="shard-rows">
         {DATA.runePage.shards.map((row, i) => (
           <div key={row.label} className="shard-row" role="group" aria-label={`${row.label} shard`}>
-            <span className="small secondary">{row.label}</span>
             <div className="row" style={{ gap: 6, flexWrap: "nowrap" }}>
               {row.options.map((id) => {
                 const r = DATA.runes.find((x) => x.id === id)!;
