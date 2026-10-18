@@ -1714,10 +1714,10 @@ export class Sim {
    *   components crit (canCrit: Nasus Q, Pantheon W), which then are all of its crit; an attack whose
    *   first component can't crit (canCrit: false), or someone else's, can't (performAttackHit);
    * - a guaranteed crit's modifier (Sundered Sky's and Fiendhunter Bolts' 80%) scales all of the
-   *   attack's own damage and of its empowered ability's, the bonus that doesn't crit too, but not
-   *   its on-hit effects. In the practice tool (16.20), Trundle's Chomp with Sundered Sky deals
-   *   (AD × 200% + its bonus) × 80% (206), and an attack with Sundered Sky and Recurve Bow
-   *   AD × 160% + 15 (199).
+   *   attack's own damage, with what replaces it the bonus that doesn't crit too, but not another
+   *   empowered bonus or its on-hit effects. In the practice tool (16.20), with Sundered Sky,
+   *   Trundle's Chomp deals (AD × 200% + its bonus) × 80% (206), Jax's Empower AD × 160% + its
+   *   bonus (234), and an attack with Recurve Bow AD × 160% + 15 (199).
    * `later`: its parts that land later (bleeds), which crit with it but aren't its own damage.
    */
   private critAttack(atk: AttackInfo, plain: number, later: DamageRequest[]) {
@@ -1736,7 +1736,7 @@ export class Sim {
         x.amount *= !atk.canCrit ? 1 : onHit ? rolled(m) : m === atk.critMultiplier ? atk.critFactor : f ? m * scale : rolled(m);
         x.flags = { ...x.flags, crit: atk.canCrit && (onHit ? atk.naturalCrit === 1 : atk.crit) };
         delete x.critMultiplier;
-      } else if (scale !== 1 && x.flags?.empowered && !later.includes(x)) x.amount *= scale;
+      } else if (scale !== 1 && replaced.includes(x)) x.amount *= scale;
     }
     if (own > 0 && atk.critFactor !== scale) replaced[0].amount += own * (atk.critFactor - scale);
     // The attack is recorded as the parts that crit with it first (Zaahen Q's AD halves), then in order.

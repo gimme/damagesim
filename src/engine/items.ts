@@ -550,7 +550,7 @@ const ITEMS: Record<number, Factory> = {
   6610: (item) =>
     effect(item, {
       description:
-        "The first attack against a champion (10s cooldown) is a guaranteed critical strike for 80% of your crit damage, and heals. The 80% also scales an empowered attack's bonus damage, not on-hit effects.",
+        "The first attack against a champion (10s cooldown) is a guaranteed critical strike for 80% of your crit damage, and heals. The 80% also scales the bonus of an attack an ability replaces (Trundle Q), not other empowered bonuses or on-hit effects.",
       preAttack(sim, atk) {
         // Attacks that can't crit (Pick a Card, Camille's Q, Fiora's first Bladework) don't use it.
         if (atk.fromAbility || atk.phantom || !atk.canCrit || !sim.isReady(`item:${item.id}`)) return;

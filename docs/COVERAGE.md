@@ -331,7 +331,7 @@ not relevant to damage dealt to a single champion).
 | Stormrazor | 3200 | yes | Energized attacks deal bonus magic damage. |
 | Stormsurge | 2800 | yes | Dealing 25% of the target's max health within 2.5s triggers Squall: magic damage after 2s (30s cooldown). |
 | Stridebreaker | 3300 | yes | Active: Breaking Shockwave deals physical damage around you. |
-| Sundered Sky | 3100 | yes | The first attack against a champion (10s cooldown) is a guaranteed critical strike for 80% of your crit damage, and heals. The 80% also scales an empowered attack's bonus damage, not on-hit effects. |
+| Sundered Sky | 3100 | yes | The first attack against a champion (10s cooldown) is a guaranteed critical strike for 80% of your crit damage, and heals. The 80% also scales the bonus of an attack an ability replaces (Trundle Q), not other empowered bonuses or on-hit effects. |
 | Sunfire Aegis | 2800 | yes | While in combat, deals magic damage per second to nearby enemies. |
 | Swiftmarch | 1000 | yes | Adaptive force equal to 5% of your move speed (item move speed only; temporary speed-ups ignored). |
 | Terminus | 3000 | yes | On-hit magic damage. Alternating Light/Dark attacks: Dark attacks grant 10% armor and magic penetration (max 30%) for 5s. |

@@ -781,29 +781,31 @@ test("Sundered Sky + Fiendhunter Bolts: same result in either item order, with t
   assert.ok(Math.abs(total(["Fiendhunter Bolts", "Sundered Sky"]) - total(["Sundered Sky", "Fiendhunter Bolts"])) < 0.01);
 });
 
-test("Sundered Sky on Trundle (practice tool, 16.20): Chomp's attack part crits, its bonus doesn't, and the 80% scales both, not on-hit effects", () => {
-  // Level 1 (Q rank 1) with the measured links' runes at 0:00, against a dummy without resists. The
-  // game shows whole numbers.
-  const dealt = (items: string[], combo: string) =>
+test("Sundered Sky (practice tool, 16.20): Chomp's attack part crits, its bonus doesn't, and the 80% scales both, not Jax's Empower or on-hit effects", () => {
+  // Level 1 (Trundle's Q, Jax's W at rank 1) with the measured links' runes at 0:00, against a dummy
+  // without resists. The game shows whole numbers.
+  const dealt = (champion: string, items: string[], combo: string) =>
     simulate(data, {
-      champion: "Trundle",
+      champion,
       level: 1,
+      skillOrder: champion === "Jax" ? "WQE" : "QWE",
       items,
       runes: ["Absolute Focus", "Gathering Storm", 5005, 5008, 5011],
       options: { gameTime: 0 },
       combo,
       target: { maxHp: 1000, armor: 0, mr: 0 },
     }).totalDamage;
-  const measured: [string[], string, number][] = [
-    [[], "Q AA", 96],
-    [["B. F. Sword"], "Q AA", 142],
-    [["Sundered Sky"], "AA", 184],
-    [["Sundered Sky"], "Q AA", 206],
-    [["Sundered Sky", "Recurve Bow"], "AA", 199],
+  const measured: [string, string[], string, number][] = [
+    ["Trundle", [], "Q AA", 96],
+    ["Trundle", ["B. F. Sword"], "Q AA", 142],
+    ["Trundle", ["Sundered Sky"], "AA", 184],
+    ["Trundle", ["Sundered Sky"], "Q AA", 206],
+    ["Trundle", ["Sundered Sky", "Recurve Bow"], "AA", 199],
+    ["Jax", ["Sundered Sky"], "W AA", 234],
   ];
-  for (const [items, combo, game] of measured) {
-    const got = dealt(items, combo);
-    assert.ok(Math.abs(got - game) < 0.6, `${items.join(" + ") || "no items"}, ${combo}: ${got} (game: ${game})`);
+  for (const [champion, items, combo, game] of measured) {
+    const got = dealt(champion, items, combo);
+    assert.ok(Math.abs(got - game) < 0.6, `${champion}, ${items.join(" + ") || "no items"}, ${combo}: ${got} (game: ${game})`);
   }
 });
 

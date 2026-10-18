@@ -147,8 +147,8 @@ export interface AttackInfo {
   /**
    * Guaranteed crit from an item: `modifier` × full crit damage, or `naturalModifier` × full crit
    * damage when the attack would have crit anyway. Several sources keep the highest of each. The
-   * modifier scales all of the attack's own damage and of its empowered ability's, the parts that
-   * don't crit too, but not its on-hit effects (Sim.critAttack).
+   * modifier scales all of the attack's own damage, with what replaces it (replaceBase) the bonus
+   * that doesn't crit too, but not other empowered bonuses or on-hit effects (Sim.critAttack).
    */
   forcedCrit?: { modifier: number; naturalModifier: number };
   /** Extra damage requests added by on-hit effects. */
