@@ -1,6 +1,7 @@
-// The Champion card: the champion search, level and ranks, ability cards, and the parameters section.
+// The Champion card: the champion search, level and ranks, ability cards, the parameters section, and
+// each champion's setup coming back with it.
 
-import { test, expect, attrs, num, texts, type UI } from "./ui.ts";
+import { test, expect, addressOf, attrs, num, texts, type UI } from "./ui.ts";
 
 const parts = (ui: UI) => {
   const card = ui.card("Champion");
@@ -310,15 +311,112 @@ test("ability cards and parameters", async ({ ui }) => {
   );
   await step("the pointer away", () => ui.unhover());
   await step(
-    "Zed: his parameters, the ones set gone",
+    "Zed: his parameters, Vex's gone, the distance kept",
     async () => {
       await search.click();
       await search.fill("zed");
       await search.press("Enter");
     },
     async () => {
-      expect((await ui.state()).options).toEqual({});
+      expect((await ui.state()).options).toEqual({ distance: 500 });
       await expect(params.getByRole("checkbox", { name: "Doom ready at start" })).toHaveCount(0);
     },
+  );
+  await step(
+    "back to Vex: hers as she had them",
+    async () => {
+      await search.click();
+      await search.fill("vex");
+      await search.press("Enter");
+    },
+    async () => {
+      expect((await ui.state()).options).toEqual({ doom: 0, distance: 500 });
+      await expect(params.getByRole("checkbox", { name: "Doom ready at start" })).not.toBeChecked();
+    },
+  );
+});
+
+test("each champion's state", async ({ ui }) => {
+  const { step } = ui;
+  const { search, level } = parts(ui);
+  const pick = async (name: string) => {
+    await search.click();
+    await search.fill(name);
+    await search.press("Enter");
+  };
+  const items = ui.card("Items");
+  const slots = items.locator(".slots > .slot:not(.vacated)");
+  const undo = items.getByRole("button", { name: "Undo" });
+  const primary = (tree: string) => ui.card("Runes").getByRole("group", { name: "Primary tree", exact: true }).getByRole("button", { name: tree });
+  const target = (mode: string) => ui.card("Target").getByRole("group", { name: "Target" }).getByRole("button", { name: mode });
+  let ahri = {} as Awaited<ReturnType<UI["state"]>>;
+  let zed = ahri;
+
+  await step("load", () => ui.open());
+  await step(
+    "Ahri: Luden's sold, primary Precision, level 20, a tank",
+    async () => {
+      await slots.nth(0).hover();
+      await slots
+        .nth(0)
+        .getByRole("button", { name: /^Sell / })
+        .click();
+      await primary("Precision").click();
+      await level.press("End");
+      await target("Tank").click();
+    },
+    async () => {
+      ahri = await ui.state();
+      expect(ahri).toMatchObject({ items: [null, 3020, null, null, null, null], runes: { primary: "Precision" }, level: 20, target: { mode: "tank" } });
+    },
+  );
+  await step(
+    "Zed, not had before: what's on screen, nothing to undo",
+    () => pick("zed"),
+    async () => {
+      expect(await ui.state()).toEqual({ ...ahri, champion: "Zed" });
+      await expect(undo).toBeDisabled();
+    },
+  );
+  await step(
+    "Youmuu's bought, primary Domination, level 1, a bruiser",
+    async () => {
+      await slots.nth(0).click();
+      await items.getByRole("searchbox", { name: "Search items" }).fill("youmuu");
+      await items.getByRole("searchbox", { name: "Search items" }).press("Enter");
+      await primary("Domination").click();
+      await level.press("Home");
+      await target("Bruiser").click();
+    },
+    async () => {
+      zed = await ui.state();
+      expect(zed).toMatchObject({ items: [3142, 3020, null, null, null, null], runes: { primary: "Domination" }, level: 1, target: { mode: "bruiser" } });
+    },
+  );
+  await step(
+    "back to Ahri: all as she had it, nothing to undo",
+    () => pick("ahri"),
+    async () => {
+      expect(await ui.state()).toEqual(ahri);
+      await expect(undo).toBeDisabled();
+    },
+  );
+  await step(
+    "back to Zed: all as he had it",
+    () => pick("zed"),
+    async () => expect(await ui.state()).toEqual(zed),
+  );
+  await step(
+    "Zed at 20, left by a link to Lux's scenario, then picked: at 20, as the link left him",
+    async () => {
+      await level.press("End");
+      zed = await ui.state();
+      expect(zed.level).toBe(20);
+      await ui.page.goto(addressOf({ champion: "Lux" }));
+      await ui.settle();
+      await expect(search).toHaveValue("Lux");
+      await pick("zed");
+    },
+    async () => expect(await ui.state()).toEqual(zed),
   );
 });

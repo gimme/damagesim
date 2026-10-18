@@ -49,6 +49,12 @@ export function findVariant(spec: AbilitySpec | undefined, key: string): [string
   return Object.entries(spec?.variants ?? {}).find(([k]) => k.toLowerCase() === key.toLowerCase());
 }
 
+/** Whether `kit` makes something of a P step: hits, variants or a buff (Kha'Zix's Unseen Threat). */
+export function hasPassiveStep(kit: ChampionKit): boolean {
+  const p = kit.abilities.P;
+  return !!(p?.components?.length || Object.keys(p?.variants ?? {}).length || p?.buff);
+}
+
 const SLOTS = new Set(["P", "Q", "W", "E", "R"]);
 
 /**

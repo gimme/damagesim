@@ -1,5 +1,6 @@
 // The Combo card: keys, a key dragged in, steps reordered, crits, shorthand typed in place, variants,
-// a step's numbers, and the combo refitted when the champion changes.
+// a step's numbers, the combo refitted when the champion changes and back as it was when they return,
+// and steps that do nothing for now kept, muted.
 
 import { test, expect, type UI } from "./ui.ts";
 
@@ -546,12 +547,126 @@ test("variants, numbers and refits", async ({ ui }) => {
     },
   );
   await step(
-    "back to Ahri: no variant, the item's step kept",
-    () => pickChampion(ui, "ahri"),
+    "on to Lux: no variant, the item's step kept",
+    () => pickChampion(ui, "lux"),
     async () => {
       await expect(variant).toHaveCount(0);
       expect((await steps()).at(-1)).toBe("item:Profane_Hydra");
       await expect(shorthand).toHaveCount(0);
     },
   );
+});
+
+test.describe(() => {
+  // The last steps check Item value's ranking.
+  test.use({ itemValue: true });
+
+  test("each champion's combo, and steps that do nothing for now", async ({ ui }) => {
+    const { step } = ui;
+    const { card, key, chips, type, steps } = parts(ui);
+    const inert = card.locator(".chip.inert");
+    const rank = (k: string) => ui.card("Champion").getByRole("spinbutton", { name: `${k} rank` });
+    const items = ui.card("Items");
+    const slot = items.locator(".slots > .slot:not(.vacated)").nth(2);
+    const buy = async (name: string) => {
+      await slot.click();
+      await items.getByRole("searchbox", { name: "Search items" }).fill(name);
+      await items.getByRole("searchbox", { name: "Search items" }).press("Enter");
+    };
+
+    await step("load", () => ui.open());
+    await step(
+      "Yunara, Q W:ruin E:dash AA typed, R rank 1",
+      async () => {
+        await pickChampion(ui, "yunara");
+        await type("Q W:ruin E:dash AA");
+        await rank("R").fill("1");
+      },
+      async () => expect(await steps()).toEqual(["Q", "W:ruin", "E:dash", "AA"]),
+    );
+    await step(
+      "Katarina: Yunara's variants dropped, default leveling; then P",
+      async () => {
+        await pickChampion(ui, "katarina");
+        await key("P").click();
+      },
+      async () => {
+        expect(await steps()).toEqual(["Q", "W", "E", "AA", "P"]);
+        expect((await ui.state()).ranks).toBeNull();
+        await expect(inert).toHaveCount(0);
+      },
+    );
+    await step(
+      "back to Yunara: her combo as she had it, her R rank",
+      () => pickChampion(ui, "yunara"),
+      async () => {
+        expect(await steps()).toEqual(["Q", "W:ruin", "E:dash", "AA"]);
+        await expect(rank("R")).toHaveValue("1");
+      },
+    );
+    await step(
+      "back to Katarina: hers, P and all",
+      () => pickChampion(ui, "katarina"),
+      async () => expect(await steps()).toEqual(["Q", "W", "E", "AA", "P"]),
+    );
+    await step(
+      "on to Lux, who has no P step: P kept, muted, saying why",
+      () => pickChampion(ui, "lux"),
+      async () => {
+        expect(await steps()).toEqual(["Q", "W", "E", "AA", "P"]);
+        await expect(key("P")).toHaveCount(0);
+        await expect(inert).toHaveCount(1);
+        await expect(chips.last()).toHaveClass(/\binert\b/);
+        await expect(chips.last()).toHaveAttribute("title", "Skipped: Lux has no P step");
+      },
+    );
+    let total = 0;
+    await step(
+      "Hextech Gunblade bought, its active's key: a step that fires",
+      async () => {
+        await buy("gunblade");
+        await key("Lightning Bolt").click();
+      },
+      async () => {
+        expect((await steps()).at(-1)).toBe("item:Hextech_Gunblade");
+        await expect(inert).toHaveCount(1);
+        total = await ui.total();
+      },
+    );
+    await step(
+      "Gunblade sold: its step kept, muted, saying why",
+      async () => {
+        await slot.hover();
+        await slot.getByRole("button", { name: /^Sell / }).click();
+      },
+      async () => {
+        expect((await steps()).at(-1)).toBe("item:Hextech_Gunblade");
+        await expect(key("Lightning Bolt")).toHaveCount(0);
+        await expect(inert).toHaveCount(2);
+        await expect(chips.last()).toHaveAttribute("title", "Skipped: Hextech Gunblade isn't in the build");
+        expect(await ui.total()).toBeLessThan(total);
+      },
+    );
+    const value = ui.card("Item value");
+    await step(
+      "Item value: Gunblade's worth has its Lightning Bolt",
+      async () => {
+        const all = value.getByRole("button", { name: "Show all" });
+        if (await all.count()) await all.click();
+        await value.getByRole("row").filter({ hasText: "Hextech Gunblade" }).locator(".iv-track").hover();
+      },
+      () => expect(ui.tooltip).toContainText("Lightning Bolt"),
+    );
+    await step("the pointer away", () => ui.unhover());
+    await step(
+      "bought back: it fires again, the total as it was",
+      () => buy("gunblade"),
+      async () => {
+        await expect(inert).toHaveCount(1);
+        await expect(chips.last()).not.toHaveClass(/\binert\b/);
+        await expect(chips.last()).not.toHaveAttribute("title");
+        expect(await ui.total()).toBe(total);
+      },
+    );
+  });
 });

@@ -654,6 +654,16 @@ label.field {
   opacity: 0.9;
   will-change: transform;
 }
+/* A step that does nothing now, kept for when it applies again (see Sim.skipReason): dashed and muted */
+.chip.inert {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-muted);
+}
+.chip.inert .icon {
+  opacity: 0.5;
+  filter: grayscale(1);
+}
 /* A key's step away from the steps, where it won't land: out of their flow, faded */
 .chip.away {
   position: absolute;

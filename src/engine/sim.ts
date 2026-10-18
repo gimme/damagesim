@@ -23,7 +23,7 @@ import {
   type SetupCtx,
   type Slot,
 } from "./effects.ts";
-import { attackOptions, findVariant, parseCombo, formatCombo, rollsCrits, type AbilityStep, type ComboStep, type CritMode } from "./combo.ts";
+import { attackOptions, findVariant, hasPassiveStep, parseCombo, formatCombo, rollsCrits, type AbilityStep, type ComboStep, type CritMode } from "./combo.ts";
 import { getKit } from "../kits/index.ts";
 import { createItemEffect, ITEM_GROUPS } from "./items.ts";
 import { bonusSkillPoints, createRuneEffects } from "./runes.ts";
@@ -1869,14 +1869,36 @@ export class Sim {
     return this.evalExpr(c.travel === true ? "reach / missileSpeed" : c.travel, ctx);
   }
 
+  /**
+   * Why a step does nothing with this champion and build, where it doesn't: an ability not learned,
+   * a P without a step, an item active whose item isn't bought or isn't modeled. The step is skipped,
+   * and can stay in the combo for when it applies again (Gunblade's active, for the item it's worth).
+   */
+  skipReason(step: ComboStep): string | null {
+    if (step.type === "ability") {
+      if (step.slot === "P") return hasPassiveStep(this.kit) ? null : `${this.champ.name} has no P step`;
+      return this.abilityRank(step.slot) <= 0 ? `${step.slot} is not learned at level ${this.level} (rank 0)` : null;
+    }
+    if (step.type !== "item") return null;
+    let item: ItemData;
+    try {
+      item = findItem(this.data, step.item);
+    } catch (err) {
+      return (err as Error).message;
+    }
+    if (!this.items.some((i) => i.id === item.id)) return `${item.name} isn't in the build`;
+    return this.itemActive(item) ? null : `${item.name} has no modeled active`;
+  }
+
+  /** The effect with an item's active, if it's modeled. */
+  private itemActive(item: ItemData): Effect | undefined {
+    return this.effects.find((e) => e.source === "item" && e.active && (e.id === `item:${item.id}` || (e as any).itemIds?.includes(item.id)));
+  }
+
   castAbility(step: AbilityStep, timeline: SimResult["timeline"]) {
     const slot = step.slot;
     const spec = this.abilitySpec(slot);
     const rank = this.abilityRank(slot);
-    if (slot !== "P" && rank <= 0) {
-      this.warn(`${slot} is not learned at level ${this.level} (rank 0); step skipped`);
-      return;
-    }
     let variantKey = step.variant ?? spec.defaultVariant;
     let variant: VariantSpec | undefined;
     if (variantKey) {
@@ -2331,6 +2353,11 @@ export class Sim {
     const initialRed = this.targetReductions();
 
     for (const step of steps) {
+      const skip = this.skipReason(step);
+      if (skip) {
+        this.warn(`${skip}; step skipped`);
+        continue;
+      }
       // A crit mark holds only on a step that can crit (Q! on a cast without a crit-capable hit runs as Q).
       const marked = (step.type === "ability" || step.type === "attack") && step.crit !== undefined;
       const crits = marked && rollsCrits(step, this.kit);
@@ -2357,23 +2384,8 @@ export class Sim {
           break;
         }
         case "item": {
-          let item: ItemData;
-          try {
-            item = findItem(this.data, step.item);
-          } catch (err) {
-            this.warn((err as Error).message);
-            break;
-          }
-          const eff = this.effects.find((e) => e.source === "item" && e.active && (e.id === `item:${item.id}` || (e as any).itemIds?.includes(item.id)));
-          if (!this.items.some((i) => i.id === item.id)) {
-            this.warn(`item active "${item.name}" used but the item is not in the build`);
-            break;
-          }
-          if (!eff?.active) {
-            this.warn(`${item.name} has no modeled active`);
-            break;
-          }
-          this.useActive(eff, timeline, `item:${item.name}`);
+          const item = findItem(this.data, step.item);
+          this.useActive(this.itemActive(item)!, timeline, `item:${item.name}`);
           break;
         }
       }

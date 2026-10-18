@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DATA, loadBundledIcons } from "./data.ts";
-import { DEFAULT_STATE, decodeState, encodeState, loadSavedState, saveState, toScenario, type UIState } from "./state.ts";
+import { DEFAULT_STATE, decodeState, encodeState, loadSavedState, resetState, saveState, toScenario, type UIState } from "./state.ts";
 import { simulate, Sim, type SimResult } from "../engine/sim.ts";
 import { clampCombo, formatCombo, parseCombo } from "../engine/combo.ts";
 import { AttackerPanel } from "./components/attacker.tsx";
@@ -119,7 +119,11 @@ export function App() {
         <h1>damagesim</h1>
         <span className="badge">patch {DATA.meta.patch}</span>
         <span className="spacer" />
-        <button className="btn small" onClick={() => setState(DEFAULT_STATE)}>
+        <button
+          className="btn small"
+          title={`Reset ${DATA.champions[state.champion].name}: no items, runes or combo, and the rest as on a fresh page`}
+          onClick={() => setState(resetState)}
+        >
           Reset
         </button>
         <button className="btn small" onClick={theme.toggle} aria-label="Toggle dark mode">
@@ -129,7 +133,8 @@ export function App() {
       <div className="layout">
         <div>
           <AttackerPanel state={state} set={setState} sim={sim} />
-          <ItemsPanel state={state} set={setState} gold={result?.gold ?? 0} sim={sim} />
+          {/* A champion's items come and go with it: their undo starts afresh with each */}
+          <ItemsPanel key={state.champion} state={state} set={setState} gold={result?.gold ?? 0} sim={sim} />
           <RunesPanel state={state} set={setState} sim={sim} />
           <TargetPanel state={state} set={setState} resolved={result?.target} />
           <SettingsPanel state={state} set={setState} />

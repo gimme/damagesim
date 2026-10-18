@@ -7,7 +7,7 @@ import { useDragOrder } from "./drag.tsx";
 import { Card, mergeProps } from "./common.tsx";
 import type { Set, UIState } from "../state.ts";
 import type { CastSetting, Sim } from "../../engine/sim.ts";
-import { critMarking, formatCombo, markCrit, parseCombo, type AbilityStep, type ComboStep, type CritMode } from "../../engine/combo.ts";
+import { critMarking, formatCombo, hasPassiveStep, markCrit, parseCombo, type AbilityStep, type ComboStep, type CritMode } from "../../engine/combo.ts";
 import { findItem } from "../../engine/gamedata.ts";
 import { getKit } from "../../kits/index.ts";
 import type { Slot } from "../../engine/effects.ts";
@@ -241,7 +241,7 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
   const champ = DATA.champions[state.champion];
   const spellName = (slot: Slot) => (slot === "P" ? champ.passive.name : (champ.abilities.find((a) => a.slot === slot)?.spells[0]?.name ?? slot));
   const actives = (sim?.effects ?? []).filter((e) => e.active && e.source === "item");
-  const hasP = !!(kit.abilities.P?.components?.length || Object.keys(kit.abilities.P?.variants ?? {}).length);
+  const hasP = hasPassiveStep(kit);
   // Crits aren't a setting: the buttons mark the steps that can crit (AA!, Q?), and show how they're
   // marked: none pressed when they differ, the last pick while no step can crit. New steps follow.
   const [lastCrits, setLastCrits] = useState<CritMode>("expected");
@@ -392,13 +392,16 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
             const variants = st.type === "ability" ? Object.entries(kit.abilities[st.slot]?.variants ?? {}) : [];
             const setting = st.type === "ability" ? sim?.castSetting(st) : null;
             const replace = (next: ComboStep) => commit(steps.map((x, j) => (j === i ? next : x)));
+            // A step that does nothing now (its item sold, a P the champion hasn't) stays, muted, for when it applies again.
+            const skip = sim?.skipReason(st);
             return (
               <span
                 key={i}
-                className={`chip ${drag?.from === i ? "dragging" : ""} ${drag?.from === i && drag.away ? "away" : ""}`}
+                className={`chip ${drag?.from === i ? "dragging" : ""} ${drag?.from === i && drag.away ? "away" : ""} ${skip ? "inert" : ""}`}
+                title={skip ? `Skipped: ${skip}` : undefined}
                 role="listitem"
                 tabIndex={0}
-                aria-label={`Step ${i + 1} of ${steps.length}: ${label(st)}. Arrow keys move it, Delete removes it.`}
+                aria-label={`Step ${i + 1} of ${steps.length}: ${label(st)}${skip ? `, skipped: ${skip}` : ""}. Arrow keys move it, Delete removes it.`}
                 {...mergeProps(order.item(i), {
                   onKeyDown: (e: KeyboardEvent) => {
                     if (e.target !== e.currentTarget || (e.key !== "Delete" && e.key !== "Backspace")) return;
@@ -420,7 +423,17 @@ export function ComboBuilder({ state, set, sim }: { state: UIState; set: Set; si
                     onPick={(v) => replace(follow({ ...st, variant: v || undefined }))}
                   />
                 ) : (
-                  <span title={st.type === "ability" ? spellName(st.slot) : st.type === "item" ? `${stepItem(st)?.name ?? st.item} active` : undefined}>
+                  <span
+                    title={
+                      skip
+                        ? `Skipped: ${skip}`
+                        : st.type === "ability"
+                          ? spellName(st.slot)
+                          : st.type === "item"
+                            ? `${stepItem(st)?.name ?? st.item} active`
+                            : undefined
+                    }
+                  >
                     {chipLabel(st)}
                   </span>
                 )}

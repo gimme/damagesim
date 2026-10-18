@@ -255,22 +255,43 @@ test("Reset", async ({ ui }) => {
     },
   );
   await step(
-    "Zed with Youmuu's",
-    () => reload(ui, addressOf({ champion: "Zed", items: [3142, null, null, null, null, null] })),
+    "Zed at 16 with Youmuu's, against a tank",
+    () => reload(ui, addressOf({ champion: "Zed", level: 16, combo: "W E Q AA R", items: [3142, null, null, null, null, null], target: { mode: "tank" } })),
     () => expect(ui.card("Champion").getByRole("searchbox", { name: "Champion" })).toHaveValue("Zed"),
   );
+  const empty = { primary: "Domination", secondary: "Sorcery", picks: [], held: [], shards: [] };
   await step(
-    "Reset: the default state, at Ahri's address without a hash",
-    () => page.locator("header").getByRole("button", { name: "Reset" }).click(),
+    "Reset, its title naming Zed: still Zed, at his address, with no items, runes or combo, the rest as on a fresh page",
     async () => {
-      expect(await ui.state()).toEqual(fresh);
-      expect(address(ui)).toBe("/ahri/");
+      const reset = page.locator("header").getByRole("button", { name: "Reset" });
+      await expect(reset).toHaveAttribute("title", "Reset Zed: no items, runes or combo, and the rest as on a fresh page");
+      await reset.click();
+    },
+    async () => {
+      expect(await ui.state()).toEqual({ ...fresh, champion: "Zed", items: [null, null, null, null, null, null], runes: empty, combo: "" });
+      expect(address(ui)).toMatch(/^\/zed\/#/);
+      await expect(ui.card("Runes").locator("[aria-pressed=true].rune-pick, [aria-pressed=true].shard-pick")).toHaveCount(0);
+      await expect(ui.card("Combo").getByRole("listitem")).toHaveCount(0);
     },
   );
   await step(
     "Undo in Items: the items before Reset",
     () => ui.card("Items").getByRole("button", { name: "Undo" }).click(),
     async () => expect((await ui.state()).items).toEqual([3142, null, null, null, null, null]),
+  );
+  let left = {} as Awaited<ReturnType<UI["state"]>>;
+  await step(
+    "Ahri, then back to Zed: as Reset and Undo left him",
+    async () => {
+      left = await ui.state();
+      for (const name of ["ahri", "zed"]) {
+        const search = ui.card("Champion").getByRole("searchbox", { name: "Champion" });
+        await search.click();
+        await search.fill(name);
+        await search.press("Enter");
+      }
+    },
+    async () => expect(await ui.state()).toEqual(left),
   );
 });
 

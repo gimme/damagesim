@@ -6,24 +6,14 @@ import { ChampIcon, Icon, sourceMark } from "./icons.tsx";
 import { ChampionPicker } from "./pickers.tsx";
 import { ItemTip, Markup, RuneTip, useHoverCard } from "./hover.tsx";
 import { Card, fmt } from "./common.tsx";
-import type { Set, UIState } from "../state.ts";
+import { pickChampion, type Set, type UIState } from "../state.ts";
 import { maxRanks, resolveRanks, type Sim } from "../../engine/sim.ts";
 import { renderTooltip } from "../../engine/tooltip.ts";
 import { describeChampion } from "../../engine/describe.ts";
 import { bonusSkillPoints } from "../../engine/runes.ts";
-import { fitCombo, formatCombo, parseCombo } from "../../engine/combo.ts";
 import { getKit } from "../../kits/index.ts";
 import { DISTANCE, type Effect } from "../../engine/effects.ts";
 import type { KitOption } from "../../engine/kit-types.ts";
-
-/** A combo's shorthand as another champion takes it (see fitCombo); unchanged when it doesn't parse. */
-function fitShorthand(combo: string, kit: ReturnType<typeof getKit>) {
-  try {
-    return formatCombo(fitCombo(parseCombo(combo), kit));
-  } catch {
-    return combo;
-  }
-}
 
 export function AttackerPanel({ state, set, sim }: { state: UIState; set: Set; sim: Sim | null }) {
   const champ = DATA.champions[state.champion];
@@ -43,10 +33,7 @@ export function AttackerPanel({ state, set, sim }: { state: UIState; set: Set; s
   return (
     <Card title="Champion">
       <div className="stack" style={{ gap: 12 }}>
-        <ChampionPicker
-          value={state.champion}
-          onChange={(id) => set((s) => ({ ...s, champion: id, ranks: null, options: {}, combo: fitShorthand(s.combo, getKit(DATA.champions[id])) }))}
-        />
+        <ChampionPicker value={state.champion} onChange={(id) => set((s) => pickChampion(DATA, s, id))} />
         <div className="row" style={{ flexWrap: "nowrap" }}>
           <span className="small secondary" style={{ width: 44 }}>
             Level

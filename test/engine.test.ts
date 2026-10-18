@@ -130,6 +130,30 @@ test("a step's number is clamped to what its cast allows at the build's ranks", 
   assert.equal(formatCombo(clampCombo(parseCombo("R{2s} Q{3} W{1s}"), (st) => at(3).castSetting(st))), "R Q W");
 });
 
+test("a step that does nothing for the champion or build is skipped, and says why", () => {
+  const ahri = { champion: "Ahri", level: 11, items: ["Luden's Echo"], target: dummy };
+  const run = (combo: string, items = ahri.items) => simulate(data, { ...ahri, items, combo });
+  // Ahri has no P step, and Hextech Gunblade isn't bought: the combo runs as without them.
+  const plain = run("E Q W R AA");
+  const r = run("E Q P W item:Hextech_Gunblade R AA");
+  assert.equal(r.totalDamage, plain.totalDamage);
+  assert.deepEqual(
+    r.timeline.map((t) => t.step),
+    plain.timeline.map((t) => t.step),
+  );
+  assert.deepEqual(r.warnings, ["Ahri has no P step; step skipped", "Hextech Gunblade isn't in the build; step skipped"]);
+  // Bought, its active fires.
+  const bought = run("E Q W item:Hextech_Gunblade R AA", [...ahri.items, "Hextech Gunblade"]);
+  assert.deepEqual(bought.warnings, []);
+  assert.ok(bought.bySource.some((s) => s.source === "item:3146" && s.damage > 0));
+  const sim = (s: object) => new Sim(data, { ...ahri, combo: [], ...s });
+  assert.equal(sim({}).skipReason({ type: "ability", slot: "Q" }), null);
+  assert.equal(sim({ level: 1 }).skipReason({ type: "ability", slot: "W" }), "W is not learned at level 1 (rank 0)");
+  assert.equal(sim({}).skipReason({ type: "item", item: "Luden's Echo" }), "Luden's Echo has no modeled active");
+  // A passive with only a buff is a step: Kha'Zix's Unseen Threat.
+  assert.equal(sim({ champion: "Khazix" }).skipReason({ type: "ability", slot: "P" }), null);
+});
+
 test("crit marks: the steps that roll crits, marked all at once", () => {
   const yasuo = getKit(data.champions.Yasuo);
   const steps = parseCombo("Q E AA R Q:tornado");
@@ -332,6 +356,19 @@ test("rank items: what an item's hits proc is split from its own damage and its 
     [["Q", "Super Scorcher Breath (execute)"]],
   );
   near(ldr.procDamage, execute.final!, 0.1);
+});
+
+test("rank items: a candidate's active in the combo is used with it, though the build hasn't the item", () => {
+  const base = { champion: "Ahri", level: 11, items: ["Luden's Echo"], combo: "E Q W R AA R", target: { preset: "squishy" as const } };
+  const gunblade = (combo: string) => rankItems(data, { ...base, combo }, { candidates: ["Hextech Gunblade"] }).items[0];
+  const without = gunblade(base.combo);
+  const used = gunblade(base.combo + " item:Hextech_Gunblade");
+  assert.equal(without.itemDamage, 0);
+  assert.deepEqual(
+    used.itemHits.map((h) => h.name),
+    ["Lightning Bolt"],
+  );
+  near(used.gain, without.gain + used.itemDamage, 0.2);
 });
 
 test("item hover text: numbers for the attacker from the template the shop text is generated from", () => {

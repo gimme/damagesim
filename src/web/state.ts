@@ -1,12 +1,15 @@
 // UI state ⇄ engine Scenario, plus the scenario's address, which is what a link to it is (the page's
 // own address, so the address bar is how a scenario is shared): the champion in the path and the rest
 // of the state as a code in the hash. localStorage keeps the address for a reload where the page can't
-// write its own (the artifact frame). It takes the game data as an argument, so Node reads them too.
+// write its own (the artifact frame), and each champion's setup as you left it, for when it's picked
+// again. It takes the game data as an argument, so Node reads them too.
 
 import type { GameData } from "../engine/gamedata.ts";
 import type { Scenario, SimSettings, TargetSpec } from "../engine/sim.ts";
 import type { TargetPreset } from "../engine/presets.ts";
 import { pageRunes, type RunePage } from "../engine/rune-page.ts";
+import { fitCombo, formatCombo, parseCombo } from "../engine/combo.ts";
+import { getKit } from "../kits/index.ts";
 
 /** Health, armor and magic resist. */
 export interface TargetStats {
@@ -466,10 +469,74 @@ export function loadSavedState(data: GameData): UIState | null {
   }
 }
 
+/** Keeps the state's address for a reload, and its setup for its champion (see pickChampion). */
 export function saveState(data: GameData, s: UIState): void {
+  remember(data, s);
   try {
     localStorage.setItem(STORAGE_KEY, encodeState(data, s));
   } catch {
     // storage unavailable
+  }
+}
+
+const MEMORY_KEY = "damagesim:champions";
+
+/** Each champion's setup as you left it, its code (see encodeSetup) by champion; in localStorage, for the session only where it's unavailable. */
+let memory: Record<string, string> | null = null;
+
+function remembered(): Record<string, string> {
+  if (!memory) {
+    try {
+      const saved = JSON.parse(localStorage.getItem(MEMORY_KEY) ?? "{}");
+      memory = saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+    } catch {
+      memory = {};
+    }
+  }
+  return memory!;
+}
+
+function remember(data: GameData, s: UIState): void {
+  const all = remembered();
+  const code = encodeSetup(data, s);
+  if (all[s.champion] === code) return;
+  all[s.champion] = code;
+  try {
+    localStorage.setItem(MEMORY_KEY, JSON.stringify(all));
+  } catch {
+    // storage unavailable: remembered for the session
+  }
+}
+
+/**
+ * The state with champion `id` picked, the one on screen remembered for its champion: the whole state
+ * `id` had when you left it; or, for a champion not had before, the one on screen with the combo as its
+ * kit takes it (see fitCombo), default leveling and without the last champion's own parameters.
+ */
+export function pickChampion(data: GameData, s: UIState, id: string): UIState {
+  if (id === s.champion) return s;
+  remember(data, s);
+  const code = remembered()[id];
+  const back = typeof code === "string" ? decodeSetup(data, id, code) : null;
+  if (back) return back;
+  const own = new Set((getKit(data.champions[s.champion]).options ?? []).map((o) => o.key));
+  const options = Object.fromEntries(Object.entries(s.options).filter(([k]) => !own.has(k)));
+  return { ...s, champion: id, ranks: null, options, combo: fitShorthand(data, s.combo, id) };
+}
+
+/** A rune page with nothing picked, in a fresh page's trees. */
+const EMPTY_PAGE: RunePage = { ...DEFAULT_STATE.runes, picks: [], held: [], shards: [] };
+
+/** What Reset leaves, which its champion then remembers: it with no items, runes or combo, the rest as on a fresh page. */
+export function resetState(s: UIState): UIState {
+  return { ...DEFAULT_STATE, champion: s.champion, items: DEFAULT_STATE.items.map(() => null), runes: EMPTY_PAGE, combo: "" };
+}
+
+/** A combo's shorthand as `champion` takes it (see fitCombo); unchanged when it doesn't parse. */
+function fitShorthand(data: GameData, combo: string, champion: string) {
+  try {
+    return formatCombo(fitCombo(parseCombo(combo), getKit(data.champions[champion])));
+  } catch {
+    return combo;
   }
 }

@@ -147,3 +147,27 @@ test("rune page rules", async ({ ui }) => {
     async () => expect(num(await group("Defense shard").locator(".shard-text").innerText())).toBeGreaterThan(health),
   );
 });
+
+test("an empty page", async ({ ui }) => {
+  const { step } = ui;
+  const { card, group, picked } = parts(ui);
+  const shards = ["Offense shard", "Flex shard", "Defense shard"];
+
+  await step(
+    "load with nothing picked: the trees, no rune or shard pressed",
+    () => ui.open({ runes: { primary: "Domination", secondary: "Sorcery", picks: [], held: [], shards: [] } }),
+    async () => {
+      await expect(card.locator("[aria-pressed=true].rune-pick, [aria-pressed=true].shard-pick")).toHaveCount(0);
+      await expect(card.locator(".shard-text").first()).toHaveText("");
+    },
+  );
+  await step(
+    "a flex shard: the other rows take their first",
+    () => group("Flex shard").getByRole("button").last().click(),
+    async () => {
+      const firsts = await Promise.all(shards.map(async (s) => (await attrs(group(s).getByRole("button"), "aria-label"))[0]));
+      const last = (await attrs(group("Flex shard").getByRole("button"), "aria-label")).at(-1);
+      expect(await Promise.all(shards.map(picked))).toEqual([[firsts[0]], [last], [firsts[2]]]);
+    },
+  );
+});

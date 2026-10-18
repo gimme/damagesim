@@ -33,7 +33,8 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
     </button>
   );
   // A shard's whole text is one line, so the rows show it, with numbers at your level.
-  const shardText = (id: number) => {
+  const shardText = (id?: number) => {
+    if (id === undefined) return "";
     const rune = DATA.runes.find((r) => r.id === id);
     if (!rune) return String(id);
     return runeText(rune, sim).body.replace(/<[^>]+>/g, "") || rune.name;
@@ -80,7 +81,8 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
                     className="shard-pick"
                     aria-pressed={page.shards[i] === id}
                     aria-label={r.name}
-                    onClick={() => change((p) => ({ ...p, shards: p.shards.map((x, j) => (j === i ? id : x)) }))}
+                    // A page has a shard in each row, or none (Reset's): the first pick on one without fills the other rows with their first.
+                    onClick={() => change((p) => ({ ...p, shards: DATA.runePage.shards.map((r, j) => (j === i ? id : (p.shards[j] ?? r.options[0]))) }))}
                     {...hover.bind(<RuneTip id={id} sim={sim} />)}
                   >
                     <Icon src={runeIcon(r.icon)} label={r.name} />
