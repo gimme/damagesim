@@ -1733,12 +1733,15 @@ details summary {
   border: 1px solid var(--border);
   background: linear-gradient(color-mix(in srgb, var(--tree) 14%, transparent), transparent 45%);
 }
+/* A tree's name and the trees to choose from, 16px over what follows: the first row's as far from it as
+   from the next row. */
 .tree-head {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
   width: 100%;
+  margin-bottom: 6px;
 }
 .tree-name {
   color: var(--tree);
