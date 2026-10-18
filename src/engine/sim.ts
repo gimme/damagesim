@@ -291,7 +291,13 @@ export class Sim {
   readonly ranks: Record<Slot, number>;
   readonly opt: Record<string, number>;
   readonly settings: Required<SimSettings>;
+  /**
+   * The build's items by id, whatever their slots: their effects are created, and their stats added
+   * up, in this order, so where an item sits changes nothing, not even which of an attack's on-hits
+   * lands first (the wiki gives them no order). The result lists them as given.
+   */
   readonly items: ItemData[];
+  private readonly slotted: ItemData[];
   readonly runes: RuneData[];
   readonly effects: Effect[] = [];
   readonly warnings: string[] = [];
@@ -371,7 +377,8 @@ export class Sim {
     this.opt = {};
     for (const o of this.kit.options ?? []) this.opt[o.key] = o.default;
 
-    this.items = (scenario.items ?? []).map((q) => findItem(data, q));
+    this.slotted = (scenario.items ?? []).map((q) => findItem(data, q));
+    this.items = [...this.slotted].sort((a, b) => a.id - b.id);
     // Six slots, and a seventh for boots once the bot lane role quest is done.
     const boots = this.items.filter((i) => i.tags.includes("Boots")).length;
     if (this.items.length - Math.min(boots, 1) > 6)
@@ -2688,7 +2695,7 @@ export class Sim {
     return {
       patch: this.data.meta.patch,
       champion: { id: this.champ.id, name: this.champ.name, level: this.level, ranks: { ...this.ranks }, kitStatus: this.kit.status },
-      items: this.items.map((i) => ({ id: i.id, name: i.name, gold: i.gold.total })),
+      items: this.slotted.map((i) => ({ id: i.id, name: i.name, gold: i.gold.total })),
       runes: this.runes.map((r) => ({ id: r.id, name: r.name })),
       gold: this.items.reduce((s, i) => s + i.gold.total, 0),
       combo: formatCombo(steps),

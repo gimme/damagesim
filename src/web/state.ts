@@ -85,13 +85,17 @@ export const DEFAULT_STATE: UIState = {
   settings: { finishDots: true, executes: true, questBoots: false },
 };
 
+/** A build's items from its slots, by id: where an item sits changes nothing (the engine takes them
+ *  in this order), so a build moved around is the same scenario. */
+export const buildItems = (slots: (number | null)[]): number[] => slots.filter((x): x is number => x != null).sort((a, b) => a - b);
+
 export function toScenario(data: GameData, s: UIState): Scenario {
   return {
     champion: s.champion,
     level: s.level,
     ...(s.ranks ? { ranks: s.ranks } : {}),
     skillOrder: s.skillOrder,
-    items: s.items.filter((x): x is number => x != null),
+    items: buildItems(s.items),
     runes: pageRunes(data, s.runes),
     options: s.options,
     combo: s.combo,
@@ -100,9 +104,25 @@ export function toScenario(data: GameData, s: UIState): Scenario {
   };
 }
 
+/**
+ * What a scenario simulates, as a string: two with the same simulate alike, so the page simulates
+ * one only once. Its combo counts by its steps where it reads, so spacing doesn't count ("AA*2 " is
+ * "2AA"). Nor does what toScenario leaves out: the tier 3 boots setting, a target's numbers for
+ * the modes it isn't in, runes held over from a tree switch.
+ */
+export function scenarioKey(sc: Scenario): string {
+  let combo: Scenario["combo"] = sc.combo;
+  try {
+    if (typeof combo === "string") combo = parseCombo(combo);
+  } catch {
+    // Not a combo yet: as typed.
+  }
+  return JSON.stringify({ ...sc, combo });
+}
+
 export function toTargetSpec(t: TargetState): TargetSpec {
   const hp = { hpPercent: t.hpPercent, damageReduction: t.damageReduction };
-  if (t.mode === "champion") return { champion: t.champion, levelDiff: t.levelDiff, items: t.items, ...hp };
+  if (t.mode === "champion") return { champion: t.champion, levelDiff: t.levelDiff, items: buildItems(t.items), ...hp };
   if (t.mode === "custom")
     return {
       maxHp: t.base.hp + t.bonus.hp,
@@ -114,7 +134,7 @@ export function toTargetSpec(t: TargetState): TargetSpec {
       ...hp,
     };
   const build = t.builds[t.mode];
-  return { preset: t.mode, levelDiff: t.levelDiff, ...(build ? { items: build.filter((x): x is number => x != null) } : {}), ...hp };
+  return { preset: t.mode, levelDiff: t.levelDiff, ...(build ? { items: buildItems(build) } : {}), ...hp };
 }
 
 // A setup's code: the state but its champion. After a version byte, a varint whose bits say which

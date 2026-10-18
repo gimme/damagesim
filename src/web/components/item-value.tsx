@@ -10,7 +10,7 @@ import { Card, fmt } from "./common.tsx";
 import { GoldScatter, useTooltip, type GoldPoint } from "./charts.tsx";
 import { rankItems, defaultCandidates } from "../../engine/analysis.ts";
 import type { Scenario, Sim } from "../../engine/sim.ts";
-import type { Set, UIState } from "../state.ts";
+import { buildItems, type Set, type UIState } from "../state.ts";
 import { BOOTS_SLOT, buyItem, isBoots, isQuestBoots, slotFits } from "../slots.ts";
 
 type Ranking = ReturnType<typeof rankItems>;
@@ -85,7 +85,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   const forBoots = bootsSlot && slot === BOOTS_SLOT;
 
   const job = useMemo(() => {
-    const base: Scenario = { ...scenario, items: state.items.filter((x, i): x is number => x != null && i !== slot) };
+    const base: Scenario = { ...scenario, items: buildItems(state.items.map((x, i) => (i === slot ? null : x))) };
     // An empty slot ranks what to buy next, as the shop places it: a pair of boots in the boots slot, an
     // upgrade in place of what it's built from. In place of an item, what could go in its slot: with
     // the boots slot, boots in it and the rest in the others.

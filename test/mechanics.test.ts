@@ -1366,3 +1366,50 @@ test("Items' stacks at start: Terminus's penetration, Black Cleaver's and Bloodl
     simulate(data, { champion: "Jax", level: 18, items, options, combo: "AA Q AA W AA E AA", target }).totalDamage;
   assert.equal(build(zero), build({}));
 });
+
+test("Where an item sits changes nothing: a build in any slot order deals the same hits in the same order (the result lists its items as given)", () => {
+  const target = { maxHp: 3000, armor: 60, mr: 40 };
+  const builds: Scenario[] = [
+    // On-hits whose order shows (Black Cleaver's stacks from Kraken's hit, the current health Mist's
+    // Edge and Firmament read), Energized items, Guinsoo's and Terminus's stacks.
+    {
+      champion: "Fiora",
+      items: ["Black Cleaver", "Kraken Slayer", "Blade of The Ruined King", "Sundered Sky", "Stormrazor", "Statikk Shiv"],
+      combo: "AA Q AA E AA AA W AA*4",
+    },
+    {
+      champion: "Jinx",
+      items: ["Kraken Slayer", "Rapid Firecannon", "Blade of The Ruined King", "Guinsoo's Rageblade", "Terminus", "Voltaic Cyclosword"],
+      combo: "AA*12",
+    },
+    // Procs set off by ability damage (Luden's, Liandry's, Stormsurge), Shadowflame below 40%.
+    {
+      champion: "Ahri",
+      items: ["Luden's Echo", "Shadowflame", "Liandry's Torment", "Rabadon's Deathcap", "Stormsurge", "Void Staff"],
+      combo: "E Q W R AA R AA R",
+    },
+    // Galvanize, Manamune's Shock and Bastionbreaker on the same ability hit, Spellblade.
+    {
+      champion: "Ezreal",
+      items: ["Manamune", "Trinity Force", "Voltaic Cyclosword", "Bastionbreaker", "Serylda's Grudge", "Rapid Firecannon"],
+      combo: "Q AA W AA E Q AA R",
+    },
+  ];
+  for (const b of builds) {
+    const items = b.items as string[];
+    const orders = [[...items].reverse(), [...items.slice(1), items[0]], [items[2], items[0], items[4], items[1], items[5], items[3]]];
+    const { items: given, ...base } = simulate(data, { ...b, level: 18, target });
+    assert.deepEqual(
+      given.map((i) => i.name),
+      items,
+    );
+    for (const order of orders) {
+      const { items: listed, ...r } = simulate(data, { ...b, items: order, level: 18, target });
+      assert.deepEqual(r, base, `${b.champion}: ${order.join(", ")}`);
+      assert.deepEqual(
+        listed.map((i) => i.name),
+        order,
+      );
+    }
+  }
+});

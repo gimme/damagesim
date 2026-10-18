@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DATA, loadBundledIcons } from "./data.ts";
-import { DEFAULT_STATE, decodeState, encodeState, loadSavedState, resetState, saveState, toScenario, type UIState } from "./state.ts";
+import { DEFAULT_STATE, decodeState, encodeState, loadSavedState, resetState, saveState, scenarioKey, toScenario, type UIState } from "./state.ts";
 import { simulate, Sim, type SimResult } from "../engine/sim.ts";
 import { clampCombo, formatCombo, parseCombo } from "../engine/combo.ts";
 import { AttackerPanel } from "./components/attacker.tsx";
@@ -91,21 +91,24 @@ export function App() {
     };
   }, []);
 
-  const scenario = useMemo(() => toScenario(DATA, state), [state]);
+  // The scenario stays as it was, with what's worked out from it, while what it simulates does
+  // (scenarioKey): items moved between slots, a space typed in the combo.
+  const next = toScenario(DATA, state);
+  const scenario = useMemo(() => next, [scenarioKey(next)]);
   const { result, sim, combo, error } = useMemo(() => {
     try {
       const sim = new Sim(DATA, { ...scenario, combo: [] });
-      const combo = clampShorthand(state.combo, sim);
+      const combo = clampShorthand(scenario.combo as string, sim);
       return { result: simulate(DATA, { ...scenario, combo }) as SimResult, sim, combo, error: null as string | null };
     } catch (e) {
-      return { result: null, sim: null, combo: state.combo, error: (e as Error).message };
+      return { result: null, sim: null, combo: scenario.combo as string, error: (e as Error).message };
     }
   }, [scenario]);
   // A number set in the combo that the build no longer allows (5 shots after Xerath's R rank drops)
-  // becomes what is simulated.
+  // becomes what is simulated. A combo typed since with the same steps is left as typed.
   useEffect(() => {
-    if (combo !== state.combo) setState((s) => ({ ...s, combo }));
-  }, [combo, state.combo]);
+    if (combo !== scenario.combo) setState((s) => ({ ...s, combo }));
+  }, [combo, scenario.combo]);
 
   const pin = () => {
     const items = state.items.filter((x) => x != null).map((id) => DATA.items[id!]?.name);

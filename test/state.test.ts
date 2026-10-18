@@ -1,12 +1,16 @@
 // The scenario's address: the champion in the path, the rest as a code in the hash. Every field comes
 // back from it, what's left at the default takes no room, and a full build's code stays short.
+// And the scenario it simulates, the same for a state that simulates alike.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { loadGameData } from "../src/node/load.ts";
-import { DEFAULT_STATE, decodeSetup, decodeState, encodeSetup, encodeState, type UIState } from "../src/web/state.ts";
+import { DEFAULT_STATE, decodeSetup, decodeState, encodeSetup, encodeState, scenarioKey, toScenario, type UIState } from "../src/web/state.ts";
+import { loadAllKits } from "../src/node/kits.ts";
+import { simulate } from "../src/engine/sim.ts";
 
 const data = loadGameData("16.20");
+await loadAllKits();
 const roundTrip = (s: UIState) => decodeState(data, encodeState(data, s));
 
 /** Every field away from its default. */
@@ -123,4 +127,28 @@ test("an item or rune the patch hasn't is left out; a target champion it hasn't,
   assert.deepEqual(roundTrip({ ...DEFAULT_STATE, runes: { ...DEFAULT_STATE.runes, picks: [8112, 1234] } })?.runes.picks, [8112]);
   const other = { ...data, championIndex: data.championIndex.filter((c) => c.id !== "Lux") };
   assert.equal(decodeState(other, encodeState(data, { ...DEFAULT_STATE, target: { ...DEFAULT_STATE.target, champion: "Lux" } })), null);
+});
+
+test("a state simulates alike, as one scenario simulated once, with its items in other slots, its combo spaced otherwise, the tier 3 boots setting, a target mode's numbers it isn't in or runes held over; not at another target health", () => {
+  const key = (s: UIState) => scenarioKey(toScenario(data, s));
+  const base: UIState = { ...DEFAULT_STATE, items: [6655, 3020, 3089, null, 4645, null], combo: "E Q W R AA*2 R" };
+  const alike: UIState[] = [
+    { ...base, items: [null, 3089, 6655, 4645, 3020, null] },
+    { ...base, combo: " E  Q,W R 2AA R " },
+    { ...base, settings: { ...base.settings, questBoots: true } },
+    { ...base, target: { ...base.target, base: { hp: 1, armor: 1, mr: 1 }, champion: "Malphite" } },
+    { ...base, runes: { ...base.runes, held: [8143] } },
+  ];
+  const result = simulate(data, toScenario(data, base));
+  for (const s of alike) {
+    assert.equal(key(s), key(base));
+    assert.deepEqual(simulate(data, toScenario(data, s)), result);
+  }
+  // Its health is the target's in every hit: what each leaves, whether it dies.
+  for (const s of [
+    { ...base, target: { ...base.target, hpPercent: 50 } },
+    { ...base, combo: "E Q W R AA R" },
+    { ...base, items: [6655, 3020, 3089] },
+  ])
+    assert.notEqual(key(s), key(base));
 });
