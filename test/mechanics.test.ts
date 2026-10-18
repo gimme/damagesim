@@ -1029,3 +1029,14 @@ test("Burst Fire's first round lands before the attack after it, also at her att
   }
   assert.ok(!zeri("Q AA").events.some((e) => e.label === "Spellblade"));
 });
+
+test("Burst Fire's rounds: at most one a server tick (1/30s), and she can't attack until the last is fired (practice tool, 1.5 attack speed)", () => {
+  const items = ["Berserker's Greaves", "Runaan's Hurricane", "Statikk Shiv", "Phantom Dancer", "Rapid Firecannon"];
+  const r = simulate(data, { champion: "Zeri", level: 18, items, combo: "Q AA", target: dummy });
+  assert.equal(r.stats.attackSpeed, 1.5);
+  const times = bySource(r, "Q").map((e) => e.time);
+  for (let k = 1; k < 7; k++) assert.ok(Math.abs(times[k] - times[k - 1] - 1 / 30) < 1e-9);
+  // Over 0.2s, longer than her 0.104s cast time: the attack starts as the last round is fired.
+  const [q, aa] = r.timeline;
+  assert.ok(Math.abs(q.end - q.start - 0.2) < 1e-9 && Math.abs(aa.start - q.end) < 1e-9);
+});
