@@ -130,7 +130,17 @@ Only the stats of a target's items count: it never fights back, so their passive
    * core math pinned to known values;
    * item and rune trigger rules;
    * a snapshot of three standard combos for every champion, so engine changes can't move numbers
-     unnoticed (`node scripts/update-snapshots.ts` after an intended change).
+     unnoticed (`node scripts/update-snapshots.ts` after an intended change);
+   * a golden test: every champion in five scenarios (`test/corpus.ts`) and five item rankings give
+     the results recorded in `test/snapshots/golden.json`, each whole, every event in order to the
+     last bit. It guards changes meant to change nothing, such as optimizations; after an intended
+     change, `node scripts/update-golden.ts` records them again (its `--dump <dir>` writes each
+     result's JSON, to diff what changed).
+
+   Speed: `node scripts/bench.ts` times the simulator over the same scenarios (setup and run, by
+   champion), the item ranking and the item search; `node scripts/ui-bench.ts` times the web UI's
+   state changes in a production build in headless Chromium, the main thread's time by what it did
+   (the page's simulation, Item value's ranking, React, the browser's own work) and the latency.
 
    The web UI has a smoke test of its own, `npm run test:ui` (Playwright, not part of `npm test`):
    scenarios in `test/ui/` drive every card in headless Chromium, against the dev server on `PORT`
@@ -196,7 +206,8 @@ mechanics or formula names changed; `check-kits` flags any references that went 
 
 ```
 scripts/        fetch-data, build-data, update-data, inspect-champion, check-kits, gen-kit-index,
-                gen-coverage, update-snapshots, build-artifact (self-contained web bundle),
+                gen-coverage, update-snapshots, update-golden, bench + ui-bench (speed),
+                build-artifact (self-contained web bundle),
                 fetch-wiki + audit-wiki, audit-items (kit, item and rune behaviour vs the wiki)
 data/generated/ processed game data per patch (committed); data/raw is the download cache (game files, wiki)
 src/engine/     calc (formula interpreter), expr, stats, damage, sim (timeline), items, runes,
@@ -207,5 +218,5 @@ src/cli/        damagesim CLI
 src/mcp/        MCP server
 src/web/        React UI (Vite)
 docs/           KIT_AUTHORING.md, COVERAGE.md, research/ (mechanics notes with sources)
-test/           engine, mechanics and per-champion snapshot tests; ui/ the web UI's smoke test (Playwright)
+test/           engine, mechanics, per-champion snapshot and golden tests; ui/ the web UI's smoke test (Playwright)
 ```
