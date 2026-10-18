@@ -2623,22 +2623,35 @@ export class Sim {
     keyCasts.push(this.keyCasts());
     // Delayed hits (projectiles, detonations) always land; DoTs continue only with finishDots.
     this.processUntil(comboEnd + (this.settings.finishDots ? 30 : 3));
-    const dotDamage = this.events.reduce((s, e) => s + (e.flags.dot ? (e.final ?? 0) : 0), 0);
-    const comboDamage = this.events.reduce((s, e) => s + (e.flags.dot ? 0 : (e.final ?? 0)), 0);
-
-    const total = this.events.reduce((s, e) => s + (e.final ?? 0), 0);
-    const raw = this.events.reduce((s, e) => s + e.raw, 0);
+    let dotDamage = 0;
+    let comboDamage = 0;
+    let total = 0;
+    let raw = 0;
     const byType: Record<DamageType, number> = { physical: 0, magic: 0, true: 0 };
-    const bySourceMap = new Map<string, SourceTotal>();
+    // By source, then label; in the order they first deal damage.
+    const bySourceMap = new Map<string, Map<string, SourceTotal>>();
+    const bySource: SourceTotal[] = [];
     for (const e of this.events) {
-      byType[e.type] += e.final ?? 0;
-      const key = `${e.source}|${e.sourceLabel}`;
-      let s = bySourceMap.get(key);
-      if (!s) bySourceMap.set(key, (s = { source: e.source, label: e.sourceLabel, ...(e.icon ? { icon: e.icon } : {}), damage: 0, raw: 0, hits: 0, type: {} }));
-      s.damage += e.final ?? 0;
+      const final = e.final ?? 0;
+      dotDamage += e.flags.dot ? final : 0;
+      comboDamage += e.flags.dot ? 0 : final;
+      total += final;
+      raw += e.raw;
+      byType[e.type] += final;
+      let byLabel = bySourceMap.get(e.source);
+      if (!byLabel) bySourceMap.set(e.source, (byLabel = new Map()));
+      let s = byLabel.get(e.sourceLabel);
+      if (!s) {
+        s = { source: e.source, label: e.sourceLabel } as SourceTotal;
+        if (e.icon) s.icon = e.icon;
+        Object.assign(s, { damage: 0, raw: 0, hits: 0, type: {} });
+        byLabel.set(e.sourceLabel, s);
+        bySource.push(s);
+      }
+      s.damage += final;
       s.raw += e.raw;
       s.hits++;
-      s.type[e.type] = (s.type[e.type] ?? 0) + (e.final ?? 0);
+      s.type[e.type] = (s.type[e.type] ?? 0) + final;
     }
     const lastDamage = this.events.length ? this.events[this.events.length - 1].time : 0;
     const st = initialStats;
@@ -2688,7 +2701,7 @@ export class Sim {
       dotDamage,
       rawDamage: raw,
       byType,
-      bySource: [...bySourceMap.values()].sort((a, b) => b.damage - a.damage),
+      bySource: bySource.sort((a, b) => b.damage - a.damage),
       events: this.events,
       timeline,
       keyCasts,
