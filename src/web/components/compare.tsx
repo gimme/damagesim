@@ -11,7 +11,7 @@ import { ItemIcon, RuneIcon } from "./icons.tsx";
 import { fmt } from "./common.tsx";
 import { HpBar, SourceName } from "./charts.tsx";
 import { Chevron } from "./item-value.tsx";
-import { encodeSetup, toScenario, type UIState } from "../state.ts";
+import { scenarioKey, toScenario, type UIState } from "../state.ts";
 import { simulate, type SimResult } from "../../engine/sim.ts";
 import { withBuild } from "../scenarios.ts";
 import type { Scenarios } from "./scenarios.tsx";
@@ -59,18 +59,19 @@ export function Compared({
   const [all, setAll] = useState(false);
   // The column the mouse is over, to open its build with a click.
   const [hot, setHot] = useState<number | null>(null);
-  // Each build simulated once for what it is with what's shared.
+  // Each build simulated once for what it simulates with what's shared (see scenarioKey).
   const cache = useRef(new Map<string, { result: SimResult | null; error?: string }>());
   const columns = useMemo(
     () =>
       page.builds.map((b, i): Column => {
         if (i === page.active) return { id: b.id, name: b.name, on: true, state, result };
         const s = withBuild(state, page, i);
-        const key = encodeSetup(DATA, s);
+        const scenario = toScenario(DATA, s);
+        const key = scenarioKey(scenario);
         let r = cache.current.get(key);
         if (!r) {
           try {
-            r = { result: simulate(DATA, toScenario(DATA, s)) };
+            r = { result: simulate(DATA, scenario) };
           } catch (e) {
             r = { result: null, error: (e as Error).message };
           }

@@ -90,6 +90,28 @@ test("a page's address: one build's is its scenario's; more, what they share and
   assert.equal(decodePage(data, encodePage(data, s, { ...single(s), folded: true }))!.page.folded, false);
 });
 
+test("the builds' codes are the setup's, version 3: energize a byte from its table, in the shared combo or a build's own; version 2's don't load", () => {
+  const zed: UIState = { ...DEFAULT_STATE, champion: "Zed", combo: "AA energize AA" };
+  const part = (address: string, n: number) => address.split("#")[1].split(/[~!]/)[n].replace(/^\*/, "").split(".")[0];
+  // Shared: in what they share, a byte as ignite is.
+  const page = addTab(single(zed));
+  const shared = encodePage(data, zed, page);
+  assert.equal(decodePage(data, shared)!.state.combo, "AA energize AA");
+  assert.equal(part(shared, 0).length, part(encodePage(data, { ...zed, combo: "AA ignite AA" }, page), 0).length);
+  assert.ok(part(shared, 0).length < part(encodePage(data, { ...zed, combo: "AA energise AA" }, page), 0).length);
+  // A build's own: in its code.
+  const own = setOwnCombos(page, true, "R energize AA");
+  const address = encodePage(data, { ...zed, combo: "R energize AA" }, own);
+  assert.deepEqual(
+    decodePage(data, address)!.page.builds.map((b) => b.combo),
+    ["R energize AA", "R energize AA"],
+  );
+  assert.ok(part(address, 1).length < part(encodePage(data, { ...zed, combo: "R energise AA" }, setOwnCombos(page, true, "R energise AA")), 1).length);
+  // Version 2's, before the energize step (Zed at 16 with two items): as what they share, no page; as a build, left out.
+  assert.equal(decodePage(data, "zed/#HFSIMq2SEcbzjWQd8a~*.1~.2"), null);
+  assert.deepEqual(decodePage(data, "zed/#~*.1~HFSIMq2SEcbzjWQd8a.2")!.page.builds.length, 1);
+});
+
 test("what isn't a page's address holds none; a build in it that doesn't load is left out", () => {
   for (const bad of ["", "nobody/#~.1~.2", "ahri/#hello~.1~.2"]) assert.equal(decodePage(data, bad), null, bad);
   const back = decodePage(data, "ahri/#~hello.1~*.Two~.3")!;
