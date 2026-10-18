@@ -1438,9 +1438,23 @@ export class Sim {
     const source = ctx.slot === "P" ? "P" : ctx.slot;
 
     if (!comp.attack && !comp.onHit && !(amount > 0)) return; // conditional components that evaluate to 0 deal nothing
+    if (comp.attack && comp.onHitOnce && ctx.hit > 0) {
+      // A later hit of one attack fired as several (Zeri's Burst Fire rounds): its basic damage only.
+      const c = comp.canCrit !== false ? this.critFactor() : { crit: false, factor: 1 };
+      this.deal({
+        source,
+        sourceLabel: ctx.sourceLabel,
+        label: comp.label,
+        type: comp.type,
+        amount: amount * c.factor,
+        castId: ctx.castId,
+        flags: { kind: "ability", slot: ctx.slot, ability: !comp.noProc, crit: c.crit, basic: true },
+      });
+      return;
+    }
     if (comp.attack) {
       // Each hit of a multi-hit attack component is its own attack (Urgot W, Akshan E…) unless sameCast: true.
-      const own = comp.sameCast === false || (comp.sameCast !== true && ctx.hits > 1);
+      const own = !comp.onHitOnce && (comp.sameCast === false || (comp.sameCast !== true && ctx.hits > 1));
       this.performAttackHit({
         castId: own ? this.newCastId() : ctx.castId,
         amount,

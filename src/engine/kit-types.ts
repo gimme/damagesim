@@ -113,6 +113,12 @@ export interface ComponentSpec {
    * Default: true, except multi-hit `attack: true` components, whose hits are separate attacks.
    */
   sameCast?: boolean;
+  /**
+   * An `attack: true` component whose hits are one attack fired as several (Zeri's Burst Fire
+   * rounds): the first to land applies its on-hit and on-attack effects, the rest only deal its basic
+   * damage. They share the cast.
+   */
+  onHitOnce?: boolean;
   /** Bonus damage on top of the basic attack (attack: true components only replace when replaceAttack). */
   /** Clamp min/max of the computed amount (after evaluation). */
   min?: Expr;

@@ -883,12 +883,14 @@ test("An attack that is an ability (Zeri's right-click) arms Spellblade, is spel
   );
   assert.equal(blades(zeri("Q Q", ["Sheen"])).length, 0);
   assert.equal(blades(zeri("W AA AA", ["Sheen"])).length, 0);
-  // The attack counts as a cast as it hits, after the Burst Fire before it (Q AA); the next Burst Fire uses it.
+  // The attack counts as a cast as it hits, after the first round of the Burst Fire before it (Q AA),
+  // which applies its on-hit effects; the next Burst Fire uses it. Its first round only.
   assert.equal(blades(zeri("Q AA", ["Sheen"])).length, 0);
   const next = zeri("Q AA Q", ["Sheen"]);
+  const second = bySource(next, "Q").filter((e) => e.castId !== bySource(next, "Q")[0].castId);
   assert.deepEqual(
-    blades(next).map((e) => e.castId),
-    [bySource(next, "Q")[1].castId],
+    blades(next).map((e) => [e.castId, e.time]),
+    [[second[0].castId, second[0].time]],
   );
   // Spell effects (Liandry's burn), no on-hit (Blade of the Ruined King) or on-attack (Kraken Slayer's stacks) effects.
   const items = ["Liandry's Torment", "Blade of The Ruined King", "Kraken Slayer"];
@@ -898,6 +900,8 @@ test("An attack that is an ability (Zeri's right-click) arms Spellblade, is spel
   // Burst Fire is basic damage: on-hit and on-attack effects, no spell effects.
   const q = zeri("Q Q Q", items);
   assert.deepEqual([...new Set(q.events.filter((e) => e.source.startsWith("item:")).map((e) => e.label))].sort(), ["Bring It Down", "Mist's Edge"]);
+  // Its first round applies them: once a cast.
+  assert.equal(q.events.filter((e) => e.label === "Mist's Edge").length, 3);
 });
 
 test("An ability whose cooldown is an attack timer (Zeri's Burst Fire): attack resets reset it, haste and Navori don't shorten it", () => {
@@ -914,15 +918,22 @@ test("An ability whose cooldown is an attack timer (Zeri's Burst Fire): attack r
   }
 });
 
-test("Zeri's Burst Fire takes her attack windup and blocks the attack after it, which lands as its rounds do and can execute (Q AA)", () => {
-  const r = simulate(data, { champion: "Zeri", level: 11, options: { charged: 0 }, combo: "Q AA", target: { maxHp: 200, armor: 80, mr: 50 } });
+test("Zeri's Burst Fire takes her attack windup and blocks the attack after it; its rounds fire over it, the first landing before that attack, all of them closer in (Q AA can execute)", () => {
+  const zeri = (options = {}) =>
+    simulate(data, { champion: "Zeri", level: 11, options: { charged: 0, ...options }, combo: "Q AA", target: { maxHp: 200, armor: 80, mr: 50 } });
+  const r = zeri();
   const [q, aa] = r.timeline;
   const windup = aa.end - aa.start;
   assert.ok(Math.abs(q.end - q.start - windup) < 1e-9 && Math.abs(aa.start - q.end) < 1e-9);
-  const burst = bySource(r, "Q")[0];
-  const attack = bySource(r, "AA")[0];
-  assert.ok(burst.time < attack.time, `Burst Fire ${burst.time}, attack ${attack.time}`);
-  assert.ok(r.events.some((e) => e.label === "Living Battery (execute)"));
+  // 7 rounds, fired from the start of the cast to its end, each flying as long.
+  const rounds = bySource(r, "Q");
+  const flight = rounds[0].time - q.start;
+  assert.equal(rounds.length, 7);
+  assert.ok(Math.abs(rounds[6].time - q.end - flight) < 1e-9);
+  assert.ok(rounds[0].time < bySource(r, "AA")[0].time);
+  const near = zeri({ distance: 300 });
+  assert.ok(bySource(near, "Q").every((e) => e.time < bySource(near, "AA")[0].time));
+  assert.ok(near.events.some((e) => e.label === "Living Battery (execute)"));
 });
 
 test("Zeri's attack speed cap is 1.5, raised only by Overcharged's attack speed; 0.6 AD per 1% bonus attack speed past it", () => {
@@ -946,7 +957,14 @@ test("Zeri's attack speed cap is 1.5, raised only by Overcharged's attack speed;
 
 test("An execute's line shows in the results whether it's reached or not; settings.executes off, executes deal nothing and show none", () => {
   const zeri = (hp: number, executes?: boolean) =>
-    simulate(data, { champion: "Zeri", level: 11, options: { charged: 0 }, combo: "Q AA", target: { maxHp: hp, armor: 30, mr: 30 }, settings: { executes } });
+    simulate(data, {
+      champion: "Zeri",
+      level: 11,
+      options: { charged: 0, distance: 300 },
+      combo: "Q AA",
+      target: { maxHp: hp, armor: 30, mr: 30 },
+      settings: { executes },
+    });
   const line = new Sim(data, { champion: "Zeri", level: 11, combo: [] }).evalExpr("Q.calc.PassiveExecuteThreshold", { slot: "Q" });
   for (const hp of [220, 2000]) {
     const r = zeri(hp);

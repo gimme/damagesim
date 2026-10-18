@@ -265,7 +265,10 @@ component; use `attack: true` only if it fully counts as a basic attack. An `att
 by its own `canCrit` (default yes), not by `kit.attack.canCrit`, which is the champion's basic
 attacks'. A cast that counts as an ability cast except for Spellblade takes `noSpellblade: true`, and
 one whose cooldown is an attack timer (`1 / as`) `attackTimer: true`: ability haste and Navori don't
-shorten it, and attack resets reset it (Zeri's Burst Fire, reset by Spark Surge).
+shorten it, and attack resets reset it (Zeri's Burst Fire, reset by Spark Surge). An attack fired as
+several hits that apply on-hit effects once (Burst Fire's rounds: "to the first enemy hit") is one
+`attack: true` component with `hits`, `interval` and `onHitOnce: true`: the first hit to land is the
+attack, the rest deal its basic damage only.
 
 **Attacks that are abilities** (Zeri's right-click, "treated as Abilities"): `attack: { ability: true }`
 keeps the attack's timing (attack timer, windup, range) but casts it as an ability: on-cast effects
