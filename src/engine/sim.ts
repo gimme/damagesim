@@ -1039,8 +1039,16 @@ export class Sim {
   }
 
   scheduleAt(time: number, run: () => void) {
-    this.queue.push({ time: Math.max(this.time, time), seq: this.seq++, run, crit: this.stepCrit, action: this.action });
-    this.queue.sort((a, b) => a.time - b.time || a.seq - b.seq);
+    const ev = { time: Math.max(this.time, time), seq: this.seq++, run, crit: this.stepCrit, action: this.action };
+    // In order of time, then of scheduling: after every event due by then.
+    let lo = 0;
+    let hi = this.queue.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (this.queue[mid].time > ev.time) hi = mid;
+      else lo = mid + 1;
+    }
+    this.queue.splice(lo, 0, ev);
   }
 
   processUntil(t: number) {
@@ -1185,7 +1193,7 @@ export class Sim {
     if (!inst.flags.aura) this.lastCombatTime = this.time;
     const records = this.recorded(inst, req);
     for (const r of records) {
-      const icon = this.castIcons.get(`${r.source}|${r.sourceLabel}`);
+      const icon = this.castIcons.get(r.source)?.get(r.sourceLabel);
       if (icon) r.icon = icon;
     }
     this.events.push(...records);
@@ -1885,7 +1893,13 @@ export class Sim {
 
   /** The icons of the casts so far, by the source and label their hits show under (and their buffs':
    *  Takedown's empowered attack). */
-  private castIcons = new Map<string, string>();
+  private castIcons = new Map<string, Map<string, string>>();
+
+  private setCastIcon(source: string, label: string, icon: string) {
+    let byLabel = this.castIcons.get(source);
+    if (!byLabel) this.castIcons.set(source, (byLabel = new Map()));
+    byLabel.set(label, icon);
+  }
   /** The combo step being done. */
   private stepIndex = 0;
 
@@ -1908,7 +1922,11 @@ export class Sim {
       const key = this.stateVariant(spec, slot) ?? spec.defaultVariant;
       const variant = key ? findVariant(spec, key)?.[1] : undefined;
       const icon = this.castIcon(slot, spec, variant, this.spellFor(slot, (variant as any) ?? spec));
-      out[slot] = { ...(variant ? { variant: key } : {}), ...(icon ? { icon } : {}), name: this.castLabel(this.slotName(slot), variant) };
+      const k: NonNullable<KeyCasts[Slot]> = {} as NonNullable<KeyCasts[Slot]>;
+      if (variant) k.variant = key;
+      if (icon) k.icon = icon;
+      k.name = this.castLabel(this.slotName(slot), variant);
+      out[slot] = k;
     }
     return out;
   }
@@ -2135,7 +2153,7 @@ export class Sim {
     const icon = this.castIcon(slot, spec, variant, spell);
     if (icon) {
       const buffs = variant && "buff" in variant ? variant.buff : spec.buff;
-      for (const l of [label, ...[buffs ?? []].flat().map((b) => b.label)]) this.castIcons.set(`${slot}|${l}`, icon);
+      for (const l of [label, ...[buffs ?? []].flat().map((b) => b.label)]) this.setCastIcon(slot, l, icon);
     }
 
     if (ammo) {
@@ -2554,8 +2572,8 @@ export class Sim {
       const spec = this.kit.abilities[slot];
       const icon = spec?.icon && this.castIcon(slot, spec, undefined, this.spellFor(slot, spec));
       if (!icon) continue;
-      this.castIcons.set(`${slot}|${this.slotName(slot)}`, icon);
-      if (slot === "P") this.castIcons.set(`P|${this.champ.passive.name}`, icon);
+      this.setCastIcon(slot, this.slotName(slot), icon);
+      if (slot === "P") this.setCastIcon("P", this.champ.passive.name, icon);
     }
     const keyCasts: KeyCasts[] = [];
     for (const [index, step] of steps.entries()) {
