@@ -86,6 +86,7 @@ const kit: ChampionKit = {
       variants: {
         ruin: {
           label: "Arc of Ruin",
+          name: "Arc of Ruin",
           when: "buff.yunaraR",
           note: "Cast as W in Transcendent State.",
           // Its own cast time, 0.6s down to 0.45s with bonus attack speed (data); the beam hits as it ends (wiki).
@@ -122,6 +123,7 @@ const kit: ChampionKit = {
       variants: {
         dash: {
           label: "Untouchable Shadow",
+          name: "Untouchable Shadow",
           when: "buff.yunaraR",
           note: "Cast as E in Transcendent State.",
           dash: true,

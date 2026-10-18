@@ -2,10 +2,10 @@ import type { BuffSpec, ChampionKit } from "../../engine/kit-types.ts";
 import type { Sim } from "../../engine/sim.ts";
 
 // Jayce — patch 16.20.
-// Two forms share the Q/W/E keys: the default casts are Mercury Hammer abilities, `:cannon` variants
-// are Mercury Cannon abilities (spells JayceShockBlast / JayceHyperCharge / JayceAccelerationGate,
-// evaluated at the slot's rank). R toggles the form (hook): it applies the transform's next-attack
-// bonus and keeps a separate cooldown per form for Q/W/E.
+// Two forms share the Q/W/E keys: the casts are Mercury Hammer abilities, in Mercury Cannon form the
+// `cannon` variants (spells JayceShockBlast / JayceHyperCharge / JayceAccelerationGate, evaluated at
+// the slot's rank). R toggles the form (hook): it applies the transform's next-attack bonus and keeps
+// a separate cooldown per form for Q/W/E.
 
 // Cannon → Hammer: the next attack deals bonus magic damage (no time limit until it is used).
 const toHammer: BuffSpec = {
@@ -23,13 +23,14 @@ const kit: ChampionKit = {
   id: "Jayce",
   status: "curated",
   notes: [
-    "Q/W/E = Mercury Hammer abilities, Q:cannon / W:cannon / E:cannon = Mercury Cannon abilities. R switches form (each form keeps its own cooldowns).",
-    'Option "cannon" picks the starting form (default: Hammer). Write combos in a consistent form order, e.g. "E:cannon Q:cannon R Q AA E" (gate-boosted Shock Blast, then hammer).',
-    "Shock Blast is boosted (calc.EmpoweredDamage) while an Acceleration Gate (E:cannon) is up — assumed to be fired through it.",
+    "Q/W/E cast the Mercury Hammer abilities, in Mercury Cannon form Shock Blast, Hyper Charge and Acceleration Gate. R switches form (each form keeps its own cooldowns).",
+    'Option "cannon" picks the starting form (default: Hammer), e.g. "E Q R Q AA E" from cannon (gate-boosted Shock Blast, then hammer).',
+    "Shock Blast is boosted (calc.EmpoweredDamage) while an Acceleration Gate is up — assumed to be fired through it.",
   ],
   options: [{ key: "cannon", label: "Start in Mercury Cannon form", default: 0, toggle: true }],
   abilities: {
     Q: {
+      name: "To the Skies!",
       dash: true,
       // Wiki: leaps to the target over 0.5s and smashes on arrival; Lightning Field can be cast
       // during the dash (nothing else).
@@ -40,6 +41,8 @@ const kit: ChampionKit = {
       variants: {
         cannon: {
           label: "cannon",
+          name: "Shock Blast",
+          when: "stacks.jayceCannon",
           spell: "JayceShockBlast",
           attackLockout: 0,
           castLockout: {},
@@ -60,6 +63,7 @@ const kit: ChampionKit = {
       },
     },
     W: {
+      name: "Lightning Field",
       // Lightning Field has no cooldown in the data; 10s at all ranks (wiki). Hyper Charge uses its own.
       cooldown: 10,
       components: [
@@ -79,6 +83,8 @@ const kit: ChampionKit = {
       variants: {
         cannon: {
           label: "cannon",
+          name: "Hyper Charge",
+          when: "stacks.jayceCannon",
           spell: "JayceHyperCharge",
           cooldown: "cooldown",
           resetsAttack: true,
@@ -106,6 +112,7 @@ const kit: ChampionKit = {
       },
     },
     E: {
+      name: "Thundering Blow",
       // Wiki: unable to cast To the Skies! or Shock Blast for 0.4s after the 0.25s cast time.
       castLockout: { Q: 0.65 },
       cc: [{ kind: "immobilize", duration: "dv.KnockbackDuration" }],
@@ -113,6 +120,8 @@ const kit: ChampionKit = {
       variants: {
         cannon: {
           label: "cannon",
+          name: "Acceleration Gate",
+          when: "stacks.jayceCannon",
           spell: "JayceAccelerationGate",
           lockout: 0, // not Thundering Blow's
           cc: [],
@@ -133,12 +142,12 @@ const kit: ChampionKit = {
   },
   hooks: {
     onStart(sim) {
-      sim.setCounter("jayce.cannon", sim.opt.cannon ? 1 : 0);
+      sim.setCounter("jayceCannon", sim.opt.cannon ? 1 : 0);
     },
     onCast(sim, cast) {
       if (cast.slot !== "R") return;
-      const toCannonForm = !sim.counter("jayce.cannon");
-      sim.setCounter("jayce.cannon", toCannonForm ? 1 : 0);
+      const toCannonForm = !sim.counter("jayceCannon");
+      sim.setCounter("jayceCannon", toCannonForm ? 1 : 0);
       // Swap per-form cooldowns: save the current form's, restore the other form's.
       for (const s of SLOTS) {
         const key = `ability:${s}`;

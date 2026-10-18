@@ -1,15 +1,15 @@
 import type { ChampionKit } from "../../engine/kit-types.ts";
 
 // Karma — patch 16.20.
-// Mantra (R) empowers the next ability within 8s (tooltip text): cast the `:mantra` variant
-// ("R Q:mantra"); the hook removes the Mantra buff when an empowered variant is cast.
+// Mantra (R) empowers the next ability within 8s (tooltip text): the `mantra` variant, cast while
+// the Mantra buff lasts ("R Q"); the hook removes the buff when an empowered variant is cast.
 // Gathering Fire (hook): each ability damage instance on the champion lowers Mantra's remaining
 // cooldown by P.calc.SpellMantraRefund seconds.
 const kit: ChampionKit = {
   id: "Karma",
   status: "curated",
   notes: [
-    "Mantra-empowered casts are variants: Q:mantra (Soulflare), W:mantra (Renewal), E:mantra (Defiance). Cast R first.",
+    "Mantra (R) empowers the next ability within 8s: Q, W or E casts Soulflare, Renewal or Defiance.",
     "Gathering Fire refunds Mantra cooldown per damage instance on the champion (Soulflare and Focused Resolve count twice).",
   ],
   abilities: {
@@ -19,6 +19,8 @@ const kit: ChampionKit = {
       variants: {
         mantra: {
           label: "Soulflare",
+          name: "Soulflare",
+          when: "buff.mantra",
           note: "Impact deals Inner Flame + R.calc.RQImpactDamage; the field ruptures R.dv.RQSlowDuration s later for R.calc.RQFieldDamage.",
           cc: [{ kind: "slow", duration: "dv.SlowDuration + R.dv.RQSlowDuration" }],
           components: [
@@ -38,6 +40,8 @@ const kit: ChampionKit = {
       variants: {
         mantra: {
           label: "Renewal",
+          name: "Renewal",
+          when: "buff.mantra",
           cc: [{ kind: "immobilize", duration: "dv.RootDuration + R.dv.RWBonusRoot", delay: "dv.TetherDuration" }],
           components: [
             { id: "tether", label: "Focused Resolve", type: "magic", amount: "calc.InitialDamage" },
@@ -50,7 +54,7 @@ const kit: ChampionKit = {
       noTarget: true,
       notes: ["Shield and move speed (no damage)."],
       components: [],
-      variants: { mantra: { label: "Defiance", components: [] } },
+      variants: { mantra: { label: "Defiance", name: "Defiance", when: "buff.mantra", components: [] } },
     },
     R: {
       noTarget: true,
@@ -61,10 +65,7 @@ const kit: ChampionKit = {
   },
   hooks: {
     onCast(sim, cast) {
-      if (cast.variant === "mantra") {
-        if (!sim.getBuff("mantra")) sim.warn(`${cast.slot}:mantra cast without an active Mantra (cast R first)`);
-        sim.removeBuff("mantra");
-      }
+      if (cast.variant === "mantra") sim.removeBuff("mantra");
     },
     afterDamage(sim, inst) {
       if (inst.fromMark || inst.flags.kind !== "ability" || !inst.flags.ability) return;

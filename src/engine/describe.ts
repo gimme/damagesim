@@ -98,6 +98,9 @@ export function describeChampion(sim: Sim) {
       variants: Object.entries(spec.variants ?? {}).map(([key, v]) => ({
         key,
         label: v.label,
+        // Cast by itself in its form or state (VariantSpec.when), under its own name.
+        ...(v.when !== undefined ? { inState: true } : {}),
+        ...(v.name ? { name: v.name } : {}),
         note: v.note,
         components: v.components.map((c) => componentInfo(sim, slot, c, v.spell ?? spec.spell)),
       })),

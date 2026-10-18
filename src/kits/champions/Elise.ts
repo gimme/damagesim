@@ -2,7 +2,7 @@ import type { BuffSpec, ChampionKit } from "../../engine/kit-types.ts";
 import type { Slot } from "../../engine/effects.ts";
 
 // Elise — patch 16.20.
-// R toggles Human ⇄ Spider form (hook below). Spider abilities are variants: Q:spider, W:spider, E:spider.
+// R toggles Human ⇄ Spider form (hook below). Spider abilities are variants cast in Spider Form.
 // Spider spells sit in the unslotted "X" group, so cross-spell references go through the slotted human
 // spells (Q.dv.SpiderBaseDamage, E.dv.RappelDamageAmp), which carry the same per-rank values.
 const spiderForm: BuffSpec = {
@@ -45,7 +45,7 @@ const kit: ChampionKit = {
     },
   ],
   notes: [
-    "Combo: human Q W E, then R (Spider Form), then Q:spider W:spider E:spider; R again returns to Human Form. Each form keeps its own Q/W/E cooldowns.",
+    "Combo: human Q W E, then R (Spider Form), then Q W E cast as Venomous Bite, Skittering Frenzy and Rappel; R again returns to Human Form. Each form keeps its own Q/W/E cooldowns.",
     "Spider Form: attacks deal Spider Queen bonus magic damage (+RappelDamageAmp % for 5s after Rappel). Spiderlings (option, default 3 = one per human ability hit) are approximated as each attacking once per Elise attack.",
     "Venomous Bite applies on-hit effects, including the Spider Form ones above.",
     "Volatile Spiderling is assumed to reach the target ~0.75s after the cast.",
@@ -71,10 +71,13 @@ const kit: ChampionKit = {
   },
   abilities: {
     Q: {
+      name: "Neurotoxin",
       components: [{ id: "neurotoxin", label: "Neurotoxin", type: "magic", amount: "dv.BaseDamage + calc.HumanPercentHealth * target.hp", travel: true }],
       variants: {
         spider: {
           label: "Venomous Bite",
+          name: "Venomous Bite",
+          when: "buff.eliseSpiderForm",
           spell: "EliseSpiderQCast",
           dash: true,
           // Wiki: the spiderlings pounce with her upon the cast, and the bite applies as the cast time
@@ -87,11 +90,14 @@ const kit: ChampionKit = {
       },
     },
     W: {
+      name: "Volatile Spiderling",
       // Wiki: the spider crawls to a nearby target after a 0.75s delay (its crawl isn't modeled).
       components: [{ id: "spiderling", label: "Volatile Spiderling", type: "magic", amount: "calc.TotalDamage", aoe: true, delay: 0.75 }],
       variants: {
         spider: {
           label: "Skittering Frenzy",
+          name: "Skittering Frenzy",
+          when: "buff.eliseSpiderForm",
           spell: "EliseSpiderW",
           components: [],
           buff: { id: "eliseFrenzy", label: "Skittering Frenzy", duration: "dv.BuffDuration", stats: { attackSpeed: "dv.ActiveAttackSpeed" } },
@@ -99,12 +105,15 @@ const kit: ChampionKit = {
       },
     },
     E: {
+      name: "Cocoon",
       // The cocoon flies to the target at the missile's speed before it stuns.
       cc: [{ kind: "immobilize", duration: "calc.TotalStunDuration", delay: "reach / missileSpeed" }],
       components: [],
       variants: {
         spider: {
           label: "Rappel",
+          name: "Rappel",
+          when: "buff.eliseSpiderForm",
           spell: "EliseSpiderE",
           dash: true,
           // Wiki: unable to act while lifting up (0.6s) and descending onto the target (0.4s), recast

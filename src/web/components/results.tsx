@@ -312,11 +312,18 @@ function Abilities({ sim }: { sim: Sim }) {
           )}
           {a.variants.map((v) => (
             <div key={v.key} className="small secondary" style={{ marginTop: 4 }}>
-              Variant{" "}
-              <code>
-                {a.slot}:{v.key}
-              </code>{" "}
-              — {v.label}: {v.components.map((c) => `${c.label} ${fmt(c.value, 1)}`).join(", ")}
+              {v.inState ? (
+                `In its form or state, ${a.slot} casts ${v.name ?? v.label}`
+              ) : (
+                <>
+                  Variant{" "}
+                  <code>
+                    {a.slot}:{v.key}
+                  </code>{" "}
+                  — {v.label}
+                </>
+              )}
+              {v.components.length > 0 && `: ${v.components.map((c) => `${c.label} ${fmt(c.value, 1)}`).join(", ")}`}
             </div>
           ))}
           {a.notes.map((n) => (

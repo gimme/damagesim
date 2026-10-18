@@ -1195,8 +1195,9 @@ export class Sim {
   }
 
   /** A hit as the results show it: what its multipliers recorded as hits of their own add (amps'
-   *  `hit`: Yunara's passive amping a Shadowflame crit) after it, under their sources, and the hit in
-   *  two when part of it is what a normal attack would have dealt (see attackPart). Effects saw it whole. */
+   *  `hit`: Shadowflame's Cinderbloom, Yunara's passive amping the crit) after it, under their sources,
+   *  and the hit in two when part of it is what a normal attack would have dealt (see attackPart).
+   *  Effects saw it whole. */
   private recorded(inst: DamageInstance, req: DamageRequest): DamageInstance[] {
     const own = inst.amps.filter((a) => a.hit && a.id && a.kind === "multiplier");
     if (!own.length) return this.attackPart(inst, req);
@@ -1820,6 +1821,11 @@ export class Sim {
     return c ? this.evalExpr(c.default, { slot }) : 0;
   }
 
+  /** What a cast's hits show under: its variant's own name, or the ability's with the variant's label. */
+  private castLabel(name: string, variant: VariantSpec | undefined): string {
+    return !variant ? name : (variant.name ?? `${name} (${variant.label})`);
+  }
+
   /** The variant cast in place of the ability in the state it's in now (VariantSpec.when). */
   private stateVariant(spec: AbilitySpec, slot: Slot): string | undefined {
     return Object.entries(spec.variants ?? {}).find(([, v]) => v.when !== undefined && this.evalExpr(v.when, { slot }))?.[0];
@@ -1854,13 +1860,17 @@ export class Sim {
     // Nothing for its seconds to end: a variant without the repeating hits (Yunara's Arc of Ruin).
     if (!repeating.length && lockout === undefined) return null;
     // Its lockout, or as long as its repeating hits take: by default, and at most; at least until
-    // the first is fired (and the earliest it can be ended).
+    // its first hit is fired, a repeating one or another (Yunara W's impact: W{0s} without the
+    // linger), and the earliest it can be ended.
     let [first, last, lastMax] = [Infinity, 0, 0];
     for (const r of repeating) {
       first = Math.min(first, Math.max(0, r.first));
       last = Math.max(last, r.first + (r.hits - 1) * r.interval);
       lastMax = Math.max(lastMax, r.first + (r.maxHits - 1) * r.interval);
     }
+    for (const c of comps)
+      if (!repeating.some((r) => r.id === c.id) && !(c.optional && !enable?.includes(c.id)) && this.evalExpr(c.hits ?? 1, ctx) > 0)
+        first = Math.min(first, Math.max(0, this.firedAt(c, ctx)));
     const seconds = Math.max(last, lockout !== undefined ? this.evalExpr(lockout, ctx) - this.castTimeOf(spec, variant, ctx) : 0);
     const max = spec.maxDuration !== undefined ? this.evalExpr(spec.maxDuration, ctx) : lockout !== undefined ? seconds : lastMax;
     const min = Math.max(Number.isFinite(first) ? first : 0, spec.minDuration !== undefined ? this.evalExpr(spec.minDuration, ctx) : 0);
@@ -1956,7 +1966,7 @@ export class Sim {
     }
     let spell = this.spellFor(slot, (variant as any) ?? spec);
     const name = this.slotName(slot);
-    let label = variant ? `${name} (${variant.label})` : name;
+    let label = this.castLabel(name, variant);
 
     // Cooldown / recast handling. Process pending hits first: they can reset cooldowns
     // (Diana E, Ekko…) or refund charges.
@@ -2010,14 +2020,14 @@ export class Sim {
       variantKey = this.stateVariant(spec, slot) ?? spec.defaultVariant;
       variant = variantKey ? findVariant(spec, variantKey)?.[1] : undefined;
       spell = this.spellFor(slot, (variant as any) ?? spec);
-      label = variant ? `${name} (${variant.label})` : name;
+      label = this.castLabel(name, variant);
     }
     if (variant?.when !== undefined && !this.evalExpr(variant.when, { slot, spell, rank })) {
       this.warn(`${label} isn't castable now (${variant.when}): ${name} cast instead`);
       variantKey = spec.defaultVariant;
       variant = variantKey ? findVariant(spec, variantKey)?.[1] : undefined;
       spell = this.spellFor(slot, (variant as any) ?? spec);
-      label = variant ? `${name} (${variant.label})` : name;
+      label = this.castLabel(name, variant);
     }
 
     if (ammo) {

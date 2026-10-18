@@ -248,6 +248,11 @@ export interface CCSpec {
 export interface VariantSpec {
   label: string;
   /**
+   * Its own name, a spell of its own (another form's: Venomous Bite; Arc of Ruin): its hits show
+   * under it rather than under the ability's name with the label ("Neurotoxin (Venomous Bite)").
+   */
+  name?: string;
+  /**
    * Cast in place of the ability while this holds, the step naming no variant (Yunara's W and E in
    * Transcendent State: `buff.yunaraR`); only then when it names it. The combo card doesn't offer it.
    */

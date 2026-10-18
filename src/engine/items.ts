@@ -877,10 +877,11 @@ const ITEMS: Record<number, Factory> = {
         if (inst.type === "physical" || inst.flags.kind === "summoner" || inst.flags.unamplified) return;
         if (Math.max(0, sim.target.hp) / sim.target.maxHp >= dv(item, "HealthThreshold")) return;
         // The wiki: damage × (1 + amp × the crit damage modifiers' product), Infinity Edge's 1.3 making
-        // it 26%; damage over time and pets have their own amp.
+        // it 26%; damage over time and pets have their own amp. The results show it as its own hit:
+        // what its crits add is most of what the item is worth.
         const amp = dv(item, inst.flags.dot || inst.flags.pet ? "DamageOverTimeAmp" : "SpellItemDamageAmp");
         const bonusCrit = sim.stats.critDamage - sim.champ.stats.critDamageMultiplier;
-        inst.amps.push({ id: `item:${item.id}`, source: item.name, value: amp * (1 + Math.max(0, bonusCrit)), kind: "multiplier" });
+        inst.amps.push({ id: `item:${item.id}`, source: item.name, value: amp * (1 + Math.max(0, bonusCrit)), kind: "multiplier", hit: "Cinderbloom" });
         for (const e of sim.effects) e.onCrit?.(sim, inst);
       },
     }),

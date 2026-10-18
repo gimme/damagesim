@@ -15,7 +15,7 @@ const kit: ChampionKit = {
       min: 0,
       max: 2,
       step: 1,
-      description: "Rhaast: Q/R deal max-health damage instead, W knocks up (use W:darkin). Shadow Assassin: passive bonus magic damage.",
+      description: "Rhaast: Q/R deal max-health damage instead, W knocks up. Shadow Assassin: passive bonus magic damage.",
     },
   ],
   notes: [
@@ -50,11 +50,12 @@ const kit: ChampionKit = {
     },
     W: {
       cc: [{ kind: "slow", duration: "dv.SlowDuration" }],
-      notes: ["Slows 90% decaying over 1.5s. Rhaast form also knocks up for 1s: use W:darkin."],
+      notes: ["Slows 90% decaying over 1.5s. Rhaast form also knocks up for 1s."],
       components: [{ id: "reach", label: "Blade's Reach", type: "physical", amount: "calc.TotalDamage", aoe: true }],
       variants: {
         darkin: {
           label: "Rhaast",
+          when: isRhaast,
           cc: [
             { kind: "immobilize", duration: "dv.KnockupDuration" },
             { kind: "slow", duration: "dv.SlowDuration" },

@@ -1,9 +1,9 @@
 import type { BuffSpec, ChampionKit } from "../../engine/kit-types.ts";
 
 // Gnar — patch 16.20.
-// Forms: Mini Gnar is the default. Mega abilities (Q:mega, W, E:mega, R) put Gnar in Mega form (a
-// buff that swaps Mini's passive stats for Mega's and disables Hyper). Rage is not tracked: the
-// combo decides when Gnar is Mega.
+// Forms: Mini Gnar is the default. Mega Gnar is a buff that swaps Mini's passive stats for Mega's and
+// disables Hyper; Q and E cast Mega's spells while it lasts. Rage is not tracked: the combo decides
+// when Gnar is Mega, by a P step (Rage full) or a Mega-only cast (W, R).
 
 const MEGA_DURATION = 15; // tooltip: "transforms him into Mega Gnar for 15 seconds"
 
@@ -27,7 +27,7 @@ const kit: ChampionKit = {
   id: "Gnar",
   status: "curated",
   notes: [
-    "Mini Gnar by default; Q:mega, W (Wallop), E:mega and R are Mega Gnar casts and switch to Mega form for 15s (refreshed by each Mega cast). Rage generation is not modeled.",
+    "Mini Gnar by default. Rage generation is not modeled: cast P when Rage is full to turn Mega for 15s; W (Wallop) and R, Mega only, also do (each Mega cast refreshes it). In Mega form Q and E cast Boulder Toss and Crunch.",
     "Hyper (Mini only): every third attack or ability hit (one per cast) deals W.calc.MiniTotalDamage + W.dv.MiniPercentHPDamage max health magic damage.",
     "Boomerang Throw: a single target is hit once (each enemy only once per throw).",
   ],
@@ -61,7 +61,9 @@ const kit: ChampionKit = {
     },
   ],
   abilities: {
+    P: { name: "Rage", noTarget: true, buff: mega, components: [], notes: ["Rage full: Gnar turns Mega for 15s."] },
     Q: {
+      name: "Boomerang Throw",
       cc: [{ kind: "slow", duration: "dv.SlowDuration" }],
       // Launched as the cast time starts ({{Effect at cast time start}}); no speed in the data: the
       // wiki's boomerang slows from 2500 to 1400 (-3000/s², reached after 715 units) on its way to the
@@ -78,6 +80,8 @@ const kit: ChampionKit = {
       variants: {
         mega: {
           label: "mega",
+          name: "Boulder Toss",
+          when: `buff.${mega.id}`,
           note: "Boulder Toss (Mega Gnar).",
           buff: mega,
           // Boulder Toss's own spell: 0.5s cast time; thrown as it starts ({{Effect at cast time start}}),
@@ -100,12 +104,14 @@ const kit: ChampionKit = {
     W: {
       // Mini Gnar's W is passive (Hyper, a mark above); the castable W is Mega Gnar's Wallop.
       spell: "GnarBigW",
+      name: "Wallop",
       buff: mega,
       notes: ["Wallop (Mega Gnar only)."],
       cc: [{ kind: "immobilize", duration: "spell['GnarW'].dv.MegaStunDuration" }],
       components: [{ id: "wallop", label: "Wallop", type: "physical", amount: "spell['GnarW'].calc.MegaTotalDamage", aoe: true }],
     },
     E: {
+      name: "Hop",
       dash: true,
       notes: ["Mini: bounces off the target (damage + brief slow) and gains attack speed."],
       buff: { id: "gnarE", label: "Hop", duration: "dv.MiniASDuration", stats: { attackSpeed: "dv.MinibAS" } },
@@ -117,6 +123,8 @@ const kit: ChampionKit = {
       variants: {
         mega: {
           label: "mega",
+          name: "Crunch",
+          when: `buff.${mega.id}`,
           note: "Crunch (Mega Gnar).",
           dash: true,
           // No dash speed in the data: the leap takes Hop's dv.TravelTime.

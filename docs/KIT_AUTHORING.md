@@ -239,9 +239,13 @@ the engine checks the target's health), or use `target.hp`, `target.missingHpPct
 **Forms and alternate spells** (Jayce, Nidalee, Elise, Gnar, Kayle R…): variants with `spell: 'ScriptName'`
 pointing at the other form's spell (inspect with `--all-spells` lists unslotted spells), e.g.
 `Q: { variants: { cannon: { label: 'cannon', spell: 'JayceShockBlast', components: [...] } } }`.
-A variant the game casts by itself in a state, not one the player picks, sets `when`, an expression:
-the step names the ability and casts it while that holds (Yunara's `when: 'buff.yunaraR'` on W and E,
-a buff her R applies for it).
+A form's spells, which the game casts by themselves in that form or state rather than the player
+picking them, set `when`, an expression: a step naming just the ability casts the variant while it
+holds (Elise's `'buff.eliseSpiderForm'`, Jayce's and Nidalee's form counters `'stacks.jayceCannon'`,
+Rek'Sai's burrow, Gnar's Mega buff, Karma's Mantra, Yunara's Transcendent State `'buff.yunaraR'`, a
+buff her R applies for it). The combo card doesn't offer it. A variant that's a spell of its own sets
+its `name` (`'Venomous Bite'`, `'Arc of Ruin'`): its hits show under it, not as "Neurotoxin (Venomous
+Bite)".
 
 **Stacking champion stats** (Nasus Q stacks, Veigar AP, Senna, Smolder, Cho'Gath R, Sion, Kindred,
 Thresh, Swain): declare an option and use it:
@@ -361,7 +365,7 @@ runes use (`src/engine/effects.ts`): `onCast(sim, cast)`, `onAttack(sim, atk)`, 
 `afterDamage(sim, inst)`, `dynamicStats(sim)`, `onStart(sim)`, `onCrit(sim, inst)` (an item made the
 hit a crit: Shadowflame's Cinderbloom; Yunara's passive amps it). A champion's damage the game deals
 as an amp on another hit can be shown as a hit of its own, under its source: a `multiplier` with a
-`hit` name (and an `id`); item and rune amps stay in the hit. A ranged attack is launched at the end
+`hit` name (and an `id`). Item and rune amps stay in the hit, but for Cinderbloom. A ranged attack is launched at the end
 of its windup and hits when its missile arrives, flying from attack range at most (a form that attacks in melee sets `attack.melee`, an expression:
 Elise's `'buff.eliseSpiderForm'`, and hits at once):
 `onLaunch(sim, launch)` runs at the launch, for what
