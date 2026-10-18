@@ -769,7 +769,7 @@ function RowTip({
           {lost}
         </>
       )}
-      {r.adaptive && <div className="tt-foot">Adaptive force turns {r.adaptive === "physical" ? "AD" : "AP"} with it</div>}
+      {r.adaptive && <div className="tt-foot">Turns your adaptive force to {r.adaptive === "physical" ? "AD" : "AP"}</div>}
       {action && <div className="tt-foot">{action}</div>}
     </>
   );

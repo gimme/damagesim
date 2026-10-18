@@ -1665,8 +1665,9 @@ table.data .source-name {
 .iv-procs {
   background: repeating-linear-gradient(135deg, var(--accent-2) 0 3px, color-mix(in srgb, var(--accent-2) 40%, var(--surface)) 3px 6px);
 }
-/* What the item takes away from your other damage, struck out of the bar's end: what's under it faded,
-   outlined in red, so the solid part ends at the item's number */
+/* What the item takes away from your other damage, struck out of the bar's end so the solid part ends
+   at the item's number: covering whatever segment is under it with a neutral hatch, outlined in red,
+   the same on every bar and in the legend */
 .iv-struck {
   position: absolute;
   top: 0;
@@ -1674,11 +1675,8 @@ table.data .source-name {
   bottom: 0;
 }
 .iv-lost {
-  background: color-mix(in srgb, var(--surface) 65%, transparent);
+  background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--text-muted) 55%, transparent) 0 1.5px, transparent 1.5px 4px), var(--surface);
   box-shadow: inset 0 0 0 1.5px var(--critical);
-}
-.swatch.iv-lost {
-  background: color-mix(in srgb, var(--accent) 35%, var(--surface));
 }
 .iv-head .iv-track {
   height: auto;
