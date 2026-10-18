@@ -1,6 +1,6 @@
-// Around the cards: the scenario's address (the champion in the path, what differs from the defaults
-// in the hash) and the state kept in storage across reloads, a link entered on the page, Back and
-// Forward, Reset, dark mode.
+// Around the cards: the scenario's address (the champion in the path, the rest as a code in the hash,
+// none at the defaults) and the address kept in storage across reloads, a link entered on the page,
+// Back and Forward, Reset, dark mode.
 
 import { test, expect, addressOf, type UI } from "./ui.ts";
 
@@ -11,14 +11,19 @@ const reload = async (ui: UI, address?: string) => {
   await ui.settle();
 };
 
-/** The page's address after its origin: "/zed/#lv=16". */
+/** The page's address after its origin: "/zed/#5h2Kq…". */
 const address = (ui: UI) => {
   const url = new URL(ui.page.url());
   return url.pathname + url.hash;
 };
 
-/** The state the page keeps in storage. */
-const saved = (ui: UI) => ui.page.evaluate(() => JSON.parse(localStorage.getItem("damagesim:state")!));
+/** Whether the page keeps its address in storage. */
+const saved = (ui: UI) => ui.page.evaluate(() => "/" + localStorage.getItem("damagesim:state") === location.pathname + location.hash);
+
+/** A scenario's code, its address's hash. */
+const codeOf = (state: Record<string, any>) => addressOf(state).split("#")[1];
+
+const lux = { champion: "Lux", target: { mode: "bruiser" } };
 
 test("the state survives a reload", async ({ ui }) => {
   const { page, step } = ui;
@@ -28,7 +33,7 @@ test("the state survives a reload", async ({ ui }) => {
   let changed = {} as Awaited<ReturnType<UI["state"]>>;
 
   await step(
-    "level 20, Rabadon's, a tank, Q E W R AA: Ahri's address, what changed in its hash",
+    "level 20, Rabadon's, a tank, Q E W R AA: Ahri's address, a code in its hash",
     async () => {
       await ui.open();
       await level.focus();
@@ -44,10 +49,10 @@ test("the state survives a reload", async ({ ui }) => {
       await combo.getByRole("textbox", { name: "Combo shorthand" }).press("Enter");
     },
     async () => {
-      expect(address(ui)).toBe("/ahri/#lv=20&items=6655,3020,3089&combo=Q,E,W,R,AA&vs=tank");
       changed = await ui.state();
-      expect(changed).toMatchObject({ level: 20, combo: "Q E W R AA", target: { mode: "tank" } });
-      expect(await saved(ui)).toEqual(changed);
+      expect(changed).toMatchObject({ level: 20, items: [6655, 3020, 3089, null, null, null], combo: "Q E W R AA", target: { mode: "tank" } });
+      expect(address(ui)).toMatch(/^\/ahri\/#[0-9A-Za-z]{10,40}$/);
+      expect(await saved(ui)).toBe(true);
     },
   );
   const shows = async () => {
@@ -70,12 +75,12 @@ test("the state survives a reload", async ({ ui }) => {
   );
   await step(
     "a link's state wins over the one saved",
-    () => reload(ui, addressOf({ champion: "Lux", target: { mode: "bruiser" } })),
+    () => reload(ui, addressOf(lux)),
     async () => {
-      expect(address(ui)).toBe("/lux/#vs=bruiser");
+      expect(address(ui)).toBe(addressOf(lux));
       await expect(champion).toHaveValue("Lux");
       await expect(ui.card("Target").getByRole("button", { name: "Bruiser" })).toHaveAttribute("aria-pressed", "true");
-      expect(await saved(ui)).toEqual(await ui.state());
+      expect(await saved(ui)).toBe(true);
     },
   );
   await step(
@@ -83,7 +88,7 @@ test("the state survives a reload", async ({ ui }) => {
     () => reload(ui, "/zed/#notastate!!"),
     async () => {
       await expect(champion).toHaveValue("Lux");
-      expect(address(ui)).toBe("/lux/#vs=bruiser");
+      expect(address(ui)).toBe(addressOf(lux));
     },
   );
   await step(
@@ -91,38 +96,38 @@ test("the state survives a reload", async ({ ui }) => {
     () => reload(ui, "/nobody/"),
     async () => {
       await expect(champion).toHaveValue("Lux");
-      expect(address(ui)).toBe("/lux/#vs=bruiser");
+      expect(address(ui)).toBe(addressOf(lux));
     },
   );
   await step(
     "a champion's name as written, with no slash after: that champion",
-    () => reload(ui, "/MissFortune#vs=tank"),
+    () => reload(ui, "/MissFortune#" + codeOf({ target: { mode: "tank" } })),
     async () => {
       await expect(champion).toHaveValue("Miss Fortune");
-      expect(address(ui)).toBe("/miss-fortune/#vs=tank");
+      expect(address(ui)).toBe("/miss-fortune/#" + codeOf({ target: { mode: "tank" } }));
     },
   );
   await step(
     "an item the patch hasn't (one since removed): its slot empty, the rest kept",
-    () => reload(ui, "/zed/#items=3142,9999&vs=tank"),
+    () => reload(ui, addressOf({ champion: "Zed", items: [3142, 9999, null, null, null, null], target: { mode: "tank" } })),
     async () => {
       await expect(champion).toHaveValue("Zed");
       await expect(tank).toHaveAttribute("aria-pressed", "true");
       expect((await ui.state()).items).toEqual([3142, null, null, null, null, null]);
-      expect(address(ui)).toBe("/zed/#items=3142&vs=tank");
+      expect(address(ui)).toBe(addressOf({ champion: "Zed", items: [3142, null, null, null, null, null], target: { mode: "tank" } }));
     },
   );
   await step("the first link again", () => reload(ui, addressOf(changed)), shows);
 });
 
-test("what the address leaves out survives a reload, not a link", async ({ ui }) => {
+test("a link holds what the page keeps but doesn't show: the target champion while a tank is the target", async ({ ui }) => {
   const { page, step } = ui;
   const card = ui.card("Target");
   const mode = (m: string) => card.getByRole("group", { name: "Target" }).getByRole("button", { name: m });
   const search = card.getByRole("searchbox", { name: "Target champion" });
 
   await step(
-    "Malphite as the target, then a tank: the address says a tank",
+    "Malphite as the target, then a tank",
     async () => {
       await ui.open();
       await mode("Champion").click();
@@ -131,24 +136,17 @@ test("what the address leaves out survives a reload, not a link", async ({ ui })
       await card.getByRole("option").first().click();
       await mode("Tank").click();
     },
-    async () => expect(address(ui)).toBe("/ahri/#vs=tank"),
+    async () => expect(address(ui)).toBe(addressOf({ target: { mode: "tank", champion: "Malphite" } })),
   );
   await step(
-    "reload, Champion: Malphite, as the page left it",
+    "the link where nothing was saved, Champion: Malphite",
     async () => {
-      await reload(ui);
+      const link = page.url();
+      await page.evaluate(() => localStorage.clear());
+      await reload(ui, link);
       await mode("Champion").click();
     },
     () => expect(search).toHaveValue("Malphite"),
-  );
-  await step(
-    "the link to a tank where nothing was saved, Champion: Jinx, the default",
-    async () => {
-      await page.evaluate(() => localStorage.clear());
-      await reload(ui, "/ahri/#vs=tank");
-      await mode("Champion").click();
-    },
-    () => expect(search).toHaveValue("Jinx"),
   );
 });
 
@@ -159,6 +157,7 @@ test("a link entered in the address bar on the page loads, as Back and Forward d
   const bruiser = ui.card("Target").getByRole("button", { name: "Bruiser" });
   // Set before a link: still there after it, so the page didn't reload.
   const stayed = () => page.evaluate(() => (window as any).stayed === true);
+  const bruiserZed = { champion: "Zed", target: { mode: "bruiser" } };
   const entries = () => page.evaluate(() => history.length);
   let before = 0;
 
@@ -181,18 +180,18 @@ test("a link entered in the address bar on the page loads, as Back and Forward d
       await level.press("End");
     },
     async () => {
-      expect(address(ui)).toBe("/zed/#lv=20");
+      expect(address(ui)).toBe(addressOf({ champion: "Zed", level: 20 }));
       expect(await entries()).toBe(before);
     },
   );
   await step(
     "a link to Zed against a bruiser: that scenario, without a reload",
-    () => page.goto("/zed/#vs=bruiser"),
+    () => page.goto(addressOf(bruiserZed)),
     async () => {
       await expect(bruiser).toHaveAttribute("aria-pressed", "true");
       await expect(level).toHaveValue("11");
       expect(await stayed()).toBe(true);
-      expect(address(ui)).toBe("/zed/#vs=bruiser");
+      expect(address(ui)).toBe(addressOf(bruiserZed));
     },
   );
   await step(
@@ -216,7 +215,7 @@ test("a link entered in the address bar on the page loads, as Back and Forward d
     () => page.goto("/zed/#notacode!!"),
     async () => {
       await expect(bruiser).toHaveAttribute("aria-pressed", "true");
-      expect(address(ui)).toBe("/zed/#vs=bruiser");
+      expect(address(ui)).toBe(addressOf(bruiserZed));
       expect(await stayed()).toBe(true);
     },
   );
@@ -230,13 +229,13 @@ test("a link entered in the address bar on the page loads, as Back and Forward d
     },
     async () => {
       expect(new URL(page.url()).pathname).toBe("/lux/");
-      expect(new URL(page.url()).hash).toContain("vs=bruiser");
+      expect((await ui.state()).target.mode).toBe("bruiser");
       expect(await entries()).toBe(before);
     },
   );
   await step(
     "a link to another champion's scenario: it loads (a page of its own)",
-    () => page.goto("/jinx/#vs=tank"),
+    () => page.goto(addressOf({ champion: "Jinx", target: { mode: "tank" } })),
     async () => {
       await expect(champion).toHaveValue("Jinx");
       await expect(ui.card("Target").getByRole("button", { name: "Tank" })).toHaveAttribute("aria-pressed", "true");

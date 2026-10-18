@@ -14,7 +14,7 @@ the combo out on a timeline and reports every damage instance.
   stats, melee or ranged. Runes go on a rune page laid out as in the client, which keeps to the game's rules (a rune per
   row, two from the secondary tree, a shard per row); hovering a rune shows its tooltip like an item's, and whether its
   adaptive damage is physical or magic for you. The page's address is a link to its scenario: the champion in the path and
-  what differs from the defaults in the hash (`/zed/#lv=16&items=3142,6692&combo=W,E,Q,AA,R&vs=lux`).
+  the rest as a short code in the hash (`/zed/#…`, about 70 characters for a full build), none at the defaults.
 * **AI agents:** an MCP server (simulate, compare, rank items, optimize builds and combo order) and a
   CLI with `--json` output.
 * **Accuracy:** every number comes from Riot's own game files for the patch (via CommunityDragon),

@@ -55,13 +55,7 @@ function clampShorthand(combo: string, sim: Sim): string {
 }
 
 export function App() {
-  const [state, setState] = useState<UIState>(() => {
-    const saved = loadSavedState(DATA);
-    const linked = ROUTED ? atAddress() : null;
-    if (!linked) return saved ?? DEFAULT_STATE;
-    // The page's own address, reloaded: with what the address leaves out (another target's numbers).
-    return saved && encodeState(DATA, saved) === encodeState(DATA, linked) ? saved : linked;
-  });
+  const [state, setState] = useState<UIState>(() => (ROUTED ? atAddress() : null) ?? loadSavedState(DATA) ?? DEFAULT_STATE);
   const [pinned, setPinned] = useState<{ label: string; state: UIState }[]>([]);
   const [, setIconsReady] = useState(false);
   const theme = useTheme();
@@ -74,7 +68,7 @@ export function App() {
   // change), with replaceState, which fires no hashchange.
   const address = useMemo(() => BASE + encodeState(DATA, state), [state]);
   const shown = useRef(address);
-  useEffect(() => saveState(state), [state]);
+  useEffect(() => saveState(DATA, state), [state]);
   useEffect(() => {
     shown.current = address;
     if (ROUTED && location.href !== new URL(address, location.href).href) history.replaceState(null, "", address);

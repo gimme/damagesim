@@ -45,7 +45,7 @@ function isSettled(itemValue: boolean) {
 /** The game data the page has, for the scenarios' addresses. */
 const DATA = loadGameData();
 
-/** A state's address on the dev server ("/zed/#lv=16"); what's left out is the default, in the target and the settings field by field. */
+/** A state's address on the dev server ("/zed/#5h2Kq…"); what's left out is the default, in the target and the settings field by field. */
 export const addressOf = (state: Record<string, any>) =>
   "/" +
   encodeState(DATA, {
