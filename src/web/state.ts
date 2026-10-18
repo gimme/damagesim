@@ -144,7 +144,7 @@ export function toTargetSpec(t: TargetState): TargetSpec {
 // changes what a code means; a change to the layout takes a new version, and a code of another
 // version doesn't load.
 
-const VERSION = 2;
+const VERSION = 3;
 const DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 interface Out {
@@ -304,7 +304,7 @@ const shards: Codec<number[]> = {
 };
 
 /** The steps the shorthand has most, a byte each. */
-const STEPS = ["P", "Q", "W", "E", "R", "AA", "AA!", "AA?", "ignite", "wait"];
+const STEPS = ["P", "Q", "W", "E", "R", "AA", "AA!", "AA?", "ignite", "energize", "wait"];
 
 /** A step: one of STEPS by its place, or after a byte past them, its text. */
 const step: Codec<string> = {

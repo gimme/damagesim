@@ -38,7 +38,7 @@ export type ComboStep =
     }
   | { type: "item"; item: number | string }
   | { type: "summoner"; spell: "ignite" }
-  /** Energize charges full, as moving and attacking make them: the next attack is Energized. */
+  /** You're Energized: the next attack (or Voltaic's Galvanize) fires your Energized items. */
   | { type: "energize" }
   | {
       type: "wait";
@@ -73,7 +73,7 @@ const SLOTS = new Set(["P", "Q", "W", "E", "R"]);
  *   AA  A  AA*3  3AA   basic attacks;  AA! = forced crit,  AA? = forced non-crit
  *   Q!  Q?             a cast whose hits that can crit all crit, or none do
  *   ignite             Ignite
- *   energize           Energize charges full: the next attack fires your Energized items
+ *   energize           you're Energized: the next attack fires your Energized items
  *   item:3152  item:rocketbelt   item active by id or name
  *   wait  wait{1.5s}   wait 1 second, or that many
  */

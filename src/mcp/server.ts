@@ -43,7 +43,7 @@ const comboStep = z.union([
   z.object({ type: z.literal("attack"), count: z.number().optional(), crit: z.boolean().optional() }),
   z.object({ type: z.literal("item"), item: idOrName }),
   z.object({ type: z.literal("summoner"), spell: z.literal("ignite") }),
-  z.object({ type: z.literal("energize") }).describe("Energize charges full (they aren't counted): the next attack fires your Energized items"),
+  z.object({ type: z.literal("energize") }).describe("You're Energized: the next attack (or Voltaic's Galvanize) fires your Energized items"),
   z.object({ type: z.literal("wait"), seconds: z.number().optional().describe("Default 1") }),
 ]);
 

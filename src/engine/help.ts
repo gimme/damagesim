@@ -35,7 +35,7 @@ Combo steps (array form):
   { "type": "ability", "slot": "E", "duration": 0.5 }   // seconds, or "count": 3: see E{0.5s} below
   { "type": "attack", "count": 3, "crit": true }
   { "type": "summoner", "spell": "ignite" }
-  { "type": "energize" }                                // Energize charges full: the next attack is Energized
+  { "type": "energize" }                                // you're Energized: the next attack fires your Energized items
   { "type": "item", "item": "Hextech Rocketbelt" }
   { "type": "wait", "seconds": 1.5 }
 
@@ -44,8 +44,8 @@ Combo shorthand: "Q W E R P AA AA*3 3AA AA! AA? Q! Q? Q:variant Q{out:1,back:0} 
   E{0.5s}: how long a cast lasts where the player chooses it: a channel ended early (Smolder E,
   Katarina R), a toggle left on (Karthus E), or a charge held (Sion Q{1s}, Varus Q{0s}). R{3}: how
   many shots Xerath R or Jhin R fires. Q{id:N} sets one component's hits. wait = 1 second.
-  energize: Energize charges aren't counted (most come from moving); this makes you Energized, so
-  the next attack (or Voltaic's Galvanize) fires your Energized items.
+  energize: makes you Energized, so the next attack (or Voltaic's Galvanize) fires your Energized
+  items; the game's Energize charges, mostly from moving, aren't simulated.
   A number past what the cast allows runs as the nearest it does, with a warning.
 
 Common options: self.hpPercent (your HP in %, for Last Stand etc.), gameTime (minutes; Gathering Storm,

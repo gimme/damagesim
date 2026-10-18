@@ -369,7 +369,7 @@ export function ComboBuilder({ state, set, sim, result }: { state: UIState; set:
           {
             key: "energize",
             step: { type: "energize" } as ComboStep,
-            title: "Energize: charges full, as moving and attacking make them, so the next attack fires your Energized items",
+            title: "Energize: the next attack (or Voltaic's Galvanize) fires your Energized items",
             icon: icon(`item:${energizer.id}`, "Energize", "sm"),
             text: "Energize",
           },

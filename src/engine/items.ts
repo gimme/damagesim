@@ -138,16 +138,16 @@ function spellblade(
 // Energized attacks (Rapid Firecannon, Statikk Shiv, Stormrazor, Voltaic Cyclosword): when you're
 // Energized, the next attack is Energized and every Energized item fires on it; Voltaic's Galvanize
 // lets champion-ability damage fire them. You're Energized as the combo starts (an option), and again
-// after an `energize` step: the game's charges, mostly from moving, which isn't simulated, aren't
-// counted. They land together: Voltaic's Firmament before the attack's damage (wiki), the rest, being
+// after an `energize` step (the game's Energize charges, mostly from moving, aren't simulated). They
+// land together: Voltaic's Firmament before the attack's damage (wiki), the rest, being
 // on-hit damage, first of its on-hits, right after it; fired by an ability, all before it, Firmament
 // first.
 
-/** The Energized items, which share one charge. */
+/** The Energized items, which are Energized together. */
 export const ENERGIZED_ITEMS = [3087, 3094, 3095, 6699];
 /** 1 while you're Energized. */
 const ENERGY_KEY = "energized";
-/** Declared by each Energized item, so the option is credited to the items rather than the shared charge. */
+/** Declared by each Energized item, so the option is credited to the items rather than the shared effect. */
 const ENERGY_START: KitOption = {
   key: "energized.ready",
   label: "Energized at start",
@@ -167,8 +167,7 @@ function registerEnergized(sim: Sim, proc: (sim: Sim, push: (r: DamageRequest) =
   energizedProcs.set(sim, list);
 }
 
-/** Energize charges full, as by moving and attacking (the combo's energize step); false without an
- *  Energized item. */
+/** Makes you Energized (the combo's energize step); false without an Energized item. */
 export function energize(sim: Sim): boolean {
   if (!energizedProcs.get(sim)?.length) return false;
   sim.setCounter(ENERGY_KEY, 1);
@@ -176,7 +175,7 @@ export function energize(sim: Sim): boolean {
 }
 
 /** Every Energized item's hit, worked out before any lands (Firmament's current health is the
- *  target's before the attack): Firmament first. The charge is used. */
+ *  target's before the attack): Firmament first. You're no longer Energized. */
 function fireEnergized(sim: Sim): DamageRequest[] {
   sim.setCounter(ENERGY_KEY, 0);
   const hits: DamageRequest[] = [];
@@ -197,7 +196,7 @@ function energyEffect(): Effect {
     label: "Energized",
     source: "item",
     description: "The first attack is Energized (an option), and the next after each energize step in the combo.",
-    limitations: ["Energize charges aren't counted (most come from moving, which isn't simulated): an energize step in the combo makes you Energized."],
+    limitations: ["The game's Energize charges, mostly from moving, aren't simulated: an energize step in the combo makes you Energized."],
     onStart(sim) {
       sim.setCounter(ENERGY_KEY, (sim.opt[ENERGY_START.key] ?? ENERGY_START.default) ? 1 : 0);
     },

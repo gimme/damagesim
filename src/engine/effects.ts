@@ -139,7 +139,7 @@ export interface AttackInfo {
   /** Whether this hit came from an ability that applies on-hit (not a real attack). */
   fromAbility?: Slot;
   /**
-   * Triggers on-attack effects (stacking: Guinsoo's, Energize charges, Navori, Lethal Tempo…): basic
+   * Triggers on-attack effects (stacking: Guinsoo's, Navori, Lethal Tempo…): basic
    * attacks, and abilities on the wiki's on-attack list. On-hit effects apply to every hit.
    */
   onAttack: boolean;
@@ -293,7 +293,7 @@ export interface EffectHooks {
   onCast?(sim: Sim, cast: CastInfo): void;
   /**
    * An attack is launched: on-attack effects (the wiki's "on-attacking": attack speed stacks, Guinsoo's,
-   * Navori, Energize charges, Hail of Blades) trigger now, before abilities cast while a ranged
+   * Navori, Hail of Blades) trigger now, before abilities cast while a ranged
    * attack's missile flies; what it deals waits for its hit (preAttack, onAttack). Same castId as the hit.
    */
   onLaunch?(sim: Sim, launch: AttackLaunch): void;

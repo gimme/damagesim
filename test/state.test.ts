@@ -22,7 +22,7 @@ const ALL: UIState = {
   items: [3031, null, 3036, null, null, null],
   runes: { primary: "Precision", secondary: "Domination", picks: [8008, 9111, 9104, 8014, 8139, 8135], held: [8143], shards: [5005, 5008, 5011] },
   options: { stacks: 3, distance: 500.5, frac: 1 / 3, neg: -2 },
-  combo: "Q:empowered{0.5s} AA*3 E W R{14} AA! ignite wait{1.5s} item:3152  ",
+  combo: "Q:empowered{0.5s} AA*3 E W R{14} AA! ignite energize wait{1.5s} item:3152  ",
   target: {
     mode: "custom",
     levelDiff: -2,
@@ -75,14 +75,6 @@ test("the bot lane role quest's boots slot comes back, empty or with boots; the 
   ])
     assert.deepEqual(roundTrip({ ...DEFAULT_STATE, items })?.items, items);
   assert.equal(roundTrip({ ...DEFAULT_STATE, settings: { ...DEFAULT_STATE.settings, questBoots: true } })?.settings.questBoots, true);
-  // A code from before both, with the six slots and every setting it had: what it was, the setting off.
-  assert.deepEqual(decodeSetup(data, "Zed", "HFSIMq2SEcbzjWQd8a"), {
-    ...DEFAULT_STATE,
-    champion: "Zed",
-    level: 16,
-    items: [3142, null, 3158, null, null, null],
-    settings: { finishDots: false, executes: false, questBoots: false },
-  });
   assert.equal(decodeSetup(data, "Zed", encodeSetup(data, { ...DEFAULT_STATE, items: [...DEFAULT_STATE.items, null, null] })), null);
 });
 
@@ -110,11 +102,19 @@ test("a champion's path: its name in lowercase, words joined by hyphens; read in
   assert.equal(decodeState(data, "nunu/")?.champion, "Nunu");
 });
 
-test("what isn't a scenario's address holds none: no champion's path, a hash that isn't a code, cut short, run on", () => {
+test("what isn't a scenario's address holds none: no champion's path, a hash that isn't a code, cut short, run on, of another version", () => {
   const code = encodeSetup(data, { ...DEFAULT_STATE, combo: "Q W E R" });
   for (const bad of ["", "/", `#${code}`, "nobody/", `nobody/#${code}`, "zed/extra/", "zed/#hello!", `zed/#${code.slice(0, -1)}`, `zed/#${code.slice(0, -3)}`])
     assert.equal(decodeState(data, bad), null, bad);
   for (const bad of ["hello!", code + "0", code + "zz", "48"]) assert.equal(decodeSetup(data, "Zed", bad), null, bad);
+  // Version 2's, before the energize step: Zed at 16 with two items.
+  assert.equal(decodeSetup(data, "Zed", "HFSIMq2SEcbzjWQd8a"), null);
+});
+
+test("the combo's usual steps take a byte each, energize too; others their text", () => {
+  const length = (combo: string) => encodeSetup(data, { ...DEFAULT_STATE, combo }).length;
+  assert.ok(length("Q energize AA") < length("Q energise AA"));
+  assert.equal(roundTrip({ ...DEFAULT_STATE, combo: "Q energize AA energise" })?.combo, "Q energize AA energise");
 });
 
 test("an item or rune the patch hasn't is left out; a target champion it hasn't, no state", () => {

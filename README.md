@@ -171,7 +171,7 @@ Only the stats of a target's items count: it never fights back, so their passive
   missiles and dashes at it fly that far at their speed (attacks too), and a grenade can land
   after the attack that follows it or before (Jhin Q then AA). Dashes without a speed on the wiki
   take a rough duration. Attack-move and positioning are otherwise ignored. Energize charges,
-  mostly from moving, aren't counted: you're Energized as the combo starts (option
+  mostly from moving, aren't simulated: you're Energized as the combo starts (option
   `energized.ready`, which unset starts you without), and again after each `energize` step.
 * **Empowered attacks** (Garen Q, Darius W) show the attack's normal damage as the attack's and
   only the extra as the ability's, like bonus on-hit damage (Vayne Q). The health bar names such an

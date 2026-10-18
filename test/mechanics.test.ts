@@ -41,7 +41,7 @@ test("Guinsoo's Rageblade: first Phantom Hit on the 7th attack doubles on-hit", 
   assert.equal(r.events.filter((e) => e.label === "Wrath").length, 8);
 });
 
-test("Energized: the first attack is (or with energized.ready off, none), and the next after each energize step; charges aren't counted", () => {
+test("Energized: the first attack is (or with energized.ready off, none), and the next after each energize step, however many attacks come between", () => {
   const procs = (combo: string, options: Record<string, number> = {}) => {
     const r = simulate(data, { champion: "Jinx", level: 11, items: ["Rapid Firecannon", "Statikk Shiv"], options, combo, target: dummy });
     const attacks = bySource(r, "AA").map((e) => e.castId);
@@ -221,7 +221,6 @@ test("Abilities that apply on-hit and trigger on-attack (Smolder Q): Spellblade,
     champion: "Smolder",
     level: 11,
     items: ["Essence Reaver", "Rapid Firecannon"],
-    options: { "energized.ready": 1 },
     combo: "Q",
     target: dummy,
   });
