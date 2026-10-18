@@ -4,7 +4,7 @@
 // double-click and closed by its × or, focused, by Delete, the focus then on the tab in its place.
 // With one build, there's only "+ Build".
 
-import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { DATA } from "../data.ts";
 import { encodeSetup, recallPage, resetState, type UIState } from "../state.ts";
 import { addTab, closeTab, moveTab, renameTab, selectTab, setOwnCombos, single, track, withBuild, type Page } from "../scenarios.ts";
@@ -17,8 +17,8 @@ export interface Scenarios {
   /** Whether there's more than one build. */
   many: boolean;
   /** Set by a change Back should undo (Reset, a tab closed): the address it leaves gets a history entry of its own. */
-  push: MutableRefObject<boolean>;
-  /** A page from an address, its state put on screen with it. */
+  push: RefObject<boolean>;
+  /** A page from an address, whose state the caller puts on screen with it (see App's follow). */
   load: (page: Page) => void;
   select: (i: number) => void;
   add: () => void;
@@ -80,7 +80,7 @@ const Plus = () => (
 );
 
 /** A build's name, typed in place of its tab's: Enter or a click elsewhere keeps it, Escape doesn't. */
-function NameField({ name, onDone }: { name: string; onDone: (name: string | null) => void }) {
+function NameField({ name, onDone }: { name: string; onDone: (name: string) => void }) {
   return (
     <input
       type="text"
@@ -142,7 +142,7 @@ export function ScenarioBar({ scenarios }: { scenarios: Scenarios }) {
               <NameField
                 name={b.name}
                 onDone={(name) => {
-                  if (name != null) scenarios.rename(i, name);
+                  scenarios.rename(i, name);
                   setRenaming(null);
                 }}
               />
