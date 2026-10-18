@@ -1,16 +1,17 @@
 import type { ChampionKit } from "../../engine/kit-types.ts";
 
 // Ashe — patch 16.20.
-// Frost Shot: Ashe's attacks can't crit; instead they deal P.calc.DamageBonus × AD
-// (1 + (1 + bonus crit damage) × crit chance) and slow.
+// Frost Shot: Ashe's crits deal no extra damage (a crit multiplier of 1, her data's, whatever her
+// crit damage); instead her attacks deal P.calc.DamageBonus × AD (1 + (1 + bonus crit damage) ×
+// crit chance) and slow.
 const kit: ChampionKit = {
   id: "Ashe",
   status: "curated",
   notes: [
-    "Frost Shot: attacks never crit; crit chance raises every attack's damage instead (P.calc.DamageBonus). Attacks and abilities slow.",
+    "Frost Shot: crits deal no extra damage; crit chance raises every attack's damage instead (P.calc.DamageBonus). Attacks and abilities slow. Sundered Sky's crit deals 80% of the attack (practice tool).",
     "Ranger's Focus is assumed ready (4 Focus stacks from previous attacks).",
   ],
-  attack: { canCrit: false, damageMult: "P.calc.DamageBonus" },
+  attack: { critMultiplier: "1", damageMult: "P.calc.DamageBonus" },
   abilities: {
     P: { notes: ["Damage bonus from crit chance is applied to every attack (attack.damageMult)."] },
     Q: {
