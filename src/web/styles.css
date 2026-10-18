@@ -172,8 +172,8 @@ a {
 }
 
 /* The builds in the top bar (scenarios.tsx): tabs in one outline, as a segmented control, the one on
-   screen pressed, each with its × (on the one on screen, else while hovered), + at the end; dragged
-   to another place, they make way. On a phone, a line of their own; where they don't fit, more. */
+   screen pressed, each with its ×, + at the end; dragged to another place, they make way. On a phone,
+   a line of their own; where they don't fit, more. A tap doesn't flash them. */
 .scenario-bar {
   display: flex;
   align-items: center;
@@ -200,11 +200,13 @@ a {
   border-radius: 8px;
   background: var(--surface);
 }
+/* A line under each, so lines of them wrapped are apart */
 .scenario-tab {
   display: inline-flex;
   flex: none;
   align-items: center;
   border-right: 1px solid var(--border);
+  box-shadow: 0 1px var(--border);
   background: var(--surface);
   touch-action: pan-y;
 }
@@ -220,12 +222,17 @@ a {
   color: inherit;
   font-size: 12px;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 .scenario-tab button[aria-pressed] {
   padding: 4px 2px 4px 10px;
 }
-.scenario-tab:hover {
-  background: var(--surface-3);
+@media (hover: hover) {
+  .scenario-tab:hover,
+  .scenario-add:hover {
+    background: var(--surface-3);
+    color: var(--text-primary);
+  }
 }
 .scenario-tab.active {
   background: var(--accent-wash);
@@ -267,37 +274,19 @@ a {
 .scenario-close {
   padding: 4px 8px 4px 5px !important;
   color: var(--text-muted) !important;
-  opacity: 0;
-}
-.scenario-tab.active .scenario-close,
-.scenario-tab:hover .scenario-close,
-.scenario-close:focus-visible {
-  opacity: 1;
 }
 .scenario-close:hover {
   color: var(--text-primary) !important;
-}
-/* Without hover, only the one on screen's: none to tap unseen */
-@media (hover: none) {
-  .scenario-tab:not(.active) .scenario-close {
-    display: none;
-  }
-  .scenario-tab:not(.active) button[aria-pressed] {
-    padding-right: 10px;
-  }
 }
 /* Last, while the tabs are laid out by order too */
 .scenario-add {
   order: 1000;
   justify-content: center;
   align-self: stretch;
+  min-height: 25px;
   padding: 0 10px;
   border-radius: 0 7px 7px 0;
   color: var(--text-secondary);
-}
-.scenario-add:hover {
-  background: var(--surface-3);
-  color: var(--text-primary);
 }
 /* In a card's title, the build what's in it is the own of */
 .build-of {
@@ -312,9 +301,21 @@ a {
   text-transform: none;
   vertical-align: 1px;
 }
+/* Beside the Combo title, its checkbox and words together */
 .combo-shared {
-  gap: 4px;
-  margin-right: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+}
+.combo-shared input {
+  margin: 0;
 }
 
 .layout {
@@ -975,8 +976,9 @@ input.combo-text {
   opacity: 1;
 }
 
-/* The builds compared, in the Result card (compare.tsx): a health bar each, the one on screen's name
-   marked, then the table, its columns the builds, the one on screen's tinted */
+/* The builds compared, in the Result card (compare.tsx): a health bar each, the one on screen's
+   tinted, then the table: the rows' names as they were in the corner, staying as its columns, as
+   wide each, scroll under them; the one on screen's tinted, another's under the pointer shaded. */
 .compare-fold {
   display: inline-flex;
   align-items: center;
@@ -995,7 +997,15 @@ input.combo-text {
 .compare-bars {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
+  margin-inline: -8px;
+}
+.compare-bar {
+  padding: 5px 8px 6px;
+  border-radius: 8px;
+}
+.compare-bar.on {
+  background: var(--accent-wash);
 }
 .compare-head {
   gap: 8px;
@@ -1013,49 +1023,63 @@ input.combo-text {
   font-weight: 600;
   cursor: pointer;
 }
-.compare-name:hover {
-  text-decoration: underline;
+@media (hover: hover) {
+  .compare-name:hover {
+    text-decoration: underline;
+  }
 }
 .compare-name[aria-pressed="true"] {
   color: var(--accent-text);
   cursor: default;
   text-decoration: none;
 }
-.compare-name[aria-pressed="true"]::before {
-  content: "";
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-right: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-  vertical-align: 2px;
+.table-scroll.compare-table {
+  max-height: none;
+}
+.compare-table table.data {
+  --names: 150px;
+  table-layout: fixed;
+  width: max(100%, calc(var(--names) + var(--builds) * 132px));
+}
+@media (max-width: 600px) {
+  .compare-table table.data {
+    --names: 108px;
+  }
+}
+.compare-table col.names {
+  width: var(--names);
+}
+/* The row's name stays as the columns scroll under it, the corner over them too */
+.compare-table table.data th[scope="row"],
+.compare-table thead th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+}
+.compare-table table.data th[scope="row"] {
+  font-weight: 500;
+  white-space: normal;
+}
+.compare-table td + td,
+.compare-table th + td,
+.compare-table thead th + th {
+  border-left: 1px solid var(--grid);
+}
+.compare-table thead th {
+  color: var(--text-primary);
+  white-space: normal;
+  vertical-align: bottom;
 }
 .compare-table th.on,
 .compare-table td.on {
   background: var(--accent-wash);
 }
-.table-scroll.compare-table {
-  max-height: none;
+.compare-table .pick {
+  cursor: pointer;
 }
-/* The row's name stays as the columns scroll under it */
-.compare-table table.data th[scope="row"] {
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  font-weight: 500;
-}
-@media (max-width: 600px) {
-  .compare-table table.data th[scope="row"] {
-    white-space: normal;
-    min-width: 96px;
-  }
-}
-.compare-table thead th {
-  color: var(--text-primary);
-  white-space: normal;
-  min-width: 90px;
-  vertical-align: bottom;
+.compare-table .pick.hot {
+  background: var(--surface-2);
 }
 .compare-total td {
   font-weight: 650;
@@ -1066,13 +1090,19 @@ input.combo-text {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+.compare-table table.data th.compare-section {
+  position: static;
+}
+.compare-section span {
+  position: sticky;
+  left: 8px;
+}
 .compare-build {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 3px;
-  max-width: 160px;
 }
 /* The table until it's all shown: its top rows, fading out */
 .compare-peek tr:nth-child(2) {

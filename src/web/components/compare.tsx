@@ -1,10 +1,11 @@
-// The builds compared, in the Result card: a health bar each in the tabs' order, the one on screen
-// marked, a click on one's name opening it; then a table of their items and runes, totals, time to
-// kill, gold and damage by source, each against the first build, its top rows until it's shown all.
-// What the builds share (the champion, the target…) is the screen's, so they're all against one
-// target. Folded, the card has the build on screen alone, a view preference kept in the browser.
+// The builds compared, in the Result card: a health bar each in the tabs' order, the one on screen's
+// tinted, a click on one's name opening it; then a table of their items and runes, totals, time to
+// kill, gold and damage by source, each against the first build, its top rows until it's shown all,
+// its columns as wide each and a click on one opening its build. What the builds share (the champion,
+// the target…) is the screen's, so they're all against one target. Folded (the page's, see
+// encodePage), the card has the build on screen alone.
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import { DATA } from "../data.ts";
 import { ItemIcon, RuneIcon } from "./icons.tsx";
 import { fmt } from "./common.tsx";
@@ -15,39 +16,13 @@ import { simulate, type SimResult } from "../../engine/sim.ts";
 import { withBuild } from "../scenarios.ts";
 import type { Scenarios } from "./scenarios.tsx";
 
-const FOLD_KEY = "damagesim:compare";
-
-/** Whether the comparison is folded away: kept in the browser, a view's, not the page's. */
-export function useFolded(): [boolean, (on: boolean) => void] {
-  const [folded, setFolded] = useState(() => {
-    try {
-      return localStorage.getItem(FOLD_KEY) === "folded";
-    } catch {
-      return false;
-    }
-  });
-  return [
-    folded,
-    (on) => {
-      setFolded(on);
-      try {
-        if (on) localStorage.setItem(FOLD_KEY, "folded");
-        else localStorage.removeItem(FOLD_KEY);
-      } catch {
-        // storage unavailable: for the session
-      }
-    },
-  ];
-}
-
 /** The table's rows shown until all are: the top ones, fading. */
 const PEEK = 3;
 
-/** The difference from the first build: "+212", "−0.35s"; nothing where there's none. */
-function Delta({ v, base, digits = 0, unit = "" }: { v?: number; base?: number; digits?: number; unit?: string }) {
-  if (v == null || base == null) return null;
-  const d = v - base;
-  if (Math.abs(d) < 0.5 * 10 ** -digits) return null;
+/** The difference from the first build: "+212", "−0.35s"; nothing where there's none, or with `room`, its room. */
+function Delta({ v, base, digits = 0, unit = "", room }: { v?: number; base?: number; digits?: number; unit?: string; room?: boolean }) {
+  const d = v == null || base == null ? 0 : v - base;
+  if (Math.abs(d) < 0.5 * 10 ** -digits) return room ? <span className="delta" /> : null;
   return (
     <span className="delta">
       {d > 0 ? "+" : "−"}
@@ -82,6 +57,8 @@ export function Compared({
 }) {
   const { page } = scenarios;
   const [all, setAll] = useState(false);
+  // The column the mouse is over, to open its build with a click.
+  const [hot, setHot] = useState<number | null>(null);
   // Each build simulated once for what it is with what's shared.
   const cache = useRef(new Map<string, { result: SimResult | null; error?: string }>());
   const columns = useMemo(
@@ -115,10 +92,16 @@ export function Compared({
       else was.most = Math.max(was.most, s.damage);
     }
   const dealt = (c: Column, key: string) => c.result?.bySource.find((s) => `${s.source}|${s.label}` === key)?.damage;
-  const cell = (c: Column, v: number | undefined, base: number | undefined, digits = 0, unit = "") => (
-    <td key={c.id} className={`r${c.on ? " on" : ""}`}>
+  /** A column's cell's props: the one on screen tinted, another opened by a click. */
+  const col = (c: Column, i: number, className = "") => ({
+    className: `r ${className}${c.on ? " on" : " pick"}${hot === i ? " hot" : ""}`,
+    onPointerEnter: (e: PointerEvent) => e.pointerType === "mouse" && setHot(i),
+    onClick: c.on ? undefined : () => scenarios.select(i),
+  });
+  const cell = (c: Column, i: number, v: number | undefined, base: number | undefined, digits = 0, unit = "") => (
+    <td key={c.id} {...col(c, i)}>
       {v == null ? "–" : `${fmt(v, digits)}${unit}`}
-      {c !== columns[0] && <Delta v={v} base={base} digits={digits} unit={unit === "%" ? " pts" : unit} />}
+      <Delta v={i ? v : undefined} base={base} digits={digits} unit={unit === "%" ? " pts" : unit} room />
     </td>
   );
   const figures: [string, (r: SimResult) => number | undefined, number, string][] = [
@@ -132,8 +115,8 @@ export function Compared({
   const rows: ReactNode[] = [
     <tr key="build">
       <th scope="row">Build</th>
-      {columns.map((c) => (
-        <td key={c.id} className={`r${c.on ? " on" : ""}`}>
+      {columns.map((c, i) => (
+        <td key={c.id} {...col(c, i)}>
           <span className="compare-build">
             {c.state.items.map((id, k) => id != null && <ItemIcon key={k} id={id} size="sm" />)}
             {c.state.runes.picks[0] != null && <RuneIcon id={c.state.runes.picks[0]} />}
@@ -145,8 +128,8 @@ export function Compared({
       ? [
           <tr key="combo">
             <th scope="row">Combo</th>
-            {columns.map((c) => (
-              <td key={c.id} className={`r small compare-combo${c.on ? " on" : ""}`}>
+            {columns.map((c, i) => (
+              <td key={c.id} {...col(c, i, "small compare-combo")}>
                 {c.result?.combo ?? c.state.combo}
               </td>
             ))}
@@ -156,12 +139,13 @@ export function Compared({
     ...figures.map(([label, value, digits, unit]) => (
       <tr key={label} className={label === "Total damage" ? "compare-total" : undefined}>
         <th scope="row">{label}</th>
-        {columns.map((c) => cell(c, c.result ? value(c.result) : undefined, first ? value(first) : undefined, digits, unit))}
+        {columns.map((c, i) => cell(c, i, c.result ? value(c.result) : undefined, first ? value(first) : undefined, digits, unit))}
       </tr>
     )),
     <tr key="sources">
       <th scope="row" colSpan={columns.length + 1} className="compare-section">
-        Damage by source
+        {/* Where the row's names stay, as the columns scroll under it */}
+        <span>Damage by source</span>
       </th>
     </tr>,
     ...[...sources.entries()]
@@ -171,7 +155,7 @@ export function Compared({
           <th scope="row">
             <SourceName source={s.source} label={s.label} champion={state.champion} icon={s.icon} />
           </th>
-          {columns.map((c) => cell(c, dealt(c, key), dealt(columns[0], key) ?? 0))}
+          {columns.map((c, i) => cell(c, i, dealt(c, key), dealt(columns[0], key) ?? 0))}
         </tr>
       )),
   ];
@@ -212,12 +196,18 @@ export function Compared({
       </div>
       {controls}
       <div className="table-scroll compare-table">
-        <table className="data" aria-label="Compared builds">
+        <table className="data" aria-label="Compared builds" style={{ "--builds": columns.length } as CSSProperties} onPointerLeave={() => setHot(null)}>
+          <colgroup>
+            <col className="names" />
+            {columns.map((c) => (
+              <col key={c.id} />
+            ))}
+          </colgroup>
           <thead>
             <tr>
               <th />
-              {columns.map((c) => (
-                <th key={c.id} className={`r${c.on ? " on" : ""}`}>
+              {columns.map((c, i) => (
+                <th key={c.id} {...col(c, i)} title={c.on ? undefined : `Open ${c.name}`}>
                   {c.name}
                 </th>
               ))}
@@ -229,7 +219,7 @@ export function Compared({
       <button className="iv-more" aria-expanded={all} onClick={() => setAll(!all)}>
         <span>
           <Chevron />
-          {all ? "Show less" : "Show all"}
+          {all ? "Show less" : "Show more"}
         </span>
       </button>
     </div>

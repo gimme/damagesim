@@ -27,6 +27,8 @@ export interface Page {
   active: number;
   /** Whether each build has its own combo; false: the one on screen is all of theirs. */
   ownCombos: boolean;
+  /** Whether the Result card has the one on screen alone, the comparison folded away. */
+  folded: boolean;
 }
 
 /** "Build n": a name the page gives, n the lowest not taken. */
@@ -42,7 +44,7 @@ function freeName(builds: Build[]): string {
 const buildOf = (s: UIState, id: number, name: string): Build => ({ id, name, items: s.items, runes: s.runes, combo: s.combo });
 
 /** A page of one build: the state's. */
-export const single = (s: UIState): Page => ({ champion: s.champion, builds: [buildOf(s, 1, "Build 1")], active: 0, ownCombos: false });
+export const single = (s: UIState): Page => ({ champion: s.champion, builds: [buildOf(s, 1, "Build 1")], active: 0, ownCombos: false, folded: false });
 
 /** The screen as it is now: the active build's items, runes and combo. */
 export function track(page: Page, s: UIState): Page {

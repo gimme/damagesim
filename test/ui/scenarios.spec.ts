@@ -163,7 +163,7 @@ test("compared", async ({ ui }) => {
   const row = (label: string) => table.locator("tr").filter({ has: page.getByRole("rowheader", { name: label, exact: true }) });
   const cells = async (label: string) => (await texts(row(label).getByRole("cell"))).map(num);
   const fold = card.getByRole("button", { name: "3 builds" });
-  const more = card.getByRole("button", { name: /^Show (all|less)$/ });
+  const more = card.getByRole("button", { name: /^Show (more|less)$/ });
   const search = ui.card("Champion").getByRole("searchbox", { name: "Champion" });
   const pick = async (name: string) => {
     await search.click();
@@ -196,7 +196,7 @@ test("compared", async ({ ui }) => {
     },
   );
   await step(
-    "the table: its top rows until Show all, then the rest and the sources",
+    "the table: its top rows until Show more, then the rest and the sources",
     async () => {
       expect(await texts(table.getByRole("rowheader"))).toEqual(["Build", "Total damage", "Of its health"]);
       await more.click();
@@ -217,7 +217,12 @@ test("compared", async ({ ui }) => {
     },
   );
   await step(
-    "folded: the one on screen alone, through a reload",
+    "a click in Build 1's column: it on screen",
+    () => row("Gold").getByRole("cell").nth(0).click(),
+    async () => expect(await tabs(ui)).toEqual(["Build 1 *", "Build 2", "Boots"]),
+  );
+  await step(
+    "folded: the one on screen alone, in the address through a reload",
     async () => {
       await fold.click();
       await ui.settle();
@@ -225,6 +230,7 @@ test("compared", async ({ ui }) => {
     },
     async () => {
       await expect(fold).toHaveAttribute("aria-expanded", "false");
+      expect(hash(ui)).toMatch(/!folded$/);
       await expect(bars(ui)).toHaveCount(1);
       await expect(table).toHaveCount(0);
       await fold.click();
@@ -239,6 +245,6 @@ test("compared", async ({ ui }) => {
       await expect(bar(ui)).toHaveCount(0);
       await pick("ahri");
     },
-    async () => expect(await tabs(ui)).toEqual(["Build 1", "Build 2", "Boots *"]),
+    async () => expect(await tabs(ui)).toEqual(["Build 1 *", "Build 2", "Boots"]),
   );
 });

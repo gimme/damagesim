@@ -83,6 +83,11 @@ test("a page's address: one build's is its scenario's; more, what they share and
   const both = { ...own, builds: own.builds.map((b, i) => (i === 2 ? { ...b, combo: "R" } : b)) };
   const again = decodePage(data, encodePage(data, withBuild(on, both, 1), both))!;
   assert.deepEqual([again.page.ownCombos, again.page.builds.map((b) => b.combo), again.state.combo], [true, ["Q W", "Q W", "R"], "Q W"]);
+  // Folded: in the address too.
+  const folded = encodePage(data, withBuild(on, both, 1), { ...both, folded: true });
+  assert.match(folded, /!combos!folded$/);
+  assert.equal(decodePage(data, folded)!.page.folded, true);
+  assert.equal(decodePage(data, encodePage(data, s, { ...single(s), folded: true }))!.page.folded, false);
 });
 
 test("what isn't a page's address holds none; a build in it that doesn't load is left out", () => {

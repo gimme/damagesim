@@ -60,15 +60,16 @@ export const addressOf = (state: Record<string, any>) => "/" + encodeState(DATA,
 /**
  * The address of a page of builds, what they share as addressOf's state, each build its items, runes
  * and combo (the default where left out) and its name ("Build n" for the nth); the one at `active` on
- * screen, each with its own combo with `ownCombos`.
+ * screen, each with its own combo with `ownCombos`, the comparison folded away with `folded`.
  */
-export function pageAddressOf(shared: Record<string, any>, builds: Partial<Build>[], active = 0, ownCombos = false) {
+export function pageAddressOf(shared: Record<string, any>, builds: Partial<Build>[], active = 0, ownCombos = false, folded = false) {
   const s = filled(shared);
   const page = {
     champion: s.champion,
     builds: builds.map((b, i) => ({ id: i + 1, name: `Build ${i + 1}`, items: s.items, runes: s.runes, combo: s.combo, ...b })),
     active,
     ownCombos,
+    folded,
   };
   return "/" + encodePage(DATA, withBuild(s, page, active), page);
 }

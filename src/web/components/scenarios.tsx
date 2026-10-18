@@ -25,6 +25,8 @@ export interface Scenarios {
   move: (from: number, to: number) => void;
   rename: (i: number, name: string) => void;
   setOwnCombos: (own: boolean) => void;
+  /** The comparison folded away in the Result card, or back. */
+  setFolded: (folded: boolean) => void;
   /** A fresh page of the champion: one build, no items, runes or combo (see resetState). */
   reset: () => void;
 }
@@ -60,6 +62,7 @@ export function useScenarios(state: UIState, setState: (s: UIState) => void, ini
     move: (from, to) => setKept(moveTab(page, from, to)),
     rename: (i, name) => setKept(renameTab(page, i, name)),
     setOwnCombos: (own) => setKept(setOwnCombos(page, own, state.combo)),
+    setFolded: (folded) => setKept({ ...page, folded }),
     reset: () => {
       push.current = true;
       const s = resetState(state);
@@ -110,7 +113,7 @@ export function ScenarioBar({ scenarios }: { scenarios: Scenarios }) {
     landAt: landInLines,
     move: scenarios.move,
   });
-  const add = "A copy of this build in a new tab, to change and to compare with this one";
+  const add = "Copy this build to a new tab";
   if (!scenarios.many)
     return (
       <div className="scenario-bar">

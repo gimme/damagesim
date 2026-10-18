@@ -382,15 +382,19 @@ export function ComboBuilder({
 
   return (
     <Card
-      title={<BuildTitle title="Combo" build={builds?.own ? builds.name : undefined} />}
-      right={
-        <div className="row" style={{ gap: 6 }}>
+      title={
+        <>
+          <BuildTitle title="Combo" build={builds?.own ? builds.name : undefined} />
           {builds && (
-            <label className="row small combo-shared" title="One combo for every build, or each its own">
+            <label className="combo-shared" title="One combo for every build, or each its own">
               <input type="checkbox" checked={!builds.own} onChange={(e) => builds.setOwn(!e.target.checked)} />
               Same for all builds
             </label>
           )}
+        </>
+      }
+      right={
+        <div className="row" style={{ gap: 6 }}>
           <span className="small secondary">Crits</span>
           <div
             className="segmented small"
