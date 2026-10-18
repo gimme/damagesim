@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DATA, loadBundledIcons } from "./data.ts";
+import { DATA } from "./data.ts";
 import { DEFAULT_STATE, decodePage, encodePage, loadSavedPage, saveState, scenarioKey, toScenario, type UIState } from "./state.ts";
 import { simulate, Sim, type SimResult } from "../engine/sim.ts";
 import { clampCombo, formatCombo, parseCombo } from "../engine/combo.ts";
@@ -35,10 +35,8 @@ function useTheme() {
   return { dark, toggle: () => setTheme(dark ? "light" : "dark") };
 }
 
-// The page's address is its scenarios' (the champion on screen in the path, the rest in the hash) where the
-// server serves the app at any path under its own (the dev server, GitHub Pages by its 404.html), not
-// in the artifact build, which can't choose its page's address.
-const ROUTED = typeof __ARTIFACT__ === "undefined" || !__ARTIFACT__;
+// The page's address is its scenarios' (the champion on screen in the path, the rest in the hash): the
+// server serves the app at any path under its own (the dev server, GitHub Pages by its 404.html).
 const BASE = import.meta.env.BASE_URL;
 
 /** The page at the page's address, or null. */
@@ -56,17 +54,12 @@ function clampShorthand(combo: string, sim: Sim): string {
 }
 
 export function App() {
-  const [initial] = useState(() => (ROUTED ? atAddress() : null) ?? loadSavedPage(DATA));
+  const [initial] = useState(() => atAddress() ?? loadSavedPage(DATA));
   const [state, setState] = useState<UIState>(initial?.state ?? DEFAULT_STATE);
-  const [, setIconsReady] = useState(false);
   const theme = useTheme();
   const scenarios = useScenarios(state, setState, initial?.page ?? null);
   const build = scenarios.page.builds[scenarios.page.active];
   const buildName = scenarios.many ? build.name : undefined;
-
-  useEffect(() => {
-    loadBundledIcons().then((ok) => ok && setIconsReady(true));
-  }, []);
 
   // The address is a link to the builds, written over as they change (no history entry for each
   // change), with replaceState, which fires no hashchange; a change Back should undo (Reset, a tab
@@ -78,14 +71,13 @@ export function App() {
     shown.current = address;
     const push = scenarios.push.current;
     scenarios.push.current = false;
-    if (ROUTED && location.href !== new URL(address, location.href).href) history[push ? "pushState" : "replaceState"](null, "", address);
+    if (location.href !== new URL(address, location.href).href) history[push ? "pushState" : "replaceState"](null, "", address);
   });
   // A link entered in the address bar on the page with only its hash different reloads nothing, nor
   // do Back and Forward between two such: its scenarios load here. An address that isn't a page's
   // goes back to this one's.
   const { load } = scenarios;
   useEffect(() => {
-    if (!ROUTED) return;
     const follow = () => {
       const next = atAddress();
       if (next && BASE + encodePage(DATA, next.state, next.page) !== shown.current) {

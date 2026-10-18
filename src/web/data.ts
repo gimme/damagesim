@@ -26,32 +26,18 @@ export const DATA: GameData = {
 
 const DD = `https://ddragon.leagueoflegends.com/cdn/${(meta as any).ddragonVersion}/img/`;
 
-// The hosted build can't load images from Data Dragon, so it ships them as data URIs in icons.json.
-let BUNDLED: Record<string, string> | null = null;
-export async function loadBundledIcons(): Promise<boolean> {
-  if (typeof __ARTIFACT__ === "undefined" || !__ARTIFACT__) return false;
-  try {
-    const res = await fetch("icons.json");
-    if (res.ok) BUNDLED = await res.json();
-  } catch {
-    BUNDLED = null;
-  }
-  return !!BUNDLED;
-}
-const bundledOr = (key: string, url: string) => (BUNDLED ? (BUNDLED[key] ?? "") : url);
-
-export const championIcon = (id: string) => bundledOr(`champion/${id}`, `${DD}champion/${DATA.champions[id]?.icon.replace(/^champion\//, "") ?? id + ".png"}`);
-export const itemIcon = (id: number) => bundledOr(`item/${id}`, `${DD}item/${id}.png`);
+export const championIcon = (id: string) => `${DD}champion/${DATA.champions[id]?.icon.replace(/^champion\//, "") ?? id + ".png"}`;
+export const itemIcon = (id: number) => `${DD}item/${id}.png`;
 // Trees and runes are on Data Dragon; stat shards only in the game files.
 export const runeIcon = (icon: string) =>
   icon.startsWith("perk-images")
-    ? bundledOr(`rune/${icon}`, `https://ddragon.leagueoflegends.com/cdn/img/${icon}`)
+    ? `https://ddragon.leagueoflegends.com/cdn/img/${icon}`
     : icon.startsWith("assets/")
-      ? bundledOr(`rune/${icon}`, `https://raw.communitydragon.org/${DATA.meta.patch}/game/${icon}`)
+      ? `https://raw.communitydragon.org/${DATA.meta.patch}/game/${icon}`
       : "";
 export const abilityIcon = (champion: string, slot: "P" | "Q" | "W" | "E" | "R") => {
   const path = DATA.champions[champion]?.abilityIcons[slot];
-  return path ? bundledOr(`ability/${champion}/${slot}`, `https://raw.communitydragon.org/${DATA.meta.patch}/game/${path}`) : "";
+  return path ? `https://raw.communitydragon.org/${DATA.meta.patch}/game/${path}` : "";
 };
 /** An ability's icon: the one its cast showed or its key shows (another form's spell, Arc of Ruin,
  *  Yunara's Q once it can be cast: DamageInstance.icon, Sim.slotIcon; a path under CommunityDragon's
@@ -59,7 +45,7 @@ export const abilityIcon = (champion: string, slot: "P" | "Q" | "W" | "E" | "R")
 export const castIcon = (champion: string, slot: "P" | "Q" | "W" | "E" | "R", path?: string) =>
   !path || path === DATA.champions[champion]?.abilityIcons[slot]
     ? abilityIcon(champion, slot)
-    : bundledOr(`icon/${path}`, `https://raw.communitydragon.org/${DATA.meta.patch}/game/${path}`);
-export const summonerIcon = (key: string) => bundledOr(`summoner/${key}`, `${DD}spell/${key}.png`);
+    : `https://raw.communitydragon.org/${DATA.meta.patch}/game/${path}`;
+export const summonerIcon = (key: string) => `${DD}spell/${key}.png`;
 // The Death Recap's icon for basic attacks.
-export const autoAttackIcon = () => bundledOr("ui/autoattack", `https://raw.communitydragon.org/${DATA.meta.patch}/game/assets/ux/deathrecap/autoattack.png`);
+export const autoAttackIcon = () => `https://raw.communitydragon.org/${DATA.meta.patch}/game/assets/ux/deathrecap/autoattack.png`;

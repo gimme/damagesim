@@ -220,7 +220,6 @@ mechanics or formula names changed; `check-kits` flags any references that went 
 ```
 scripts/        fetch-data, build-data, update-data, inspect-champion, check-kits, gen-kit-index,
                 gen-coverage, update-snapshots, update-golden, bench + ui-bench (speed),
-                build-artifact (self-contained web bundle),
                 fetch-wiki + audit-wiki, audit-items (kit, item and rune behaviour vs the wiki)
 data/generated/ processed game data per patch (committed); data/raw is the download cache (game files, wiki)
 src/engine/     calc (formula interpreter), expr, stats, damage, sim (timeline), items, runes,

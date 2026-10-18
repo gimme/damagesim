@@ -1,9 +1,8 @@
 // UI state ⇄ engine Scenario, plus the scenario's address, which is what a link to it is (the page's
 // own address, so the address bar is how a scenario is shared): the champion in the path and the rest
 // of the state as a code in the hash, with the page's builds after it where it has more than one.
-// localStorage keeps the address for a reload where the page can't write its own (the artifact
-// frame), and each champion's page as you left it, for when it's picked again. It takes the game data
-// as an argument, so Node reads them too.
+// localStorage keeps the address too, for the app opened at its root, and each champion's page as you
+// left it, for when it's picked again. It takes the game data as an argument, so Node reads them too.
 
 import type { GameData } from "../engine/gamedata.ts";
 import type { Scenario, SimSettings, TargetSpec } from "../engine/sim.ts";

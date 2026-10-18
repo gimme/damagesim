@@ -5,6 +5,3 @@ declare module "@data/*" {
   const value: any;
   export default value;
 }
-
-/** True in the self-contained artifact build (vite.config.ts). */
-declare const __ARTIFACT__: boolean;
