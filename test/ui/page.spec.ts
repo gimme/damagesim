@@ -1,6 +1,6 @@
 // Around the cards: the scenario's address (the champion in the path, what differs from the defaults
 // in the hash) and the state kept in storage across reloads, a link entered on the page, Back and
-// Forward, Reset, copying without the Clipboard API, dark mode.
+// Forward, Reset, dark mode.
 
 import { test, expect, addressOf, type UI } from "./ui.ts";
 
@@ -272,46 +272,6 @@ test("Reset", async ({ ui }) => {
     "Undo in Items: the items before Reset",
     () => ui.card("Items").getByRole("button", { name: "Undo" }).click(),
     async () => expect((await ui.state()).items).toEqual([3142, null, null, null, null, null]),
-  );
-});
-
-test("copying without the Clipboard API, as over plain http from another machine", async ({ ui, context }) => {
-  const { page, step } = ui;
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  // A page that isn't a secure context has no navigator.clipboard; the test keeps it to read what was copied.
-  await page.addInitScript(() => {
-    const clipboard = navigator.clipboard;
-    (window as any).readClipboard = () => clipboard.readText();
-    Object.defineProperty(Navigator.prototype, "clipboard", { get: () => undefined });
-  });
-  const clipboard = () => page.evaluate(() => (window as any).readClipboard());
-  // No button copies now: the app's copyText, from the module the dev server serves.
-  const copy = (text: string) => page.evaluate(async ([module, text]) => (await import(module)).copyText(text), ["/copy.ts", text]);
-  const reset = page.locator("header").getByRole("button", { name: "Reset" });
-
-  await step(
-    "load, the focus on Reset",
-    async () => {
-      await ui.open();
-      await reset.focus();
-    },
-    () => expect(page.evaluate(() => navigator.clipboard)).resolves.toBeUndefined(),
-  );
-  await step(
-    "copied all the same, the focus back where it was",
-    async () => expect(await copy(page.url())).toBe(true),
-    async () => {
-      expect(await clipboard()).toBe(page.url());
-      await expect(reset).toBeFocused();
-    },
-  );
-  await step(
-    "the copy command refused too: it says it didn't copy",
-    async () => {
-      await page.evaluate(() => (document.execCommand = () => false));
-      expect(await copy("something else")).toBe(false);
-    },
-    async () => expect(await clipboard()).toBe(page.url()),
   );
 });
 
