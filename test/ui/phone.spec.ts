@@ -1,5 +1,5 @@
-// A phone: one column that fits the screen, Item value's phone layout and its tapped cards, a finger
-// held on an item for its card, and a step dragged by a finger.
+// A phone: one column that fits the screen, the shards inside their column, Item value's phone layout
+// and its tapped cards, a finger held on an item for its card, and a step dragged by a finger.
 
 import type { Locator } from "@playwright/test";
 import { test, expect, type UI } from "./ui.ts";
@@ -49,6 +49,22 @@ test("phone width", async ({ ui }) => {
     expect(layout).toEqual({ scroll: 0, columns: 1, outside: [] });
   };
   await step("load: one column, nothing past the screen's edge", () => ui.open(), fits);
+  await step(
+    "Runes: the shards and their stats inside the secondary tree's column",
+    async () => {},
+    async () => {
+      const column = (await ui.card("Runes").locator(".rune-tree").nth(1).boundingBox())!;
+      for (const row of ["Offense", "Flex", "Defense"]) {
+        const b = (await ui
+          .card("Runes")
+          .getByRole("group", { name: `${row} shard`, exact: true })
+          .boundingBox())!;
+        expect(b.x).toBeGreaterThanOrEqual(column.x);
+        expect(b.x + b.width).toBeLessThanOrEqual(column.x + column.width);
+        expect(b.y + b.height).toBeLessThanOrEqual(column.y + column.height);
+      }
+    },
+  );
 
   const iv = ui.card("Item value");
   const rows = iv

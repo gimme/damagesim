@@ -44,9 +44,12 @@ test("rune page rules", async ({ ui }) => {
     },
   );
   await step(
-    "the shards: no row titles, each stat abbreviated and in its icon's color, Ahri's adaptive force as AP",
+    "the shards: under the secondary tree's rows, no row titles, each stat abbreviated and in its icon's color, Ahri's adaptive force as AP",
     async () => {},
     async () => {
+      for (const row of ["Offense", "Flex", "Defense"]) await expect(tree(1).getByRole("group", { name: `${row} shard` })).toBeVisible();
+      const last = (await group("Sorcery row 3").boundingBox())!;
+      expect((await group("Offense shard").boundingBox())!.y).toBeGreaterThan(last.y + last.height);
       for (const row of ["Offense", "Flex", "Defense"]) await expect(card.getByText(row, { exact: true })).toHaveCount(0);
       await expect(card).not.toContainText("Two, from different rows");
       await expect(group("Offense shard").locator(".shard-text")).toHaveText("+9 AP");

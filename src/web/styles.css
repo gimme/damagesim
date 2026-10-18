@@ -1869,15 +1869,20 @@ details summary {
   background: radial-gradient(closest-side, color-mix(in srgb, var(--tree) 45%, transparent), transparent);
 }
 
+/* The shards, under the secondary tree's rows as in the client: each row's three, its pick's stat under them. */
 .shard-rows {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px 12px;
-  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
 }
 .shard-row {
-  display: contents;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 .shard-pick {
   width: 24px;
@@ -1892,6 +1897,11 @@ details summary {
 }
 .shard-text {
   line-height: 1.25;
+  text-align: center;
+}
+/* "(based on level)" goes under the number whole. */
+.shard-text .muted {
+  white-space: nowrap;
 }
 @media (max-width: 520px) {
   .hero .value {

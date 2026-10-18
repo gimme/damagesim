@@ -43,7 +43,7 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
       <Icon src={runeIcon(r.icon)} label={r.name} />
     </button>
   );
-  // A shard's whole text is one line, so the rows show it, with numbers at your level: "+9 AP", "+110
+  // A shard's whole text is short, so the rows show it, with numbers at your level: "+9 AP", "+110
   // HP (based on level)".
   const shardText = (id?: number) => {
     if (id === undefined) return "";
@@ -58,7 +58,12 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
         <span className="it-value" style={stat.color ? { color: `var(${stat.color})` } : undefined}>
           {m[1]} {stat.abbr}
         </span>
-        {m[3] && <span className="muted"> {m[3]}</span>}
+        {m[3] && (
+          <>
+            {" "}
+            <span className="muted">{m[3]}</span>
+          </>
+        )}
       </>
     );
   };
@@ -83,39 +88,38 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
             trees={TREES.filter((t) => t.key !== page.primary)}
             onPick={(t) => change((p) => chooseSecondary(DATA, p, t))}
           />
-          {/* Lines its rows up with the primary's, under the keystones */}
-          <div className="rune-row keystones" aria-hidden />
           {[1, 2, 3].map((row) => (
             <div key={row} className="rune-row" role="group" aria-label={`${page.secondary} row ${row}`}>
               {treeRow(page.secondary, row).map(pick)}
             </div>
           ))}
-        </div>
-      </div>
-      <div className="shard-rows">
-        {DATA.runePage.shards.map((row, i) => (
-          <div key={row.label} className="shard-row" role="group" aria-label={`${row.label} shard`}>
-            <div className="row" style={{ gap: 6, flexWrap: "nowrap" }}>
-              {row.options.map((id) => {
-                const r = DATA.runes.find((x) => x.id === id)!;
-                return (
-                  <button
-                    key={id}
-                    className="shard-pick"
-                    aria-pressed={page.shards[i] === id}
-                    aria-label={r.name}
-                    // A page has a shard in each row, or none (Reset's): the first pick on one without fills the other rows with their first.
-                    onClick={() => change((p) => ({ ...p, shards: DATA.runePage.shards.map((r, j) => (j === i ? id : (p.shards[j] ?? r.options[0]))) }))}
-                    {...hover.bind(<RuneTip id={id} sim={sim} />)}
-                  >
-                    <Icon src={runeIcon(r.icon)} label={r.name} />
-                  </button>
-                );
-              })}
-            </div>
-            <span className="small shard-text">{shardText(page.shards[i])}</span>
+          {/* Under the secondary tree's rows, as in the client */}
+          <div className="shard-rows">
+            {DATA.runePage.shards.map((row, i) => (
+              <div key={row.label} className="shard-row" role="group" aria-label={`${row.label} shard`}>
+                <div className="row" style={{ gap: 6, flexWrap: "nowrap" }}>
+                  {row.options.map((id) => {
+                    const r = DATA.runes.find((x) => x.id === id)!;
+                    return (
+                      <button
+                        key={id}
+                        className="shard-pick"
+                        aria-pressed={page.shards[i] === id}
+                        aria-label={r.name}
+                        // A page has a shard in each row, or none (Reset's): the first pick on one without fills the other rows with their first.
+                        onClick={() => change((p) => ({ ...p, shards: DATA.runePage.shards.map((r, j) => (j === i ? id : (p.shards[j] ?? r.options[0]))) }))}
+                        {...hover.bind(<RuneTip id={id} sim={sim} />)}
+                      >
+                        <Icon src={runeIcon(r.icon)} label={r.name} />
+                      </button>
+                    );
+                  })}
+                </div>
+                <span className="small shard-text">{shardText(page.shards[i])}</span>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
       {hover.node}
     </Card>
