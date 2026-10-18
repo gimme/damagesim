@@ -115,9 +115,16 @@ export interface DamageRequest {
   penPercent?: number;
   /**
    * A hit that replaces an attack's own damage (Garen Q): of `amount`, what the normal attack would
-   * have dealt, recorded as that attack's hit (`amount` of it, named `label`) and the rest as this.
+   * have dealt, recorded as that attack's hit (`amount` of it, named `label`, a crit if `crit`) and
+   * the rest as this.
    */
-  normalAttack?: { amount: number; source: string; sourceLabel: string; label: string };
+  normalAttack?: { amount: number; source: string; sourceLabel: string; label: string; crit: boolean };
+  /**
+   * Part of an attack that crits with it (canCrit components, Yone's magic half): `amount` is before
+   * the crit, which multiplies it by this much on a full crit once the attack's crit is known,
+   * guaranteed crits too (Sim.critAttack).
+   */
+  critMultiplier?: number;
   /** An on-hit dealt before the attack's own damage (Voltaic Cyclosword's Firmament, wiki). */
   beforeAttack?: boolean;
   /** An on-hit dealt first of the attack's on-hits, right after its own damage: the other Energized
@@ -139,7 +146,9 @@ export interface AttackInfo {
   critMultiplier: number;
   /**
    * Guaranteed crit from an item: `modifier` × full crit damage, or `naturalModifier` × full crit
-   * damage when the attack would have crit anyway. Several sources keep the highest of each.
+   * damage when the attack would have crit anyway. Several sources keep the highest of each. The
+   * modifier scales all of the attack's own damage and of its empowered ability's, the parts that
+   * don't crit too, but not its on-hit effects (Sim.critAttack).
    */
   forcedCrit?: { modifier: number; naturalModifier: number };
   /** Extra damage requests added by on-hit effects. */
@@ -159,7 +168,8 @@ export interface AttackInfo {
   replaceBase?: boolean;
   /**
    * The hits in `extra` that replace it: they are recorded as the normal attack for as much as it
-   * would have dealt, the rest as their own (Garen Q; hooks add theirs: Galio's passive).
+   * would have dealt, the rest as their own (Garen Q; hooks add theirs, before the crit: Galio's
+   * passive). That much of them is the attack's, which crits (Sim.critAttack).
    */
   replacedBy?: DamageRequest[];
   /** Extra times on-hit effects apply (Guinsoo's Phantom Hit, Dusk and Dawn, Renekton W); sources add up. */

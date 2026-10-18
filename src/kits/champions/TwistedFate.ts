@@ -4,7 +4,7 @@ import type { BuffSpec, CCSpec, ChampionKit, ComponentSpec } from "../../engine/
 // Pick a Card: the locked card replaces the next attack's damage (the crit-chance scaling is inside
 // the game formula; the card itself can't crit). The card's CC lands with that attack.
 const card = (id: string, label: string, calc: string, cc: CCSpec[] = [], aoe = false): BuffSpec => {
-  const comp: ComponentSpec = { id, label, type: "magic", amount: `W.calc.${calc}`, ...(aoe ? { aoe: true } : {}) };
+  const comp: ComponentSpec = { id, label, type: "magic", amount: `W.calc.${calc}`, canCrit: false, ...(aoe ? { aoe: true } : {}) };
   return {
     id: "pickACard",
     label: "Pick a Card",

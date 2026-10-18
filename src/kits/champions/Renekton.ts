@@ -14,8 +14,8 @@ const ruthless = (fury: boolean): BuffSpec => ({
     // Every strike applies on-hit effects (wiki): one extra pass per extra strike.
     onHitRepeats: fury ? 2 : 1,
     components: [
-      // Only the first strike can crit (wiki); it is the attack itself.
-      { id: "strike1", label: "Ruthless Predator", type: "physical", amount: "W.calc.HitDamage", canCrit: true },
+      // The first strike is the attack itself: only it can crit, for the attack's part (wiki: 100% AD).
+      { id: "strike1", label: "Ruthless Predator", type: "physical", amount: "W.calc.HitDamage" },
       { id: "strikes", label: "Ruthless Predator", type: "physical", amount: "W.calc.HitDamage", hits: fury ? 2 : 1 },
     ],
   },
@@ -26,7 +26,7 @@ const kit: ChampionKit = {
   status: "curated",
   notes: [
     "Fury bonuses are chosen per cast with variants: Q:fury, W:fury, E E:fury (empowered Dice). Fury generation is not tracked.",
-    "Ruthless Predator strikes 2 (3 with Fury) times; every strike applies on-hit effects (wiki). Only the first strike can crit.",
+    "Ruthless Predator strikes 2 (3 with Fury) times; every strike applies on-hit effects (wiki). Only the first strike can crit, adding the attack's crit (100% AD × (crit damage − 1), wiki).",
     "Dominus: 10 ticks (5s of the 15s aura) by default; set R{aura:N} for other uptimes.",
   ],
   abilities: {

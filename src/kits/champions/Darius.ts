@@ -53,10 +53,11 @@ const kit: ChampionKit = {
           count: 1,
           replaceBase: true,
           resetsAttack: true,
-          components: [{ id: "strike", label: "Crippling Strike", type: "physical", amount: "W.calc.EmpoweredAttackDamage" }],
+          // Its bonus crits too: "This damage is affected by critical strike modifiers" (wiki).
+          components: [{ id: "strike", label: "Crippling Strike", type: "physical", amount: "W.calc.EmpoweredAttackDamage", canCrit: true }],
         },
       },
-      notes: ["Empowers the next attack (replaces its damage); triggers spell effects."],
+      notes: ["Empowers the next attack (replaces its damage); triggers spell effects. All of it can crit (wiki)."],
     },
     E: {
       noTarget: false,

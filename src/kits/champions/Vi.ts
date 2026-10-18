@@ -55,7 +55,7 @@ const kit: ChampionKit = {
       resetsAttack: true,
       notes: [
         'Empowers the next attack: it deals E damage instead of normal attack damage (write "E AA").',
-        "A crit adds 100% AD (+ crit damage bonuses) on top (wiki); included as its expected value from crit chance.",
+        "A crit adds 100% AD (+ crit damage bonuses) on top (wiki): the attack's part crits, not the bonus.",
       ],
       buff: {
         id: "viE",
@@ -65,9 +65,7 @@ const kit: ChampionKit = {
           count: 1,
           replaceBase: true,
           resetsAttack: true,
-          components: [
-            { id: "force", label: "Relentless Force", type: "physical", amount: "E.calc.TotalDamageTooltip + critChance * ad * (critDamage - 1)", aoe: true },
-          ],
+          components: [{ id: "force", label: "Relentless Force", type: "physical", amount: "E.calc.TotalDamageTooltip", aoe: true }],
         },
       },
     },

@@ -66,14 +66,13 @@ const kit: ChampionKit = {
     onAttack(sim: Sim, atk) {
       if (atk.fromAbility || atk.phantom || atk.replaceBase || !sim.isReady("galioP")) return;
       sim.startCooldown("galioP", sim.evalExpr("P.calc.PassiveCooldownModified", { slot: "P" }));
-      const total = sim.evalExpr("P.calc.TotalDamage", { slot: "P" });
-      const ad = sim.stats.ad;
+      // It replaces the attack: its AD part crits (wiki), as the attack's (Sim.critAttack).
       const smash: DamageRequest = {
         source: "P",
         sourceLabel: "Colossal Smash",
         label: atk.crit ? "Colossal Smash (crit)" : "Colossal Smash",
         type: "magic",
-        amount: total - ad + ad * atk.critFactor,
+        amount: sim.evalExpr("P.calc.TotalDamage", { slot: "P" }),
         castId: atk.castId,
         // The wiki: basic and spell damage to the target (area proc damage only to others around it).
         flags: { kind: "ability", slot: "P", attack: true, ability: true, crit: atk.crit, empowered: true },

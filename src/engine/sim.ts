@@ -1319,7 +1319,7 @@ export class Sim {
     if (!normal || !(normal.amount > 0) || !(req.amount > 0)) return [inst];
     const share = Math.min(1, normal.amount / req.amount);
     const final = inst.final ?? 0;
-    const flags: DamageFlags = { ...inst.flags, kind: "attack", attack: true, onHit: false };
+    const flags: DamageFlags = { ...inst.flags, kind: "attack", attack: true, onHit: false, crit: normal.crit };
     delete flags.slot;
     delete flags.empowered;
     const rest: DamageInstance = {
@@ -1701,6 +1701,48 @@ export class Sim {
     return !fromAbility && this.kit.attack?.ability ? this.effects.filter((e) => e.source === "kit") : this.effects;
   }
 
+  /**
+   * How an attack's crit, natural or guaranteed, applies to what it deals, once it's known (after its
+   * preAttack and onAttack effects). For every attack:
+   * - its own damage takes the crit (atk.critFactor, by performAttackHit), and so do the parts that
+   *   crit with it (DamageRequest.critMultiplier: canCrit components), each by its own multiplier,
+   *   but on-hit effects that crit (Corki's, Shaco's clone) only by the attack's own roll: guaranteed
+   *   crits are the attack's and its empowering ability's;
+   * - where an ability's damage replaces it (replaceBase), the attack is as much of that damage as it
+   *   would have dealt (`plain`), which crits so, on its first hit, and the ability's bonus beyond it
+   *   doesn't (the wiki's "the bonus damage does not crit": Garen Q, Volibear Q, Vi E), unless its
+   *   components crit (canCrit: Nasus Q, Pantheon W), which then are all of its crit; an attack whose
+   *   first component can't crit (canCrit: false), or someone else's, can't (performAttackHit);
+   * - a guaranteed crit's modifier (Sundered Sky's and Fiendhunter Bolts' 80%) scales all of the
+   *   attack's own damage and of its empowered ability's, the bonus that doesn't crit too, but not
+   *   its on-hit effects. In the practice tool (16.20), Trundle's Chomp with Sundered Sky deals
+   *   (AD × 200% + its bonus) × 80% (206), and an attack with Sundered Sky and Recurve Bow
+   *   AD × 160% + 15 (199).
+   * `later`: its parts that land later (bleeds), which crit with it but aren't its own damage.
+   */
+  private critAttack(atk: AttackInfo, plain: number, later: DamageRequest[]) {
+    const f = atk.canCrit ? atk.forcedCrit : undefined;
+    const scale = f ? atk.naturalCrit * f.naturalModifier + (1 - atk.naturalCrit) * f.modifier : 1;
+    const rolled = (m: number) => (!atk.canCrit || atk.naturalCrit === 0 ? 1 : atk.naturalCrit === 1 ? m : 1 + this.stats.critChance * (m - 1));
+    const replaced = atk.replaceBase ? (atk.replacedBy ?? []) : [];
+    const critting = replaced.filter((x) => x.critMultiplier !== undefined);
+    const total = replaced.reduce((s, x) => s + x.amount, 0);
+    // The attack's part of what replaces it, where none of it crits on its own.
+    const own = critting.length ? 0 : Math.min(plain, total);
+    for (const x of [...atk.extra, ...later]) {
+      const m = x.critMultiplier;
+      if (m !== undefined) {
+        const onHit = !!x.flags?.onHit && !x.flags.empowered;
+        x.amount *= !atk.canCrit ? 1 : onHit ? rolled(m) : m === atk.critMultiplier ? atk.critFactor : f ? m * scale : rolled(m);
+        x.flags = { ...x.flags, crit: atk.canCrit && (onHit ? atk.naturalCrit === 1 : atk.crit) };
+        delete x.critMultiplier;
+      } else if (scale !== 1 && x.flags?.empowered && !later.includes(x)) x.amount *= scale;
+    }
+    if (own > 0 && atk.critFactor !== scale) replaced[0].amount += own * (atk.critFactor - scale);
+    // The attack is recorded as the parts that crit with it first (Zaahen Q's AD halves), then in order.
+    if (atk.replacedBy && critting.length) atk.replacedBy = [...critting, ...atk.replacedBy.filter((x) => !critting.includes(x))];
+  }
+
   /** Resolve a basic attack (or an attack-like ability hit) landing on the target: launched now,
    *  unless launchAttack launched it. */
   performAttackHit(o: AttackHit) {
@@ -1741,6 +1783,8 @@ export class Sim {
       ...(o.comp?.areaOnHit ? { areaOnHit: true } : {}),
       ...(o.launched !== undefined ? { launched: o.launched } : {}),
     };
+    /** Its parts that land later (critAttack). */
+    const later: DamageRequest[] = [];
 
     // Champion passive on-hits, every-Nth procs and empowered attacks from buffs.
     const kitAtk = this.kit.attack;
@@ -1755,12 +1799,6 @@ export class Sim {
           let amount = this.evalExpr(comp.amount, { slot, spell, rank, hit: h, hits, distance });
           if (comp.min !== undefined) amount = Math.max(amount, this.evalExpr(comp.min, { slot, spell, rank, distance }));
           if (comp.max !== undefined) amount = Math.min(amount, this.evalExpr(comp.max, { slot, spell, rank, distance }));
-          if (comp.canCrit) {
-            if (comp.critMultiplier !== undefined) {
-              const m = this.evalExpr(comp.critMultiplier, { slot, spell, rank, distance });
-              amount *= c.crit ? m : expected ? 1 + this.stats.critChance * (m - 1) : 1;
-            } else amount *= factor;
-          }
           if (!(amount > 0)) continue;
           const flags = componentFlags(comp, slot);
           const req: DamageRequest = {
@@ -1776,16 +1814,22 @@ export class Sim {
               ...flags,
               onHit: true,
               ability: (from !== "P" || !!comp.spell || abilityAttack) && flags.ability,
-              crit: !!comp.canCrit && c.crit,
+              crit: false,
               ...(empowered ? { empowered } : {}),
             },
+            // It crits with the attack, once its crit is known (critAttack).
+            ...(comp.canCrit
+              ? { critMultiplier: comp.critMultiplier !== undefined ? this.evalExpr(comp.critMultiplier, { slot, spell, rank, distance }) : critMult }
+              : {}),
           };
           // Delayed / periodic parts of an empowered attack (bleeds, lightning) land later.
           const delay =
             this.landsAt(comp, { slot, spell, rank, distance }) +
             (comp.interval !== undefined ? this.evalExpr(comp.interval, { slot, spell, rank, distance }) * h : 0);
-          if (delay > 0) this.schedule(delay, () => this.deal(req));
-          else target.extra.push(req);
+          if (delay > 0) {
+            later.push(req);
+            this.schedule(delay, () => this.deal(req));
+          } else target.extra.push(req);
         }
       }
     };
@@ -1821,6 +1865,10 @@ export class Sim {
           const first = atk.extra[before];
           if (first) first.flags = { ...first.flags, attack: true, onHit: false };
           if (!empower.otherAttacker) (atk.replacedBy ??= []).push(...atk.extra.slice(before));
+          // Someone else's attack (Azir's soldiers': no Sundered Sky, wiki) can't crit, nor one whose
+          // first component can't (Camille Q, Pick a Card: no Fiendhunter Bolts charge, wiki).
+          if (empower.otherAttacker || empower.components[0]?.canCrit === false)
+            Object.assign(atk, { canCrit: false, crit: false, critFactor: 1, naturalCrit: 0 });
         }
         if (empower.spell) spellOf = slot;
         const effComp = empower.components.find((x) => x.onHitEffectiveness !== undefined);
@@ -1837,7 +1885,7 @@ export class Sim {
     }
 
     for (const e of effects) e.preAttack?.(this, atk);
-    if (atk.forcedCrit) {
+    if (atk.forcedCrit && atk.canCrit) {
       // Guaranteed crits (Sundered Sky, Fiendhunter Bolts): the natural roll picks the modifier.
       const f = atk.forcedCrit;
       atk.critFactor = atk.critMultiplier * (atk.naturalCrit * f.naturalModifier + (1 - atk.naturalCrit) * f.modifier);
@@ -1857,16 +1905,19 @@ export class Sim {
       atk.extra.push(...again.extra.map((x) => ({ ...x, hitId: x.hitId ?? repeated })));
     }
 
-    const base = (o.amount ?? st.ad * (kitAtk?.damageMult !== undefined ? this.evalExpr(kitAtk.damageMult, { slot: "P" }) : 1)) * atk.baseMult * atk.critFactor;
-    const label = o.label ?? (atk.crit ? "Attack (crit)" : expected && st.critChance > 0 && st.critChance < 1 && canCrit ? "Attack (avg. crit)" : "Attack");
+    const plain = (o.amount ?? st.ad * (kitAtk?.damageMult !== undefined ? this.evalExpr(kitAtk.damageMult, { slot: "P" }) : 1)) * atk.baseMult;
+    this.critAttack(atk, o.onHitOnly ? 0 : plain, later);
+    const base = plain * atk.critFactor;
+    const label = o.label ?? (atk.crit ? "Attack (crit)" : expected && st.critChance > 0 && st.critChance < 1 && atk.canCrit ? "Attack (avg. crit)" : "Attack");
     if (!o.onHitOnly && atk.replaceBase && atk.replacedBy?.length) {
       // What replaced the attack is recorded as the attack for what it would have dealt (crediting
-      // the ability only with the extra), taken from its first hits: one attack, one Attack.
+      // the ability only with the extra), taken from its first hits (those that crit first, see
+      // critAttack): one attack, one Attack.
       let left = base;
       for (const x of atk.replacedBy) {
         const amount = Math.min(left, Math.max(0, x.amount));
         left -= amount;
-        if (amount > 0) x.normalAttack = { amount, source: o.fromAbility ?? "AA", sourceLabel: o.sourceLabel ?? "Basic attack", label };
+        if (amount > 0) x.normalAttack = { amount, source: o.fromAbility ?? "AA", sourceLabel: o.sourceLabel ?? "Basic attack", label, crit: atk.crit };
       }
     }
     // Abilities that apply on-hit at reduced effectiveness (Azir soldiers, Akshan E…).

@@ -781,6 +781,62 @@ test("Sundered Sky + Fiendhunter Bolts: same result in either item order, with t
   assert.ok(Math.abs(total(["Fiendhunter Bolts", "Sundered Sky"]) - total(["Sundered Sky", "Fiendhunter Bolts"])) < 0.01);
 });
 
+test("Sundered Sky on Trundle (practice tool, 16.20): Chomp's attack part crits, its bonus doesn't, and the 80% scales both, not on-hit effects", () => {
+  // Level 1 (Q rank 1) with the measured links' runes at 0:00, against a dummy without resists. The
+  // game shows whole numbers.
+  const dealt = (items: string[], combo: string) =>
+    simulate(data, {
+      champion: "Trundle",
+      level: 1,
+      items,
+      runes: ["Absolute Focus", "Gathering Storm", 5005, 5008, 5011],
+      options: { gameTime: 0 },
+      combo,
+      target: { maxHp: 1000, armor: 0, mr: 0 },
+    }).totalDamage;
+  const measured: [string[], string, number][] = [
+    [[], "Q AA", 96],
+    [["B. F. Sword"], "Q AA", 142],
+    [["Sundered Sky"], "AA", 184],
+    [["Sundered Sky"], "Q AA", 206],
+    [["Sundered Sky", "Recurve Bow"], "AA", 199],
+  ];
+  for (const [items, combo, game] of measured) {
+    const got = dealt(items, combo);
+    assert.ok(Math.abs(got - game) < 0.6, `${items.join(" + ") || "no items"}, ${combo}: ${got} (game: ${game})`);
+  }
+});
+
+test("Crits on empowered attacks: the attack's part crits (Garen Q, Renekton W), a canCrit component all of it (Nasus Q); Pick a Card can't crit", () => {
+  const run = (champion: string, items: string[], combo: string) => simulate(data, { champion, level: 11, items, combo, target: dummy });
+  const sim = (champion: string, items: string[] = []) => new Sim(data, { champion, level: 11, items, combo: [] });
+  // A crit adds the attack's 100% AD, not the bonus (wiki): Garen Q, and Renekton W's first strike.
+  for (const [champion, combo] of [
+    ["Garen", "Q AA"],
+    ["Renekton", "W AA"],
+  ]) {
+    const added = run(champion, [], combo + "!").totalDamage - run(champion, [], combo).totalDamage;
+    assert.ok(near(added, sim(champion).stats.ad * (sim(champion).stats.critDamage - 1)), `${champion}: ${added}`);
+  }
+  // Nasus Q's flat damage crits with the attack, not the stacks (the data's CritDamage); Sundered
+  // Sky's 80% scales them too. The Siphoning Strike line keeps its share.
+  const nasus = sim("Nasus", ["Sundered Sky"]);
+  const flat = nasus.evalExpr("Q.dv.BonusDamage", { slot: "Q" });
+  const q = run("Nasus", ["Sundered Sky"], "Q AA");
+  assert.ok(near(q.totalDamage, ((flat + nasus.stats.ad) * nasus.stats.critDamage + 150) * 0.8), `${q.totalDamage}`);
+  assert.ok(near(q.events.find((e) => e.label === "Siphoning Strike")!.final!, flat * nasus.stats.critDamage * 0.8));
+  // Pick a Card can't crit: Sundered Sky crits the attack after it.
+  const tf = run("TwistedFate", ["Sundered Sky"], "W AA AA").events.filter((e) => e.source === "AA");
+  assert.deepEqual(
+    tf.map((e) => e.label),
+    ["Attack", "Attack (crit)"],
+  );
+  // Yone's magic half crits with Sundered Sky as the physical half does.
+  const yone = run("Yone", ["Sundered Sky"], "AA wait{10s} AA").events.filter((e) => e.time > 5);
+  assert.equal(yone.length, 2);
+  assert.ok(near(yone[0].raw, yone[1].raw) && yone[1].flags.crit, `${yone.map((e) => `${e.label} ${e.raw}`)}`);
+});
+
 test("Hexoptics C44 amplifies Kraken Slayer's basic damage", () => {
   const r = simulate(data, { champion: "Jinx", level: 18, items: ["Kraken Slayer", "Hexoptics C44"], combo: "AA*3", target: dummy });
   assert.ok(r.events.find((e) => e.label === "Bring It Down")!.amps.some((a) => a.source === "Hexoptics C44"));

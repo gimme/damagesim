@@ -40,7 +40,9 @@ const kit: ChampionKit = {
         sourceLabel: "Basic attack",
         label: "Azakana sword (magic half)",
         type: "magic",
-        amount: sim.stats.ad * split * atk.critFactor,
+        amount: sim.stats.ad * split,
+        // It crits as the attack does, guaranteed crits too.
+        critMultiplier: atk.critMultiplier,
         castId: atk.castId,
         flags: { kind: "attack", attack: false, onHit: false, ability: false, crit: atk.crit },
       });

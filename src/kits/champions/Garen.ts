@@ -7,7 +7,9 @@ const kit: ChampionKit = {
   abilities: {
     Q: {
       resetsAttack: true,
-      notes: ["Empowers the next attack: it deals Q damage instead of normal attack damage (follow Q with AA)."],
+      notes: [
+        "Empowers the next attack: it deals Q damage instead of normal attack damage (follow Q with AA). The attack part crits as normal, the bonus doesn't (wiki).",
+      ],
       buff: {
         id: "garenQ",
         label: "Decisive Strike",

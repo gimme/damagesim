@@ -65,7 +65,12 @@ export interface ComponentSpec {
    * Evelynn's empowered E, Master Yi's Q). Single-target hits of area abilities (Yasuo Q) still count.
    */
   areaOnHit?: boolean;
-  /** Can critically strike; amount is multiplied by crit damage (or critMultiplier). */
+  /**
+   * Can critically strike; amount is multiplied by crit damage (or critMultiplier). Of an attack's
+   * parts, it crits with the attack, guaranteed crits too. An empowered attack's components that
+   * replace it (replaceBase) crit for the attack's part unless one says canCrit (then those crit,
+   * all of them) or the first says canCrit: false (then the attack can't crit). See Sim.critAttack.
+   */
   canCrit?: boolean;
   /** Custom crit multiplier expression, e.g. Yasuo Q. */
   critMultiplier?: Expr;
@@ -143,7 +148,8 @@ export interface BuffSpec {
     components: ComponentSpec[];
     /**
      * The empowered attack's own physical damage is replaced by the components. The results credit
-     * the basic attack with what it would have dealt and the ability with the rest (Garen Q).
+     * the basic attack with what it would have dealt and the ability with the rest (Garen Q). That
+     * part is the attack's, which crits; the rest crits only where a component says canCrit.
      */
     replaceBase?: boolean;
     /** With replaceBase: someone else attacks instead (Azir's soldiers), so all of it is the ability's. */

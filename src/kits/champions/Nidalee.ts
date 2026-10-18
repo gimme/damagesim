@@ -49,7 +49,7 @@ const kit: ChampionKit = {
           variableDistance: false,
           debuff: null,
           resetsAttack: true,
-          note: "Empowers the next attack: it deals Takedown magic damage instead of its normal damage (follow with AA).",
+          note: "Empowers the next attack: it deals Takedown magic damage instead of its normal damage (follow with AA). Its attack part (100% AD) can crit, adding magic damage the missing-health bonus doesn't raise (wiki).",
           buff: {
             id: "takedown",
             label: "Takedown",

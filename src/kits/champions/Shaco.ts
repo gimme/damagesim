@@ -1,4 +1,5 @@
 import type { ChampionKit } from "../../engine/kit-types.ts";
+import { forceCrit } from "../../engine/effects.ts";
 
 // Shaco — patch 16.20.
 // Backstab (option "backstab", on by default): attacks and Two-Shiv Poison from behind deal bonus
@@ -24,6 +25,14 @@ const kit: ChampionKit = {
       },
     ],
   },
+  hooks: {
+    preAttack(sim, atk) {
+      // The Deceive attack from behind crits for Q.calc.QCritDamageMod, or full crit damage if a crit
+      // was rolled (wiki).
+      if (atk.phantom || !(sim.opt.backstab ?? 1) || !atk.extra.some((x) => x.label === "Deceive (backstab crit)")) return;
+      forceCrit(atk, sim.evalExpr("Q.calc.QCritDamageMod", { slot: "Q" }) / atk.critMultiplier, 1);
+    },
+  },
   abilities: {
     Q: {
       dash: true,
@@ -46,8 +55,10 @@ const kit: ChampionKit = {
               id: "deceive",
               label: "Deceive (backstab crit)",
               type: "physical",
-              amount:
-                "opt.backstab ? (ad + Q.calc.TotalDamage + P.calc.BasicAttackDamage) * (Q.calc.QCritDamageMod + min(1, critChance) * (critDamage - Q.calc.QCritDamageMod)) : (ad + Q.calc.TotalDamage) * (1 + min(1, critChance) * (critDamage - 1))",
+              // All of it crits (wiki: Deceive's and Backstab's bonus are affected by crit modifiers);
+              // from behind it is a guaranteed crit (hook).
+              amount: "ad + Q.calc.TotalDamage + (opt.backstab ? P.calc.BasicAttackDamage : 0)",
+              canCrit: true,
             },
           ],
         },

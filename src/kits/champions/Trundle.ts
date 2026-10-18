@@ -13,7 +13,7 @@ const kit: ChampionKit = {
   id: "Trundle",
   status: "curated",
   notes: [
-    "Chomp: the next attack within 7s deals the Chomp damage instead of the attack damage (assumed unable to crit; applies on-hit), then Trundle gains bonus AD for 5s.",
+    "Chomp: the next attack within 7s deals the Chomp damage instead of the attack damage (applies on-hit), then Trundle gains bonus AD for 5s. Its attack part (100% AD) crits, the bonus doesn't; Sundered Sky's 80% scales both (practice tool).",
     "Frozen Domain: Trundle is assumed to stay in the zone for its full duration.",
     "Subjugate: 50% of the max-health damage on cast, the rest over 4 ticks (1/s). Armor/MR reduction: 20% on cast, +5% per tick to 40%, kept until 8s after the cast. The enemy AD loss / Trundle resist gains are not modeled.",
   ],

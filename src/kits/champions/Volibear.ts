@@ -31,7 +31,7 @@ const kit: ChampionKit = {
     Q: {
       resetsAttack: true,
       notes: [
-        'Empowers the next attack within 4s: it deals Q damage instead of normal attack damage and stuns. Only the attack\'s AD part can crit (expected value used). Write "Q AA".',
+        'Empowers the next attack within 4s: it deals Q damage instead of normal attack damage and stuns. Only the attack\'s AD part can crit (wiki). Write "Q AA".',
       ],
       buff: {
         id: "voliQ",
@@ -41,7 +41,7 @@ const kit: ChampionKit = {
           count: 1,
           replaceBase: true,
           resetsAttack: true,
-          components: [{ id: "smash", label: "Thundering Smash", type: "physical", amount: "Q.calc.CalculatedDamage + critChance * ad * (critDamage - 1)" }],
+          components: [{ id: "smash", label: "Thundering Smash", type: "physical", amount: "Q.calc.CalculatedDamage" }],
         },
       },
     },
