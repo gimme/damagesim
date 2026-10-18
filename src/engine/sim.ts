@@ -456,18 +456,19 @@ export class Sim {
 
   private computeDynamicStats(): Stats {
     {
-      const mods = structuredCloneMods(this.staticMods);
+      // The static mods, copied once something adds to them (computeStats only reads them).
+      let mods: StatMods | undefined;
       for (const e of this.effects) {
         const m = e.dynamicStats?.(this);
-        if (m) mergeMods(mods, m);
+        if (m) mergeMods((mods ??= cloneMods(this.staticMods)), m);
       }
       for (const b of this.buffs.values()) {
         if (b.expires < this.time) continue;
-        if (b.mods) mergeMods(mods, b.mods);
+        if (b.mods) mergeMods((mods ??= cloneMods(this.staticMods)), b.mods);
       }
       const st = computeStats(
         { base: this.champ.stats, level: this.level, adaptiveDefault: this.champ.adaptive, ranged: this.champ.attackType === "ranged" },
-        mods,
+        mods ?? this.staticMods,
         selfHp(this.opt),
       );
       // Kits with a fixed attack speed (Jhin) report it in the stats too.
@@ -2725,9 +2726,12 @@ function clampInt(v: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, Math.round(v)));
 }
 
-function structuredCloneMods(m: StatMods): StatMods {
+/** The mods that are lists (mergeMods adds to a list in place). */
+const LIST_MODS = Object.entries(emptyMods()).flatMap(([k, v]) => (Array.isArray(v) ? [k as keyof StatMods] : []));
+
+function cloneMods(m: StatMods): StatMods {
   const out = { ...m } as any;
-  for (const [k, v] of Object.entries(m)) if (Array.isArray(v)) out[k] = [...v];
+  for (const k of LIST_MODS) out[k] = [...(m[k] as unknown[])];
   return out;
 }
 
