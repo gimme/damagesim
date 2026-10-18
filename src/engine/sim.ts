@@ -1869,7 +1869,11 @@ export class Sim {
       });
     };
     const onHits = () => {
-      for (const x of atk.extra) if (!x.beforeAttack) dealExtra(x);
+      const later = atk.extra.filter((x) => !x.beforeAttack && !x.firstOnHit);
+      // Right after the attack's own damage: after what replaces it, where something does (Nasus Q).
+      const at = atk.replaceBase ? Math.max(0, ...(atk.replacedBy ?? []).map((x) => later.indexOf(x) + 1)) : 0;
+      later.splice(at, 0, ...atk.extra.filter((x) => x.firstOnHit && !x.beforeAttack));
+      for (const x of later) dealExtra(x);
       for (const f of pendingCC) f();
     };
     // An attack-like ability hit lands with the cast's other hits, and applies its on-hit effects

@@ -1413,3 +1413,44 @@ test("Where an item sits changes nothing: a build in any slot order deals the sa
     }
   }
 });
+
+test("Energized effects land together (wiki): Firmament before the attack's damage, the others first of its on-hits, right after it, ahead of the champion's and other items'", () => {
+  const at = (r: ReturnType<typeof simulate>, slot: string, label?: string) => {
+    const hit = r.events.find((e) => e.source === slot && (!label || e.label === label))!;
+    return r.events.filter((e) => e.time === hit.time).map((e) => e.label);
+  };
+  // In slots that used to put Kraken's and BotRK's on-hits between them.
+  const items = ["Kraken Slayer", "Blade of The Ruined King", "Voltaic Cyclosword", "Statikk Shiv", "Rapid Firecannon", "Stormrazor"];
+  const jinx = simulate(data, { champion: "Jinx", level: 18, items, options: { "kraken.stacks": 2 }, combo: "AA", target: dummy });
+  assert.deepEqual(at(jinx, "AA").slice(0, 5), ["Firmament", bySource(jinx, "AA")[0].label, "Electrospark", "Sharpshooter", "Bolt"]);
+  const kaisa = simulate(data, {
+    champion: "Kaisa",
+    level: 18,
+    items: ["Nashor's Tooth", "Voltaic Cyclosword", "Rapid Firecannon"],
+    combo: "AA",
+    target: dummy,
+  });
+  assert.deepEqual(at(kaisa, "AA").slice(0, 4), ["Firmament", bySource(kaisa, "AA")[0].label, "Sharpshooter", "Plasma"]);
+  // An empowered attack's own parts are its damage: they come first.
+  const nasus = simulate(data, { champion: "Nasus", level: 18, items: ["Sheen", "Rapid Firecannon", "Stormrazor"], combo: "Q AA", target: dummy });
+  assert.deepEqual(at(nasus, "Q", "Siphoning Strike"), [
+    "Siphoning Strike",
+    bySource(nasus, "AA")[0].label,
+    "Siphoning Strike (stacks)",
+    "Sharpshooter",
+    "Bolt",
+    "Spellblade",
+  ]);
+});
+
+test("Galvanize fires every Energized effect before the champion ability's damage, as one cast instance of its own (wiki), Firmament first", () => {
+  const r = simulate(data, { champion: "Talon", level: 18, items: ["Stormrazor", "Rapid Firecannon", "Voltaic Cyclosword"], combo: "Q", target: dummy });
+  const [firmament, ...rest] = r.events.slice(0, 3);
+  assert.deepEqual(
+    [firmament, ...rest].map((e) => e.label),
+    ["Firmament", "Sharpshooter", "Bolt"],
+  );
+  assert.ok(rest.every((e) => e.castId === firmament.castId));
+  assert.equal(r.events[3].source, "Q");
+  assert.notEqual(r.events[3].castId, firmament.castId);
+});

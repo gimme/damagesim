@@ -13,6 +13,7 @@ import {
   SELF_HP,
   selfHp,
   triggersOnAttack,
+  type AttackInfo,
   type DamageInstance,
   type DamageRequest,
   type Effect,
@@ -147,6 +148,8 @@ function spellblade(
 // Energized attacks (Rapid Firecannon, Statikk Shiv, Stormrazor, Voltaic Cyclosword) share one
 // charge pool: attacks grant 6 charges (+9 with Statikk Shiv); at 100 the *next* attack is Energized
 // and every Energized item fires on it. Voltaic's Galvanize lets champion-ability damage fire them.
+// They land together: Voltaic's Firmament before the attack's damage (wiki), the rest, being on-hit
+// damage, first of its on-hits, right after it; fired by an ability, all before it, Firmament first.
 
 const ENERGY_KEY = "energized";
 const ENERGY_READY = "energized.ready";
@@ -162,8 +165,17 @@ function registerEnergized(sim: Sim, proc: (sim: Sim, push: (r: DamageRequest) =
   energizedProcs.set(sim, list);
 }
 
-function fireEnergized(sim: Sim, push: (r: DamageRequest) => void) {
-  for (const p of energizedProcs.get(sim) ?? []) p(sim, push);
+/** Every Energized item's hit, worked out before any lands (Firmament's current health is the
+ *  target's before the attack): Firmament first. */
+function fireEnergized(sim: Sim): DamageRequest[] {
+  const hits: DamageRequest[] = [];
+  for (const p of energizedProcs.get(sim) ?? []) p(sim, (r) => hits.push(r));
+  return [...hits.filter((r) => r.beforeAttack), ...hits.filter((r) => !r.beforeAttack)];
+}
+
+/** An attack's Energized hits: Firmament before its damage, the rest first of its on-hits. */
+function energizeAttack(sim: Sim, atk: AttackInfo) {
+  for (const r of fireEnergized(sim)) atk.extra.push(r.beforeAttack ? r : { ...r, firstOnHit: true });
 }
 
 function energyEffect(): Effect {
@@ -196,10 +208,10 @@ function energyEffect(): Effect {
     },
     onAttack(sim, atk) {
       if (atk.phantom) return;
-      if (energizedAttacks.delete(atk.castId)) return fireEnergized(sim, (r) => atk.extra.push(r));
+      if (energizedAttacks.delete(atk.castId)) return energizeAttack(sim, atk);
       if (!atk.fromAbility) return;
       if (sim.counter(ENERGY_KEY) >= 100) {
-        fireEnergized(sim, (r) => atk.extra.push(r));
+        energizeAttack(sim, atk);
         sim.setCounter(ENERGY_KEY, 0);
         return;
       }
@@ -664,10 +676,12 @@ const ITEMS: Record<number, Factory> = {
         },
         beforeDamage(s2, inst) {
           // Firmament lands before the triggering ability, which then also gets the lethality
-          // (wiki); Galvanize is its own cast instance.
+          // (wiki), with the other Energized hits; Galvanize is a cast instance of its own (wiki).
           if (!isChampionAbilityDamage(inst) || s2.counter(ENERGY_KEY) < 100) return;
-          fireEnergized(s2, (r) => s2.deal({ ...r, castId: s2.newCastId() }));
+          const hits = fireEnergized(s2);
           s2.setCounter(ENERGY_KEY, 0);
+          const castId = s2.newCastId();
+          for (const r of hits) s2.deal({ ...r, castId });
         },
       },
     );

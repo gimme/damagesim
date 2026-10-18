@@ -110,6 +110,9 @@ export interface DamageRequest {
   normalAttack?: { amount: number; source: string; sourceLabel: string; label: string };
   /** An on-hit dealt before the attack's own damage (Voltaic Cyclosword's Firmament, wiki). */
   beforeAttack?: boolean;
+  /** An on-hit dealt first of the attack's on-hits, right after its own damage: the other Energized
+   *  effects, which fire with Firmament. */
+  firstOnHit?: boolean;
 }
 
 export interface AttackInfo {
