@@ -1842,11 +1842,6 @@ details summary {
 .keystones .rune-pick[aria-pressed="true"] {
   background: radial-gradient(closest-side, color-mix(in srgb, var(--tree) 45%, transparent), transparent);
 }
-.rune-row.hint {
-  text-align: center;
-  line-height: 1.3;
-  padding-inline: 4px;
-}
 
 .shard-rows {
   display: grid;

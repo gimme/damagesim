@@ -9,7 +9,7 @@ import { ItemTip, useHoverCard } from "./hover.tsx";
 import { useItemSlots } from "./drag.tsx";
 import { Card, fmt, useHistory } from "./common.tsx";
 import type { Set, UIState } from "../state.ts";
-import { BOOTS_SLOT, addBootsSlot } from "../slots.ts";
+import { BOOTS_SLOT, addBootsSlot, buyItem } from "../slots.ts";
 import type { Sim } from "../../engine/sim.ts";
 import { conflicts } from "../../engine/analysis.ts";
 
@@ -23,14 +23,9 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
     const c = conflicts(build.slice(0, i), it);
     return c ? [`${it.name}: only one ${c === "duplicate" ? "copy" : c === "boots" ? "pair of boots" : `${c} item`} works`] : [];
   });
-  const put = (i: number, id: number | null) =>
-    set((s) => {
-      const next = [...s.items];
-      next[i] = id;
-      return { ...s, items: next };
-    });
+  // Boots go to the build's boots, an upgrade to what it's built from (see buyItem).
   const pick = (id: number) => {
-    put(picking ?? 0, id);
+    set((s) => ({ ...s, items: buyItem(s.items, picking ?? 0, id) }));
     setPicking(null);
   };
   // Items are dragged between the slots and sold as in Item value's; the picker stays with what it
@@ -122,7 +117,7 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
                     boots
                       ? id
                         ? `Boots slot: ${DATA.items[id]?.name}. Delete sells it.`
-                        : "Empty boots slot, from the bot lane quest. Delete removes it."
+                        : "Empty boots slot. Delete removes it."
                       : id
                         ? `Item slot ${i + 1}: ${DATA.items[id]?.name}. Arrow keys move it, Delete sells it.`
                         : `Empty item slot ${i + 1}`
@@ -166,18 +161,21 @@ export function ItemsPanel({ state, set, gold, sim }: { state: UIState; set: Set
             {slots.vacated}
           </div>
           {!bootsSlot && (
-            <button
-              ref={addButton}
-              className="add-boots-slot"
-              aria-label="Add the bot lane quest's boots slot"
-              title="Bot lane quest done: a seventh slot, for boots"
-              onClick={addSlot}
-            >
+            <button ref={addButton} className="add-boots-slot" aria-label="Add an extra boots slot" title="Extra boots slot" onClick={addSlot}>
               <BootsGlyph plus />
             </button>
           )}
         </div>
-        {picking !== null && <ItemPicker onPick={pick} onClose={() => setPicking(null)} sim={sim} boots={bootsSlot ? picking === BOOTS_SLOT : undefined} />}
+        {picking !== null && (
+          <ItemPicker
+            onPick={pick}
+            onClose={() => setPicking(null)}
+            sim={sim}
+            bootsOnly={bootsSlot && picking === BOOTS_SLOT}
+            questBoots={state.settings.questBoots}
+            build={items}
+          />
+        )}
       </div>
       {hover.node}
       {!!build.length && (

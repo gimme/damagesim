@@ -82,7 +82,8 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
             trees={TREES.filter((t) => t.key !== page.primary)}
             onPick={(t) => change((p) => chooseSecondary(DATA, p, t))}
           />
-          <div className="rune-row keystones hint small muted">Two, from different rows</div>
+          {/* Lines its rows up with the primary's, under the keystones */}
+          <div className="rune-row keystones" aria-hidden />
           {[1, 2, 3].map((row) => (
             <div key={row} className="rune-row" role="group" aria-label={`${page.secondary} row ${row}`}>
               {treeRow(page.secondary, row).map(pick)}

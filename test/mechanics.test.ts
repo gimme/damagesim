@@ -192,6 +192,8 @@ test("Build legality warnings: a seventh item only as boots, in the bot lane que
   assert.deepEqual(warnings([...six, "Sorcerer's Shoes"]), []);
   assert.match(warnings([...six, "Morellonomicon"])[0], /^7 items: a champion can hold 6/);
   assert.match(warnings([...six, "Sorcerer's Shoes", "Morellonomicon"])[0], /^8 items/);
+  // Tier 3 boots are boots, Gunmetal Greaves too, though the game's data doesn't tag it.
+  assert.deepEqual(warnings([...six, "Gunmetal Greaves"]), []);
 });
 
 test("Abilities that apply on-hit and trigger on-attack (Smolder Q): Spellblade, Energized and Lethal Tempo stacks", () => {

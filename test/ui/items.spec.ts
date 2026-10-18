@@ -1,5 +1,5 @@
 // The Items card: the shop and its filters, buying, the slots' drags, selling, undo and redo, Clear,
-// and the bot lane quest's boots slot.
+// the bot lane quest's boots slot, boots that upgrade the build's and the mid lane quest's tier 3 boots.
 
 import { test, expect, attrs, num, texts, type UI } from "./ui.ts";
 
@@ -148,7 +148,7 @@ test("shop and filters", async ({ ui }) => {
       () => expect(shop).toHaveCount(0),
     );
   await step(
-    "a second pair of boots and a second of an item: a warning each",
+    "boots from slot 5: in place of the build's, not a second pair; a second of an item: a warning",
     async () => {
       for (const [slot, q] of [
         [4, "berserker"],
@@ -160,9 +160,9 @@ test("shop and filters", async ({ ui }) => {
       }
     },
     async () => {
-      await expect(card.locator(".notice.warn")).toHaveCount(2);
-      await expect(card.locator(".notice.warn").first()).toContainText("only one pair of boots works");
-      await expect(card.locator(".notice.warn").last()).toContainText(`${top.name}: only one copy works`);
+      expect((await ui.state()).items.slice(0, 5)).toEqual([items[0], 3006, ...items.slice(2, 5)]);
+      await expect(card.locator(".notice.warn")).toHaveCount(1);
+      await expect(card.locator(".notice.warn")).toContainText(`${top.name}: only one copy works`);
     },
   );
   const full = (await ui.state()).items;
@@ -388,7 +388,7 @@ test("the bot lane quest's boots slot", async ({ ui }) => {
   const { page, step } = ui;
   const { card, shop, slots, search, names, filter, undo } = parts(ui);
   const items = async () => (await ui.state()).items;
-  const add = card.getByRole("button", { name: "Add the bot lane quest's boots slot" });
+  const add = card.getByRole("button", { name: "Add an extra boots slot" });
   let boots: string[] = [];
   let was: (number | null)[] = [];
 
@@ -432,23 +432,32 @@ test("the bot lane quest's boots slot", async ({ ui }) => {
     async () => expect((await items())[6]).toBe(3006),
   );
   await step(
-    "the slot the boots left: its shop, every tier, lists no boots and has no Boots filter",
+    "the slot the boots left: its shop, every tier, lists boots too, with the Boots filter",
     async () => {
       await slots.nth(1).click();
       await shop.locator(".segmented").getByRole("button", { name: "All" }).click();
     },
     async () => {
-      await expect(filter("All")).toBeVisible();
-      await expect(filter("Boots")).toHaveCount(0);
+      await expect(filter("Boots")).toBeVisible();
       const all = await names();
       expect(all.length).toBeGreaterThan(50);
-      expect(all.filter((n) => boots.includes(n))).toEqual([]);
+      expect(all).toEqual(expect.arrayContaining(boots));
+    },
+  );
+  await step(
+    "Enter on sorcerer: the shoes go to the boots slot, in place of the greaves; slot 2 stays empty",
+    async () => {
+      await search.fill("sorcerer");
+      await search.press("Enter");
+    },
+    async () => {
+      expect(await items()).toEqual([6655, null, 3089, 3135, 4645, 3157, 3020]);
+      await expect(shop).toHaveCount(0);
     },
   );
   await step(
     "drag slot 1 onto the boots slot: it goes back",
     async () => {
-      await search.press("Escape");
       was = await items();
       await ui.drag(slots.nth(0), slots.nth(6), () => expect(card.locator(".slot.landing")).toHaveCount(0));
     },
@@ -513,5 +522,83 @@ test("the bot lane quest's boots slot", async ({ ui }) => {
       expect(await items()).toEqual([...was.slice(0, 6), null]);
       await expect(slots.nth(6)).toBeFocused();
     },
+  );
+});
+
+test("boots bought upgrade the build's, for the difference in gold", async ({ ui }) => {
+  const { step } = ui;
+  const { shop, slots, search, names, filter, gold } = parts(ui);
+  const items = async () => (await ui.state()).items;
+  const price = (name: string) => shop.locator(".item-option").filter({ hasText: name }).locator(".muted");
+  let before = 0;
+
+  // Luden's Echo and Boots.
+  await step(
+    "load Luden's Echo and Boots; the shop on slot 4: Sorcerer's Shoes for 800g, less the Boots, Rabadon's Deathcap at its price",
+    async () => {
+      await ui.open({ items: [6655, 1001, null, null, null, null] });
+      before = await gold();
+      await slots.nth(3).click();
+    },
+    async () => {
+      await expect(price("Sorcerer's Shoes")).toHaveText("800g");
+      await expect(price("Rabadon's Deathcap")).toHaveText("3500g");
+    },
+  );
+  await step(
+    "buy them: in place of the Boots, slot 4 still empty, the build 800g dearer",
+    async () => {
+      await search.fill("sorcerer");
+      await search.press("Enter");
+    },
+    async () => {
+      expect(await items()).toEqual([6655, 3020, null, null, null, null]);
+      expect(await gold()).toBe(before + 800);
+    },
+  );
+  await step(
+    "Berserker's Greaves from slot 5: in place of the shoes, as a second pair isn't bought",
+    async () => {
+      await slots.nth(4).click();
+      await search.fill("berserker");
+      await search.press("Enter");
+    },
+    async () => expect(await items()).toEqual([6655, 3006, null, null, null, null]),
+  );
+  await step(
+    "the shop's boots: no tier 3 ones",
+    async () => {
+      await slots.nth(2).click();
+      await filter("Boots").click();
+    },
+    async () => {
+      const boots = await names();
+      expect(boots).toEqual(expect.arrayContaining(["Berserker's Greaves", "Sorcerer's Shoes"]));
+      expect(boots).not.toContain("Gunmetal Greaves");
+      expect(boots).not.toContain("Spellslinger's Shoes");
+    },
+  );
+  await step(
+    "the setting for the mid lane quest's tier 3 boots: the shop lists them, Gunmetal Greaves free with the greaves",
+    async () => {
+      await search.press("Escape");
+      await ui.card("Settings").getByRole("checkbox", { name: "Tier 3 boots (mid lane quest)" }).check();
+      await slots.nth(2).click();
+      await filter("Boots").click();
+    },
+    async () => {
+      expect(await names()).toEqual(expect.arrayContaining(["Gunmetal Greaves", "Spellslinger's Shoes"]));
+      await expect(price("Gunmetal Greaves")).toHaveText("0g");
+      await expect(price("Spellslinger's Shoes")).toHaveText("1100g");
+      expect((await ui.state()).settings.questBoots).toBe(true);
+    },
+  );
+  await step(
+    "buy Gunmetal Greaves: in place of Berserker's",
+    async () => {
+      await search.fill("gunmetal");
+      await search.press("Enter");
+    },
+    async () => expect(await items()).toEqual([6655, 3172, null, null, null, null]),
   );
 });

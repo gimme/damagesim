@@ -129,7 +129,7 @@ test("phone width", async ({ ui }) => {
   );
   await step(
     "tap the key for the boots slot: seven slots, and the page still fits",
-    () => ui.card("Items").getByRole("button", { name: "Add the bot lane quest's boots slot" }).tap(),
+    () => ui.card("Items").getByRole("button", { name: "Add an extra boots slot" }).tap(),
     async () => {
       await expect(ui.card("Items").locator(".slots > .slot:not(.vacated)")).toHaveCount(7);
       await expect(ui.card("Item value").locator(".slots > .slot:not(.vacated)")).toHaveCount(7);

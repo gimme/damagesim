@@ -52,7 +52,6 @@ export function TargetPanel({ state, set, resolved }: { state: UIState; set: Set
             </button>
           ))}
         </div>
-        {preset && <div className="small secondary">{TARGET_PRESETS[preset].description}</div>}
         {t.mode === "champion" && <ChampionPicker label="Target champion" value={t.champion} onChange={(id) => upd({ champion: id })} />}
         {t.mode !== "custom" && (
           <div className="target-field">
@@ -72,11 +71,23 @@ export function TargetPanel({ state, set, resolved }: { state: UIState; set: Set
             </div>
           </div>
         )}
-        {preset && <PresetItems preset={preset} level={targetLevel} build={t.builds[preset]} onChange={(b) => upd({ builds: { ...t.builds, [preset]: b } })} />}
+        {preset && (
+          <PresetItems
+            preset={preset}
+            level={targetLevel}
+            build={t.builds[preset]}
+            questBoots={state.settings.questBoots}
+            onChange={(b) => upd({ builds: { ...t.builds, [preset]: b } })}
+          />
+        )}
         {t.mode === "champion" && (
           <div className="target-field">
             <span className="small secondary">Items</span>
-            <TargetItems slots={t.items} onChange={(items) => upd({ items: items.filter((x): x is number => x !== null) })} />
+            <TargetItems
+              slots={t.items}
+              questBoots={state.settings.questBoots}
+              onChange={(items) => upd({ items: items.filter((x): x is number => x !== null) })}
+            />
           </div>
         )}
         {stats && (
@@ -117,11 +128,13 @@ function PresetItems({
   preset,
   level,
   build,
+  questBoots,
   onChange,
 }: {
   preset: TargetPreset;
   level: number;
   build?: (number | null)[];
+  questBoots: boolean;
   onChange: (b: (number | null)[] | undefined) => void;
 }) {
   const full = TARGET_PRESETS[preset].build.map((x) => (x === null ? null : findItem(DATA, x).id));
@@ -131,7 +144,7 @@ function PresetItems({
     <div className="target-field">
       <span className="small secondary">Items</span>
       <div className="stack" style={{ gap: 4 }}>
-        <TargetItems slots={build ?? typical} later={later} onChange={onChange} />
+        <TargetItems slots={build ?? typical} later={later} questBoots={questBoots} onChange={onChange} />
         <div className="small muted">
           {build ? (
             <>
@@ -177,10 +190,12 @@ const PlainSlot = ({ faded }: { faded?: boolean }) => (
 function TargetItems({
   slots,
   later = [],
+  questBoots,
   onChange,
 }: {
   slots: (number | null)[];
   later?: { id: number | null; level: number }[];
+  questBoots: boolean;
   onChange: (s: (number | null)[]) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -241,6 +256,7 @@ function TargetItems({
             setOpen(false);
           }}
           onClose={() => setOpen(false)}
+          questBoots={questBoots}
         />
       )}
     </div>

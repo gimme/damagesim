@@ -199,20 +199,13 @@ test("details tabs", async ({ ui }) => {
   );
   await step("the pointer away", () => ui.unhover());
   await step(
-    "Stats: yours and the target's, the items",
+    "Stats: yours and the target's",
     () => tab("Stats").click(),
     async () => {
       await expect(details.locator(".stats-grid > div")).not.toHaveCount(0);
       await expect(details).toContainText("Target: Squishy");
-      await expect(details.locator("[data-hovercard]")).toHaveCount(3);
     },
   );
-  await step(
-    "hover an item: its card names it",
-    () => details.locator("[data-hovercard]").first().hover(),
-    async () => expect(ui.hovercard).toContainText(await details.locator("[data-hovercard]").first().innerText()),
-  );
-  await step("the pointer away", () => ui.unhover());
 });
 
 test("compare and pinning", async ({ ui }) => {

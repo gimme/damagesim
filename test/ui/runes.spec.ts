@@ -37,6 +37,7 @@ test("rune page rules", async ({ ui }) => {
     async () => {},
     async () => {
       for (const row of ["Offense", "Flex", "Defense"]) await expect(card.getByText(row, { exact: true })).toHaveCount(0);
+      await expect(card).not.toContainText("Two, from different rows");
       await expect(group("Offense shard").locator(".shard-text")).toHaveText("+9 AP");
       await expect(group("Offense shard").locator(".shard-text .it-value")).toHaveClass(/\bmagic\b/);
       await expect(group("Defense shard").locator(".shard-text")).toHaveText(/^\+\d+ HP \(based on level\)$/);
@@ -134,9 +135,12 @@ test("rune page rules", async ({ ui }) => {
     async () => expect(ui.hovercard).toContainText((await group("Keystone").getByRole("button").first().getAttribute("aria-label"))!),
   );
   await step(
-    "hover a shard: its card at once",
+    "hover a shard: its card at once, a Shard",
     () => group("Defense shard").getByRole("button", { name: "Health Scaling" }).hover(),
-    () => expect(ui.hovercard).toContainText("Health Scaling"),
+    async () => {
+      await expect(ui.hovercard).toContainText("Health Scaling");
+      await expect(ui.hovercard.locator(".it-head .secondary")).toHaveText("Shard");
+    },
   );
   await step("the pointer away", () => ui.unhover());
   let health = 0;

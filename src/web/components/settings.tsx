@@ -17,6 +17,10 @@ export function SettingsPanel({ state, set }: { state: UIState; set: Set }) {
           Executes kill below their health line
           <input type="checkbox" checked={st.executes} onChange={(e) => upd({ executes: e.target.checked })} />
         </label>
+        <label className="row small" style={{ justifyContent: "space-between" }}>
+          Tier 3 boots (mid lane quest)
+          <input type="checkbox" checked={st.questBoots} onChange={(e) => upd({ questBoots: e.target.checked })} />
+        </label>
       </div>
     </Card>
   );

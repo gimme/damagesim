@@ -9,7 +9,7 @@ the combo out on a timeline and reports every damage instance.
   live **item value** ranking: which item adds the most damage (per gold or in total) to your next
   slot or in place of an item you own, as a list (each bar split into what the item adds to your
   other damage, the damage it deals itself and the hits it adds, like Electrocute it procs)
-  or a gold-vs-damage map; one click buys it. Hovering
+  or a gold-vs-damage map; one click buys it, an upgrade (Boots into a pair) for the difference. Hovering
   an item shows its cost, stats, passives and actives, with the numbers for your champion's level and
   stats, melee or ranged. Runes go on a rune page laid out as in the client, which keeps to the game's rules (a rune per
   row, two from the secondary tree, a shard per row); hovering a rune shows its tooltip like an item's, and whether its
@@ -117,8 +117,9 @@ Only the stats of a target's items count: it never fights back, so their passive
    * crit damage is 200% (IE +30%); the attack speed cap is 3.0; lethality is 1:1 flat penetration;
    * penetration order is flat reduction → % reduction → % penetration → flat penetration;
    * damage-dealt amplifiers add together since 26.9, while damage-taken modifiers multiply;
-   * levels go up to 20 (Top role quest), and boots get a seventh slot of their own (Bot role quest);
-     Ignite is 70–475;
+   * levels go up to 20 (Top role quest), boots get a seventh slot of their own (Bot role quest), and
+     tier 3 boots (Mid role quest) are offered with a setting; Ignite is 70–475;
+   * an item built from one you have takes its place, for the difference in gold (Boots into a pair);
    * item and rune trigger rules, damage types and stacking are modeled, including item groups.
 4. **Champion kits** (`src/kits/champions/`) say *which* formula is dealt *how*: hit counts,
    empowered attacks, marks, DoTs, CC, recasts, charges and passives. All 173 are `curated`, written

@@ -282,7 +282,7 @@ test("the boots slot", async ({ ui }) => {
   );
   await step(
     "add the boots slot in Items: seven slots, the one the boots left ranked",
-    () => ui.card("Items").getByRole("button", { name: "Add the bot lane quest's boots slot" }).click(),
+    () => ui.card("Items").getByRole("button", { name: "Add an extra boots slot" }).click(),
     async () => {
       await expect(slots).toHaveCount(7);
       expect(await ranked()).toBe(1);
@@ -301,7 +301,7 @@ test("the boots slot", async ({ ui }) => {
     },
   );
   await step(
-    "slot 2 again, every item shown: none of those boots",
+    "slot 2 again, every item shown: none of those boots, as the boots slot has a pair",
     async () => {
       await slots.nth(1).click();
       await card.getByRole("button", { name: "Show all" }).click();
@@ -319,5 +319,65 @@ test("the boots slot", async ({ ui }) => {
       expect((await ui.state()).items.every((x) => x != null)).toBe(true);
       expect(await ranked()).toBe(5);
     },
+  );
+});
+
+test("an upgrade of the build's Boots", async ({ ui }) => {
+  const { step } = ui;
+  const { card, rows, names, ranked } = parts(ui);
+  const row = (name: string) => rows.filter({ has: ui.page.locator(".iv-name", { hasText: name }) });
+
+  // Luden's Echo and Boots.
+  await step(
+    "load Luden's Echo and Boots: slot 3 ranked, boots among the items, as upgrades of the Boots",
+    async () => {
+      await ui.open({ items: [6655, 1001, null, null, null, null] });
+      await card.getByRole("button", { name: "Show all" }).click();
+    },
+    async () => {
+      expect(await ranked()).toBe(2);
+      expect(await names()).toContain("Sorcerer's Shoes");
+      await expect(row("Sorcerer's Shoes").getByRole("button")).toHaveAttribute("aria-label", /^Buy Sorcerer's Shoes in place of Boots/);
+    },
+  );
+  await step(
+    "hover its bar: 800g, from the Boots",
+    () => row("Sorcerer's Shoes").locator(".iv-track").hover(),
+    () => expect(ui.tooltip).toContainText("Sorcerer's Shoes · 800g, from Boots"),
+  );
+  await step(
+    "buy them: in place of the Boots; slot 3 still ranked, without boots now, as the build has a pair",
+    async () => {
+      await ui.unhover();
+      await row("Sorcerer's Shoes").click();
+    },
+    async () => {
+      expect((await ui.state()).items).toEqual([6655, 3020, null, null, null, null]);
+      expect(await ranked()).toBe(2);
+      await expect(card.getByRole("button", { name: "Show less" })).toBeVisible();
+      expect(await names()).not.toContain("Berserker's Greaves");
+    },
+  );
+});
+
+test("the mid lane quest's tier 3 boots, ranked with their setting", async ({ ui }) => {
+  const { step } = ui;
+  const { card, names } = parts(ui);
+
+  await step(
+    "load Luden's Echo alone, every item shown: boots, but no tier 3 ones",
+    async () => {
+      await ui.open({ items: [6655, null, null, null, null, null] });
+      await card.getByRole("button", { name: "Show all" }).click();
+    },
+    async () => {
+      expect(await names()).toContain("Sorcerer's Shoes");
+      expect(await names()).not.toContain("Spellslinger's Shoes");
+    },
+  );
+  await step(
+    "check their setting: ranked too",
+    () => ui.card("Settings").getByRole("checkbox", { name: "Tier 3 boots (mid lane quest)" }).check(),
+    async () => expect(await names()).toContain("Spellslinger's Shoes"),
   );
 });

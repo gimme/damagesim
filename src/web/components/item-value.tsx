@@ -11,7 +11,7 @@ import { GoldScatter, useTooltip, type GoldPoint } from "./charts.tsx";
 import { rankItems, defaultCandidates } from "../../engine/analysis.ts";
 import type { Scenario, Sim } from "../../engine/sim.ts";
 import type { Set, UIState } from "../state.ts";
-import { BOOTS_SLOT, slotFits } from "../slots.ts";
+import { BOOTS_SLOT, buyItem, isBoots, isQuestBoots, slotFits } from "../slots.ts";
 
 type Ranking = ReturnType<typeof rankItems>;
 type Row = Ranking["items"][number];
@@ -86,11 +86,15 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
 
   const job = useMemo(() => {
     const base: Scenario = { ...scenario, items: state.items.filter((x, i): x is number => x != null && i !== slot) };
-    // With the boots slot, it ranks boots and the others the rest.
-    const pool = DEFAULT_IDS.filter((id) => slotFits(state.items, slot, id));
+    // An empty slot ranks what to buy next, as the shop places it: a pair of boots in the boots slot, an
+    // upgrade in place of what it's built from. In place of an item, what could go in its slot: with
+    // the boots slot, boots in it and the rest in the others.
+    const pool = DEFAULT_IDS.filter(
+      (id) => (state.settings.questBoots || !isQuestBoots(id)) && ((current == null && !forBoots) || slotFits(state.items, slot, id)),
+    );
     const candidates = current != null && !pool.includes(current) ? [...pool, current] : pool.length < DEFAULT_IDS.length ? pool : undefined;
     return { key: JSON.stringify([base, candidates]), base, candidates };
-  }, [scenario, state.items, slot, current]);
+  }, [scenario, state.items, slot, current, state.settings.questBoots]);
 
   // ~100 simulations: debounced so typing in the combo box stays responsive; the last result stays
   // on screen (dimmed) until the new one is ready.
@@ -112,25 +116,29 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
 
   const ranking = res?.ranking;
   const rows = useMemo(() => {
-    const useful = (ranking?.items ?? []).filter((r) => r.gain > 0.5 || r.id === current);
+    // In place of an item, not an upgrade of another.
+    const useful = (ranking?.items ?? []).filter((r) => (r.gain > 0.5 || r.id === current) && !(current != null && r.replaces));
     useful.sort((a, b) => (by === "perGold" ? b.gainPerGold - a.gainPerGold : b.gain - a.gain));
     return useful;
   }, [ranking, by, current]);
   const lead = useMemo(() => standouts(rows), [rows]);
 
   const pick = (id: number) => {
-    set((s) => {
-      const items = [...s.items];
-      items[slot] = id;
-      return { ...s, items };
-    });
+    set((s) => ({ ...s, items: buyItem(s.items, slot, id) }));
     setChosen(null);
   };
 
   const hover = useHoverCard();
   const slots = useItemSlots(state.items, (fn) => set((s) => ({ ...s, items: fn(s.items) })), { onPick: hover.hide, onSell: hover.hide });
 
-  const slotLabel = current != null ? `in place of ${DATA.items[current]?.name}` : forBoots ? "in the boots slot" : `in slot ${slot + 1}`;
+  const slotLabel = (r: Row) =>
+    r.replaces
+      ? `in place of ${r.replaces.map((x) => x.item).join(" and ")}`
+      : current != null
+        ? `in place of ${DATA.items[current]?.name}`
+        : bootsSlot && isBoots(r.id)
+          ? "in the boots slot"
+          : `in slot ${slot + 1}`;
 
   return (
     <Card
@@ -209,7 +217,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
         <div className="iv-body" style={{ opacity: stale ? 0.55 : 1 }} aria-busy={stale}>
           {!rows.length ? (
             <div className="muted small">
-              No {forBoots ? "pair of boots" : bootsSlot ? "legendary item" : "legendary item or pair of boots"} adds damage to this combo.
+              No {forBoots ? "pair of boots" : bootsSlot && current != null ? "legendary item" : "legendary item or pair of boots"} adds damage to this combo.
             </div>
           ) : view === "list" ? (
             <RankList
@@ -292,7 +300,7 @@ function RankList({
   setBy: (by: By) => void;
   current: number | null;
   lead: ReadonlySet<number>;
-  slotLabel: string;
+  slotLabel: (r: Row) => string;
   onPick: (id: number) => void;
   sim: Sim | null;
   champion: string;
@@ -314,7 +322,7 @@ function RankList({
       r.id === current || how === "hold" ? null : how === "tap" ? (
         <button
           className="btn small primary iv-tip-buy"
-          aria-label={`Buy ${r.item} ${slotLabel}`}
+          aria-label={`Buy ${r.item} ${slotLabel(r)}`}
           onClick={(ev) => {
             ev.stopPropagation();
             close();
@@ -422,7 +430,7 @@ function RankList({
             item
           ) : (
             // For the keyboard; its click reaches the row, which buys.
-            <button type="button" className="iv-buy" aria-label={`Buy ${r.item} ${slotLabel}${ahead ? ", far more damage per gold than the rest" : ""}`}>
+            <button type="button" className="iv-buy" aria-label={`Buy ${r.item} ${slotLabel(r)}${ahead ? ", far more damage per gold than the rest" : ""}`}>
               {item}
             </button>
           )}
@@ -455,9 +463,7 @@ function RankList({
           onTouchCancel={endHold}
         >
           <div className="iv-row iv-head" role="row">
-            <span role="columnheader" className="iv-item">
-              Item
-            </span>
+            <span role="columnheader" className="iv-item" aria-label="Item" />
             <span role="columnheader" className="iv-track">
               {drawn.map((p) => (
                 <span key={p}>
@@ -534,7 +540,8 @@ function RowTip({ row: r, current, champion, view, action }: { row: Row; current
   return (
     <>
       <div className="tt-title">
-        {r.item} · {fmt(r.gold)}g{r.id === current ? " (current)" : ""}
+        {r.item} · {fmt(r.gold)}g{r.replaces ? `, from ${r.replaces.map((x) => x.item).join(" and ")}` : ""}
+        {r.id === current ? " (current)" : ""}
       </div>
       {view === "list" ? (
         <>

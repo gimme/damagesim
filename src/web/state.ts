@@ -54,7 +54,8 @@ export interface UIState {
   options: Record<string, number>;
   combo: string;
   target: TargetState;
-  settings: Required<Pick<SimSettings, "finishDots" | "executes">>;
+  /** The simulator's, and questBoots: whether the shop and Item value offer the mid lane role quest's tier 3 boots. */
+  settings: Required<Pick<SimSettings, "finishDots" | "executes">> & { questBoots: boolean };
 }
 
 /** How a card changes the state: from the state as it is. */
@@ -81,7 +82,7 @@ export const DEFAULT_STATE: UIState = {
     hpPercent: 100,
     damageReduction: 0,
   },
-  settings: { finishDots: true, executes: true },
+  settings: { finishDots: true, executes: true, questBoots: false },
 };
 
 export function toScenario(data: GameData, s: UIState): Scenario {
@@ -95,7 +96,7 @@ export function toScenario(data: GameData, s: UIState): Scenario {
     options: s.options,
     combo: s.combo,
     target: toTargetSpec(s.target),
-    settings: s.settings,
+    settings: { finishDots: s.settings.finishDots, executes: s.settings.executes },
   };
 }
 
@@ -371,6 +372,7 @@ const FIELDS: [path: string, codec: Codec<any>][] = [
   ["runes.held", runeIds],
   ["settings.finishDots", bool],
   ["settings.executes", bool],
+  ["settings.questBoots", bool],
 ];
 
 const valueAt = (s: any, path: string) => path.split(".").reduce((x, k) => x[k], s);

@@ -241,7 +241,7 @@ export function RuneTip({ id, sim }: { id: number; sim?: Sim | null }) {
       <div className="it-head">
         <RuneIcon id={id} />
         <strong>{rune.name}</strong>
-        <span className="secondary">{rune.tree}</span>
+        <span className="secondary">{rune.row === -1 ? "Shard" : rune.tree}</span>
       </div>
       <div className="it-body">
         <Markup text={text.body} />

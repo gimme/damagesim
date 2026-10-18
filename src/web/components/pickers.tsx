@@ -6,7 +6,9 @@ import { ChampIcon, ItemIcon } from "./icons.tsx";
 import { ItemTip, useHoverCard } from "./hover.tsx";
 import type { ItemData } from "../../engine/data-types.ts";
 import type { Sim } from "../../engine/sim.ts";
+import { builtFrom } from "../../engine/analysis.ts";
 import { search } from "../search.ts";
+import { isQuestBoots } from "../slots.ts";
 
 export function ChampionPicker({ value, onChange, label = "Champion" }: { value: string; onChange: (id: string) => void; label?: string }) {
   const [open, setOpen] = useState(false);
@@ -119,17 +121,36 @@ export const SHOP_ITEMS: ItemData[] = Object.values(DATA.items)
   )
   .sort((a, b) => b.depth - a.depth || a.name.localeCompare(b.name));
 
-/** The shop. `boots`: only boots (for the boots slot, which every tier lists), or none (for the slots beside it). */
-export function ItemPicker({ onPick, onClose, sim, boots }: { onPick: (id: number) => void; onClose: () => void; sim?: Sim | null; boots?: boolean }) {
+/**
+ * The shop. `bootsOnly`: for the boots slot, which every tier lists; `questBoots`: with the tier 3
+ * boots; `build`: the items an item's price leaves out, those it's built from.
+ */
+export function ItemPicker({
+  onPick,
+  onClose,
+  sim,
+  bootsOnly,
+  questBoots,
+  build,
+}: {
+  onPick: (id: number) => void;
+  onClose: () => void;
+  sim?: Sim | null;
+  bootsOnly?: boolean;
+  questBoots: boolean;
+  build?: (number | null)[];
+}) {
   const hover = useHoverCard();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState(0);
   const [tier, setTier] = useState<"legendary" | "all">("legendary");
-  const filters = boots ? [] : boots === false ? ITEM_FILTERS.filter((f) => f.test !== isBoots) : ITEM_FILTERS;
+  const filters = bootsOnly ? [] : ITEM_FILTERS;
+  const price = (i: ItemData) => i.gold.total - (build ? builtFrom(DATA, build, i.id).reduce((sum, k) => sum + DATA.items[build[k]!].gold.total, 0) : 0);
   const list = search(
     SHOP_ITEMS.filter(
       (i) =>
-        (boots === undefined || isBoots(i) === boots) &&
+        (!bootsOnly || isBoots(i)) &&
+        (questBoots || !isQuestBoots(i.id)) &&
         (tier === "all" || i.depth >= 3 || isBoots(i) || i.gold.total >= 2200) &&
         (filters[filter]?.test(i) ?? true),
     ),
@@ -162,7 +183,7 @@ export function ItemPicker({ onPick, onClose, sim, boots }: { onPick: (id: numbe
           onKeyDown={(e) => e.key === "Enter" && top !== undefined && onPick(top)}
         />
         <div className="row" style={{ gap: 4, flexWrap: "nowrap", marginLeft: "auto" }}>
-          {!boots && (
+          {!bootsOnly && (
             <div className="segmented">
               <button aria-pressed={tier === "legendary"} onClick={() => setTier("legendary")}>
                 Completed
@@ -197,7 +218,7 @@ export function ItemPicker({ onPick, onClose, sim, boots }: { onPick: (id: numbe
             <ItemIcon id={i.id} size="sm" />
             <span className="stack" style={{ gap: 0, minWidth: 0 }}>
               <span className="name">{i.name}</span>
-              <span className="muted small">{i.gold.total}g</span>
+              <span className="muted small">{price(i)}g</span>
             </span>
           </button>
         ))}

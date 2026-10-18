@@ -104,20 +104,29 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
   const baseScore = metricValue(baseRes, metric);
   const baseHits = hitCounts(baseRes);
   const baseItems = (base.items ?? []).map((q) => findItem(data, q));
+  const baseIds = baseItems.map((b) => b.id);
   const candidates = opts.candidates?.length ? opts.candidates.map((q) => findItem(data, q)) : defaultCandidates(data, base);
   const rows = [];
   for (const it of candidates) {
-    if (baseItems.some((b) => b.id === it.id) || conflicts(baseItems, it)) continue;
-    const r = simulate(data, { ...base, items: [...(base.items ?? []), it.id] });
+    // An item built from items of the build takes their place, for the difference in gold.
+    const used = builtFrom(data, baseIds, it.id);
+    const kept = baseItems.filter((_, k) => !used.includes(k));
+    if (kept.some((b) => b.id === it.id) || conflicts(kept, it)) continue;
+    const gold = it.gold.total - used.reduce((sum, k) => sum + baseItems[k].gold.total, 0);
+    // A free upgrade isn't bought: the mid lane role quest's tier 3 boots.
+    if (used.length && gold <= 0) continue;
+    const r = simulate(data, { ...base, items: [...kept.map((b) => b.id), it.id] });
     const gain = r.totalDamage - baseRes.totalDamage;
-    const perGold = it.gold.total > 0 ? (gain / it.gold.total) * 1000 : 0;
+    const perGold = gold > 0 ? (gain / gold) * 1000 : 0;
     const source = `item:${it.id}`;
     const own = r.bySource.filter((s) => s.source === source);
     const procs = newHits(r, baseHits, source);
     rows.push({
       item: it.name,
       id: it.id,
-      gold: it.gold.total,
+      gold,
+      /** The build's items it's built from, which it replaces (Boots, for a pair of boots). */
+      ...(used.length ? { replaces: used.map((k) => ({ item: baseItems[k].name, id: baseItems[k].id })) } : {}),
       totalDamage: round(r.totalDamage),
       gain: round(gain),
       gainPerGold: round(perGold, 2),
@@ -140,7 +149,7 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
     metric,
     base: summarize(baseRes, "current build"),
     items: rows.slice(0, opts.limit ?? 25),
-    note: "gainPerGold is damage gained per 1000 gold of the item. itemDamage is the part of the gain the item deals itself; procDamage the part dealt by hits of your other damage that land only with the item (procs lists it by source, e.g. Electrocute).",
+    note: "gold is what the item costs: its price, less that of the build's items it's built from, which it replaces (replaces lists them). gainPerGold is damage gained per 1000 of that gold. itemDamage is the part of the gain the item deals itself; procDamage the part dealt by hits of your other damage that land only with the item (procs lists it by source, e.g. Electrocute).",
   };
 }
 
@@ -222,6 +231,22 @@ function newHits(r: SimResult, base: ReturnType<typeof hitCounts>, item: string)
 /** Legendary items + boots on Summoner's Rift (excluding champion-specific ones). */
 export function defaultCandidates(data: GameData, base?: Scenario): ItemData[] {
   return Object.values(data.items).filter((i) => i.inStore && !i.requiredChampion && (isLegendary(i) || (i.tags.includes("Boots") && i.depth >= 2)));
+}
+
+/**
+ * The items of a build an item is built from, as the shop combines them: each of its components the
+ * build has, else that component's own components, recursively. Indices into `build`, which may have
+ * empty slots.
+ */
+export function builtFrom(data: GameData, build: readonly (number | null)[], id: number): number[] {
+  const used: number[] = [];
+  const take = (c: number) => {
+    const k = build.findIndex((b, j) => b === c && !used.includes(j));
+    if (k >= 0) used.push(k);
+    else for (const f of data.items[c]?.from ?? []) take(f);
+  };
+  for (const c of data.items[id]?.from ?? []) take(c);
+  return used;
 }
 
 /** Item-group conflicts (only one Spellblade, Hydra, Fatality, Blight… item; one pair of boots). */

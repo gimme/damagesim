@@ -30,7 +30,7 @@ const ALL: UIState = {
     hpPercent: 37,
     damageReduction: 0.07,
   },
-  settings: { finishDots: false, executes: false },
+  settings: { finishDots: false, executes: false, questBoots: true },
 };
 
 test("every field comes back, numbers exactly", () => {

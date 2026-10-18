@@ -1,15 +1,30 @@
-// The build's item slots: the bot lane role quest's seventh, for boots, and what goes where.
+// The build's item slots: the bot lane role quest's seventh, for boots, what goes where, and buying.
 
+import { builtFrom } from "../engine/analysis.ts";
 import { DATA } from "./data.ts";
 
 /** The bot lane role quest's slot, which holds the boots: the build has it when its items have a seventh entry. */
 export const BOOTS_SLOT = 6;
 
-const isBoots = (id: number) => !!DATA.items[id]?.tags.includes("Boots");
+export const isBoots = (id: number) => !!DATA.items[id]?.tags.includes("Boots");
+/** The tier 3 boots, which the mid lane role quest upgrades a pair to. */
+export const isQuestBoots = (id: number) => isBoots(id) && DATA.items[id].depth >= 3;
 
 /** Whether slot i of a build can hold an item, or be empty (null): with the boots slot, the boots go there and only there. */
 export function slotFits(items: (number | null)[], i: number, id: number | null): boolean {
   return id == null || items.length <= BOOTS_SLOT || isBoots(id) === (i === BOOTS_SLOT);
+}
+
+/**
+ * The build after buying an item for slot i: an item built from items of the build takes the place of
+ * the first (Boots, for a pair of boots), as the shop combines them; boots replace the build's boots,
+ * in the boots slot when it has one; anything else goes in slot i.
+ */
+export function buyItem(items: (number | null)[], i: number, id: number): (number | null)[] {
+  const used = builtFrom(DATA, items, id);
+  const boots = isBoots(id) ? (items.length > BOOTS_SLOT ? BOOTS_SLOT : items.findIndex((x) => x != null && isBoots(x))) : -1;
+  const to = boots >= 0 ? boots : used.length ? used[0] : i;
+  return items.map((x, k) => (k === to ? id : used.includes(k) ? null : x));
 }
 
 /** The build with the boots slot: boots in the other slots move to it, as in game when the quest is done. */

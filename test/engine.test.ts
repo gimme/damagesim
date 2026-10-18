@@ -317,6 +317,23 @@ test("rank items per gold: sorted by damage gained per 1000 gold of the item", (
   assert.equal(res.items.find((x) => x.item === "Rabadon's Deathcap")!.itemDamage, 0);
 });
 
+test("rank items: an item built from one of the build's takes its place, for the difference in gold", () => {
+  const base = { champion: "Ahri", level: 11, items: ["Luden's Echo", "Boots"], combo: "E Q W R AA R", target: { preset: "squishy" as const } };
+  const [shoes] = rankItems(data, base, { candidates: ["Sorcerer's Shoes"] }).items;
+  assert.equal(shoes.gold, 1100 - 300);
+  assert.deepEqual(shoes.replaces, [{ item: "Boots", id: 1001 }]);
+  const upgraded = simulate(data, { ...base, items: ["Luden's Echo", "Sorcerer's Shoes"] }).totalDamage - simulate(data, base).totalDamage;
+  near(shoes.gain, upgraded, 0.1);
+  near(shoes.gainPerGold, (upgraded / 800) * 1000, 0.1);
+  // A second pair isn't bought; the mid lane quest's upgrade to tier 3 is free, so isn't ranked.
+  const shod = { ...base, items: ["Luden's Echo", "Sorcerer's Shoes"] };
+  assert.deepEqual(
+    rankItems(data, shod, { candidates: ["Berserker's Greaves", "Spellslinger's Shoes", "Rabadon's Deathcap"] }).items.map((x) => x.item),
+    ["Rabadon's Deathcap"],
+  );
+  assert.equal(rankItems(data, shod, { candidates: ["Rabadon's Deathcap"] }).items[0].replaces, undefined);
+});
+
 test("rank items: what an item's hits proc is split from its own damage and its stats", () => {
   // W Q is two hits; Stormsurge's Squall is the third, so Electrocute strikes only with it.
   const base = {

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { DATA, castIcon } from "../data.ts";
-import { Icon, ItemIcon, sourceMark } from "./icons.tsx";
-import { ItemTip, useHoverCard } from "./hover.tsx";
+import { Icon, sourceMark } from "./icons.tsx";
+import { useHoverCard } from "./hover.tsx";
 import { Card, fmt } from "./common.tsx";
 import { HpBar, LineChart, SimpleBars, SourceBars, SourceName, Timeline, TypeLegend, TYPE_COLOR, TYPE_LABEL, type DmgType } from "./charts.tsx";
 import type { DamageInstance } from "../../engine/effects.ts";
@@ -83,7 +83,7 @@ function Warnings({ r }: { r: SimResult }) {
           style={{ alignSelf: "flex-start", padding: 0, whiteSpace: "normal", textAlign: "left" }}
           onClick={() => setShowNotes(!showNotes)}
         >
-          {showNotes ? "▾" : "▸"} {r.notes.length} model note{r.notes.length === 1 ? "" : "s"} (assumptions and what isn't simulated)
+          {showNotes ? "▾" : "▸"} {r.notes.length} model note{r.notes.length === 1 ? "" : "s"}
         </button>
       )}
       {showNotes &&
@@ -129,8 +129,7 @@ export function Details({
       </div>
       {tab === "Timeline" && (
         <>
-          <div className="row small secondary" style={{ justifyContent: "space-between", marginBottom: 6 }}>
-            <span>Target health over time; dots are damage instances, bars along the bottom are your actions.</span>
+          <div className="row small secondary" style={{ justifyContent: "flex-end", marginBottom: 6 }}>
             <TypeLegend />
           </div>
           <Timeline events={r.events} startHp={r.target.startHp} maxHp={r.target.maxHp} timeline={r.timeline} champion={r.champion.id} />
@@ -174,7 +173,7 @@ export function Details({
       {tab === "Abilities" && sim && <Abilities sim={sim} />}
       {tab === "Compare" && <Compare r={r} pinned={pinned} onPin={onPin} onUnpin={onUnpin} scenario={scenario} />}
       {tab === "Resist sweep" && <Sweep scenario={scenario} r={r} />}
-      {tab === "Stats" && <Stats r={r} sim={sim} />}
+      {tab === "Stats" && <Stats r={r} />}
     </section>
   );
 }
@@ -353,18 +352,12 @@ function Compare({
   return (
     <div className="stack">
       <div className="row">
-        <span className="small secondary" style={{ flex: 1 }}>
-          Pinned setups are re-simulated against the current target.
-        </span>
         <button className="btn primary" onClick={onPin} disabled={pinned.length >= 6}>
           Pin current
         </button>
       </div>
       <PinnedBars r={r} pinned={pinned} onUnpin={onUnpin} scenario={scenario} />
       <div className="row" style={{ marginTop: 8 }}>
-        <span className="small secondary" style={{ flex: 1 }}>
-          Best ordering of the current combo's steps.
-        </span>
         <button className="btn" onClick={() => setCombos(optimizeCombo(DATA, scenario, { top: 8 }))}>
           Find best order
         </button>
@@ -444,9 +437,6 @@ function Sweep({ scenario, r }: { scenario: Scenario; r: SimResult }) {
   return (
     <div className="stack">
       <div className="row">
-        <span className="small secondary" style={{ flex: 1 }}>
-          Total damage of this combo as the target's {stat === "mr" ? "magic resist" : "armor"} changes. The vertical line marks the current target.
-        </span>
         <div className="segmented">
           <button aria-pressed={stat === "armor"} onClick={() => setStat("armor")}>
             Armor
@@ -465,8 +455,7 @@ function Sweep({ scenario, r }: { scenario: Scenario; r: SimResult }) {
   );
 }
 
-function Stats({ r, sim }: { r: SimResult; sim: Sim | null }) {
-  const hover = useHoverCard();
+function Stats({ r }: { r: SimResult }) {
   const s = r.stats;
   const t = r.target;
   const rows: [string, string][] = [
@@ -497,15 +486,6 @@ function Stats({ r, sim }: { r: SimResult; sim: Sim | null }) {
         Target: {t.label} — {fmt(t.maxHp)} HP, armor {fmt(t.armor)} → <strong>{fmt(t.effectiveArmor, 1)}</strong> after your penetration (takes{" "}
         {(t.physicalMultiplier * 100).toFixed(1)}% physical), MR {fmt(t.mr)} → <strong>{fmt(t.effectiveMr, 1)}</strong> (takes{" "}
         {(t.magicMultiplier * 100).toFixed(1)}% magic).
-      </div>
-      <div className="row small" style={{ gap: 6 }}>
-        {r.items.map((i) => (
-          <span key={i.id} className="row" style={{ gap: 4 }} {...hover.bind(<ItemTip id={i.id} sim={sim} />)}>
-            <ItemIcon id={i.id} size="sm" />
-            {i.name}
-          </span>
-        ))}
-        {hover.node}
       </div>
     </div>
   );

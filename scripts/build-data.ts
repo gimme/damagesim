@@ -678,6 +678,8 @@ function buildItems(ddItems: any, bin: any): Record<string, ItemData> {
       plaintext: dd.plaintext ?? "",
     };
   }
+  // The tier 3 boots, built from a pair, are boots too: Gunmetal Greaves lacks the tag.
+  for (const it of Object.values(out)) if (!it.tags.includes("Boots") && it.from.some((c) => out[c]?.tags.includes("Boots"))) it.tags.push("Boots");
   return out;
 }
 
