@@ -1064,8 +1064,13 @@ input.combo-text {
 .compare-scroll.more-left thead th:first-child {
   box-shadow: inset -1px 0 var(--border-strong);
 }
+/* As tall as its table, with no vertical scroll of its own: its collapsed borders and the names'
+   fades reach a pixel under the last row in some browsers, which scrolling the columns would
+   otherwise scroll too, slightly; the padding keeps that pixel in view */
 .table-scroll.compare-table {
   max-height: none;
+  overflow-y: hidden;
+  padding-bottom: 1px;
 }
 .compare-table table.data {
   table-layout: fixed;
