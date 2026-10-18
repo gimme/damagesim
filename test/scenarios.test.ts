@@ -1,6 +1,7 @@
 // A champion's builds as tabs: the one on screen takes what changes there to its items, runes and
-// combo, the rest is all of theirs; a new one is a copy of it, named with the lowest number free; tabs
-// keep their order; and all of it is in the page's address.
+// combo, the rest is all of theirs; a new one is a copy of it at the end, named with the lowest number
+// free; tabs keep their order; and all of it is in the page's address, the first build's first as if
+// it were alone.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -36,8 +37,10 @@ test("builds: a new one copies the one on screen, what changes on screen is its 
 test("tabs: their names, closing, moving and renaming", () => {
   let page = addTab(addTab(single(s)));
   assert.deepEqual(names(page), ["Build 1", "Build 2", "Build 3 *"]);
-  // The lowest number free.
+  // At the end, the lowest number free.
   page = addTab(selectTab(closeTab(page, 1), 0));
+  assert.deepEqual(names(page), ["Build 1", "Build 3", "Build 2 *"]);
+  page = moveTab(page, 2, 1);
   assert.deepEqual(names(page), ["Build 1", "Build 2 *", "Build 3"]);
 
   assert.deepEqual(names(closeTab(page, 1)), ["Build 1", "Build 3 *"]);
@@ -54,7 +57,7 @@ test("tabs: their names, closing, moving and renaming", () => {
   assert.equal(renameTab(page, 0, " "), page);
 });
 
-test("a page's address: one build's is its scenario's; more, what they share and each build, the one on screen marked", () => {
+test("a page's address: one build's is its scenario's; more, the first's as if alone, then each other build, the one on screen marked", () => {
   assert.equal(encodePage(data, s, single(s)), encodeState(data, s));
   assert.deepEqual(decodePage(data, encodeState(data, s)), { state: s, page: single(s) });
 
@@ -63,7 +66,11 @@ test("a page's address: one build's is its scenario's; more, what they share and
   page = selectTab(page, 1);
   const on = withBuild(s, page, 1);
   const address = encodePage(data, on, page);
-  assert.match(address, /^ahri\/#\w+~\.1~\*\.2~\w+\.Burst%2E%20%7E%21%2A%281%29$/);
+  assert.match(address, /^ahri\/#\w+~\*\.2~\w+\.Burst%2E%20%7E%21%2A%281%29$/);
+  assert.equal(address.split("~")[0], encodeState(data, withBuild(s, page, 0)));
+  // The first on screen: no mark; renamed, its name after its code.
+  assert.match(encodePage(data, withBuild(s, page, 0), selectTab(page, 0)), /^ahri\/#\w+~\.2~\w+\.Burst[^*]*$/);
+  assert.match(encodePage(data, on, renameTab(page, 0, "Main")), /^ahri\/#\w+\.Main~\*\.2~/);
   const back = decodePage(data, address)!;
   assert.deepEqual(back.state, on);
   assert.deepEqual(
@@ -93,7 +100,7 @@ test("a page's address: one build's is its scenario's; more, what they share and
 test("the builds' codes are the setup's, version 3: energize a byte from its table, in the shared combo or a build's own; version 2's don't load", () => {
   const zed: UIState = { ...DEFAULT_STATE, champion: "Zed", combo: "AA energize AA" };
   const part = (address: string, n: number) => address.split("#")[1].split(/[~!]/)[n].replace(/^\*/, "").split(".")[0];
-  // Shared: in what they share, a byte as ignite is.
+  // Shared: in the first build's code, with what they share, a byte as ignite is.
   const page = addTab(single(zed));
   const shared = encodePage(data, zed, page);
   assert.equal(decodePage(data, shared)!.state.combo, "AA energize AA");
@@ -109,13 +116,13 @@ test("the builds' codes are the setup's, version 3: energize a byte from its tab
   assert.ok(part(address, 1).length < part(encodePage(data, { ...zed, combo: "R energise AA" }, setOwnCombos(page, true, "R energise AA")), 1).length);
   // Version 2's, before the energize step (Zed at 16 with two items): as what they share, no page; as a build, left out.
   assert.equal(decodePage(data, "zed/#HFSIMq2SEcbzjWQd8a~*.1~.2"), null);
-  assert.deepEqual(decodePage(data, "zed/#~*.1~HFSIMq2SEcbzjWQd8a.2")!.page.builds.length, 1);
+  assert.deepEqual(decodePage(data, "zed/#~HFSIMq2SEcbzjWQd8a.2")!.page.builds.length, 1);
 });
 
 test("what isn't a page's address holds none; a build in it that doesn't load is left out", () => {
   for (const bad of ["", "nobody/#~.1~.2", "ahri/#hello~.1~.2"]) assert.equal(decodePage(data, bad), null, bad);
   const back = decodePage(data, "ahri/#~hello.1~*.Two~.3")!;
-  assert.deepEqual([back.page.builds.map((b) => b.name), back.page.active], [["Two", "Build 3"], 0]);
+  assert.deepEqual([back.page.builds.map((b) => b.name), back.page.active], [["Build 1", "Two", "Build 3"], 1]);
   // None left: the shared state alone.
   assert.deepEqual(decodePage(data, "ahri/#~hello.1!combos"), { state: DEFAULT_STATE, page: single(DEFAULT_STATE) });
 });

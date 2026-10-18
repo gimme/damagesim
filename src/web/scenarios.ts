@@ -59,10 +59,10 @@ export function withBuild(s: UIState, page: Page, i: number): UIState {
   return { ...s, items: b.items, runes: b.runes, combo: page.ownCombos ? b.combo : s.combo };
 }
 
-/** A copy of the active build in a new tab after it, on screen. */
+/** A copy of the active build in a new tab at the end, on screen. */
 export function addTab(page: Page): Page {
   const b = { ...page.builds[page.active], id: Math.max(...page.builds.map((x) => x.id)) + 1, name: freeName(page.builds) };
-  return { ...page, builds: [...page.builds.slice(0, page.active + 1), b, ...page.builds.slice(page.active + 1)], active: page.active + 1 };
+  return { ...page, builds: [...page.builds, b], active: page.builds.length };
 }
 
 export const selectTab = (page: Page, i: number): Page => (i >= 0 && i < page.builds.length ? { ...page, active: i } : page);

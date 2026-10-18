@@ -18,10 +18,10 @@ the combo out on a timeline and reports every damage instance.
   the rest as a short code in the hash (`/zed/#…`, about 70 characters for a full build), none at the defaults.
   A champion's builds open as tabs in the top bar, each a copy of the one on screen to change: its items and runes are
   its own, the rest (level, target, settings) all of theirs, and the combo too unless each build has its own. Tabs are
-  dragged into order and renamed by a double-click. The Result card compares them: a health bar each, then a table of
-  their items, totals, time to kill, gold and damage by source against the first build; folded, the one on screen
-  alone. The builds are in the address too (`/ahri/#…~*….1~….Burst`), so a link opens them as they are, and Back
-  undoes Reset or a tab closed.
+  dragged into order, renamed by a double-click and closed by × or Delete. The Result card compares them: a health bar
+  each, then a table of their items, totals, time to kill, gold and damage by source against the first build; folded,
+  the one on screen alone. The builds are in the address too, the first build's as if it were alone and the others
+  after it (`/ahri/#…~*….2~….Burst`), so a link opens them as they are, and Back undoes Reset or a tab closed.
 * **AI agents:** an MCP server (simulate, compare, rank items, optimize builds and combo order) and a
   CLI with `--json` output.
 * **Accuracy:** every number comes from Riot's own game files for the patch (via CommunityDragon),

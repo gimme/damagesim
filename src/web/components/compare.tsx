@@ -5,7 +5,7 @@
 // the target…) is the screen's, so they're all against one target. Folded (the page's, see
 // encodePage), the card has the build on screen alone.
 
-import { useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { DATA } from "../data.ts";
 import { ItemIcon, RuneIcon } from "./icons.tsx";
 import { fmt } from "./common.tsx";
@@ -93,12 +93,31 @@ export function Compared({
       else was.most = Math.max(was.most, s.damage);
     }
   const dealt = (c: Column, key: string) => c.result?.bySource.find((s) => `${s.source}|${s.label}` === key)?.damage;
-  /** A column's cell's props: the one on screen tinted, another opened by a click. */
+  /** A column's cell's props: the one on screen tinted, another's shaded under the mouse and opened by a click (see the table's handlers). */
   const col = (c: Column, i: number, className = "") => ({
+    "data-col": i,
     className: `r ${className}${c.on ? " on" : " pick"}${hot === i ? " hot" : ""}`,
-    onPointerEnter: (e: PointerEvent) => e.pointerType === "mouse" && setHot(i),
-    onClick: c.on ? undefined : () => scenarios.select(i),
   });
+  /** The column of what's under the pointer, none on the rows' names. */
+  const at = (e: { target: EventTarget }) => {
+    const cell = (e.target as Element).closest<HTMLElement>("[data-col]");
+    return cell ? Number(cell.dataset.col) : null;
+  };
+  // Where the columns scroll, a fade at the side there's more to scroll to.
+  const scroller = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState({ left: false, right: false });
+  const measure = () => {
+    const el = scroller.current;
+    if (!el) return;
+    const next = { left: el.scrollLeft > 1, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 1 };
+    setMore((m) => (m.left === next.left && m.right === next.right ? m : next));
+  };
+  useLayoutEffect(measure);
+  useEffect(() => {
+    const ro = new ResizeObserver(measure);
+    ro.observe(scroller.current!);
+    return () => ro.disconnect();
+  }, []);
   const cell = (c: Column, i: number, v: number | undefined, base: number | undefined, digits = 0, unit = "") => (
     <td key={c.id} {...col(c, i)}>
       {v == null ? "–" : `${fmt(v, digits)}${unit}`}
@@ -143,11 +162,11 @@ export function Compared({
         {columns.map((c, i) => cell(c, i, c.result ? value(c.result) : undefined, first ? value(first) : undefined, digits, unit))}
       </tr>
     )),
-    <tr key="sources">
-      <th scope="row" colSpan={columns.length + 1} className="compare-section">
-        {/* Where the row's names stay, as the columns scroll under it */}
-        <span>Damage by source</span>
-      </th>
+    <tr key="sources" className="compare-section">
+      <th scope="row">Damage by source</th>
+      {columns.map((c, i) => (
+        <td key={c.id} {...col(c, i)} />
+      ))}
     </tr>,
     ...[...sources.entries()]
       .sort((a, b) => b[1].most - a[1].most)
@@ -196,26 +215,38 @@ export function Compared({
         ))}
       </div>
       {controls}
-      <div className="table-scroll compare-table">
-        <table className="data" aria-label="Compared builds" style={{ "--builds": columns.length } as CSSProperties} onPointerLeave={() => setHot(null)}>
-          <colgroup>
-            <col className="names" />
-            {columns.map((c) => (
-              <col key={c.id} />
-            ))}
-          </colgroup>
-          <thead>
-            <tr>
-              <th />
-              {columns.map((c, i) => (
-                <th key={c.id} {...col(c, i)} title={c.on ? undefined : `Open ${c.name}`}>
-                  {c.name}
-                </th>
+      <div className={`compare-scroll${more.left ? " more-left" : ""}${more.right ? " more-right" : ""}`}>
+        <div ref={scroller} className="table-scroll compare-table" onScroll={measure}>
+          <table
+            className="data"
+            aria-label="Compared builds"
+            style={{ "--builds": columns.length } as CSSProperties}
+            onPointerOver={(e) => setHot(e.pointerType === "mouse" ? at(e) : null)}
+            onPointerLeave={() => setHot(null)}
+            onClick={(e) => {
+              const i = at(e);
+              if (i != null && i !== page.active) scenarios.select(i);
+            }}
+          >
+            <colgroup>
+              <col className="names" />
+              {columns.map((c) => (
+                <col key={c.id} />
               ))}
-            </tr>
-          </thead>
-          <tbody className={all ? undefined : "compare-peek"}>{all ? rows : rows.slice(0, PEEK)}</tbody>
-        </table>
+            </colgroup>
+            <thead>
+              <tr>
+                <th />
+                {columns.map((c, i) => (
+                  <th key={c.id} {...col(c, i)} title={c.on ? undefined : `Open ${c.name}`}>
+                    {c.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className={all ? undefined : "compare-peek"}>{all ? rows : rows.slice(0, PEEK)}</tbody>
+          </table>
+        </div>
       </div>
       <button className="iv-more" aria-expanded={all} onClick={() => setAll(!all)}>
         <span>

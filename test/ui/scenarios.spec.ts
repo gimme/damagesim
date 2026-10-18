@@ -1,8 +1,10 @@
-// A champion's builds as tabs in the top bar: + opens a copy of the one on screen, a click switches,
-// its items and runes its own and the rest shared, the combo too unless each build has its own; a
-// tab renamed, dragged to another place, closed, all in the address through a reload, and Back
-// undoing a close and Reset. The Result card compares them: a bar each, the table under them until
-// it's all shown, against the first build; folded, the one on screen alone. Each champion its builds.
+// A champion's builds as tabs in the top bar: + opens a copy of the one on screen at the end, a click
+// switches, its items and runes its own and the rest shared, the combo too unless each build has its
+// own; a tab renamed, dragged to another place, closed by its × or Delete, all in the address (the
+// first build's first, as if alone) through a reload, and Back undoing a close and Reset. The Result
+// card compares them: a bar each, the table under them until it's all shown, against the first build,
+// a click in a column opening its build, a fade where the columns scroll; folded, the one on screen
+// alone. Each champion its builds.
 
 import { test, expect, num, pageAddressOf, texts, type UI } from "./ui.ts";
 
@@ -47,7 +49,7 @@ test("builds", async ({ ui }) => {
     async () => {
       expect(await tabs(ui)).toEqual(["Build 1", "Build 2 *"]);
       expect(await ui.total()).toBe(at11);
-      expect(hash(ui)).toBe("#~.1~*.2");
+      expect(hash(ui)).toBe("#~*.2");
       await expect(ui.card("Items").locator(".build-of")).toHaveText("Build 2");
       await expect(ui.card("Runes").locator(".build-of")).toHaveText("Build 2");
       await expect(same).toBeChecked();
@@ -114,11 +116,11 @@ test("builds", async ({ ui }) => {
     },
   );
   await step(
-    "Burst dragged first: still on screen, first in the address too",
+    "Burst dragged first: still on screen, first in the address too, as if alone but for its name",
     () => ui.drag(bar(ui).locator(".scenario-tab").nth(1), bar(ui).locator(".scenario-tab").nth(0)),
     async () => {
       expect(await tabs(ui)).toEqual(["Burst *", "Build 1"]);
-      expect(hash(ui)).toMatch(/^#\w*~\*\w*\.Burst~\w*\.1!combos$/);
+      expect(hash(ui)).toMatch(/^#\w+\.Burst~\w*\.1!combos$/);
     },
   );
   await step(
@@ -217,9 +219,33 @@ test("compared", async ({ ui }) => {
     },
   );
   await step(
-    "a click in Build 1's column: it on screen",
-    () => row("Gold").getByRole("cell").nth(0).click(),
+    "the mouse over Build 2's column: shaded, and not over the rows' names",
+    () => row("Gold").getByRole("cell").nth(1).hover(),
+    async () => {
+      await expect(table.locator("td.hot")).not.toHaveCount(0);
+      await row("Gold").getByRole("rowheader").hover();
+      await expect(table.locator(".hot")).toHaveCount(0);
+    },
+  );
+  await step(
+    "a click in Build 1's column, by Damage by source too: it on screen",
+    () => row("Damage by source").getByRole("cell").nth(0).click(),
     async () => expect(await tabs(ui)).toEqual(["Build 1 *", "Build 2", "Boots"]),
+  );
+  const scroll = card.locator(".compare-scroll");
+  const size = page.viewportSize()!;
+  await step(
+    "on a phone, the columns scroll: a fade at the side with more",
+    () => page.setViewportSize({ width: 390, height: 844 }),
+    async () => {
+      await expect(scroll).toHaveClass(/more-right/);
+      await expect(scroll).not.toHaveClass(/more-left/);
+      await scroll.locator(".compare-table").evaluate((el) => (el.scrollLeft = el.scrollWidth));
+      await expect(scroll).toHaveClass(/more-left/);
+      await expect(scroll).not.toHaveClass(/more-right/);
+      await page.setViewportSize(size);
+      await expect(scroll).not.toHaveClass(/more-/);
+    },
   );
   await step(
     "folded: the one on screen alone, in the address through a reload",
@@ -246,5 +272,45 @@ test("compared", async ({ ui }) => {
       await pick("ahri");
     },
     async () => expect(await tabs(ui)).toEqual(["Build 1 *", "Build 2", "Boots"]),
+  );
+});
+
+test("+ at the end, and Delete from tab to tab", async ({ ui }) => {
+  const { page, step } = ui;
+  await step(
+    "three builds, Build 2 on screen; +: a copy of it at the end",
+    async () => {
+      await ui.open(pageAddressOf({}, [{}, { items: [3020, null, null, null, null, null] }, {}], 1));
+      await bar(ui).getByRole("button", { name: "New build" }).click();
+    },
+    async () => {
+      expect(await tabs(ui)).toEqual(["Build 1", "Build 2", "Build 3", "Build 4 *"]);
+      expect((await ui.state()).items[0]).toBe(3020);
+    },
+  );
+  await step(
+    "Build 2 clicked, then Delete: closed, Build 3 on screen and focused",
+    async () => {
+      await tab(ui, "Build 2").click();
+      await page.keyboard.press("Delete");
+    },
+    async () => {
+      expect(await tabs(ui)).toEqual(["Build 1", "Build 3 *", "Build 4"]);
+      await expect(tab(ui, "Build 3")).toBeFocused();
+    },
+  );
+  await step(
+    "Delete twice more: Build 1 alone, + Build focused",
+    async () => {
+      await page.keyboard.press("Delete");
+      await ui.settle();
+      expect(await tabs(ui)).toEqual(["Build 1", "Build 4 *"]);
+      await page.keyboard.press("Delete");
+    },
+    async () => {
+      await expect(bar(ui)).toHaveCount(0);
+      await expect(first(ui)).toBeFocused();
+      expect((await ui.state()).items[0]).toBe(6655);
+    },
   );
 });

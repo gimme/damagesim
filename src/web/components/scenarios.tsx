@@ -1,9 +1,10 @@
 // The builds, in the top bar: a tab each, the one on screen pressed, what changes on screen to the
-// build its own (see scenarios.ts), all in the page's address. + opens a copy of it in a new tab, to
-// change and to compare with it; a tab is dragged to another place, renamed by a double-click and
-// closed by its ×. With one build, there's only "+ Build".
+// build its own (see scenarios.ts), all in the page's address. + opens a copy of it in a new tab at
+// the end, to change and to compare with it; a tab is dragged to another place, renamed by a
+// double-click and closed by its × or, focused, by Delete, the focus then on the tab in its place.
+// With one build, there's only "+ Build".
 
-import { useMemo, useRef, useState, type MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { DATA } from "../data.ts";
 import { encodeSetup, recallPage, resetState, type UIState } from "../state.ts";
 import { addTab, closeTab, moveTab, renameTab, selectTab, setOwnCombos, single, track, withBuild, type Page } from "../scenarios.ts";
@@ -114,10 +115,20 @@ export function ScenarioBar({ scenarios }: { scenarios: Scenarios }) {
     move: scenarios.move,
   });
   const add = "Copy this build to a new tab";
+  // After Delete, the tab in the closed one's place focused, to go on; with one left, + Build.
+  const refocus = useRef<number | null>(null);
+  const alone = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const i = refocus.current;
+    refocus.current = null;
+    if (i == null) return;
+    if (!scenarios.many) alone.current?.focus();
+    else order.box.current?.children[i]?.querySelector<HTMLElement>("button[aria-pressed]")?.focus();
+  });
   if (!scenarios.many)
     return (
       <div className="scenario-bar">
-        <button className="btn small scenario-first" title={add} onClick={scenarios.add}>
+        <button ref={alone} className="btn small scenario-first" title={add} onClick={scenarios.add}>
           <Plus /> Build
         </button>
       </div>
@@ -141,11 +152,14 @@ export function ScenarioBar({ scenarios }: { scenarios: Scenarios }) {
                 title={`${i === page.active ? b.name : `Open ${b.name}`}; drag it to move it, double-click to rename it`}
                 onClick={() => scenarios.select(i)}
                 onDoubleClick={() => setRenaming(b.id)}
+                onKeyDown={(e) => {
+                  if (e.key !== "Delete" && e.key !== "Backspace") return;
+                  e.preventDefault();
+                  refocus.current = Math.min(i, page.builds.length - 2);
+                  scenarios.close(i);
+                }}
               >
-                {/* Its bold name's width, so a tab is as wide on screen or not */}
-                <span className="name" data-name={b.name}>
-                  <span>{b.name}</span>
-                </span>
+                <span className="name">{b.name}</span>
               </button>
             )}
             <button

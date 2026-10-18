@@ -234,35 +234,23 @@ a {
     color: var(--text-primary);
   }
 }
+/* The one on screen by its colours and a line under it, not bold, so no name changes width */
 .scenario-tab.active {
   background: var(--accent-wash);
   color: var(--accent-text);
-}
-.scenario-tab.active button[aria-pressed] {
-  font-weight: 600;
+  box-shadow:
+    inset 0 -2px var(--accent),
+    0 1px var(--border);
 }
 .scenario-tab.dragged {
   z-index: 2;
   border-radius: 7px;
   box-shadow: var(--shadow);
 }
-/* A name as wide as it is bold, so a tab is as wide on screen or not */
 .scenario-tab .name {
-  display: inline-flex;
-  flex-direction: column;
   max-width: 140px;
-}
-.scenario-tab .name > span {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.scenario-tab .name::after {
-  content: attr(data-name);
-  height: 0;
-  overflow: hidden;
-  visibility: hidden;
-  font-weight: 600;
   white-space: nowrap;
 }
 .scenario-tab input[type="text"] {
@@ -1033,18 +1021,50 @@ input.combo-text {
   cursor: default;
   text-decoration: none;
 }
+/* Where the columns scroll, a fade at a side with more to scroll to: on the left, at the names' edge */
+.compare-scroll {
+  --names: 150px;
+  position: relative;
+}
+@media (max-width: 600px) {
+  .compare-scroll {
+    --names: 108px;
+  }
+}
+.compare-scroll::before,
+.compare-scroll::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  width: 32px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.compare-scroll::before {
+  left: var(--names);
+  background: linear-gradient(to right, var(--surface), transparent);
+}
+.compare-scroll::after {
+  right: 0;
+  background: linear-gradient(to left, var(--surface), transparent);
+}
+.compare-scroll.more-left::before,
+.compare-scroll.more-right::after {
+  opacity: 1;
+}
+.compare-scroll.more-left th[scope="row"],
+.compare-scroll.more-left thead th:first-child {
+  box-shadow: inset -1px 0 var(--border-strong);
+}
 .table-scroll.compare-table {
   max-height: none;
 }
 .compare-table table.data {
-  --names: 150px;
   table-layout: fixed;
   width: max(100%, calc(var(--names) + var(--builds) * 132px));
-}
-@media (max-width: 600px) {
-  .compare-table table.data {
-    --names: 108px;
-  }
 }
 .compare-table col.names {
   width: var(--names);
@@ -1084,18 +1104,13 @@ input.combo-text {
 .compare-total td {
   font-weight: 650;
 }
-.compare-section {
+.compare-section > * {
   padding-top: 14px !important;
+}
+.compare-section th {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-}
-.compare-table table.data th.compare-section {
-  position: static;
-}
-.compare-section span {
-  position: sticky;
-  left: 8px;
 }
 .compare-build {
   display: inline-flex;

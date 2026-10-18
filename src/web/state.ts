@@ -500,33 +500,36 @@ function nameOf(code: string): string | null {
 const ofBuild = (s: UIState, combo: boolean) => ({ items: s.items, runes: s.runes, ...(combo ? { combo: s.combo } : {}) });
 
 /**
- * A page's address after the app's own. With one build, its scenario's (see encodeState). With more,
- * the hash has what they share, then each build in its order (the one on screen after "*"), its code
- * and its name ("Build n" as n), then "!combos" where each has its own combo and "!folded" where the
- * comparison is folded away: "ahri/#5h2Kq~*3fGh.1~9aB.Burst!combos".
+ * A page's address after the app's own: its first build's, with what they share, as if it were alone
+ * (see encodeState), then each other build in its order, its code and its name ("Build n" as n, the
+ * first build's too unless it's Build 1), the one on screen after "*" unless it's the first, then
+ * "!combos" where each has its own combo and "!folded" where the comparison is folded away:
+ * "ahri/#5h2Kq~*3fGh.2~9aB.Burst!combos".
  */
 export function encodePage(data: GameData, s: UIState, page: Page): string {
   if (page.builds.length < 2) return encodeState(data, s);
-  const shared = encodeSetup(data, { ...s, ...ofBuild(DEFAULT_STATE, page.ownCombos) });
+  const named = (name: string, i: number) => (i === 0 && name === "Build 1" ? "" : `.${nameCode(name)}`);
   const builds = page.builds.map((b, i) => {
     const own = i === page.active ? s : withBuild(s, page, i);
-    return `${i === page.active ? "*" : ""}${encodeSetup(data, { ...DEFAULT_STATE, champion: s.champion, ...ofBuild(own, page.ownCombos) })}.${nameCode(b.name)}`;
+    const code = i === 0 ? encodeSetup(data, own) : encodeSetup(data, { ...DEFAULT_STATE, champion: s.champion, ...ofBuild(own, page.ownCombos) });
+    return `${i > 0 && i === page.active ? "*" : ""}${code}${named(b.name, i)}`;
   });
   const flags = `${page.ownCombos ? "!combos" : ""}${page.folded ? "!folded" : ""}`;
-  return `${championSlug(data, s.champion)}/#${[shared, ...builds].join("~")}${flags}`;
+  return `${championSlug(data, s.champion)}/#${builds.join("~")}${flags}`;
 }
 
-/** The page at an address after the app's own, with its state on screen, or null if it isn't a page's; a build that doesn't load is left out. */
+/** The page at an address after the app's own, with its state on screen, or null if it isn't a page's; a build after the first that doesn't load is left out. */
 export function decodePage(data: GameData, address: string): { state: UIState; page: Page } | null {
   try {
     const [, slug, hash = ""] = /^\/?([^/#]+)\/?(?:#(.*))?$/.exec(address.trim()) ?? fail("not a champion's path");
     const champion = championBySlug(data, decodeURIComponent(slug));
     const [list, ...flags] = hash.split("!");
-    const [code, ...tabs] = list.split("~");
+    const [head, ...tabs] = list.split("~");
+    const [, code, name] = /^([^.]*)(?:\.(.*))?$/.exec(head)!;
     const base = decodeSetup(data, champion, code);
     if (!base) return null;
     if (!tabs.length) return { state: base, page: single(base) };
-    const builds: Build[] = [];
+    const builds: Build[] = [{ id: 1, name: (name && nameOf(name)) || "Build 1", items: base.items, runes: base.runes, combo: base.combo }];
     let active = 0;
     for (const tab of tabs) {
       const [, on, own, name] = /^(\*?)([^.]*)(?:\.(.*))?$/.exec(tab) ?? [];
@@ -535,7 +538,6 @@ export function decodePage(data: GameData, address: string): { state: UIState; p
       if (on) active = builds.length;
       builds.push({ id: builds.length + 1, name: (name && nameOf(name)) || `Build ${builds.length + 1}`, items: b.items, runes: b.runes, combo: b.combo });
     }
-    if (!builds.length) return { state: base, page: single(base) };
     const many = builds.length > 1;
     const page: Page = { champion, builds, active, ownCombos: many && flags.includes("combos"), folded: many && flags.includes("folded") };
     return { state: withBuild(base, page, active), page };
