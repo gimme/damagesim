@@ -123,7 +123,7 @@ part that way when its hits are all one part of their source.
 | `canCrit`, `critMultiplier` | can crit (expected-value in default mode); custom multiplier e.g. `'1 + 0.3 * (critDamage - 1)'` |
 | `attack: true` | this hit *is* a basic attack (applies on-hit, counts for PTA/Conqueror as an attack, can crit) |
 | `onHit: true` | ability damage that also applies on-hit effects (Fizz Q): Spellblade, Energized procs, Kraken, BotRK… |
-| `onAttack: true` | with `onHit`/`attack`: also triggers on-attack effects (Ezreal Q, Smolder Q): Guinsoo's and Lethal Tempo stacks, Energize charges, Navori, Yun Tal, Hail of Blades |
+| `onAttack: true` | with `onHit`/`attack`: also triggers on-attack effects (Ezreal Q, Smolder Q): Guinsoo's and Lethal Tempo stacks, Navori, Yun Tal, Hail of Blades |
 | `areaOnHit: true` | on-hit applied by an area effect, which Press the Attack ignores (Katarina daggers, Master Yi Q) |
 | `proc: true` | proc damage (the wiki's "spell effects: proc", "deals proc damage"; Lux's Illumination, Kog'Maw W's on-hit): no spell effects (Liandry's, Luden's, Comet), no rune triggers (Electrocute, Dark Harvest, Conqueror, Cheap Shot), doesn't apply or detonate the kit's marks |
 | `noProc: true` | not ability damage, but not proc damage either (the wiki's "default damage"): no spell effects, still triggers runes. Also an ability's attack that works like a regular attack (Jayce W, Rengar Q), and an `attack: true` hit that is basic damage only (Zeri's Burst Fire) |
@@ -308,7 +308,7 @@ the ability's `buff` (`empowerAttacks`) empowering it.
 page lists which abilities apply on-hit effects and which also trigger on-attack effects (with
 reduced effectiveness where it applies); each ability's wiki data says the same ("applies on-hit
 effects … and triggers on-attack effects"). Flag both: `onHit: true` alone means Spellblade and
-other on-hit effects apply, but Guinsoo's/Lethal Tempo/Energize charges don't stack.
+other on-hit effects apply, but Guinsoo's and Lethal Tempo don't stack.
 `npm run wiki && npm run audit` compares every kit with the wiki's ability descriptions.
 
 **Pets**: `pet: true` components with `hits`/`interval` for the typical uptime in a trade; document it.

@@ -19,6 +19,7 @@ import {
   type CritMode,
 } from "../../engine/combo.ts";
 import { findItem } from "../../engine/gamedata.ts";
+import { ENERGIZED_ITEMS } from "../../engine/items.ts";
 import { getKit } from "../../kits/index.ts";
 import type { Slot } from "../../engine/effects.ts";
 
@@ -255,6 +256,8 @@ export function ComboBuilder({ state, set, sim, result }: { state: UIState; set:
   const champ = DATA.champions[state.champion];
   const spellName = (slot: Slot) => (slot === "P" ? champ.passive.name : (champ.abilities.find((a) => a.slot === slot)?.spells[0]?.name ?? slot));
   const actives = (sim?.effects ?? []).filter((e) => e.active && e.source === "item");
+  // Energize steps show the build's first Energized item, and are offered with one.
+  const energizer = sim?.items.find((i) => ENERGIZED_ITEMS.includes(i.id));
   const hasP = hasPassiveStep(kit);
   // Crits aren't a setting: the buttons mark the steps that can crit (AA!, Q?), and show how they're
   // marked: none pressed when they differ, the last pick while no step can crit. New steps follow.
@@ -303,6 +306,7 @@ export function ComboBuilder({ state, set, sim, result }: { state: UIState; set:
     if (st.type === "ability") return icon(st.slot, spellName(st.slot), "xs", castAt(st, i)?.icon ?? sim?.slotIcon(st.slot));
     if (st.type === "attack") return icon("AA", "Basic attack", "xs");
     if (st.type === "summoner") return icon("summoner:ignite", "Ignite", "xs");
+    if (st.type === "energize") return energizer && icon(`item:${energizer.id}`, "Energize", "xs");
     const it = stepItem(st);
     return it && icon(`item:${it.id}`, it.name, "xs");
   };
@@ -360,6 +364,17 @@ export function ComboBuilder({ state, set, sim, result }: { state: UIState; set:
       : []),
     { key: "AA", step: { type: "attack" }, title: "Basic attack", icon: icon("AA", "Basic attack", "sm"), text: "AA" },
     { key: "ignite", step: { type: "summoner", spell: "ignite" }, title: "Ignite", icon: icon("summoner:ignite", "Ignite", "sm"), text: "Ignite" },
+    ...(energizer
+      ? [
+          {
+            key: "energize",
+            step: { type: "energize" } as ComboStep,
+            title: "Energize: charges full, as moving and attacking make them, so the next attack fires your Energized items",
+            icon: icon(`item:${energizer.id}`, "Energize", "sm"),
+            text: "Energize",
+          },
+        ]
+      : []),
     ...actives.map((e) => ({
       key: e.id,
       step: { type: "item", item: e.label } as ComboStep,

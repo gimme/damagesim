@@ -25,7 +25,7 @@ import {
 } from "./effects.ts";
 import { attackOptions, findVariant, hasPassiveStep, parseCombo, formatCombo, rollsCrits, type AbilityStep, type ComboStep, type CritMode } from "./combo.ts";
 import { getKit } from "../kits/index.ts";
-import { createItemEffect, ITEM_GROUPS } from "./items.ts";
+import { createItemEffect, energize, ENERGIZED_ITEMS, ITEM_GROUPS } from "./items.ts";
 import { bonusSkillPoints, createRuneEffects } from "./runes.ts";
 import { runePageProblems } from "./rune-page.ts";
 import { createSummonerEffect } from "./summoners.ts";
@@ -2082,6 +2082,7 @@ export class Sim {
       if (step.slot === "P") return hasPassiveStep(this.kit) ? null : `${this.champ.name} has no P step`;
       return this.abilityRank(step.slot) <= 0 ? `${step.slot} is not learned at level ${this.level} (rank 0)` : null;
     }
+    if (step.type === "energize") return this.items.some((i) => ENERGIZED_ITEMS.includes(i.id)) ? null : "energize: no Energized item in the build";
     if (step.type !== "item") return null;
     let item: ItemData;
     try {
@@ -2633,6 +2634,14 @@ export class Sim {
         case "summoner": {
           const eff = this.effects.find((e) => e.id === "summoner:ignite");
           if (eff?.active) this.useActive(eff, timeline, "ignite");
+          break;
+        }
+        case "energize": {
+          // As the next action could start: an attack launched before it isn't Energized.
+          const at = Math.max(this.time, this.freeAt);
+          this.processUntil(at);
+          energize(this);
+          timeline.push({ step: "energize", start: at, end: at });
           break;
         }
         case "item": {

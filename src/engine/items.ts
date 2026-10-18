@@ -15,13 +15,13 @@ import {
   SELF_HP,
   selfHp,
   startStacks,
-  triggersOnAttack,
   type AttackInfo,
   type DamageInstance,
   type DamageRequest,
   type Effect,
   type SetupCtx,
 } from "./effects.ts";
+import type { KitOption } from "./kit-types.ts";
 import type { Sim } from "./sim.ts";
 import type { StatMods } from "./stats.ts";
 
@@ -135,16 +135,28 @@ function spellblade(
 }
 
 // -----------------------------------------------------------------------------
-// Energized attacks (Rapid Firecannon, Statikk Shiv, Stormrazor, Voltaic Cyclosword) share one
-// charge pool: attacks grant 6 charges (+9 with Statikk Shiv); at 100 the *next* attack is Energized
-// and every Energized item fires on it. Voltaic's Galvanize lets champion-ability damage fire them.
-// They land together: Voltaic's Firmament before the attack's damage (wiki), the rest, being on-hit
-// damage, first of its on-hits, right after it; fired by an ability, all before it, Firmament first.
+// Energized attacks (Rapid Firecannon, Statikk Shiv, Stormrazor, Voltaic Cyclosword): when you're
+// Energized, the next attack is Energized and every Energized item fires on it; Voltaic's Galvanize
+// lets champion-ability damage fire them. You're Energized as the combo starts (an option), and again
+// after an `energize` step: the game's charges, mostly from moving, which isn't simulated, aren't
+// counted. They land together: Voltaic's Firmament before the attack's damage (wiki), the rest, being
+// on-hit damage, first of its on-hits, right after it; fired by an ability, all before it, Firmament
+// first.
 
+/** The Energized items, which share one charge. */
+export const ENERGIZED_ITEMS = [3087, 3094, 3095, 6699];
+/** 1 while you're Energized. */
 const ENERGY_KEY = "energized";
-const ENERGY_READY = "energized.ready";
-/** Declared by each Energized item, so the option is credited to the items rather than the shared pool. */
-const ENERGY_START = { key: "energized.start", label: "Energize charges at start (100 = ready)", default: 100, min: 0, max: 100, step: 5 };
+/** Declared by each Energized item, so the option is credited to the items rather than the shared charge. */
+const ENERGY_START: KitOption = {
+  key: "energized.ready",
+  label: "Energized at start",
+  default: 1,
+  min: 0,
+  max: 1,
+  step: 1,
+  description: "The combo's first attack (or Voltaic's Galvanize) fires your Energized items. An energize step in the combo makes you Energized again.",
+};
 
 /** Energized item procs, registered by item id. */
 const energizedProcs = new WeakMap<Sim, ((sim: Sim, push: (r: DamageRequest) => void) => void)[]>();
@@ -155,9 +167,18 @@ function registerEnergized(sim: Sim, proc: (sim: Sim, push: (r: DamageRequest) =
   energizedProcs.set(sim, list);
 }
 
+/** Energize charges full, as by moving and attacking (the combo's energize step); false without an
+ *  Energized item. */
+export function energize(sim: Sim): boolean {
+  if (!energizedProcs.get(sim)?.length) return false;
+  sim.setCounter(ENERGY_KEY, 1);
+  return true;
+}
+
 /** Every Energized item's hit, worked out before any lands (Firmament's current health is the
- *  target's before the attack): Firmament first. */
+ *  target's before the attack): Firmament first. The charge is used. */
 function fireEnergized(sim: Sim): DamageRequest[] {
+  sim.setCounter(ENERGY_KEY, 0);
   const hits: DamageRequest[] = [];
   for (const p of energizedProcs.get(sim) ?? []) p(sim, (r) => hits.push(r));
   return [...hits.filter((r) => r.beforeAttack), ...hits.filter((r) => !r.beforeAttack)];
@@ -171,41 +192,25 @@ function energizeAttack(sim: Sim, atk: AttackInfo) {
 function energyEffect(): Effect {
   /** Attacks launched Energized, until they hit. */
   const energizedAttacks = new Set<number>();
-  const gain = (sim: Sim) => {
-    const shiv = sim.items.find((i) => i.id === 3087);
-    sim.setCounter(ENERGY_KEY, Math.min(100, sim.counter(ENERGY_KEY) + 6 + (shiv ? dv(shiv, "BonusEnergizedStacks") : 0)));
-  };
   return {
-    id: "item:energized-charges",
+    id: "item:energized",
     label: "Energized",
     source: "item",
-    description: "Energize charges: +6 per attack (+9 with Statikk Shiv); the attack after reaching 100 is Energized. Movement is not simulated.",
-    limitations: ["Energize charges from movement are not simulated (only attacks)."],
+    description: "The first attack is Energized (an option), and the next after each energize step in the combo.",
+    limitations: ["Energize charges aren't counted (most come from moving, which isn't simulated): an energize step in the combo makes you Energized."],
     onStart(sim) {
-      sim.setCounter(ENERGY_KEY, sim.opt[ENERGY_START.key] ?? ENERGY_START.default);
+      sim.setCounter(ENERGY_KEY, (sim.opt[ENERGY_START.key] ?? ENERGY_START.default) ? 1 : 0);
     },
-    // The Energized proc applies on-hit, to the attack launched at 100 charges (abilities that apply
-    // on-hit consume it as they hit); charges are gained on-attack (wiki "Attack effects": Rapid
-    // Firecannon damage on-hit, stacking on-attack).
+    // The Energized proc applies on-hit, to the attack launched while Energized (wiki "Attack
+    // effects": Rapid Firecannon damage on-hit); abilities that apply on-hit use it as they hit.
     onLaunch(sim, launch) {
-      if (launch.fromAbility) return;
-      if (sim.counter(ENERGY_KEY) >= 100) {
-        energizedAttacks.add(launch.castId);
-        sim.setCounter(ENERGY_KEY, 0);
-        return;
-      }
-      gain(sim);
+      if (launch.fromAbility || !sim.counter(ENERGY_KEY)) return;
+      energizedAttacks.add(launch.castId);
+      sim.setCounter(ENERGY_KEY, 0);
     },
     onAttack(sim, atk) {
       if (atk.phantom) return;
-      if (energizedAttacks.delete(atk.castId)) return energizeAttack(sim, atk);
-      if (!atk.fromAbility) return;
-      if (sim.counter(ENERGY_KEY) >= 100) {
-        energizeAttack(sim, atk);
-        sim.setCounter(ENERGY_KEY, 0);
-        return;
-      }
-      if (triggersOnAttack(atk)) gain(sim);
+      if (energizedAttacks.delete(atk.castId) || (atk.fromAbility && sim.counter(ENERGY_KEY))) energizeAttack(sim, atk);
     },
   };
 }
@@ -644,7 +649,7 @@ const ITEMS: Record<number, Factory> = {
       item,
       sim,
       (_sim, push) => push(hit(item, "Electrospark", "magic", dv(item, "ChainDamage"), { onHit: true, aoe: true, fullOnHit: true })),
-      "Energized attacks fire chain lightning (hits the target first) for magic damage; attacks grant +9 extra Energize charges.",
+      "Energized attacks fire chain lightning (hits the target first) for magic damage.",
     ),
   6699: (item, setup, sim) => {
     let lethUntil = -Infinity;
@@ -667,9 +672,8 @@ const ITEMS: Record<number, Factory> = {
         beforeDamage(s2, inst) {
           // Firmament lands before the triggering ability, which then also gets the lethality
           // (wiki), with the other Energized hits; Galvanize is a cast instance of its own (wiki).
-          if (!isChampionAbilityDamage(inst) || s2.counter(ENERGY_KEY) < 100) return;
+          if (!isChampionAbilityDamage(inst) || !s2.counter(ENERGY_KEY)) return;
           const hits = fireEnergized(s2);
-          s2.setCounter(ENERGY_KEY, 0);
           const castId = s2.newCastId();
           for (const r of hits) s2.deal({ ...r, castId });
         },
@@ -1386,7 +1390,7 @@ export function createItemEffect(item: ItemData, setup: SetupCtx, sim: Sim): Eff
   const e = f(item, setup, sim);
   if (!e) return null;
   // The shared Energize counter is created once, alongside the first Energized item.
-  if ([3094, 3095, 3087, 6699].includes(item.id) && !sim.effects.some((x) => x.id === "item:energized-charges")) sim.effects.push(energyEffect());
+  if (ENERGIZED_ITEMS.includes(item.id) && !sim.effects.some((x) => x.id === "item:energized")) sim.effects.push(energyEffect());
   return e;
 }
 

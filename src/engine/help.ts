@@ -35,20 +35,23 @@ Combo steps (array form):
   { "type": "ability", "slot": "E", "duration": 0.5 }   // seconds, or "count": 3: see E{0.5s} below
   { "type": "attack", "count": 3, "crit": true }
   { "type": "summoner", "spell": "ignite" }
+  { "type": "energize" }                                // Energize charges full: the next attack is Energized
   { "type": "item", "item": "Hextech Rocketbelt" }
   { "type": "wait", "seconds": 1.5 }
 
-Combo shorthand: "Q W E R P AA AA*3 3AA AA! AA? Q! Q? Q:variant Q{out:1,back:0} E{0.5s} R{3} Q+bonus ignite item:rocketbelt wait wait{1.5s}"
+Combo shorthand: "Q W E R P AA AA*3 3AA AA! AA? Q! Q? Q:variant Q{out:1,back:0} E{0.5s} R{3} Q+bonus ignite energize item:rocketbelt wait wait{1.5s}"
   (crits deal their expected value; ! crits every hit of the step that can crit, ? none, follow-up attacks included)
   E{0.5s}: how long a cast lasts where the player chooses it: a channel ended early (Smolder E,
   Katarina R), a toggle left on (Karthus E), or a charge held (Sion Q{1s}, Varus Q{0s}). R{3}: how
   many shots Xerath R or Jhin R fires. Q{id:N} sets one component's hits. wait = 1 second.
+  energize: Energize charges aren't counted (most come from moving); this makes you Energized, so
+  the next attack (or Voltaic's Galvanize) fires your Energized items.
   A number past what the cast allows runs as the nearest it does, with a warning.
 
 Common options: self.hpPercent (your HP in %, for Last Stand etc.), gameTime (minutes; Gathering Storm,
 Conditioning), distance (to the target; Arcane Comet, Hexoptics C44, Horizon Focus), legend.stacks,
-darkHarvest.souls, aery.cycle, grasp.charged, firstStrike.active, suddenImpact.armed, energized.start
-(0-100), heartsteel.ready, heartsteel.stacks, glory.stacks, rodofages.stacks, yuntal.crit,
+darkHarvest.souls, aery.cycle, grasp.charged, firstStrike.active, suddenImpact.armed, energized.ready
+(0/1, default 1: Energized as the combo starts), heartsteel.ready, heartsteel.stacks, glory.stacks, rodofages.stacks, yuntal.crit,
 deadmans.stacks, luden.targets, combat.seconds (seconds already in combat when the combo starts, 0-4;
 Liandry's, Riftmaker and Haunting Guise ramp, Grasp's charge), stacks from hits just before the
 combo (default 0; 2 Kraken stacks proc on the first attack): kraken.stacks (0-2), guinsoo.stacks

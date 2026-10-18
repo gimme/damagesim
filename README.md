@@ -170,14 +170,15 @@ Only the stats of a target's items count: it never fights back, so their passive
   your attack speed and windup. The target stands at your attack range (option `distance`), so
   missiles and dashes at it fly that far at their speed (attacks too), and a grenade can land
   after the attack that follows it or before (Jhin Q then AA). Dashes without a speed on the wiki
-  take a rough duration. Attack-move and positioning are otherwise ignored. Items and runes that
-  depend on movement have options (`energized.start`, …).
+  take a rough duration. Attack-move and positioning are otherwise ignored. Energize charges,
+  mostly from moving, aren't counted: you're Energized as the combo starts (option
+  `energized.ready`, which unset starts you without), and again after each `energize` step.
 * **Empowered attacks** (Garen Q, Darius W) show the attack's normal damage as the attack's and
   only the extra as the ability's, like bonus on-hit damage (Vayne Q). The health bar names such an
   attack after the ability, listed first.
 * **On-hit vs on-attack.** Abilities the wiki lists as applying on-hit effects get item and rune
   on-hit effects. Only basic attacks and abilities that also trigger on-attack effects stack
-  Guinsoo's, Lethal Tempo, Energize charges and similar. A champion's own passive on-hit applies
+  Guinsoo's, Lethal Tempo and similar. A champion's own passive on-hit applies
   to its abilities only where the kit lists it (Warwick Q/R, Fizz Q).
 * **Crits** deal their expected value. Mark steps to fix them: `AA!`/`Q!` crit, `AA?`/`Q?` don't.
   A mark holds for everything the step causes, follow-up attacks included (Akshan's second shot,

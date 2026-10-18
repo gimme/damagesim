@@ -711,3 +711,31 @@ test("forms: keys and steps as cast, unchanged while dragged", async ({ ui }) =>
     },
   );
 });
+
+test("Energize: a key once the build has an Energized item, adding the step that makes the next attack Energized; Energized at start a parameter", async ({
+  ui,
+}) => {
+  const { step } = ui;
+  const { chips, key, steps } = parts(ui);
+  await step(
+    "Jinx with no Energized item: no Energize key",
+    () => ui.open({ champion: "Jinx", items: [3031, null, null, null, null, null], combo: "AA AA" }),
+    () => expect(key("Energize")).toHaveCount(0),
+  );
+  await step(
+    "with Rapid Firecannon, not Energized at start: the key adds energize at the end",
+    async () => {
+      await ui.open({ champion: "Jinx", items: [3094, null, null, null, null, null], options: { "energized.ready": 0 }, combo: "AA AA" });
+      await key("Energize").click();
+    },
+    async () => {
+      expect(await steps()).toEqual(["AA", "AA", "energize"]);
+      await expect(chips).toHaveCount(3);
+    },
+  );
+  await step(
+    "the parameters: Energized at start, a checkbox, off",
+    () => ui.page.locator("summary", { hasText: "parameters" }).click(),
+    () => expect(ui.page.getByRole("checkbox", { name: "Energized at start" })).not.toBeChecked(),
+  );
+});

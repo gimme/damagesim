@@ -18,7 +18,7 @@ const runes = listRunes(data);
 
 const describe = (id: number) => {
   const sim = new Sim(data, { champion: "Ahri", items: [id], combo: [] });
-  return sim.effects.find((e) => e.source === "item" && e.id !== "item:energized-charges");
+  return sim.effects.find((e) => e.source === "item" && e.id !== "item:energized");
 };
 
 let md = `# Coverage (patch ${data.meta.patch})

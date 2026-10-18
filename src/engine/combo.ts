@@ -38,6 +38,8 @@ export type ComboStep =
     }
   | { type: "item"; item: number | string }
   | { type: "summoner"; spell: "ignite" }
+  /** Energize charges full, as moving and attacking make them: the next attack is Energized. */
+  | { type: "energize" }
   | {
       type: "wait";
       /** Default 1. */
@@ -71,6 +73,7 @@ const SLOTS = new Set(["P", "Q", "W", "E", "R"]);
  *   AA  A  AA*3  3AA   basic attacks;  AA! = forced crit,  AA? = forced non-crit
  *   Q!  Q?             a cast whose hits that can crit all crit, or none do
  *   ignite             Ignite
+ *   energize           Energize charges full: the next attack fires your Energized items
  *   item:3152  item:rocketbelt   item active by id or name
  *   wait  wait{1.5s}   wait 1 second, or that many
  */
@@ -96,6 +99,10 @@ export function parseCombo(src: string): ComboStep[] {
     }
     if (/^(ignite|ign|dot)$/i.test(tok)) {
       steps.push({ type: "summoner", spell: "ignite" });
+      continue;
+    }
+    if (/^energi[sz]ed?$/i.test(tok)) {
+      steps.push({ type: "energize" });
       continue;
     }
     if ((m = /^item:(.+)$/i.exec(tok))) {
@@ -158,6 +165,8 @@ export function formatCombo(steps: ComboStep[]): string {
           return `item:${String(s.item).replace(/\s+/g, "_")}`;
         case "summoner":
           return "ignite";
+        case "energize":
+          return "energize";
         case "wait":
           return s.seconds === undefined ? "wait" : `wait{${s.seconds}s}`;
       }

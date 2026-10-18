@@ -41,11 +41,31 @@ test("Guinsoo's Rageblade: first Phantom Hit on the 7th attack doubles on-hit", 
   assert.equal(r.events.filter((e) => e.label === "Wrath").length, 8);
 });
 
-test("Energized: the attack after reaching 100 charges is Energized", () => {
-  const r = simulate(data, { champion: "Jinx", level: 11, items: ["Rapid Firecannon"], options: { "energized.start": 94 }, combo: "AA AA", target: dummy });
-  const procs = r.events.filter((e) => e.label === "Sharpshooter");
-  assert.equal(procs.length, 1);
-  assert.equal(procs[0].castId, bySource(r, "AA")[1].castId);
+test("Energized: the first attack is (or with energized.ready off, none), and the next after each energize step; charges aren't counted", () => {
+  const procs = (combo: string, options: Record<string, number> = {}) => {
+    const r = simulate(data, { champion: "Jinx", level: 11, items: ["Rapid Firecannon", "Statikk Shiv"], options, combo, target: dummy });
+    const attacks = bySource(r, "AA").map((e) => e.castId);
+    return r.events.filter((e) => e.label === "Sharpshooter").map((e) => attacks.indexOf(e.castId));
+  };
+  assert.deepEqual(procs("AA*20"), [0]);
+  assert.deepEqual(procs("AA*3", { "energized.ready": 0 }), []);
+  assert.deepEqual(procs("AA energize AA AA energize energize AA", { "energized.ready": 0 }), [1, 3]);
+  // An attack launched before the step isn't Energized by it: a ranged one in flight as it's taken.
+  assert.deepEqual(procs("AA energize", { "energized.ready": 0 }), []);
+  // Without an Energized item the step does nothing, with a warning.
+  const none = simulate(data, { champion: "Jinx", level: 11, items: ["Kraken Slayer"], combo: "energize AA", target: dummy });
+  assert.ok(none.warnings.some((w) => w.includes("no Energized item")));
+  assert.equal(formatCombo(parseCombo("AA energized Q")), "AA energize Q");
+});
+
+test("Galvanize after an energize step: the next champion-ability damage fires the Energized items, a hit landing after the step too", () => {
+  const firmament = (combo: string) => {
+    const r = simulate(data, { champion: "Talon", level: 18, items: ["Voltaic Cyclosword"], options: { "energized.ready": 0 }, combo, target: dummy });
+    return r.events.filter((e) => e.label === "Firmament").map((f) => r.events[r.events.indexOf(f) + 1].label);
+  };
+  assert.deepEqual(firmament("Q wait{0.5s} energize W"), ["Rake (out)"]);
+  // Talon's Q is instant, its hit lands as he arrives: after a step right behind it.
+  assert.deepEqual(firmament("Q energize W"), ["Noxian Diplomacy"]);
 });
 
 test("Shadowflame crits magic damage below 40% health, shown as its own hit (Cinderbloom); Abyssal Mask multiplies", () => {
@@ -201,7 +221,7 @@ test("Abilities that apply on-hit and trigger on-attack (Smolder Q): Spellblade,
     champion: "Smolder",
     level: 11,
     items: ["Essence Reaver", "Rapid Firecannon"],
-    options: { "energized.start": 100 },
+    options: { "energized.ready": 1 },
     combo: "Q",
     target: dummy,
   });
