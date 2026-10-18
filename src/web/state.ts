@@ -11,7 +11,7 @@ import type { TargetPreset } from "../engine/presets.ts";
 import { pageRunes, type RunePage } from "../engine/rune-page.ts";
 import { fitCombo, formatCombo, parseCombo } from "../engine/combo.ts";
 import { getKit } from "../kits/index.ts";
-import { FIRST, single, withBuild, type Build, type Page } from "./scenarios.ts";
+import { nameAt, single, withBuild, type Build, type Page } from "./scenarios.ts";
 
 /** Health, armor and magic resist. */
 export interface TargetStats {
@@ -503,20 +503,20 @@ const ofBuild = (s: UIState, combo: boolean) => ({ items: s.items, runes: s.rune
 
 /**
  * A page's address after the app's own: its first build's, with what they share, as if it were alone
- * (see encodeState), then each other build in its order, its code and its name (see nameCode; the
- * first build's too unless it's the one it had alone, FIRST), the one on screen after "*" unless it's
- * the first, then "!combos" where each has its own combo and "!folded" where the comparison is folded
- * away: "ahri/#5h2Kq~*3fGh.Build_2~9aB.Burst!combos". Every build after the first has its name, so
- * none of them is ever an empty part, and the address never ends in "~" or "*", which a link
- * found in text often loses.
+ * (see encodeState), then each other build in its order, its code, the one on screen's after "*"
+ * unless it's the first; then "!combos" where each has its own combo and "!folded" where the
+ * comparison is folded away. A build's name follows its code (see nameCode) where it isn't the one
+ * its place has by default (nameAt), and where a build after the first has no code, being the default
+ * build: so no part is empty, and the address never ends in "~" or "*", which a link found in text
+ * often loses. "ahri/#5h2Kq~*3fGh~9aB.Burst~.Build_4!combos".
  */
 export function encodePage(data: GameData, s: UIState, page: Page): string {
   if (page.builds.length < 2) return encodeState(data, s);
-  const named = (name: string, i: number) => (i === 0 && name === FIRST ? "" : `.${nameCode(name)}`);
   const builds = page.builds.map((b, i) => {
     const own = i === page.active ? s : withBuild(s, page, i);
     const code = i === 0 ? encodeSetup(data, own) : encodeSetup(data, { ...DEFAULT_STATE, champion: s.champion, ...ofBuild(own, page.ownCombos) });
-    return `${i > 0 && i === page.active ? "*" : ""}${code}${named(b.name, i)}`;
+    const named = b.name !== nameAt(i) || (i > 0 && !code);
+    return `${i > 0 && i === page.active ? "*" : ""}${code}${named ? `.${nameCode(b.name)}` : ""}`;
   });
   const flags = `${page.ownCombos ? "!combos" : ""}${page.folded ? "!folded" : ""}`;
   return `${championSlug(data, s.champion)}/#${builds.join("~")}${flags}`;
@@ -533,15 +533,16 @@ export function decodePage(data: GameData, address: string): { state: UIState; p
     const base = decodeSetup(data, champion, code);
     if (!base) return null;
     if (!tabs.length) return { state: base, page: single(base) };
-    const builds: Build[] = [{ id: 1, name: (name && nameOf(name)) || FIRST, items: base.items, runes: base.runes, combo: base.combo }];
+    // A build without a name has its place's in the address, kept where one before it doesn't load.
+    const builds: Build[] = [{ id: 1, name: (name && nameOf(name)) || nameAt(0), items: base.items, runes: base.runes, combo: base.combo }];
     let active = 0;
-    for (const tab of tabs) {
+    tabs.forEach((tab, k) => {
       const [, on, own, name] = /^(\*?)([^.]*)(?:\.(.*))?$/.exec(tab) ?? [];
       const b = own != null ? decodeSetup(data, champion, own) : null;
-      if (!b) continue;
+      if (!b) return;
       if (on) active = builds.length;
-      builds.push({ id: builds.length + 1, name: (name && nameOf(name)) || `Build ${builds.length + 1}`, items: b.items, runes: b.runes, combo: b.combo });
-    }
+      builds.push({ id: builds.length + 1, name: (name && nameOf(name)) || nameAt(k + 1), items: b.items, runes: b.runes, combo: b.combo });
+    });
     const many = builds.length > 1;
     const page: Page = { champion, builds, active, ownCombos: many && flags.includes("combos"), folded: many && flags.includes("folded") };
     return { state: withBuild(base, page, active), page };

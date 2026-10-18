@@ -21,7 +21,8 @@ the combo out on a timeline and reports every damage instance.
   dragged into order, renamed by a double-click and closed by × or Delete. The Result card compares them: a health bar
   each, then a table of their items, totals, time to kill, gold and damage by source against the first build; folded,
   the one on screen alone. The builds are in the address too, the first build's as if it were alone and the others
-  after it (`/ahri/#…~*….Build_2~….Burst`), so a link opens them as they are, and Back undoes Reset or a tab closed.
+  after it, a name only where it isn't its place's (`/ahri/#…~*…~….Burst`), so a link opens them as they are, and Back
+  undoes Reset or a tab closed.
 * **AI agents:** an MCP server (simulate, compare, rank items, optimize builds and combo order) and a
   CLI with `--json` output.
 * **Accuracy:** every number comes from Riot's own game files for the patch (via CommunityDragon),

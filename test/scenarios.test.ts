@@ -72,6 +72,16 @@ test("a page's address: one build's is its scenario's; more, the first's as if a
   // The first on screen: no mark; renamed, its name after its code.
   assert.match(encodePage(data, withBuild(s, page, 0), selectTab(page, 0)), /^ahri\/#\w+~\.Build_2~\w+\.Burst[^*]*$/);
   assert.match(encodePage(data, on, renameTab(page, 0, "Main")), /^ahri\/#\w+\.Main~\*\.Build_2~/);
+  // A name its place has by default: left out where the build has a code; written where it hasn't,
+  // so no part is empty; and written in another place.
+  const coded = track(page, { ...on, items: luden });
+  assert.match(encodePage(data, { ...on, items: luden }, coded), /^ahri\/#\w+~\*\w+~\w+\.Burst/);
+  assert.deepEqual(
+    decodePage(data, encodePage(data, { ...on, items: luden }, coded))!.page.builds.map((b) => b.name),
+    ["Build 1", "Build 2", "Burst. ~!*(1)"],
+  );
+  const moved = moveTab(coded, 1, 0);
+  assert.match(encodePage(data, { ...on, items: luden }, moved), /^ahri\/#\w+\.Build_2~\w*\.Build_1~/);
   const underscored = renameTab(page, 1, "Burst_poke now");
   assert.match(encodePage(data, on, underscored), /~\*\.Burst%5Fpoke_now~/);
   assert.equal(decodePage(data, encodePage(data, on, underscored))!.page.builds[1].name, "Burst_poke now");
@@ -126,8 +136,8 @@ test("the builds' codes are the setup's, version 3: energize a byte from its tab
 test("what isn't a page's address holds none; a build in it that doesn't load is left out", () => {
   for (const bad of ["", "nobody/#~.1~.2", "ahri/#hello~.1~.2"]) assert.equal(decodePage(data, bad), null, bad);
   const back = decodePage(data, "ahri/#~hello.Build_2~*.Two~.Build_3~")!;
-  // A build without a name (the address cut, or written by hand): named by its place.
-  assert.deepEqual([back.page.builds.map((b) => b.name), back.page.active], [["Build 1", "Two", "Build 3", "Build 4"], 1]);
+  // A build without a name (the address cut, or written by hand): named by its place in it.
+  assert.deepEqual([back.page.builds.map((b) => b.name), back.page.active], [["Build 1", "Two", "Build 3", "Build 5"], 1]);
   // None left: the shared state alone.
   assert.deepEqual(decodePage(data, "ahri/#~hello.Build_2!combos"), { state: DEFAULT_STATE, page: single(DEFAULT_STATE) });
 });

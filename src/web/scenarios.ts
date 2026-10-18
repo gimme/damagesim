@@ -31,23 +31,20 @@ export interface Page {
   folded: boolean;
 }
 
-/** "Build n": a name the page gives, n the lowest not taken. */
-const NUMBERED = /^Build (\d+)$/;
+/** The name a build in place i has by default ("Build 1" the first's): the one a page gives a new build, the lowest such not taken. */
+export const nameAt = (i: number) => `Build ${i + 1}`;
 
 function freeName(builds: Build[]): string {
-  const taken = new Set(builds.map((b) => NUMBERED.exec(b.name)?.[1]));
-  let n = 1;
-  while (taken.has(String(n))) n++;
-  return `Build ${n}`;
+  const taken = new Set(builds.map((b) => b.name));
+  let i = 0;
+  while (taken.has(nameAt(i))) i++;
+  return nameAt(i);
 }
 
 const buildOf = (s: UIState, id: number, name: string): Build => ({ id, name, items: s.items, runes: s.runes, combo: s.combo });
 
-/** The name of a build alone, which it keeps when a second is added. */
-export const FIRST = "Build 1";
-
 /** A page of one build: the state's. */
-export const single = (s: UIState): Page => ({ champion: s.champion, builds: [buildOf(s, 1, FIRST)], active: 0, ownCombos: false, folded: false });
+export const single = (s: UIState): Page => ({ champion: s.champion, builds: [buildOf(s, 1, nameAt(0))], active: 0, ownCombos: false, folded: false });
 
 /** The screen as it is now: the active build's items, runes and combo. */
 export function track(page: Page, s: UIState): Page {
