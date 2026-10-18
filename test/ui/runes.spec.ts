@@ -12,12 +12,23 @@ const parts = (ui: UI) => {
     picked: async (name: string) => (await attrs(group(name).locator("[aria-pressed=true]"), "aria-label")) as string[],
     tree: (i: number) => card.locator(".rune-tree").nth(i),
     treeName: (i: number) => card.locator(".rune-tree").nth(i).locator(".tree-name"),
+    /** A shard row's stat, as "+9 AP". */
+    stat: (row: string) => group(`${row} shard`).locator(".shard-text .it-value"),
+    /** A color token (--stat-ap) as the page computes it. */
+    color: (token: string) =>
+      ui.page.evaluate((t) => {
+        const el = document.body.appendChild(document.createElement("span"));
+        el.style.color = `var(${t})`;
+        const c = getComputedStyle(el).color;
+        el.remove();
+        return c;
+      }, token),
   };
 };
 
 test("rune page rules", async ({ ui }) => {
   const { step } = ui;
-  const { card, group, picked, tree, treeName } = parts(ui);
+  const { card, group, picked, tree, treeName, stat, color } = parts(ui);
   const rows = (t: string) => [1, 2, 3].map((r) => `${t} row ${r}`);
 
   await step(
@@ -33,15 +44,15 @@ test("rune page rules", async ({ ui }) => {
     },
   );
   await step(
-    "the shards: no row titles, each stat abbreviated, Ahri's adaptive force as AP in magic's color",
+    "the shards: no row titles, each stat abbreviated and in its icon's color, Ahri's adaptive force as AP",
     async () => {},
     async () => {
       for (const row of ["Offense", "Flex", "Defense"]) await expect(card.getByText(row, { exact: true })).toHaveCount(0);
       await expect(card).not.toContainText("Two, from different rows");
       await expect(group("Offense shard").locator(".shard-text")).toHaveText("+9 AP");
-      await expect(group("Offense shard").locator(".shard-text .it-value")).toHaveClass(/\bmagic\b/);
+      await expect(stat("Offense")).toHaveCSS("color", await color("--stat-ap"));
       await expect(group("Defense shard").locator(".shard-text")).toHaveText(/^\+\d+ HP \(based on level\)$/);
-      await expect(group("Defense shard").locator(".shard-text .it-value")).not.toHaveClass(/\b(magic|physical)\b/);
+      await expect(stat("Defense")).toHaveCSS("color", await color("--stat-hp"));
     },
   );
   await step(
@@ -115,10 +126,15 @@ test("rune page rules", async ({ ui }) => {
     },
     () => expect(group("Keystone").getByRole("button").last()).toHaveAttribute("aria-pressed", "true"),
   );
-  for (const row of ["Offense", "Flex", "Defense"]) {
+  // Attack speed, move speed (a white icon: plain text) and tenacity.
+  for (const [row, abbr, token] of [
+    ["Offense", "AS", "--stat-as"],
+    ["Flex", "MS", "--text-primary"],
+    ["Defense", "Tenacity & Slow Resist", "--stat-tenacity"],
+  ]) {
     let text = "";
     await step(
-      `${row} shard: another replaces it, its text with it`,
+      `${row} shard: another replaces it, its text with it, ${abbr} in its icon's color`,
       async () => {
         text = await group(`${row} shard`).locator(".shard-text").innerText();
         await group(`${row} shard`).getByRole("button").nth(1).click();
@@ -126,6 +142,8 @@ test("rune page rules", async ({ ui }) => {
       async () => {
         expect(await picked(`${row} shard`)).toEqual([(await attrs(group(`${row} shard`).getByRole("button"), "aria-label"))[1]]);
         await expect(group(`${row} shard`).locator(".shard-text")).not.toHaveText(text);
+        await expect(stat(row)).toHaveText(new RegExp(` ${abbr}$`));
+        await expect(stat(row)).toHaveCSS("color", await color(token));
       },
     );
   }
@@ -153,7 +171,7 @@ test("rune page rules", async ({ ui }) => {
     },
   );
   await step(
-    "Jinx without AP items, with Adaptive Force: AD in physical's color",
+    "Jinx without AP items, with Adaptive Force: AD in its icon's color",
     async () => {
       const search = ui.card("Champion").getByRole("searchbox", { name: "Champion" });
       await search.fill("jinx");
@@ -163,7 +181,7 @@ test("rune page rules", async ({ ui }) => {
     },
     async () => {
       await expect(group("Offense shard").locator(".shard-text")).toHaveText(/^\+[\d.]+ AD$/);
-      await expect(group("Offense shard").locator(".shard-text .it-value")).toHaveClass(/\bphysical\b/);
+      await expect(stat("Offense")).toHaveCSS("color", await color("--stat-ad"));
     },
   );
   await step(

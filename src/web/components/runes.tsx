@@ -12,15 +12,16 @@ import { choosePrimary, chooseSecondary, pickRune, type RunePage } from "../../e
 import type { RuneData, RuneTreeData } from "../../engine/data-types.ts";
 
 const TREES = DATA.runePage.trees;
-/** A shard's stat as its row shows it: abbreviated, AD and AP in their damage type's color. */
-const SHARD_STATS: Record<string, { abbr: string; type?: "physical" | "magic" }> = {
-  "Attack Damage": { abbr: "AD", type: "physical" },
-  "Ability Power": { abbr: "AP", type: "magic" },
-  "Attack Speed": { abbr: "AS" },
+/** A shard's stat as its row shows it: abbreviated, in the color of its shard's icon (--stat-*); those of
+ *  ability haste and move speed are white, so they're plain text. */
+const SHARD_STATS: Record<string, { abbr: string; color?: string }> = {
+  "Attack Damage": { abbr: "AD", color: "--stat-ad" },
+  "Ability Power": { abbr: "AP", color: "--stat-ap" },
+  "Attack Speed": { abbr: "AS", color: "--stat-as" },
   "Ability Haste": { abbr: "AH" },
   "Move Speed": { abbr: "MS" },
-  Health: { abbr: "HP" },
-  "Tenacity and Slow Resist": { abbr: "Tenacity & Slow Resist" },
+  Health: { abbr: "HP", color: "--stat-hp" },
+  "Tenacity and Slow Resist": { abbr: "Tenacity & Slow Resist", color: "--stat-tenacity" },
 };
 const treeRow = (tree: string, row: number) => DATA.runes.filter((r) => r.tree === tree && r.row === row);
 /** Sets --tree to a tree's color, for what's inside. */
@@ -54,7 +55,7 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
     if (!stat) return text;
     return (
       <>
-        <span className={`it-value ${stat.type ?? ""}`}>
+        <span className="it-value" style={stat.color ? { color: `var(${stat.color})` } : undefined}>
           {m[1]} {stat.abbr}
         </span>
         {m[3] && <span className="muted"> {m[3]}</span>}

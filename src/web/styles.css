@@ -1716,6 +1716,32 @@ details summary {
   --tree-resolve: #a1d586;
   --tree-inspiration: #49aab9;
 }
+/* A shard's stat in its icon's color (assets/perks/statmods): AP #99fdf7, AD #bd7d4a, attack speed
+   #ecc054, health #20985d, tenacity #8445ff. Darker on a light page; on a dark one the icon's own,
+   lighter where it falls short (>= 4.5:1 on --surface and --surface-2). */
+:root {
+  --stat-ap: #027b74;
+  --stat-ad: #986237;
+  --stat-as: #8d6910;
+  --stat-hp: #1a7d4c;
+  --stat-tenacity: #8140ff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --stat-ap: #99fdf7;
+    --stat-ad: #bd7d4a;
+    --stat-as: #ecc054;
+    --stat-hp: #219c60;
+    --stat-tenacity: #9d6bff;
+  }
+}
+:root[data-theme="dark"] {
+  --stat-ap: #99fdf7;
+  --stat-ad: #bd7d4a;
+  --stat-as: #ecc054;
+  --stat-hp: #219c60;
+  --stat-tenacity: #9d6bff;
+}
 
 /* A rune page as in the client: the primary tree beside the secondary one, each a column of rows
    whose picks are in color and the rest grey. */
