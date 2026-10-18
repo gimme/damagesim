@@ -568,11 +568,12 @@ export function loadSavedPage(data: GameData): { state: UIState; page: Page } | 
 /** Keeps the page's address after the app's own (see encodePage) for a reload, and for its champion, for when it's picked again (see pickChampion). */
 export function saveState(s: UIState, address: string): void {
   const all = remembered();
+  // Remembered first, so that where storage is unavailable it is for the session.
+  const changed = all[s.champion] !== address;
+  all[s.champion] = address;
   try {
     localStorage.setItem(STORAGE_KEY, address);
-    if (all[s.champion] === address) return;
-    all[s.champion] = address;
-    localStorage.setItem(MEMORY_KEY, JSON.stringify(all));
+    if (changed) localStorage.setItem(MEMORY_KEY, JSON.stringify(all));
   } catch {
     // storage unavailable: remembered for the session
   }

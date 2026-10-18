@@ -12,6 +12,7 @@ import {
   encodeSetup,
   encodeState,
   pickChampion,
+  saveState,
   resetState,
   scenarioKey,
   toScenario,
@@ -92,6 +93,8 @@ test("the bot lane role quest's boots slot comes back, empty or with boots; the 
 
 test("the items Item value leaves out are the setup's: a champion picked for the first time keeps them, one picked again has its own, Reset clears them", () => {
   const ahri: UIState = { ...DEFAULT_STATE, excluded: [3089, 4645] };
+  // Kept as the page keeps the one on screen, as it changes.
+  saveState(ahri, encodeState(data, ahri));
   const zed = pickChampion(data, ahri, "Zed");
   assert.deepEqual(zed.excluded, [3089, 4645]);
   assert.deepEqual(pickChampion(data, { ...zed, excluded: [3157] }, "Ahri").excluded, [3089, 4645]);
