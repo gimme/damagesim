@@ -1,21 +1,40 @@
-// Item value: what each legendary or pair of boots would add to the current build, ranked by damage
-// per gold or total damage, as a list or a gold-vs-damage map. Recomputed live as the build changes.
+// Item value: what each legendary or pair of boots would add to the current build, or the best sets
+// of several to buy together (item-sets.tsx), ranked by damage per gold or total damage, as a list or
+// a gold-vs-damage map. Recomputed live as the build changes, in the ranking worker (ranking.ts).
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 import { DATA } from "../data.ts";
 import { BootsGlyph, Icon, ItemIcon, sourceMark } from "./icons.tsx";
 import { ItemTip, useHoverCard } from "./hover.tsx";
 import { useItemSlots } from "./drag.tsx";
 import { Card, fmt } from "./common.tsx";
 import { GoldScatter, useTooltip, type GoldPoint } from "./charts.tsx";
-import { rankItems, defaultCandidates } from "../../engine/analysis.ts";
+import { CountPicker, Excluded, SetItems, setKey, setList, setName } from "./item-sets.tsx";
+import { defaultCandidates, type ItemSet, type SearchProgress } from "../../engine/analysis.ts";
 import type { Scenario, Sim } from "../../engine/sim.ts";
 import { buildItems, type Set, type UIState } from "../state.ts";
-import { BOOTS_SLOT, buyItem, isBoots, isQuestBoots, slotFits } from "../slots.ts";
+import { useRanking, type ItemRanking } from "../ranking.ts";
+import { BOOTS_SLOT, buyItem, buyItems, isBoots, isQuestBoots, slotFits } from "../slots.ts";
 
-type Ranking = ReturnType<typeof rankItems>;
-type Row = Ranking["items"][number];
+type Row = ItemRanking["items"][number];
+/** A row of the list: an item, or a set of items. */
+type Entry = Row | ItemSet;
 type By = "perGold" | "damage";
+
+const isSet = (r: Entry): r is ItemSet => "items" in r;
+/** A row's own hits, named by their item. */
+const hitsOf = (r: Entry) => (isSet(r) ? r.itemHits : r.itemHits.map((h) => ({ ...h, source: `item:${r.id}` })));
 
 const DEFAULT_IDS = defaultCandidates(DATA).map((i) => i.id);
 const SHOWN = 8;
@@ -31,19 +50,19 @@ const signed = (v: number) => `${v >= 0 ? "+" : "−"}${fmt(Math.abs(v))}`;
 const PARTS = ["base", "effect", "procs", "lost"] as const;
 type Part = (typeof PARTS)[number];
 
-/** A row's bar: a segment per entry of its card, the base, each of the item's hits and each proc,
+/** A row's bar: a segment per entry of its card, the base, each of the items' hits and each proc,
  *  largest first within each part; a negligible one is left out. */
-function segments(r: Row): { part: Part; key: string; damage: number }[] {
+function segments(r: Entry): { part: Part; key: string; damage: number }[] {
   return [
     { part: "base" as const, key: "base", damage: r.baseDamage },
-    ...r.itemHits.map((h) => ({ part: "effect" as const, key: `effect|${h.name}`, damage: h.damage })),
+    ...hitsOf(r).map((h) => ({ part: "effect" as const, key: `effect|${h.source}|${h.name}`, damage: h.damage })),
     ...r.procs.map((p) => ({ part: "procs" as const, key: `procs|${p.source}|${p.name}`, damage: p.damage })),
   ].filter((s) => s.damage > 0.5);
 }
 
-/** What the bar's segments add up to, before what the item takes away. */
-const added = (r: Row) => r.baseDamage + r.itemDamage + r.procDamage;
-const loses = (r: Row) => r.lostDamage <= -0.5;
+/** What the bar's segments add up to, before what the items take away. */
+const added = (r: Entry) => r.baseDamage + r.itemDamage + r.procDamage;
+const loses = (r: Entry) => r.lostDamage <= -0.5;
 
 const Swatch = ({ part, gap }: { part: Part; gap?: boolean }) => <span className={`swatch iv-${part}`} style={gap ? { marginRight: 6 } : undefined} />;
 
@@ -64,6 +83,10 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   const [by, setBy] = useState<By>("perGold");
   const [view, setView] = useState<"list" | "map">("list");
   const [showAll, setShowAll] = useState(false);
+  // How many items to rank together: sets of more than one fill empty slots, as many as there are.
+  const [count, setCount] = useState(1);
+  const empty = state.items.filter((x) => x == null).length;
+  const size = Math.max(1, Math.min(count, empty));
   // The slot being ranked: the first empty one, or the one picked, empty or with an item to reconsider.
   const [chosen, setChosen] = useState<number | null>(null);
   // An item sold, here or in Items, the slot it left is the one ranked, for what to buy there; several
@@ -86,53 +109,74 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   // A full build reconsiders its last item, the boots slot's aside.
   const firstEmpty = state.items.findIndex((x) => x == null);
   const slot = chosen != null && chosen < state.items.length ? chosen : firstEmpty >= 0 ? firstEmpty : Math.min(state.items.length, BOOTS_SLOT) - 1;
-  const current = state.items[slot];
+  const current = size === 1 ? state.items[slot] : null;
   const bootsSlot = state.items.length > BOOTS_SLOT;
-  const forBoots = bootsSlot && slot === BOOTS_SLOT;
+  const forBoots = bootsSlot && slot === BOOTS_SLOT && size === 1;
 
-  const job = useMemo(() => {
+  // What can be bought: the tier 3 boots only with their setting, and nothing excluded.
+  const pool = useMemo(
+    () => DEFAULT_IDS.filter((id) => (state.settings.questBoots || !isQuestBoots(id)) && !state.excluded.includes(id)),
+    [state.settings.questBoots, state.excluded],
+  );
+  const itemsJob = useMemo(() => {
+    if (size > 1) return null;
     const base: Scenario = { ...scenario, items: buildItems(state.items.map((x, i) => (i === slot ? null : x))) };
     // An empty slot ranks what to buy next, as the shop places it: a pair of boots in the boots slot, an
     // upgrade in place of what it's built from. In place of an item, what could go in its slot: with
-    // the boots slot, boots in it and the rest in the others.
-    const pool = DEFAULT_IDS.filter(
-      (id) => (state.settings.questBoots || !isQuestBoots(id)) && ((current == null && !forBoots) || slotFits(state.items, slot, id)),
-    );
-    const candidates = current != null && !pool.includes(current) ? [...pool, current] : pool.length < DEFAULT_IDS.length ? pool : undefined;
-    return { key: JSON.stringify([base, candidates]), base, candidates };
-  }, [scenario, state.items, slot, current, state.settings.questBoots]);
+    // the boots slot, boots in it and the rest in the others; the item itself too, excluded or not.
+    const fit = pool.filter((id) => (current == null && !forBoots) || slotFits(state.items, slot, id));
+    const candidates = current != null && !fit.includes(current) ? [...fit, current] : fit.length < DEFAULT_IDS.length ? fit : undefined;
+    return { kind: "items" as const, base, candidates };
+  }, [scenario, state.items, slot, current, pool, size]);
+  // Sets fill the build's empty slots, a pair of boots the boots slot.
+  const setsJob = useMemo(
+    () =>
+      size > 1
+        ? { kind: "sets" as const, base: scenario, size, slots: state.items.length, candidates: pool.length < DEFAULT_IDS.length ? pool : undefined }
+        : null,
+    [scenario, state.items.length, pool, size],
+  );
 
-  // ~100 simulations: debounced so typing in the combo box stays responsive; the last result stays
-  // on screen (dimmed) until the new one is ready.
-  const [res, setRes] = useState<{ key: string; ranking: Ranking | null; error?: string } | null>(null);
-  useEffect(() => {
-    const t = setTimeout(
-      () => {
-        try {
-          setRes({ key: job.key, ranking: rankItems(DATA, job.base, { candidates: job.candidates, limit: Infinity }) });
-        } catch (e) {
-          setRes({ key: job.key, ranking: null, error: (e as Error).message });
-        }
-      },
-      res ? 250 : 0,
-    );
-    return () => clearTimeout(t);
-  }, [job.key]);
-  const stale = res?.key !== job.key;
+  // Simulated in the worker, a moment after the job last changed, so typing in the combo box doesn't
+  // start a ranking on every key; the last result stays on screen (dimmed) until the new one is ready.
+  // ~100 simulations for the next item, some 600 to 4,000 for a set.
+  const items = useRanking(itemsJob, 250);
+  const sets = useRanking(setsJob, 250);
+  const ranked = size > 1 ? sets : items;
 
-  const ranking = res?.ranking;
+  const ranking = items.result;
   const rows = useMemo(() => {
     // In place of an item, not an upgrade of another.
-    const useful = (ranking?.items ?? []).filter((r) => (r.gain > 0.5 || r.id === current) && !(current != null && r.replaces));
+    const useful = (ranking?.items ?? []).filter(
+      (r) => (r.gain > 0.5 || r.id === current) && !(current != null && r.replaces) && (r.id === current || !state.excluded.includes(r.id)),
+    );
     useful.sort((a, b) => (by === "perGold" ? b.gainPerGold - a.gainPerGold : b.gain - a.gain));
     return useful;
-  }, [ranking, by, current]);
+  }, [ranking, by, current, state.excluded]);
   const lead = useMemo(() => standouts(rows), [rows]);
+  // A set with an item just excluded goes at once, before the ranking without it is ready.
+  const setRows = useMemo(() => {
+    const kept = (sets.result?.sets ?? []).filter((s) => !s.items.some((x) => state.excluded.includes(x.id)));
+    return kept.sort((a, b) => (by === "perGold" ? b.gainPerGold - a.gainPerGold : b.gain - a.gain));
+  }, [sets.result, by, state.excluded]);
+  const shown: Entry[] = size > 1 ? setRows : rows;
 
   const pick = (id: number) => {
     set((s) => ({ ...s, items: buyItem(s.items, slot, id) }));
     setChosen(null);
   };
+  const buySet = (s: ItemSet) => {
+    set((st) => ({
+      ...st,
+      items: buyItems(
+        st.items,
+        s.items.map((x) => x.id),
+      ),
+    }));
+    setChosen(null);
+  };
+  const buy = (r: Entry) => (isSet(r) ? buySet(r) : pick(r.id));
+  const exclude = (id: number) => set((s) => (s.excluded.includes(id) ? s : { ...s, excluded: [...s.excluded, id] }));
 
   const hover = useHoverCard();
   const slots = useItemSlots(state.items, (fn) => set((s) => ({ ...s, items: fn(s.items) })), { onPick: hover.hide, onSell: hover.hide });
@@ -145,6 +189,8 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
         : bootsSlot && isBoots(r.id)
           ? "in the boots slot"
           : `in slot ${slot + 1}`;
+  const buyLabel = (r: Entry) =>
+    isSet(r) ? `Buy ${setList(r)}${r.replaces ? `, in place of ${r.replaces.map((x) => x.item).join(" and ")}` : ""}` : `Buy ${r.item} ${slotLabel(r)}`;
 
   return (
     <Card
@@ -161,7 +207,8 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
       }
     >
       {/* The slot being ranked, picked from the build's slots, which are also the build's inventory:
-          an item is dragged to another slot, and sold with its ✕ */}
+          an item is dragged to another slot, and sold with its ✕. A set fills the empty ones; a slot
+          picked then ranks one item for it. */}
       <div className="iv-for">
         <div
           className="slots compact"
@@ -172,11 +219,16 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
         >
           {state.items.map((id, i) => {
             const name = id != null ? DATA.items[id]?.name : null;
-            const foot = i === slot ? undefined : "Click to rank what could take its place.";
+            const ranks = size === 1 && i === slot;
+            const foot = ranks ? undefined : "Click to rank what could take its place.";
+            const pickSlot = () => {
+              setChosen(i);
+              setCount(1);
+            };
             return (
               <div
                 key={i}
-                aria-pressed={i === slot}
+                aria-pressed={ranks}
                 aria-label={
                   bootsSlot && i === BOOTS_SLOT
                     ? name
@@ -186,14 +238,14 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
                       ? `In place of ${name}. Arrow keys move it, Delete sells it.`
                       : `Next item, in slot ${i + 1}`
                 }
-                title={id == null && i !== slot ? `Rank ${bootsSlot && i === BOOTS_SLOT ? "boots" : "items"} for this slot` : undefined}
+                title={id == null && !ranks ? `Rank ${bootsSlot && i === BOOTS_SLOT ? "boots" : "items"} for this slot` : undefined}
                 {...slots.slot(i, {
                   ...(id != null ? hover.bind(<ItemTip id={id} sim={sim} foot={foot} />) : {}),
-                  onClick: () => setChosen(i),
+                  onClick: pickSlot,
                   onKeyDown: (e: KeyboardEvent) => {
                     if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
                     e.preventDefault();
-                    setChosen(i);
+                    pickSlot();
                   },
                 })}
               >
@@ -205,7 +257,9 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
           {slots.vacated}
         </div>
         <div className="iv-caption small secondary">
-          {current != null ? (
+          {size > 1 ? (
+            `Next ${size} items`
+          ) : current != null ? (
             <>
               In place of <strong>{DATA.items[current]?.name}</strong>
             </>
@@ -215,59 +269,89 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
             "Next item"
           )}
         </div>
+        <CountPicker count={size} slots={state.items.length} empty={empty} onChange={setCount} />
       </div>
-      {hover.node}
-      {res?.error && <div className="notice warn small">{res.error}</div>}
-      {!res && <div className="muted small">Simulating…</div>}
-      {ranking && (
-        <div className="iv-body" style={{ opacity: stale ? 0.55 : 1 }} aria-busy={stale}>
-          {!rows.length ? (
-            <div className="muted small">
-              No {forBoots ? "pair of boots" : bootsSlot && current != null ? "legendary item" : "legendary item or pair of boots"} adds damage to this combo.
-            </div>
-          ) : view === "list" ? (
-            <RankList
-              rows={rows}
-              shown={SHOWN}
-              expanded={showAll}
-              onExpand={setShowAll}
-              by={by}
-              setBy={setBy}
-              current={current}
-              lead={lead}
-              slotLabel={slotLabel}
-              onPick={pick}
-              sim={sim}
-              champion={state.champion}
-            />
-          ) : (
-            <GoldScatter
-              points={rows.map((r): GoldPoint => ({
-                id: r.id,
-                label: r.item,
-                gold: r.gold,
-                gain: r.gain,
-                perGold: r.gainPerGold,
-                highlight: r.id === current,
-                standout: lead.has(r.id),
-              }))}
-              tip={(p, touch) => (
-                <RowTip
-                  row={rows.find((r) => r.id === p.id)!}
-                  current={current}
-                  champion={state.champion}
-                  view="map"
-                  action={p.id === current || touch ? undefined : "Click to buy"}
-                />
-              )}
-              onPick={(p) => pick(p.id)}
-            />
-          )}
-        </div>
+      {state.excluded.length > 0 && (
+        <Excluded
+          ids={state.excluded}
+          onInclude={(id) => set((s) => ({ ...s, excluded: s.excluded.filter((x) => x !== id) }))}
+          onClear={() => {
+            hover.hide();
+            set((s) => ({ ...s, excluded: [] }));
+          }}
+          bind={(id) => hover.bind(<ItemTip id={id} sim={sim} foot="Click to put it back in the ranking." />)}
+        />
       )}
+      {hover.node}
+      {ranked.error && <div className="notice warn small">{ranked.error}</div>}
+      <div className="iv-results">
+        {ranked.progress && <Progress {...ranked.progress} />}
+        {!ranked.result && !ranked.error && <div className="muted small">Simulating…</div>}
+        {ranked.result && (
+          <div className="iv-body" style={{ opacity: ranked.stale ? 0.55 : 1 }} aria-busy={ranked.stale}>
+            {!shown.length ? (
+              <div className="muted small">
+                {size > 1
+                  ? `No set of ${size} items adds damage to this combo.`
+                  : `No ${forBoots ? "pair of boots" : bootsSlot && current != null ? "legendary item" : "legendary item or pair of boots"} adds damage to this combo.`}
+              </div>
+            ) : view === "list" ? (
+              <RankList
+                rows={shown}
+                shown={SHOWN}
+                expanded={showAll}
+                onExpand={setShowAll}
+                by={by}
+                setBy={setBy}
+                current={current}
+                lead={lead}
+                buyLabel={buyLabel}
+                onBuy={buy}
+                onExclude={exclude}
+                sim={sim}
+                champion={state.champion}
+              />
+            ) : (
+              <GoldScatter
+                points={shown.map((r, k): GoldPoint =>
+                  isSet(r)
+                    ? { id: k, label: setName(r), gold: r.gold, gain: r.gain, perGold: r.gainPerGold }
+                    : {
+                        id: r.id,
+                        label: r.item,
+                        gold: r.gold,
+                        gain: r.gain,
+                        perGold: r.gainPerGold,
+                        highlight: r.id === current,
+                        standout: lead.has(r.id),
+                      },
+                )}
+                tip={(p, touch) => {
+                  const r = size > 1 ? setRows[p.id] : rows.find((x) => x.id === p.id)!;
+                  const mine = !isSet(r) && r.id === current;
+                  return <RowTip row={r} current={current} champion={state.champion} view="map" action={mine || touch ? undefined : buyHint(r)} />;
+                }}
+                onPick={(p) => buy(size > 1 ? setRows[p.id] : rows.find((x) => x.id === p.id)!)}
+              />
+            )}
+          </div>
+        )}
+      </div>
     </Card>
   );
 }
+
+/** How far a search for sets has got, in simulations. */
+function Progress({ done, total }: SearchProgress) {
+  return (
+    <div className="iv-progress" role="progressbar" aria-label="Simulating" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}>
+      <span style={{ width: `${(done / total) * 100}%` }} />
+    </div>
+  );
+}
+
+/** What a click on a row, or a dot on the map, does. */
+const buyHint = (r: Entry) => (isSet(r) ? `Click to buy all ${r.items.length}` : "Click to buy");
 
 /** Sizes the item column for every item that can be ranked, listed or not, so the bars stay put as the
  *  list expands and collapses and as the slot or build changes. */
@@ -284,6 +368,21 @@ const SIZER = (
   </div>
 );
 
+/** Sizes the item column for a set's icons, which take less room than a name. */
+const setSizer = (n: number) => (
+  <div className="iv-row iv-sizer" aria-hidden>
+    <span className="iv-item">
+      <span className="iv-set">
+        {Array.from({ length: n }, (_, k) => (
+          <span key={k} className="iv-set-item">
+            <span className="icon sm" />
+          </span>
+        ))}
+      </span>
+    </span>
+  </div>
+);
+
 function RankList({
   rows: all,
   shown,
@@ -293,12 +392,13 @@ function RankList({
   setBy,
   current,
   lead,
-  slotLabel,
-  onPick,
+  buyLabel,
+  onBuy,
+  onExclude,
   sim,
   champion,
 }: {
-  rows: Row[];
+  rows: Entry[];
   shown: number;
   expanded: boolean;
   onExpand: (expanded: boolean) => void;
@@ -306,15 +406,17 @@ function RankList({
   setBy: (by: By) => void;
   current: number | null;
   lead: ReadonlySet<number>;
-  slotLabel: (r: Row) => string;
-  onPick: (id: number) => void;
+  buyLabel: (r: Entry) => string;
+  onBuy: (r: Entry) => void;
+  onExclude: (id: number) => void;
   sim: Sim | null;
   champion: string;
 }) {
   const tt = useTooltip();
+  const isCurrent = (r: Entry) => !isSet(r) && r.id === current;
   // Under the top rows, a line with Show all / Show less, then the rest: collapsed, only the current
   // item, when it isn't in the top rows. Rows come and go only under the line, so it stays in place.
-  const rank = all.findIndex((r) => r.id === current) + 1;
+  const rank = all.findIndex(isCurrent) + 1;
   const top = all.slice(0, shown);
   const rest = expanded ? all.slice(shown) : rank > shown ? [all[rank - 1]] : [];
   // The legend has the parts the bars listed have.
@@ -322,31 +424,59 @@ function RankList({
   const hidden = all.length - shown - (rank > shown ? 1 : 0);
   // A bar is as long as what the item adds, its end struck out by what it takes away: its solid part
   // ends at its number, per gold or in all.
-  const perUnit = (r: Row) => (by === "perGold" ? (r.gold > 0 ? 1000 / r.gold : 0) : 1);
+  const perUnit = (r: Entry) => (by === "perGold" ? (r.gold > 0 ? 1000 / r.gold : 0) : 1);
   const max = Math.max(1e-9, ...all.map((r) => Math.max(added(r) * perUnit(r), by === "perGold" ? r.gainPerGold : r.gain)));
-  // A click on a row buys its item. The item shows its details, the rest of the row where its damage
-  // comes from; a card from hovering says a click buys, one from a tap has the Buy button.
-  const show = (e: { clientX: number; clientY: number; pointerType?: string }, r: Row, col: string, how: "hover" | "hold" | "tap") => {
+  // A click on a row buys its item, or its set. The item shows its details, the rest of the row where
+  // its damage comes from; a card from hovering says a click buys, one from a tap has the Buy button.
+  // A set's items show theirs, and a click on one leaves it out of the ranking, as the Exclude button
+  // of its card from a tap does.
+  const show = (e: { clientX: number; clientY: number; pointerType?: string }, r: Entry, at: Spot, how: "hover" | "hold" | "tap") => {
+    if (at.item != null) {
+      const id = at.item;
+      const exclude =
+        how === "hold" ? null : how === "tap" ? (
+          <button
+            className="btn small iv-tip-buy"
+            aria-label={`Exclude ${DATA.items[id]?.name} from the ranking`}
+            onClick={(ev) => {
+              ev.stopPropagation();
+              close();
+              onExclude(id);
+            }}
+          >
+            Exclude
+          </button>
+        ) : (
+          <div className="tt-foot">Click to leave it out of the ranking</div>
+        );
+      return tt.show(
+        e,
+        <>
+          <ItemTip id={id} sim={sim} />
+          {exclude}
+        </>,
+      );
+    }
     const buy =
-      r.id === current || how === "hold" ? null : how === "tap" ? (
+      isCurrent(r) || how === "hold" ? null : how === "tap" ? (
         <button
           className="btn small primary iv-tip-buy"
-          aria-label={`Buy ${r.item} ${slotLabel(r)}`}
+          aria-label={buyLabel(r)}
           onClick={(ev) => {
             ev.stopPropagation();
             close();
-            onPick(r.id);
+            onBuy(r);
           }}
         >
-          Buy
+          {isSet(r) ? `Buy all ${r.items.length}` : "Buy"}
         </button>
       ) : (
-        <div className="tt-foot">Click to buy</div>
+        <div className="tt-foot">{buyHint(r)}</div>
       );
     tt.show(
       e,
       <>
-        {col === "iv-item" ? <ItemTip id={r.id} sim={sim} /> : <RowTip row={r} current={current} champion={champion} view="list" />}
+        {at.col === "iv-item" && !isSet(r) ? <ItemTip id={r.id} sim={sim} /> : <RowTip row={r} current={current} champion={champion} view="list" />}
         {buy}
       </>,
     );
@@ -369,13 +499,13 @@ function RankList({
     setTapped(null);
     tt.hide();
   };
-  const tap = (e: PointerEvent<HTMLElement>, r: Row) => {
-    const col = nearestColumn(e);
-    const key = `${r.id} ${col}`;
+  const tap = (e: PointerEvent<HTMLElement>, r: Entry) => {
+    const at = spot(e, r);
+    const key = `${keyOf(r)} ${at.col} ${at.item ?? ""}`;
     if (tapped === key) close();
     else {
       setTapped(key);
-      show(e, r, col, "tap");
+      show(e, r, at, "tap");
     }
   };
   useEffect(() => {
@@ -384,74 +514,99 @@ function RankList({
     document.addEventListener("pointerdown", outside);
     return () => document.removeEventListener("pointerdown", outside);
   }, [tapped]);
+  // A set's item clicked: left out of the ranking, and not the row's click, which buys the set. A tap
+  // opens its card instead; a keyboard's click (detail 0) is a click.
+  const excludeClick = (e: MouseEvent, id: number) => {
+    e.stopPropagation();
+    if (e.detail > 0 && pointer.current === "touch") return;
+    close();
+    onExclude(id);
+  };
   const sortBy = (key: By, label: string) => (
     <button className="iv-sort" onClick={() => setBy(key)}>
       {by === key && <Chevron />}
       {label}
     </button>
   );
-  const row = (r: Row) => {
-    const isCurrent = r.id === current;
+  const row = (r: Entry) => {
+    const mine = isCurrent(r);
     const width = (Math.max(0, added(r) * perUnit(r)) / max) * 100;
     const struck = added(r) > 0 ? Math.min(1, -r.lostDamage / added(r)) * 100 : 0;
-    const ahead = lead.has(r.id);
-    const item = (
-      <>
-        <span className="iv-icon">
-          <ItemIcon id={r.id} size="sm" />
-          {ahead && <Sparkle className="iv-spark" />}
-        </span>
-        <span className="iv-name">{r.item}</span>
-        {isCurrent && !expanded && rank > shown && <span className="iv-tag">#{rank}</span>}
-      </>
+    const ahead = !isSet(r) && lead.has(r.id);
+    const bars = (
+      <span className="iv-bars" style={{ width: `${width}%` }}>
+        {segments(r).map((s) => (
+          <span key={s.key} className={`iv-bar iv-${s.part}`} style={{ flexGrow: s.damage }} />
+        ))}
+        {loses(r) && <span className="iv-struck iv-lost" style={{ width: `${struck}%` }} />}
+      </span>
     );
+    let item: ReactNode;
+    if (isSet(r)) item = <SetItems set={r} onClick={excludeClick} />;
+    else {
+      const named = (
+        <>
+          <span className="iv-icon">
+            <ItemIcon id={r.id} size="sm" />
+            {ahead && <Sparkle className="iv-spark" />}
+          </span>
+          <span className="iv-name">{r.item}</span>
+          {mine && !expanded && rank > shown && <span className="iv-tag">#{rank}</span>}
+        </>
+      );
+      item = mine ? (
+        named
+      ) : (
+        // For the keyboard; its click reaches the row, which buys.
+        <button type="button" className="iv-buy" aria-label={`${buyLabel(r)}${ahead ? ", far more damage per gold than the rest" : ""}`}>
+          {named}
+        </button>
+      );
+    }
     return (
       <div
-        key={r.id}
+        key={keyOf(r)}
         role="row"
-        aria-current={isCurrent || undefined}
-        className={`iv-row ${isCurrent ? "current" : ""} ${ahead ? "standout" : ""}`}
+        aria-current={mine || undefined}
+        className={`iv-row ${mine ? "current" : ""} ${ahead ? "standout" : ""}`}
         onPointerDown={(e) => {
           pointer.current = e.pointerType;
           if (e.pointerType !== "touch") return;
           const at = { clientX: e.clientX, clientY: e.clientY, pointerType: e.pointerType };
-          const col = nearestColumn(e);
+          const where = spot(e, r);
           clearTimeout(hold.current.timer);
           hold.current.timer = setTimeout(() => {
             hold.current.on = true;
             setTapped(null);
-            show(at, r, col, "hold");
+            show(at, r, where, "hold");
           }, 200);
         }}
         onPointerMove={(e) => {
           if (e.pointerType !== "touch") {
             setTapped(null);
-            show(e, r, nearestColumn(e), "hover");
-          } else if (hold.current.on) show(e, r, nearestColumn(e), "hold");
+            show(e, r, spot(e, r), "hover");
+          } else if (hold.current.on) show(e, r, spot(e, r), "hold");
         }}
         onPointerLeave={(e) => e.pointerType !== "touch" && tt.hide()}
         onPointerUp={(e) => e.pointerType === "touch" && !hold.current.on && tap(e, r)}
         // A keyboard's click (detail 0) on the item's button buys too.
-        onClick={(e) => !isCurrent && (e.detail === 0 || pointer.current !== "touch") && onPick(r.id)}
+        onClick={(e) => !mine && (e.detail === 0 || pointer.current !== "touch") && onBuy(r)}
       >
         <span role="cell" className="iv-item">
-          {isCurrent ? (
-            item
-          ) : (
-            // For the keyboard; its click reaches the row, which buys.
-            <button type="button" className="iv-buy" aria-label={`Buy ${r.item} ${slotLabel(r)}${ahead ? ", far more damage per gold than the rest" : ""}`}>
-              {item}
+          {item}
+        </span>
+        {isSet(r) ? (
+          // A set's items are buttons that leave them out: its bar is its button for the keyboard.
+          <span role="cell" className="iv-track">
+            <button type="button" className="iv-buy" aria-label={buyLabel(r)}>
+              {bars}
             </button>
-          )}
-        </span>
-        <span role="cell" className="iv-track" aria-hidden>
-          <span className="iv-bars" style={{ width: `${width}%` }}>
-            {segments(r).map((s) => (
-              <span key={s.key} className={`iv-bar iv-${s.part}`} style={{ flexGrow: s.damage }} />
-            ))}
-            {loses(r) && <span className="iv-struck iv-lost" style={{ width: `${struck}%` }} />}
           </span>
-        </span>
+        ) : (
+          <span role="cell" className="iv-track" aria-hidden>
+            {bars}
+          </span>
+        )}
         <span role="cell" className={`iv-pg num ${by === "perGold" ? "on" : ""}`}>
           {fmt(r.gainPerGold)}
         </span>
@@ -467,7 +622,7 @@ function RankList({
         <div
           className="iv-grid"
           role="table"
-          aria-label="Items ranked by the damage they add"
+          aria-label={isSet(all[0]) ? "Sets of items ranked by the damage they add" : "Items ranked by the damage they add"}
           onPointerCancel={endHold}
           onTouchEnd={endHold}
           onTouchCancel={endHold}
@@ -500,7 +655,7 @@ function RankList({
               </button>
             </span>
           </div>
-          {SIZER}
+          {isSet(all[0]) ? setSizer(all[0].items.length) : SIZER}
           {top.map(row)}
           {hidden > 0 && (
             <div role="row" className="iv-more-row">
@@ -526,6 +681,22 @@ function RankList({
   );
 }
 
+const keyOf = (r: Entry) => (isSet(r) ? setKey(r) : String(r.id));
+
+/** Where on a row the pointer is: the column, and on a set's items, the item it's over. */
+type Spot = { col: string; item?: number };
+
+function spot(e: PointerEvent<HTMLElement>, r: Entry): Spot {
+  const col = nearestColumn(e);
+  if (!isSet(r) || col !== "iv-item") return { col };
+  // Over the item's button: what a click there does is that item's.
+  const over = Array.from(e.currentTarget.querySelectorAll<HTMLElement>("[data-item]")).find((el) => {
+    const b = el.getBoundingClientRect();
+    return e.clientX >= b.left && e.clientX <= b.right && e.clientY >= b.top && e.clientY <= b.bottom;
+  });
+  return { col, item: over ? Number(over.dataset.item) : undefined };
+}
+
 /** The column of a row the pointer is over or nearest to. Nearest, so the row's padding and the gaps
  *  between columns don't switch between the cards. */
 function nearestColumn(e: PointerEvent<HTMLElement>): string {
@@ -544,15 +715,28 @@ function nearestColumn(e: PointerEvent<HTMLElement>): string {
 /** A row's card shows what its view doesn't: in the list, which already has the numbers, how the bar
  *  splits between base, effect and procs damage, the parts it has, the hits by name; on the map,
  *  whose dots only have positions, the numbers. Both name what the item procs and what it takes away,
- *  and say when it turns your adaptive force, which is often why. */
-function RowTip({ row: r, current, champion, view, action }: { row: Row; current: number | null; champion: string; view: "list" | "map"; action?: ReactNode }) {
+ *  and say when it turns your adaptive force, which is often why. A set's card names its items, and
+ *  its items' hits by their item. */
+function RowTip({
+  row: r,
+  current,
+  champion,
+  view,
+  action,
+}: {
+  row: Entry;
+  current: number | null;
+  champion: string;
+  view: "list" | "map";
+  action?: ReactNode;
+}) {
   const procs = r.procs.map((p) => <SourceRow key={`${p.source}|${p.name}`} part="procs" {...p} champion={champion} />);
   const lost = r.lost.map((l) => <SourceRow key={`lost|${l.source}|${l.name}`} part="lost" {...l} champion={champion} />);
   return (
     <>
       <div className="tt-title">
-        {r.item} · {fmt(r.gold)}g{r.replaces ? `, from ${r.replaces.map((x) => x.item).join(" and ")}` : ""}
-        {r.id === current ? " (current)" : ""}
+        {isSet(r) ? setName(r) : r.item} · {fmt(r.gold)}g{r.replaces ? `, from ${r.replaces.map((x) => x.item).join(" and ")}` : ""}
+        {!isSet(r) && r.id === current ? " (current)" : ""}
       </div>
       {view === "list" ? (
         <>
@@ -565,8 +749,8 @@ function RowTip({ row: r, current, champion, view, action }: { row: Row; current
               <strong>{signed(r.baseDamage)}</strong>
             </div>
           )}
-          {r.itemHits.map((h) => (
-            <SourceRow key={h.name} part="effect" source={`item:${r.id}`} {...h} champion={champion} />
+          {hitsOf(r).map((h) => (
+            <SourceRow key={`${h.source}|${h.name}`} part="effect" {...h} champion={champion} />
           ))}
           {procs}
           {lost}

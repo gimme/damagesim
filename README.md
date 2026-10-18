@@ -10,9 +10,12 @@ the combo out on a timeline and reports every damage instance.
   slot or in place of an item you own, as a list (each bar split into what the item adds to your
   other damage, the damage it deals itself and the hits it adds, like Electrocute it procs, its end
   struck out by what the item takes away from your other damage, like a proc it makes land later)
-  or a gold-vs-damage map; one click buys it, an upgrade (Boots into a pair) for the difference. Hovering
-  an item shows its cost, stats, passives and actives, with the numbers for your champion's level and
-  stats, melee or ranged. Runes go on a rune page laid out as in the client, which keeps to the game's rules (a rune per
+  or a gold-vs-damage map; one click buys it, an upgrade (Boots into a pair) for the difference. It
+  ranks sets too: the best sets of 2 or more items to buy together for your empty slots, found by a
+  search that simulates a few hundred to a few thousand builds in a Web Worker, not every
+  combination; a click on a set's item leaves it out of the ranking (listed at the top of the card,
+  and in the link). Hovering an item shows its cost, stats, passives and actives, with the numbers
+  for your champion's level and stats, melee or ranged. Runes go on a rune page laid out as in the client, which keeps to the game's rules (a rune per
   row, two from the secondary tree, a shard per row); hovering a rune shows its tooltip like an item's, and whether its
   adaptive damage is physical or magic for you. The page's address is a link to its scenario: the champion in the path and
   the rest as a short code in the hash (`/zed/#…`, about 70 characters for a full build), none at the defaults.

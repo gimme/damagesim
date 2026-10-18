@@ -1454,6 +1454,97 @@ table.data .source-name {
   white-space: nowrap;
 }
 
+/* How many items to rank together, at the end of the slots' line */
+.iv-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.segmented button:disabled {
+  color: var(--text-muted);
+  opacity: 0.5;
+  cursor: default;
+}
+/* The items left out of the ranking, each a button that puts it back: faded until pointed at */
+.iv-excluded {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin: -2px 0 10px;
+}
+.iv-excluded-item,
+.iv-set-item {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  cursor: pointer;
+}
+.iv-excluded-item .icon {
+  opacity: 0.6;
+  filter: grayscale(0.7);
+}
+.iv-excluded-item:hover .icon,
+.iv-excluded-item:focus-visible .icon {
+  opacity: 1;
+  filter: none;
+  box-shadow: 0 0 0 1.5px var(--accent);
+}
+.iv-clear {
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.iv-clear:hover {
+  color: var(--text-primary);
+}
+/* A set's items, each a button that leaves it out of the ranking: side by side with no gap between
+   them, so the pointer is always over one or past them all; ringed in red when pointed at */
+.iv-set {
+  display: flex;
+  align-items: center;
+}
+.iv-set-item {
+  padding: 1px 1.5px;
+}
+.iv-sizer .iv-item > .iv-set {
+  gap: 0;
+}
+.iv-set-item:hover .icon,
+.iv-set-item:focus-visible .icon {
+  box-shadow: 0 0 0 1.5px var(--critical);
+}
+/* A set's bar is its button for the keyboard */
+.iv-track > .iv-buy {
+  flex: 1 1 auto;
+  height: 100%;
+}
+/* How far a search for sets has got: a thin bar above the list, in the space under the slots */
+.iv-results {
+  position: relative;
+}
+.iv-progress {
+  position: absolute;
+  top: -7px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--grid);
+  overflow: hidden;
+}
+.iv-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
 /* The ranking. One grid for every row, so the item column fits the longest name and the bars start
    right after it; the bar takes the rest of the room. The number not ranked by gives way as the list
    narrows. */

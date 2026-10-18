@@ -1,5 +1,6 @@
 // A phone: one column that fits the screen, the shards inside their column, Item value's phone layout
-// and its tapped cards, a finger held on an item for its card, and a step dragged by a finger.
+// and its tapped cards, a set's item excluded from its card, a finger held on an item for its card, and a
+// step dragged by a finger.
 
 import type { Locator } from "@playwright/test";
 import { test, expect, type UI } from "./ui.ts";
@@ -109,6 +110,45 @@ test("phone width", async ({ ui }) => {
       await expect(ui.tooltip).toHaveCount(0);
       await expect(ui.card("Items").locator(".slots > .slot").nth(2)).toHaveAttribute("aria-label", new RegExp(`^Item slot 3: ${name}\\.`));
     },
+  );
+  // A set's item is a button that leaves it out of the ranking; a tap on it opens its card instead.
+  const setItem = () =>
+    rows
+      .first()
+      .getByRole("button", { name: /^Exclude / })
+      .first();
+  await step(
+    "2 items: tap a set's item, its card, with Exclude",
+    async () => {
+      await iv.getByRole("group", { name: "Items" }).getByRole("button", { name: "2", exact: true }).tap();
+      await ui.settle();
+      name = (await setItem().getAttribute("aria-label"))!.replace(/^Exclude (.*) from the ranking$/, "$1");
+      await setItem().tap();
+    },
+    async () => {
+      await expect(ui.tooltip).toContainText(name);
+      await expect(ui.tooltip.getByRole("button", { name: `Exclude ${name} from the ranking` })).toBeVisible();
+      expect((await ui.state()).excluded).toEqual([]);
+    },
+  );
+  await step(
+    "Exclude: left out, listed at the top",
+    () => ui.tooltip.getByRole("button", { name: /^Exclude / }).tap(),
+    async () => {
+      await expect(ui.tooltip).toHaveCount(0);
+      await expect(iv.getByRole("button", { name: `Put ${name} back in the ranking` })).toBeVisible();
+      expect((await ui.state()).excluded).toHaveLength(1);
+    },
+  );
+  await step(
+    "tap a set's bar: where its damage comes from, with Buy all 2",
+    () => rows.first().locator(".iv-track").tap(),
+    () => expect(ui.tooltip.getByRole("button", { name: /^Buy / })).toHaveText("Buy all 2"),
+  );
+  await step(
+    "tap it again: closed",
+    () => rows.first().locator(".iv-track").tap(),
+    () => expect(ui.tooltip).toHaveCount(0),
   );
 
   const f = await finger(ui);

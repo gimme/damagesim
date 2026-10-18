@@ -57,6 +57,8 @@ export interface UIState {
   target: TargetState;
   /** The simulator's, and questBoots: whether the shop and Item value offer the mid lane role quest's tier 3 boots. */
   settings: Required<Pick<SimSettings, "finishDots" | "executes">> & { questBoots: boolean };
+  /** Items left out of Item value's ranking. */
+  excluded: number[];
 }
 
 /** How a card changes the state: from the state as it is. */
@@ -84,6 +86,7 @@ export const DEFAULT_STATE: UIState = {
     damageReduction: 0,
   },
   settings: { finishDots: true, executes: true, questBoots: false },
+  excluded: [],
 };
 
 /** A build's items from its slots, by id: where an item sits changes nothing (the engine takes them
@@ -109,7 +112,7 @@ export function toScenario(data: GameData, s: UIState): Scenario {
  * What a scenario simulates, as a string: two with the same simulate alike, so the page simulates
  * one only once. Its combo counts by its steps where it reads, so spacing doesn't count ("AA*2 " is
  * "2AA"). Nor does what toScenario leaves out: the tier 3 boots setting, a target's numbers for
- * the modes it isn't in, runes held over from a tree switch.
+ * the modes it isn't in, runes held over from a tree switch, the items Item value leaves out.
  */
 export function scenarioKey(sc: Scenario): string {
   let combo: Scenario["combo"] = sc.combo;
@@ -395,6 +398,7 @@ const FIELDS: [path: string, codec: Codec<any>][] = [
   ["settings.finishDots", bool],
   ["settings.executes", bool],
   ["settings.questBoots", bool],
+  ["excluded", itemIds],
 ];
 
 const valueAt = (s: any, path: string) => path.split(".").reduce((x, k) => x[k], s);

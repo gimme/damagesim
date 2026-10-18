@@ -7,7 +7,7 @@ import type { SearchProgress } from "../engine/analysis.ts";
 import { DATA } from "./data.ts";
 import type { FromWorker, RankJob, RankResult, ToWorker } from "./ranking-runner.ts";
 
-export type { RankJob, RankResult } from "./ranking-runner.ts";
+export type { ItemRanking, RankJob, RankResult, SetRanking } from "./ranking-runner.ts";
 
 let worker: Worker | null = null;
 /** Each open lane: the job it's waiting on, and what to do with the worker's answers. */
@@ -99,7 +99,8 @@ export function useRanking<J extends RankJob>(job: J | null, delay: number) {
     const l = lane.current!;
     l.stop();
     setProgress(null);
-    if (!job || key == null) return;
+    // None, or the one it has the result of (back from another, as Item value from sets to one item).
+    if (!job || key == null || res?.key === key) return;
     const t = setTimeout(
       () =>
         l.run(job, {

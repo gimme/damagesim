@@ -1,0 +1,106 @@
+// Item value's sets of items: how many items to rank together, a set's items in its row, each a
+// button that leaves it out of the ranking, and the items left out, at the top of the card, each a
+// button that puts it back. The list itself is Item value's (item-value.tsx), a set a row.
+
+import { useId, type MouseEvent } from "react";
+import { DATA } from "../data.ts";
+import { ItemIcon } from "./icons.tsx";
+import type { ItemSet } from "../../engine/analysis.ts";
+
+export const setName = (s: ItemSet) => s.items.map((x) => x.item).join(" + ");
+/** The same items bought in any order are one set. */
+export const setKey = (s: ItemSet) =>
+  s.items
+    .map((x) => x.id)
+    .sort((a, b) => a - b)
+    .join();
+/** "A, B and C". */
+export const setList = (s: ItemSet) => {
+  const names = s.items.map((x) => x.item);
+  return names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names.join("");
+};
+
+/** How many items to rank: 1, the next one or one in place of a slot's, or the best sets of more, as many as the build has empty slots. */
+export function CountPicker({ count, slots, empty, onChange }: { count: number; slots: number; empty: number; onChange: (n: number) => void }) {
+  const label = useId();
+  return (
+    <div className="iv-count">
+      <span id={label} className="small secondary">
+        Items
+      </span>
+      <div className="segmented small" role="group" aria-labelledby={label}>
+        {Array.from({ length: slots }, (_, k) => k + 1).map((n) => (
+          <button
+            key={n}
+            aria-pressed={n === count}
+            disabled={n > 1 && n > empty}
+            title={
+              n > 1 && n > empty
+                ? `${empty ? `Only ${empty}` : "No"} slot${empty === 1 ? " is" : "s are"} empty`
+                : n > 1
+                  ? `The best ${n} items to buy together`
+                  : undefined
+            }
+            onClick={() => onChange(n)}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** A set's items in its row: each a button that leaves it out of the ranking, what its click does is the list's. */
+export function SetItems({ set, onClick }: { set: ItemSet; onClick: (e: MouseEvent, id: number) => void }) {
+  return (
+    <span className="iv-set">
+      {set.items.map((x) => (
+        <button
+          key={x.id}
+          type="button"
+          className="iv-set-item"
+          data-item={x.id}
+          aria-label={`Exclude ${x.item} from the ranking`}
+          onClick={(e) => onClick(e, x.id)}
+        >
+          <ItemIcon id={x.id} size="sm" />
+        </button>
+      ))}
+    </span>
+  );
+}
+
+/** The items left out of the ranking: a click on one puts it back, Clear puts them all back. `bind` gives each its hover card. */
+export function Excluded({
+  ids,
+  onInclude,
+  onClear,
+  bind,
+}: {
+  ids: number[];
+  onInclude: (id: number) => void;
+  onClear: () => void;
+  bind: (id: number) => object;
+}) {
+  return (
+    <div className="iv-excluded small" role="group" aria-label="Items left out of the ranking">
+      <span className="secondary">Excluded</span>
+      {ids.map((id) => (
+        <button
+          key={id}
+          type="button"
+          className="iv-excluded-item"
+          aria-label={`Put ${DATA.items[id]?.name} back in the ranking`}
+          {...bind(id)}
+          onClick={() => onInclude(id)}
+        >
+          <ItemIcon id={id} size="sm" />
+        </button>
+      ))}
+      <button type="button" className="iv-clear" onClick={onClear}>
+        Clear
+      </button>
+    </div>
+  );
+}

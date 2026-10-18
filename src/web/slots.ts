@@ -27,6 +27,19 @@ export function buyItem(items: (number | null)[], i: number, id: number): (numbe
   return items.map((x, k) => (k === to ? id : used.includes(k) ? null : x));
 }
 
+/** The build after buying items one after another (a set from Item value), each as buyItem places it, in the first empty slot that takes it. */
+export function buyItems(items: (number | null)[], ids: number[]): (number | null)[] {
+  return ids.reduce(
+    (xs, id) =>
+      buyItem(
+        xs,
+        xs.findIndex((x, k) => x == null && slotFits(xs, k, id)),
+        id,
+      ),
+    items,
+  );
+}
+
 /** The build with the boots slot: boots in the other slots move to it, as in game when the quest is done. */
 export function addBootsSlot(items: (number | null)[]): (number | null)[] {
   const k = items.findIndex((id) => id != null && isBoots(id));
