@@ -12,6 +12,16 @@ export interface GameData {
   summoners: Record<string, SpellData>;
 }
 
+/** What each lookup found, by data and query: a lookup by name compares the query with every name. */
+const found = new WeakMap<GameData, Map<string, unknown>>();
+function memo<T>(data: GameData, key: string, look: () => T): T {
+  let m = found.get(data);
+  if (!m) found.set(data, (m = new Map()));
+  let v = m.get(key) as T | undefined;
+  if (v === undefined) m.set(key, (v = look()));
+  return v;
+}
+
 const norm = (s: string) =>
   s
     .toLowerCase()
@@ -43,6 +53,10 @@ const CHAMPION_ALIASES: Record<string, string> = {
 };
 
 export function findChampion(data: GameData, query: string): ChampionData {
+  return memo(data, `champion:${query}`, () => lookChampion(data, query));
+}
+
+function lookChampion(data: GameData, query: string): ChampionData {
   const q = norm(query);
   const id =
     data.championIndex.find((c) => norm(c.id) === q || norm(c.name) === q)?.id ??
@@ -116,6 +130,10 @@ const ITEM_ALIASES: Record<string, string> = {
 };
 
 export function findItem(data: GameData, query: number | string): ItemData {
+  return memo(data, `item:${query}`, () => lookItem(data, query));
+}
+
+function lookItem(data: GameData, query: number | string): ItemData {
   if (typeof query === "number" || /^\d+$/.test(String(query))) {
     const it = data.items[String(query)];
     if (!it) throw new Error(`Unknown item id ${query}`);
@@ -135,6 +153,10 @@ export function findItem(data: GameData, query: number | string): ItemData {
 }
 
 export function findRune(data: GameData, query: number | string): RuneData {
+  return memo(data, `rune:${query}`, () => lookRune(data, query));
+}
+
+function lookRune(data: GameData, query: number | string): RuneData {
   if (typeof query === "number" || /^\d+$/.test(String(query))) {
     const r = data.runes.find((x) => x.id === Number(query));
     if (!r) throw new Error(`Unknown rune id ${query}`);
