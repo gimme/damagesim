@@ -1,6 +1,6 @@
 // The Combo card: keys, a key dragged in, steps reordered, crits, shorthand typed in place, variants,
 // a step's numbers, the combo refitted when the champion changes and back as it was when they return,
-// and steps that do nothing for now kept, muted.
+// steps that do nothing for now kept, muted, and forms.
 
 import { test, expect, type UI } from "./ui.ts";
 
@@ -669,4 +669,45 @@ test.describe(() => {
       },
     );
   });
+});
+
+test("forms: keys and steps as cast, unchanged while dragged", async ({ ui }) => {
+  const { step } = ui;
+  const { chips, key, steps } = parts(ui);
+  const distance = (i: number) => chips.nth(i).getByRole("spinbutton", { name: "Q distance" });
+
+  await step(
+    "Nidalee Q R Q W: the Q before R is Javelin Toss with its distance, after it Takedown; the keys cast in cougar form",
+    () => ui.open({ champion: "Nidalee", level: 16, combo: "Q R Q W" }),
+    async () => {
+      await expect(distance(0)).toHaveCount(1);
+      await expect(distance(2)).toHaveCount(0);
+      await expect(key("Q")).toHaveAttribute("title", "Takedown");
+      await expect(key("W")).toHaveAttribute("title", "Pounce");
+    },
+  );
+  await step(
+    "Takedown dragged across R keeps its look until let go (it changed size and looped), then is Javelin Toss",
+    async () => {
+      const b = (await chips.nth(0).boundingBox())!;
+      await ui.drag(chips.nth(2), { x: b.x + 2, y: b.y + b.height / 2 }, () => expect(distance(2)).toHaveCount(0));
+    },
+    async () => {
+      expect(await steps()).toEqual(["Q", "Q", "R", "W"]);
+      await expect(distance(0)).toHaveCount(1);
+      await expect(distance(1)).toHaveCount(1);
+    },
+  );
+  await step(
+    "a Javelin Toss dragged after R keeps its distance until let go",
+    async () => {
+      const b = (await chips.nth(3).boundingBox())!;
+      // By its icon: its middle is its distance field.
+      await ui.drag(chips.nth(0).locator(".icon"), { x: b.x + b.width - 2, y: b.y + b.height / 2 }, () => expect(distance(0)).toHaveCount(1));
+    },
+    async () => {
+      expect(await steps()).toEqual(["Q", "R", "W", "Q"]);
+      await expect(distance(3)).toHaveCount(0);
+    },
+  );
 });

@@ -7,7 +7,17 @@ import { useDragOrder } from "./drag.tsx";
 import { Card, mergeProps } from "./common.tsx";
 import type { Set, UIState } from "../state.ts";
 import type { CastSetting, Sim, SimResult } from "../../engine/sim.ts";
-import { critMarking, formatCombo, hasPassiveStep, markCrit, parseCombo, settingKey, type AbilityStep, type ComboStep, type CritMode } from "../../engine/combo.ts";
+import {
+  critMarking,
+  formatCombo,
+  hasPassiveStep,
+  markCrit,
+  parseCombo,
+  settingKey,
+  type AbilityStep,
+  type ComboStep,
+  type CritMode,
+} from "../../engine/combo.ts";
 import { findItem } from "../../engine/gamedata.ts";
 import { getKit } from "../../kits/index.ts";
 import type { Slot } from "../../engine/effects.ts";
@@ -279,14 +289,18 @@ export function ComboBuilder({ state, set, sim, result }: { state: UIState; set:
     <Icon src={sourceMark(source, name, state.champion, castPath).icon} label={name} size={size} />
   );
   // How each ability step was cast, by its index: in the form or state it was in (W:ruin in
-  // Transcendent State), its icon and setting that one's.
+  // Transcendent State), its icon and setting that one's. A key's step being dragged in looks like
+  // the key, cast at the end of the combo. Nothing changes until a step is let go: one that changed
+  // as it moved (Nidalee's Q gaining its distance field) would move what it's over, and its spot.
   const casts = new Map((result?.timeline ?? []).flatMap((t) => (t.index !== undefined ? [[t.index, t] as const] : [])));
+  const castAt = (st: ComboStep, i: number) =>
+    st.type !== "ability" ? undefined : i === steps.length ? result?.keyCasts[steps.length]?.[st.slot as Exclude<Slot, "P">] : casts.get(i);
   const asCast = (st: ComboStep, i: number) => {
-    const variant = landing(i) ? landing(i)![st.type === "ability" ? st.slot : "Q"]?.variant : casts.get(i)?.variant;
+    const variant = castAt(st, i)?.variant;
     return st.type === "ability" && !st.variant && variant ? { ...st, variant } : st;
   };
   const stepIcon = (st: ComboStep, i: number) => {
-    if (st.type === "ability") return icon(st.slot, spellName(st.slot), "xs", landing(i) ? landing(i)![st.slot]?.icon : casts.get(i)?.icon);
+    if (st.type === "ability") return icon(st.slot, spellName(st.slot), "xs", castAt(st, i)?.icon);
     if (st.type === "attack") return icon("AA", "Basic attack", "xs");
     if (st.type === "summoner") return icon("summoner:ignite", "Ignite", "xs");
     const it = stepItem(st);
@@ -331,15 +345,8 @@ export function ComboBuilder({ state, set, sim, result }: { state: UIState; set:
     },
   });
   const drag = order.drag;
-  // What the keys cast where a step dragged among the others lands (Elise's Q after her R: Venomous
-  // Bite): the dragged step's, before the step it lands ahead of (as the combo is now, without the
-  // move); the keys', at the end.
-  const keyCasts = result?.keyCasts ?? [];
-  const landing = (i: number) => {
-    if (incoming && i === steps.length) return keyCasts[drag && !drag.away ? drag.to : steps.length];
-    return drag && drag.from === i && !drag.away && drag.from !== drag.to ? keyCasts[drag.from > drag.to ? drag.to : drag.to + 1] : undefined;
-  };
-  const atEnd = keyCasts[steps.length];
+  // What the keys cast added at the end (Elise's Q after her R: Venomous Bite).
+  const atEnd = result?.keyCasts[steps.length];
   const keys: { key: string; step: ComboStep; title: string; icon?: ReactNode; text: string }[] = [
     ...(["Q", "W", "E", "R"] as Slot[]).map((s) => ({
       key: s,
