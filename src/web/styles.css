@@ -1832,22 +1832,29 @@ details summary {
   min-height: 40px;
   align-items: center;
 }
-/* The keystones between lines, the first under their title, the second halfway to the next row. The
-   secondary column, with the shards, is the taller: the space it adds is split evenly above the
-   keystones, below them and below the second line, so both trees end together. */
+/* The keystones between lines, the first under their title, the second halfway to the next row. */
 .keystones-title {
   width: 100%;
   padding-bottom: 4px;
   border-bottom: 1px solid var(--border);
   text-align: center;
 }
-.rune-tree > .keystones {
-  margin-block: auto;
-}
 .rune-rule {
   width: 100%;
-  margin-bottom: auto;
   border-top: 1px solid var(--border);
+}
+/* A tree's three rows, spread out: past their 16px apart, they take the space the other column's
+   height leaves, so both trees end together (the secondary's shards are compact, so the two are close). */
+.rune-rows {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+}
+.rune-rows > .rune-row {
+  gap: 12px;
 }
 .keystones .rune-pick {
   flex-basis: 40px;
@@ -1863,7 +1870,7 @@ details summary {
 .shard-rows {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   width: 100%;
   padding-top: 10px;
   border-top: 1px solid var(--border);

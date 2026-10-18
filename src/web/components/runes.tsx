@@ -41,11 +41,13 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
             {treeRow(page.primary, 0).map(pick)}
           </div>
           <div className="rune-rule" aria-hidden />
-          {[1, 2, 3].map((row) => (
-            <div key={row} className="rune-row" role="group" aria-label={`${page.primary} row ${row}`}>
-              {treeRow(page.primary, row).map(pick)}
-            </div>
-          ))}
+          <div className="rune-rows">
+            {[1, 2, 3].map((row) => (
+              <div key={row} className="rune-row" role="group" aria-label={`${page.primary} row ${row}`}>
+                {treeRow(page.primary, row).map(pick)}
+              </div>
+            ))}
+          </div>
         </div>
         <div className="rune-tree" style={treeColor(page.secondary)}>
           <TreePicker
@@ -54,11 +56,13 @@ export function RunesPanel({ state, set, sim }: { state: UIState; set: Set; sim:
             trees={TREES.filter((t) => t.key !== page.primary)}
             onPick={(t) => change((p) => chooseSecondary(DATA, p, t))}
           />
-          {[1, 2, 3].map((row) => (
-            <div key={row} className="rune-row" role="group" aria-label={`${page.secondary} row ${row}`}>
-              {treeRow(page.secondary, row).map(pick)}
-            </div>
-          ))}
+          <div className="rune-rows">
+            {[1, 2, 3].map((row) => (
+              <div key={row} className="rune-row" role="group" aria-label={`${page.secondary} row ${row}`}>
+                {treeRow(page.secondary, row).map(pick)}
+              </div>
+            ))}
+          </div>
           {/* Under the secondary tree's rows, as in the client; what a shard gives is in its hover card */}
           <div className="shard-rows">
             {DATA.runePage.shards.map((row, i) => (
