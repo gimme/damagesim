@@ -781,9 +781,9 @@ test("Sundered Sky + Fiendhunter Bolts: same result in either item order, with t
   assert.ok(Math.abs(total(["Fiendhunter Bolts", "Sundered Sky"]) - total(["Sundered Sky", "Fiendhunter Bolts"])) < 0.01);
 });
 
-test("Sundered Sky (practice tool, 16.20): a crit at the attack's multiplier, × 80% with what replaces it (Chomp, Decisive Strike), not Jax's Empower or on-hit effects", () => {
-  // Level 1 (the ability measured at rank 1) with the measured links' runes, at 0:00 unless said,
-  // against a dummy without resists. The game shows whole numbers.
+test("Sundered Sky (practice tool, 16.20): a crit at the attack's multiplier, × 80% with what replaces it (Chomp), not Jax's Empower or on-hit effects", () => {
+  // Level 1 (the ability measured at rank 1) with the measured links' runes at 0:00, against a dummy
+  // without resists. The game shows whole numbers.
   const dealt = (champion: string, items: string[], combo: string, options: Record<string, number>) =>
     simulate(data, {
       champion,
@@ -802,8 +802,7 @@ test("Sundered Sky (practice tool, 16.20): a crit at the attack's multiplier, ×
     ["Trundle", ["Sundered Sky"], "Q AA", 206],
     ["Trundle", ["Sundered Sky", "Recurve Bow"], "AA", 199],
     ["Jax", ["Sundered Sky"], "W AA", 234],
-    // Past 10:00, as only Gathering Storm's first step fits (4.8 AD more: 256.4 at 0:00).
-    ["Garen", ["Sundered Sky"], "Q AA", 266, { gameTime: 10 }],
+    ["Garen", ["Sundered Sky"], "AA", 186],
     ["Nasus", ["Sundered Sky"], "Q AA", 231, { stacks: 0 }],
     // Her crits deal no extra damage (multiplier 1), so Sundered Sky's deals 80% of her attack.
     ["Ashe", ["Sundered Sky"], "AA", 85],

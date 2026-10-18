@@ -1717,9 +1717,9 @@ export class Sim {
    *   (Sundered Sky's and Fiendhunter Bolts' 80%) scales all of the attack's own damage, with what
    *   replaces it the bonus that doesn't crit too, but not another empowered bonus or its on-hit
    *   effects. In the practice tool (16.20), with Sundered Sky, Trundle's Chomp deals (AD × 200% +
-   *   its bonus) × 80% (206), Garen's Decisive Strike likewise (266), Nasus's Siphoning Strike
-   *   (AD + its flat damage) × 160% (231), Jax's Empower AD × 160% + its bonus (234), Ashe's
-   *   attack 80% of itself (85), and an attack with Recurve Bow AD × 160% + 15 (199).
+   *   its bonus) × 80% (206), Nasus's Siphoning Strike (AD + its flat damage) × 160% (231),
+   *   Jax's Empower AD × 160% + its bonus (234), Ashe's attack 80% of itself (85), and an attack
+   *   with Recurve Bow AD × 160% + 15 (199).
    * `later`: its parts that land later (bleeds), which crit with it but aren't its own damage.
    */
   private critAttack(atk: AttackInfo, plain: number, later: DamageRequest[]) {
