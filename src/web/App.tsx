@@ -73,7 +73,7 @@ export function App() {
   // closed) gets an entry of its own.
   const address = useMemo(() => BASE + encodePage(DATA, state, scenarios.page), [state, scenarios.page]);
   const shown = useRef(address);
-  useEffect(() => saveState(DATA, state, address.slice(BASE.length)), [state, address]);
+  useEffect(() => saveState(state, address.slice(BASE.length)), [state, address]);
   useEffect(() => {
     shown.current = address;
     const push = scenarios.push.current;
