@@ -372,6 +372,23 @@ test("Nidalee's Javelin Toss deals more the farther it flies: the step's distanc
   assert.equal(formatCombo(parseCombo("Q{1300u}")), "Q{1300u}");
 });
 
+test("Yunara's Q and Samira's R show the HUD's icon once they can be cast, not their first, grayed out", () => {
+  const file = (p?: string) => p?.split("/").pop();
+  for (const [champion, slot, combo, icon] of [
+    ["Yunara", "Q", "AA", "yunara_q2.png"],
+    ["Samira", "R", "R", "samirar8.png"],
+  ] as const) {
+    const r = simulate(data, { champion, level: 16, combo, target: dummy });
+    assert.equal(file(new Sim(data, { champion, level: 16, combo: [] }).slotIcon(slot)), icon);
+    assert.equal(file(r.keyCasts.at(-1)?.[slot]?.icon), icon);
+    // Its hits too, cast or not (Yunara's Q on-hit from attacks alone).
+    assert.ok(
+      r.bySource.some((s) => s.source === slot && file(s.icon) === icon),
+      `${champion} ${slot}`,
+    );
+  }
+});
+
 test("Fizz's shark, Zoe's star and Hecarim's charge go by the step's distance (wiki)", () => {
   const run = (champion: string, combo: string) => simulate(data, { champion, level: 16, combo, target: dummy });
   const hit = (champion: string, combo: string, label: string) => run(champion, combo).events.find((e) => e.label === label)!.raw;

@@ -300,7 +300,7 @@ export function ComboBuilder({ state, set, sim, result }: { state: UIState; set:
     return st.type === "ability" && !st.variant && variant ? { ...st, variant } : st;
   };
   const stepIcon = (st: ComboStep, i: number) => {
-    if (st.type === "ability") return icon(st.slot, spellName(st.slot), "xs", castAt(st, i)?.icon);
+    if (st.type === "ability") return icon(st.slot, spellName(st.slot), "xs", castAt(st, i)?.icon ?? sim?.slotIcon(st.slot));
     if (st.type === "attack") return icon("AA", "Basic attack", "xs");
     if (st.type === "summoner") return icon("summoner:ignite", "Ignite", "xs");
     const it = stepItem(st);
@@ -352,7 +352,7 @@ export function ComboBuilder({ state, set, sim, result }: { state: UIState; set:
       key: s,
       step: { type: "ability", slot: s } as ComboStep,
       title: atEnd?.[s]?.name ?? spellName(s),
-      icon: icon(s, atEnd?.[s]?.name ?? spellName(s), "sm", atEnd?.[s]?.icon),
+      icon: icon(s, atEnd?.[s]?.name ?? spellName(s), "sm", atEnd?.[s]?.icon ?? sim?.slotIcon(s)),
       text: s,
     })),
     ...(hasP

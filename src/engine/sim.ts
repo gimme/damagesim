@@ -1909,6 +1909,13 @@ export class Sim {
     return out;
   }
 
+  /** The icon an ability's key shows as the combo starts: the kit's (AbilitySpec.icon, by the options:
+   *  Yunara's Q once it can be cast, Kayn's by form), else its slot's. */
+  slotIcon(slot: Slot): string | undefined {
+    const spec = this.abilitySpec(slot);
+    return spec.icon ? this.castIcon(slot, spec, undefined, this.spellFor(slot, spec)) : this.champ.abilityIcons[slot];
+  }
+
   /** The variant cast in place of the ability in the state it's in now (VariantSpec.when). */
   private stateVariant(spec: AbilitySpec, slot: Slot): string | undefined {
     return Object.entries(spec.variants ?? {}).find(([, v]) => v.when !== undefined && this.evalExpr(v.when, { slot }))?.[0];

@@ -65,6 +65,8 @@ const kit: ChampionKit = {
   },
   abilities: {
     Q: {
+      // The HUD's once it can be cast; its first is grayed out until her attacks fill its stacks.
+      icon: "YunaraQ#1",
       noTarget: true,
       resetsAttack: true,
       buff: {

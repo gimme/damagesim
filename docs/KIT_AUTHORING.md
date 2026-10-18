@@ -256,7 +256,9 @@ buff her R applies for it). The combo card doesn't offer it. A variant that's a 
 its `name` (`'Venomous Bite'`, `'Arc of Ruin'`): its hits show under it, not as "Neurotoxin (Venomous
 Bite)". Its hits and its step show its spell's icon; one whose icon isn't its spell's first sets `icon`,
 a spell's script name and after `#` which of its icons (Yunara's Arc of Ruin `'YunaraW2'`, Karma's
-Soulflare `'KarmaQ#1'`; an expression, as Kayn's `'KaynQ#opt.form'` on the ability itself). Give a
+Soulflare `'KarmaQ#1'`; an expression, as Kayn's `'KaynQ#opt.form'` on the ability itself). So does an
+ability whose HUD icon isn't its spell's first, a grayed-out one until it can be cast: Yunara's Q
+`'YunaraQ#1'`, Samira's R `'SamiraR#7'` (the S grade); the results, the keys and the Champion card show it. Give a
 form the player can start in an option (Jayce's `cannon`, Elise's `spider`, Gnar's `mega`).
 
 **Stacking champion stats** (Nasus Q stacks, Veigar AP, Senna, Smolder, Cho'Gath R, Sion, Kindred,

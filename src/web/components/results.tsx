@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { DATA, abilityIcon } from "../data.ts";
+import { DATA, castIcon } from "../data.ts";
 import { Icon, ItemIcon, sourceMark } from "./icons.tsx";
 import { ItemTip, useHoverCard } from "./hover.tsx";
 import { Card, fmt } from "./common.tsx";
@@ -277,7 +277,7 @@ function Abilities({ sim }: { sim: Sim }) {
       {d.abilities.map((a) => (
         <div key={a.slot} className="ability">
           <div className="row">
-            <Icon src={abilityIcon(sim.champ.id, a.slot)} label={a.name} size="sm" />
+            <Icon src={castIcon(sim.champ.id, a.slot, sim.slotIcon(a.slot))} label={a.name} size="sm" />
             <span className="kbd">{a.slot}</span>
             <strong>{a.name}</strong>
             {a.slot !== "P" && (

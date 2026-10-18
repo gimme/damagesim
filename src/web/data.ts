@@ -53,8 +53,9 @@ export const abilityIcon = (champion: string, slot: "P" | "Q" | "W" | "E" | "R")
   const path = DATA.champions[champion]?.abilityIcons[slot];
   return path ? bundledOr(`ability/${champion}/${slot}`, `https://raw.communitydragon.org/${DATA.meta.patch}/game/${path}`) : "";
 };
-/** The icon an ability's cast showed (another form's spell, Arc of Ruin: DamageInstance.icon, a path
- *  under CommunityDragon's game folder), else its slot's. */
+/** An ability's icon: the one its cast showed or its key shows (another form's spell, Arc of Ruin,
+ *  Yunara's Q once it can be cast: DamageInstance.icon, Sim.slotIcon; a path under CommunityDragon's
+ *  game folder), else its slot's. */
 export const castIcon = (champion: string, slot: "P" | "Q" | "W" | "E" | "R", path?: string) =>
   !path || path === DATA.champions[champion]?.abilityIcons[slot]
     ? abilityIcon(champion, slot)

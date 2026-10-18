@@ -1,7 +1,7 @@
 // The Champion card: who attacks, at what level and ranks, and the champion, item and rune parameters.
 
 import { useMemo } from "react";
-import { DATA, abilityIcon, championIcon } from "../data.ts";
+import { DATA, castIcon, championIcon } from "../data.ts";
 import { ChampIcon, Icon, sourceMark } from "./icons.tsx";
 import { ChampionPicker } from "./pickers.tsx";
 import { ItemTip, Markup, RuneTip, useHoverCard } from "./hover.tsx";
@@ -61,7 +61,7 @@ export function AttackerPanel({ state, set, sim }: { state: UIState; set: Set; s
                 aria-label={k === "P" ? champ.passive.name : (champ.abilities.find((a) => a.slot === k)?.spells[0]?.name ?? k)}
                 {...(sim && described ? hover.bind(<AbilityTip sim={sim} ability={described.find((a) => a.slot === k)!} />) : {})}
               >
-                <Icon src={abilityIcon(state.champion, k)} label={k} size="xs" />
+                <Icon src={castIcon(state.champion, k, sim?.slotIcon(k))} label={k} size="xs" />
                 <span className="kbd">{k}</span>
               </span>
             );
@@ -136,7 +136,7 @@ function AbilityTip({ sim, ability: a }: { sim: Sim; ability: ReturnType<typeof 
   return (
     <div className="item-tip">
       <div className="it-head">
-        <Icon src={abilityIcon(sim.champ.id, slot)} label={a.name} size="sm" />
+        <Icon src={castIcon(sim.champ.id, slot, sim.slotIcon(slot))} label={a.name} size="sm" />
         <strong>{a.name}</strong>
         <span className="kbd">{slot}</span>
       </div>

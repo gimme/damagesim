@@ -457,18 +457,6 @@ function attackMissile(rec: any, bin: any): ChampionData["stats"]["attackMissile
   return undefined;
 }
 
-/**
- * Slot spells whose first icon is grayed out, shown while they can't be cast, and swapped by the
- * game's scripts once they can: the icon they show then. Nothing in the bin tells the two apart
- * (Data Dragon takes the first too); found by comparing each slot spell's icons.
- */
-const READY_ICONS: Record<string, string> = {
-  // Until her attacks fill its stacks.
-  "Yunara Q": "Yunara_Q2.dds",
-  // A grade for each style, gray until it can be cast at S.
-  "Samira R": "SamiraR8.dds",
-};
-
 function buildChampion(dd: any, bin: any): ChampionData {
   const rec = Object.entries(bin).find(([k, v]: [string, any]) => k.endsWith("/CharacterRecords/Root") && v?.__type === "CharacterRecord")?.[1] as any;
   if (!rec) throw new Error(`no CharacterRecord for ${dd.id}`);
@@ -564,15 +552,13 @@ function buildChampion(dd: any, bin: any): ChampionData {
 
   const passiveName = str(rec.passiveName) || abilities.find((a) => a.slot === "P")?.spells[0]?.name || "Passive";
   const passiveText = resolveIncludes(str(rec.passiveToolTip));
-  // The HUD's icons: the slot spells' first icon (or the one it shows once it can be cast, see
-  // READY_ICONS), served by CommunityDragon as lowercase .png.
+  // The HUD's icons: the slot spells' first icon, served by CommunityDragon as lowercase .png. A kit
+  // picks another where the HUD shows it (AbilitySpec.icon): Yunara's Q, Samira's R once they can be
+  // cast, their first grayed out (nothing in the bin tells them apart).
   const abilityIcons: ChampionData["abilityIcons"] = {};
   const slotSpells = { P: rec.mCharacterPassiveSpell, Q: rec.spells?.[0], W: rec.spells?.[1], E: rec.spells?.[2], R: rec.spells?.[3] };
   for (const [slot, sp] of Object.entries(slotSpells) as [keyof typeof slotSpells, string | undefined][]) {
-    const icons: string[] = (sp && bin[sp]?.mSpell?.mImgIconName) ?? [];
-    const ready = READY_ICONS[`${dd.id} ${slot}`];
-    const icon = ready ? icons.find((i) => i.endsWith(`/${ready}`)) : icons[0];
-    if (ready && !icon) console.warn(`${dd.id} ${slot}: no icon ${ready} (READY_ICONS)`);
+    const icon: string | undefined = sp && bin[sp]?.mSpell?.mImgIconName?.[0];
     if (icon?.startsWith("ASSETS/")) abilityIcons[slot] = iconPath(icon);
   }
 

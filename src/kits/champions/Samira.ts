@@ -74,6 +74,8 @@ const kit: ChampionKit = {
       ],
     },
     R: {
+      // The HUD's S grade, once it can be cast: a grade for each style, gray until S.
+      icon: "SamiraR#7",
       // Wiki: free to move, but can't attack nor cast Flair or Blade Whirl during the 2.25s torrent.
       attackLockout: 2.25,
       castLockout: { Q: 2.25, W: 2.25 },
