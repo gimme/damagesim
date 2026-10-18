@@ -873,7 +873,7 @@ test('Hit labels name the hit on their own: an ability part is "Ability (part)",
 });
 
 test("An attack that is an ability (Zeri's right-click) arms Spellblade, is spell damage, and applies no on-hit or on-attack effects", () => {
-  const zeri = (combo: string, items: string[]) => simulate(data, { champion: "Zeri", level: 11, items, options: { charged: 0 }, combo, target: dummy });
+  const zeri = (combo: string, items: string[]) => simulate(data, { champion: "Zeri", level: 11, items, combo, target: dummy });
   const blades = (r: ReturnType<typeof simulate>) => r.events.filter((e) => e.label === "Spellblade");
   // The attack arms Sheen and Burst Fire, which applies on-hit, uses it; Burst Fire doesn't arm it, and the attack doesn't use it.
   const armed = zeri("AA Q", ["Sheen"]);
@@ -919,8 +919,7 @@ test("An ability whose cooldown is an attack timer (Zeri's Burst Fire): attack r
 });
 
 test("Zeri's Burst Fire takes her attack windup and blocks the attack after it; its rounds fire over it, the first landing before that attack, all of them closer in (Q AA can execute)", () => {
-  const zeri = (options = {}) =>
-    simulate(data, { champion: "Zeri", level: 11, options: { charged: 0, ...options }, combo: "Q AA", target: { maxHp: 200, armor: 80, mr: 50 } });
+  const zeri = (options = {}) => simulate(data, { champion: "Zeri", level: 11, options, combo: "Q AA", target: { maxHp: 200, armor: 80, mr: 50 } });
   const r = zeri();
   const [q, aa] = r.timeline;
   const windup = aa.end - aa.start;
@@ -960,7 +959,7 @@ test("An execute's line shows in the results whether it's reached or not; settin
     simulate(data, {
       champion: "Zeri",
       level: 11,
-      options: { charged: 0, distance: 300 },
+      options: { distance: 300 },
       combo: "Q AA",
       target: { maxHp: hp, armor: 30, mr: 30 },
       settings: { executes },
@@ -987,4 +986,36 @@ test("An execute's line shows in the results whether it's reached or not; settin
     ["Death From Below (execute)"],
   );
   assert.ok(!pyke.events.some((e) => e.flags.execute));
+});
+
+test("Zeri's P is her fully charged attack: an attack in timing, a cast as it hits, no execute; her AAs are uncharged", () => {
+  const zeri = (combo: string, o: object = {}) => simulate(data, { champion: "Zeri", level: 11, items: ["Sheen"], combo, target: dummy, ...o });
+  // It waits for the attack timer and restarts it.
+  const r = zeri("AA P AA");
+  const [aa, p, aa2] = r.timeline;
+  const period = 1 / r.stats.attackSpeed;
+  assert.equal(p.step, "P");
+  assert.ok(Math.abs(p.start - aa.start - period) < 1e-6 && Math.abs(aa2.start - p.start - period) < 1e-6);
+  const max = new Sim(data, { champion: "Zeri", level: 11, combo: [], target: dummy }).evalExpr(
+    "Q.calc.PassiveMaxDamage + Q.calc.PassiveMaxChargePercentHealth * target.maxHp",
+    {
+      slot: "Q",
+    },
+  );
+  assert.equal(r.events.filter((e) => e.label === "Charged attack").length, 1);
+  assert.ok(Math.abs(r.events.filter((e) => e.castId === bySource(r, "P")[0].castId).reduce((s, e) => s + e.raw, 0) - max) < 1e-6);
+  // It arms Spellblade as it hits, for the Burst Fire after it.
+  const pq = zeri("P Q");
+  assert.equal(pq.events.find((e) => e.label === "Spellblade")?.castId, bySource(pq, "Q")[0].castId);
+  // Below the execute line, it doesn't execute.
+  assert.ok(!zeri("P", { target: { maxHp: 150, armor: 30, mr: 30 } }).events.some((e) => e.flags.execute));
+});
+
+test("Black Cleaver: one Carve stack a Burst Fire, not one a round", () => {
+  const r = simulate(data, { champion: "Zeri", level: 11, items: ["Black Cleaver"], combo: "Q", target: { maxHp: 5000, armor: 100, mr: 0 } });
+  const rounds = bySource(r, "Q");
+  assert.equal(rounds.length, 7);
+  // The first round's stack shreds 6% of the armor for the rest: all deal the same.
+  assert.ok(rounds.slice(2).every((e) => Math.abs(e.final! - rounds[1].final!) < 1e-9));
+  assert.ok(rounds[1].final! > rounds[0].final!);
 });

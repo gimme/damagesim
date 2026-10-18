@@ -1448,7 +1448,7 @@ export class Sim {
         type: comp.type,
         amount: amount * c.factor,
         castId: ctx.castId,
-        flags: { kind: "ability", slot: ctx.slot, ability: !comp.noProc, crit: c.crit, basic: true },
+        flags: { kind: "ability", slot: ctx.slot, ability: !comp.noProc, crit: c.crit, basic: true, restOfAttack: true },
       });
       return;
     }
@@ -2269,7 +2269,8 @@ export class Sim {
     }
   }
 
-  attack(step: Extract<ComboStep, { type: "attack" }>, timeline: SimResult["timeline"]) {
+  /** Attack `count` times; as `ability`, a step that is an attack its buff empowers (AbilitySpec.attack). */
+  attack(step: Extract<ComboStep, { type: "attack" }>, timeline: SimResult["timeline"], ability?: AbilityStep) {
     const count = Math.max(1, step.count ?? 1);
     const options = attackOptions(this.kit);
     for (const id of step.enable ?? [])
@@ -2289,7 +2290,13 @@ export class Sim {
       this.action = castId;
       this.freeAt = start + windup;
       this.attackReadyAt = start + period;
-      timeline.push({ step: step.crit === true ? "AA!" : step.crit === false ? "AA?" : "AA", start, end: start + windup });
+      if (ability) {
+        const buffs = this.abilitySpec(ability.slot).buff;
+        for (const b of Array.isArray(buffs) ? buffs : buffs ? [buffs] : [])
+          this.applyBuff(b, ability.slot, this.spellFor(ability.slot), this.abilityRank(ability.slot));
+      }
+      const label = ability ? formatCombo([ability]) : step.crit === true ? "AA!" : step.crit === false ? "AA?" : "AA";
+      timeline.push({ step: label, start, end: start + windup });
       this.scheduleAt(start + windup, () => this.launchAttack({ castId, enable: step.enable }));
     }
   }
@@ -2331,7 +2338,8 @@ export class Sim {
       this.setStepCrit(crits ? step.crit : undefined);
       switch (step.type) {
         case "ability":
-          this.castAbility(step, timeline);
+          if (this.abilitySpec(step.slot).attack) this.attack({ type: "attack", enable: step.enable, crit: step.crit }, timeline, step);
+          else this.castAbility(step, timeline);
           break;
         case "attack":
           this.attack(step, timeline);

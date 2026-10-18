@@ -345,6 +345,11 @@ export interface AbilitySpec {
   /** An ability cast for on-cast effects, but not for Spellblade (Zeri's Burst Fire, wiki). */
   noSpellblade?: boolean;
   /**
+   * The step is the champion's attack, with an attack's timing (it waits for the attack timer and
+   * restarts it), that the ability's `buff` empowers (Zeri's P: her fully charged attack).
+   */
+  attack?: boolean;
+  /**
    * Its cooldown (`cooldown`) is an attack timer (Zeri's Burst Fire, "1 / attack speed"): ability
    * haste and Navori's Transcendence don't shorten it, and attack resets reset it.
    */

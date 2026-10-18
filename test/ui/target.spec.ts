@@ -351,12 +351,12 @@ test("executes: the line on the health bar, and the setting that turns them off"
   const bar = ui.card("Result").getByRole("img", { name: /^Target health bar/ });
   let total = 0;
   await step(
-    "load Zeri's Burst Fire and an uncharged attack on 220 health, 300 units away: the attack takes it below her execute line, marked on the bar",
+    "load Zeri's Burst Fire and an attack on 220 health, 300 units away: the attack takes it below her execute line, marked on the bar",
     () =>
       ui.open({
         champion: "Zeri",
         items: [],
-        options: { charged: 0, distance: 300 },
+        options: { distance: 300 },
         combo: "Q AA",
         target: { mode: "custom", base: { hp: 220, armor: 30, mr: 30 }, bonus: { hp: 0, armor: 0, mr: 0 } },
       }),

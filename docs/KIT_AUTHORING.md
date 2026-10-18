@@ -268,13 +268,17 @@ one whose cooldown is an attack timer (`1 / as`) `attackTimer: true`: ability ha
 shorten it, and attack resets reset it (Zeri's Burst Fire, reset by Spark Surge). An attack fired as
 several hits that apply on-hit effects once (Burst Fire's rounds: "to the first enemy hit") is one
 `attack: true` component with `hits`, `interval` and `onHitOnce: true`: the first hit to land is the
-attack, the rest deal its basic damage only.
+attack, the rest deal its basic damage only (`flags.restOfAttack`: one Black Cleaver stack).
 
 **Attacks that are abilities** (Zeri's right-click, "treated as Abilities"): `attack: { ability: true }`
 keeps the attack's timing (attack timer, windup, range) but casts it as an ability: on-cast effects
 trigger as it hits (it arms Spellblade then), all it deals is spell damage, and it applies no
 on-hit or on-attack effects of items or runes (it doesn't use Spellblade). What the kit's own buffs
 add to it (an empowered attack) and its hooks still apply.
+
+**A step that is an empowered attack** (Zeri's P, her fully charged attack): `attack: true` on the
+ability makes its step the champion's attack, waiting for the attack timer and restarting it, with
+the ability's `buff` (`empowerAttacks`) empowering it.
 
 **On-hit vs on-attack.** The wiki's [Attack effects](https://wiki.leagueoflegends.com/en-us/Attack_effects)
 page lists which abilities apply on-hit effects and which also trigger on-attack effects (with
