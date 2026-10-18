@@ -195,83 +195,107 @@ function ownHits(r: SimResult, item: string) {
   return byName(hits).map(({ name, damage }) => ({ name, damage }));
 }
 
-/** A result's damage by kind of hit (source, its label and the hit's: Smolder's Q hit, its burn, its
- *  execute), and how many hits (DamageInstance.hitId: a Death Lotus knife's magic and AD parts are one,
- *  Nashor's Tooth applied twice by one attack two) each source ("source|Q|Super Scorcher Breath") and
- *  each name ("name|Q|Super Scorcher Breath") lands. */
+/** A result's kinds of hit (source, its label and the hit's: Smolder's Q hit, its burn, its execute):
+ *  how many land and what they deal; its hits (DamageInstance.hitId: a Death Lotus knife's magic and AD
+ *  parts are one, Nashor's Tooth applied twice by one attack two), source by source by their makeup, the
+ *  kinds they land (Achooo! with its explosion); and its damage by name. */
 function tally(r: SimResult) {
-  const kinds = new Map<string, { src: string; source: string; name: string; events: number; damage: number }>();
-  const hits = new Map<string, Set<number>>();
-  const count = (key: string, hit: number) => (hits.get(key) ?? hits.set(key, new Set()).get(key)!).add(hit);
+  const names: Named = new Map();
+  const kinds = new Map<string, { source: string; name: string; events: number; damage: number }>();
+  const hits = new Map<string, { src: string; kinds: Map<string, number> }>();
   for (const e of r.events) {
     const src = `${e.source}|${e.sourceLabel}`;
     const kind = `${src}|${e.label}`;
     const name = `${e.source}|${nameOf(e)}`;
-    if (!kinds.has(kind)) kinds.set(kind, { src, source: e.source, name, events: 0, damage: 0 });
+    addTo(names, name, e.source, e.final ?? 0);
+    if (!kinds.has(kind)) kinds.set(kind, { source: e.source, name, events: 0, damage: 0 });
     const k = kinds.get(kind)!;
     k.events++;
     k.damage += e.final ?? 0;
-    count(`source|${src}`, e.hitId);
-    count(`name|${name}`, e.hitId);
+    const key = `${src}|${e.hitId}`;
+    if (!hits.has(key)) hits.set(key, { src, kinds: new Map() });
+    const hit = hits.get(key)!;
+    hit.kinds.set(kind, (hit.kinds.get(kind) ?? 0) + 1);
   }
-  return { kinds, hits: new Map([...hits].map(([key, set]) => [key, set.size])) };
+  const makeups = new Map<string, Map<string, { hits: number; events: Map<string, number> }>>();
+  for (const hit of hits.values()) {
+    const makeup = [...hit.kinds.keys()].sort().join("\n");
+    if (!makeups.has(hit.src)) makeups.set(hit.src, new Map());
+    const of = makeups.get(hit.src)!;
+    if (!of.has(makeup)) of.set(makeup, { hits: 0, events: new Map() });
+    const m = of.get(makeup)!;
+    m.hits++;
+    for (const [kind, n] of hit.kinds) m.events.set(kind, (m.events.get(kind) ?? 0) + n);
+  }
+  return { names, kinds, makeups };
 }
 
 /**
- * An item's gain from your other damage (its own hits aside), by comparing each kind of hit with and
- * without it:
- * - procs: the hits that land only with it. Of a kind that lands more often, as many as its source
- *   and its name land more hits (a stat from zero adds a part to hits that land anyway, Katarina's AD
- *   knives, not a hit), at the kind's average damage, at most what the kind and its name gained (First
- *   Strike's hit on an aura tick is smaller than its average). Electrocute striking only with it, an
- *   execute it brings the target into range of; not Electrocute striking on its hit instead of a later
- *   one, which lands either way, nor an attack now critting on average, the same hit.
+ * An item's gain from your other damage (its own hits aside), by comparing your hits with and without
+ * it, source by source by their makeup:
+ * - procs: the hits that land only with it, a makeup's more hits: Electrocute striking only with it,
+ *   Dusk and Dawn's second Spider Queen and Spiderlings, an execute it brings the target into range of.
+ *   Not a hit that changed: fewer hits of one makeup and more of another with a name in common are the
+ *   same hits (an attack now critting, Katarina's knives with their AD part). Their parts at their
+ *   kind's average, as many as the kind lands more often: hits regrouped are none (Tibbers' aura and
+ *   attack no longer landing at one moment), nor Electrocute striking on its hit instead of a later one.
  * - lost: the same the other way, hits that land only without it (at their average without it), and
  *   by name, what the same hits deal less with it (adaptive force turning AD, a proc landing later at
  *   less health, an amp no longer before them).
  * - base: by name, what the same hits deal more with it.
- * base + procs − lost is the gain less the item's own damage. Named by the rune or item, or by the
- * champion's hit (nameOf).
+ * A kind's and a name's new hits are at most what it gained (First Strike's hit on an aura tick is
+ * smaller than its average), their lost ones at most what it lost. base + procs − lost is the gain less
+ * the item's own damage. Named by the rune or item, or by the champion's hit (nameOf).
  */
 function attribute(was: ReturnType<typeof tally>, now: ReturnType<typeof tally>, item: string) {
-  const more = (key: string) => (now.hits.get(key) ?? 0) - (was.hits.get(key) ?? 0);
-  const kinds = [...new Set([...was.kinds.keys(), ...now.kinds.keys()])].flatMap((key) => {
-    const [a, b] = [was.kinds.get(key), now.kinds.get(key)];
-    const k = (a ?? b)!;
-    if (k.source === item) return [];
-    const events = (b?.events ?? 0) - (a?.events ?? 0);
-    return [{ ...k, of: [`source|${k.src}`, `name|${k.name}`], events, before: a, after: b, damage: (b?.damage ?? 0) - (a?.damage ?? 0) }];
-  });
-  // What each name gained, and how many more (or fewer) events the kinds of each source and name land.
-  const gained = new Map<string, number>();
-  const events = new Map<string, number>();
-  for (const k of kinds) {
-    gained.set(k.name, (gained.get(k.name) ?? 0) + k.damage);
-    for (const key of k.of) {
-      const signed = `${Math.sign(k.events)}|${key}`;
-      if (k.events) events.set(signed, (events.get(signed) ?? 0) + Math.abs(k.events));
+  // The events of each kind the hits that land only with the item (+) or only without it (−) have.
+  const landed = new Map<string, number>();
+  for (const src of new Set([...was.makeups.keys(), ...now.makeups.keys()])) {
+    const [a, b] = [was.makeups.get(src), now.makeups.get(src)];
+    const makeups = [...new Set([...(a?.keys() ?? []), ...(b?.keys() ?? [])])].map((makeup) => {
+      const [before, after] = [a?.get(makeup), b?.get(makeup)];
+      const kinds = [...(before ?? after)!.events.keys()];
+      const names = new Set(kinds.map((kind) => (was.kinds.get(kind) ?? now.kinds.get(kind))!.name));
+      return { more: (after?.hits ?? 0) - (before?.hits ?? 0), before, after, names };
+    });
+    const more = makeups.filter((m) => m.more > 0);
+    for (const fewer of makeups.filter((m) => m.more < 0))
+      for (const m of more) {
+        if (!m.more || ![...fewer.names].some((name) => m.names.has(name))) continue;
+        const same = Math.min(-fewer.more, m.more);
+        fewer.more += same;
+        m.more -= same;
+      }
+    for (const m of makeups) {
+      if (!m.more) continue;
+      const at = m.more > 0 ? m.after! : m.before!;
+      for (const [kind, events] of at.events) landed.set(kind, (landed.get(kind) ?? 0) + (events / at.hits) * m.more);
     }
   }
-  // A source's (or name's) more hits are shared among its kinds that land more often.
-  const share = (key: string, sign: number) => Math.min(1, (sign * more(key)) / events.get(`${sign}|${key}`)!);
   const procs: Named = new Map();
   const lost: Named = new Map();
-  for (const k of kinds) {
-    const sign = Math.sign(k.events);
-    if (!sign || k.of.some((key) => sign * more(key) <= 0)) continue;
-    const at = sign > 0 ? k.after! : k.before!;
-    const damage = Math.max(0, Math.min((at.damage / at.events) * Math.abs(k.events), sign * k.damage, sign * gained.get(k.name)!));
-    addTo(sign > 0 ? procs : lost, k.name, k.source, damage * Math.min(...k.of.map((key) => share(key, sign))));
+  for (const [kind, n] of landed) {
+    const [a, b] = [was.kinds.get(kind), now.kinds.get(kind)];
+    const k = (a ?? b)!;
+    if (k.source === item) continue;
+    const sign = Math.sign(n);
+    const events = Math.min(Math.abs(n), sign * ((b?.events ?? 0) - (a?.events ?? 0)));
+    if (!(events > 0)) continue;
+    const at = sign > 0 ? b! : a!;
+    const damage = Math.min((at.damage / at.events) * events, sign * ((b?.damage ?? 0) - (a?.damage ?? 0)));
+    if (damage > 0) addTo(sign > 0 ? procs : lost, k.name, k.source, damage);
   }
   // A name's new hits are at most what it gained, its lost ones at most what it lost; the rest of its
   // gain is the same hits dealing more or less.
   let base = 0;
-  for (const [name, d] of gained) {
-    const source = kinds.find((k) => k.name === name)!.source;
+  for (const name of new Set([...was.names.keys(), ...now.names.keys()])) {
+    const { source } = (was.names.get(name) ?? now.names.get(name))!;
+    if (source === item) continue;
+    const d = (now.names.get(name)?.damage ?? 0) - (was.names.get(name)?.damage ?? 0);
     const [p, l] = [procs.get(name), lost.get(name)];
     if (p) p.damage = Math.min(p.damage, Math.max(0, d));
     if (l) l.damage = Math.min(l.damage, Math.max(0, -d));
-    const rest = d - (procs.get(name)?.damage ?? 0) + (lost.get(name)?.damage ?? 0);
+    const rest = d - (p?.damage ?? 0) + (l?.damage ?? 0);
     if (rest > 0) base += rest;
     else addTo(lost, name, source, -rest);
   }

@@ -399,9 +399,51 @@ test("rank items: a part a stat adds to hits that land anyway is the item's base
   assert.ok(dawn.procs.some((p) => p.name === "Nashor's Tooth"));
 });
 
+test("rank items: a hit that lands only with the item is a proc with all its parts; hits only regrouped aren't", () => {
+  // Dusk and Dawn applies Elise's Spider Form on-hits again, a hit of its own: its Spider Queen and three Spiderlings.
+  const elise = { champion: "Elise", level: 11, combo: "R AA", target: { preset: "squishy" as const } };
+  const spider = simulate(data, { ...elise, items: ["Dusk and Dawn"] }).events.filter((e) => e.sourceLabel === "Spider Form");
+  const again = spider.filter((e) => e.hitId !== spider[0].hitId);
+  assert.deepEqual(
+    again.map((e) => e.label),
+    ["Spider Queen", "Spiderling", "Spiderling", "Spiderling"],
+  );
+  const dealt = (label: string) => Math.round(again.filter((e) => e.label === label).reduce((sum, e) => sum + e.final!, 0) * 10) / 10;
+  const dawn = rankItems(data, elise, { candidates: ["Dusk and Dawn"] }).items[0];
+  assert.deepEqual(
+    dawn.procs.map((p) => [p.name, p.damage]),
+    [
+      ["Spiderling", dealt("Spiderling")],
+      ["Spider Queen", dealt("Spider Queen")],
+    ],
+  );
+  // Tibbers' aura ticks and attacks land as one hit when at one moment: Terminus's attack speed moves one
+  // apart, a hit more but no more of either.
+  const annie = {
+    champion: "Annie",
+    level: 13,
+    items: ["Kraken Slayer", "Infinity Edge", "Berserker's Greaves", "Phantom Dancer"],
+    runes: ["Lethal Tempo", "Presence of Mind", "Legend: Alacrity", "Cut Down", 5005, 5008, 5001],
+    combo: "AA Q AA W AA E AA R AA AA AA",
+    target: { preset: "bruiser" as const, levelDiff: 1 },
+  };
+  const tibbers = (items: string[]) => {
+    const events = simulate(data, { ...annie, items }).events.filter((e) => e.sourceLabel === "Summon: Tibbers");
+    return [new Set(events.map((e) => e.hitId)).size, events.length];
+  };
+  assert.deepEqual(
+    [tibbers(annie.items), tibbers([...annie.items, "Terminus"])],
+    [
+      [20, 21],
+      [21, 21],
+    ],
+  );
+  assert.deepEqual(rankItems(data, annie, { candidates: ["Terminus"] }).items[0].procs, []);
+});
+
 test("rank items: what an item takes away from your other damage is lost, and the parts add up to the gain", () => {
-  // Rapid Firecannon's attack speed launches the attack before Achooo! lands: the attack takes the Energize
-  // charge, so Voltaic's Firmament lands with it, later, on less health, and its lethality misses Achooo!.
+  // Rapid Firecannon's attack speed launches the attack before Achooo! lands: the attack fires the Energized
+  // items, so Voltaic's Firmament lands with it, later, on less health, and its lethality misses Achooo!.
   const base = {
     champion: "Smolder",
     level: 15,
