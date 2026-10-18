@@ -13,7 +13,8 @@ the combo out on a timeline and reports every damage instance.
   an item shows its cost, stats, passives and actives, with the numbers for your champion's level and
   stats, melee or ranged. Runes go on a rune page laid out as in the client, which keeps to the game's rules (a rune per
   row, two from the secondary tree, a shard per row); hovering a rune shows its tooltip like an item's, and whether its
-  adaptive damage is physical or magic for you. State lives in the URL, so links are shareable.
+  adaptive damage is physical or magic for you. Share gives the scenario as a short code (about 70 characters for a full build) to
+  paste in a chat and load from there, or as a link; Share also copies the scenario's JSON for the CLI and MCP.
 * **AI agents:** an MCP server (simulate, compare, rank items, optimize builds and combo order) and a
   CLI with `--json` output.
 * **Accuracy:** every number comes from Riot's own game files for the patch (via CommunityDragon),

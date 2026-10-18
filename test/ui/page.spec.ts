@@ -1,6 +1,8 @@
-// Around the cards: the state in the URL hash and in storage across reloads, the header's buttons, dark mode.
+// Around the cards: the state's code in the URL hash and in storage across reloads, a link entered on
+// the page, Share (copying the code, the link and the JSON, with or without the Clipboard API, and a
+// code pasted), Reset, dark mode.
 
-import { test, expect, encodeState, type UI } from "./ui.ts";
+import { test, expect, codeOf, type UI } from "./ui.ts";
 
 /** Loads the page again, as a link or a reload would: a navigation that only changes the hash doesn't. */
 const reload = async (ui: UI, hash?: string) => {
@@ -62,7 +64,7 @@ test("the state survives a reload", async ({ ui }) => {
   );
   await step(
     "a link's state wins over the one saved",
-    () => reload(ui, encodeState({ champion: "Lux", target: { mode: "bruiser" } })),
+    () => reload(ui, "#" + codeOf({ champion: "Lux", target: { mode: "bruiser" } })),
     async () => {
       await expect(champion).toHaveValue("Lux");
       await expect(ui.card("Target").getByRole("button", { name: "Bruiser" })).toHaveAttribute("aria-pressed", "true");
@@ -78,22 +80,112 @@ test("the state survives a reload", async ({ ui }) => {
     },
   );
   await step(
-    "an unknown target and a broken rune page: those defaults, the rest kept",
-    () => reload(ui, encodeState({ champion: "Zed", target: { mode: "boss" }, runes: { primary: 1 } })),
+    "a code cut short: the state saved",
+    () => reload(ui, "#" + codeOf({ champion: "Zed", target: { mode: "tank" } }).slice(0, -2)),
+    async () => {
+      await expect(champion).toHaveValue("Lux");
+      expect(await saved()).toBe(true);
+    },
+  );
+  await step(
+    "an item the patch hasn't (one since removed): its slot empty, the rest kept",
+    () => reload(ui, "#" + codeOf({ champion: "Zed", items: [3142, 9999, null, null, null, null], target: { mode: "tank" } })),
     async () => {
       await expect(champion).toHaveValue("Zed");
-      await expect(ui.card("Target").getByRole("button", { name: "Squishy" })).toHaveAttribute("aria-pressed", "true");
-      await expect(ui.card("Runes").locator(".rune-tree").first().locator(".tree-name")).toHaveText("Domination");
+      await expect(tank).toHaveAttribute("aria-pressed", "true");
+      expect((await ui.state()).items).toEqual([3142, null, null, null, null, null]);
     },
   );
   await step("the first link again", () => reload(ui, hash), shows);
 });
 
-test("header: copy and Reset", async ({ ui, context }) => {
+test("a link entered in the address bar on the page loads, as Back and Forward do", async ({ ui }) => {
+  const { page, step } = ui;
+  const champion = ui.card("Champion").getByRole("searchbox", { name: "Champion" });
+  const level = ui.card("Champion").getByRole("slider", { name: "Champion level" });
+  const lux = { champion: "Lux", target: { mode: "bruiser" } };
+  // Set before the link: still there after it, so the page didn't reload.
+  const stayed = () => page.evaluate(() => (window as any).stayed === true);
+  let entries = 0;
+
+  await step(
+    "Zed",
+    async () => {
+      await ui.open({ champion: "Zed" });
+      await page.evaluate(() => ((window as any).stayed = true));
+      entries = await page.evaluate(() => history.length);
+    },
+    () => expect(champion).toHaveValue("Zed"),
+  );
+  await step(
+    "level 20: the hash its code, written over (no new history entry)",
+    async () => {
+      await level.focus();
+      await level.press("End");
+    },
+    async () => {
+      expect((await ui.state()).level).toBe(20);
+      expect(await page.evaluate(() => history.length)).toBe(entries);
+    },
+  );
+  await step(
+    "a link to Lux against a bruiser: Lux, without a reload",
+    () => page.goto("/#" + codeOf(lux)),
+    async () => {
+      await expect(champion).toHaveValue("Lux");
+      await expect(ui.card("Target").getByRole("button", { name: "Bruiser" })).toHaveAttribute("aria-pressed", "true");
+      expect(await stayed()).toBe(true);
+      expect(new URL(page.url()).hash).toBe("#" + codeOf(lux));
+    },
+  );
+  await step(
+    "Back: Zed at 20",
+    () => page.goBack(),
+    async () => {
+      await expect(champion).toHaveValue("Zed");
+      await expect(level).toHaveValue("20");
+    },
+  );
+  await step(
+    "Forward: Lux",
+    () => page.goForward(),
+    () => expect(champion).toHaveValue("Lux"),
+  );
+  await step(
+    "a hash that isn't a code: nothing changes, and the hash is Lux's code again",
+    () => page.goto("/#notacode!!"),
+    async () => {
+      await expect(champion).toHaveValue("Lux");
+      expect(new URL(page.url()).hash).toBe("#" + codeOf(lux));
+      expect(await stayed()).toBe(true);
+    },
+  );
+});
+
+/** Zed with Youmuu's. */
+const zed = { champion: "Zed", combo: "W E Q AA R", items: [3142, null, null, null, null, null] };
+
+/** Share, the panel it opens, and the panel's parts. */
+const shareOf = (ui: UI) => {
+  const header = ui.page.locator("header");
+  const panel = header.getByRole("group", { name: "Share" });
+  return {
+    button: header.getByRole("button", { name: "Share" }),
+    panel,
+    code: panel.getByRole("textbox", { name: "Scenario code" }),
+    paste: panel.getByRole("textbox", { name: "Paste a code" }),
+    copyCode: panel.getByRole("button", { name: "Copy code" }),
+    copyLink: panel.getByRole("button", { name: "Copy link" }),
+    copyJSON: panel.getByRole("button", { name: "copy the scenario JSON" }),
+    status: panel.getByRole("status"),
+  };
+};
+
+test("Share: the code, the link and the scenario JSON copied; Reset", async ({ ui, context }) => {
   const { page, step } = ui;
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   const clipboard = () => page.evaluate(() => navigator.clipboard.readText());
-  const header = page.locator("header");
+  const share = shareOf(ui);
   let fresh = {} as Awaited<ReturnType<UI["state"]>>;
 
   await step(
@@ -104,35 +196,184 @@ test("header: copy and Reset", async ({ ui, context }) => {
     },
   );
   await step(
-    "Zed with Youmuu's: Copy link copies the link, says so a moment",
+    "Zed with Youmuu's, Share: the scenario's code, Copy code focused",
     async () => {
-      await reload(ui, encodeState({ champion: "Zed", combo: "W E Q AA R", items: [3142, null, null, null, null, null] }));
-      await header.getByRole("button", { name: "Copy link" }).click();
+      await reload(ui, "#" + codeOf(zed));
+      await share.button.click();
     },
     async () => {
-      await expect(header.getByRole("button", { name: "Link copied" })).toBeVisible();
-      expect(await clipboard()).toBe(page.url());
-      await expect(header.getByRole("button", { name: "Copy link" })).toBeVisible();
+      await expect(share.button).toHaveAttribute("aria-expanded", "true");
+      await expect(share.code).toHaveValue(codeOf(zed));
+      await expect(share.copyCode).toBeFocused();
     },
   );
   await step(
-    "Copy scenario: the CLI's and MCP's JSON for it",
-    () => header.getByRole("button", { name: "Copy scenario" }).click(),
+    "Copy code: the code, letters and digits; it says so a moment",
+    () => share.copyCode.click(),
     async () => {
-      await expect(header.getByRole("button", { name: "Scenario copied" })).toBeVisible();
-      expect(JSON.parse(await clipboard())).toMatchObject({ champion: "Zed", items: [3142], combo: "W E Q AA R", target: { preset: "squishy" } });
-      await expect(header.getByRole("button", { name: "Copy scenario" })).toBeVisible();
+      await expect(share.status).toHaveText("Copied the code");
+      expect(await clipboard()).toBe(codeOf(zed));
+      expect(codeOf(zed)).toMatch(/^[0-9A-Za-z]{10,40}$/);
+      await expect(share.status).toHaveText("");
     },
+  );
+  await step(
+    "Copy link: the page's address, which ends in the code",
+    () => share.copyLink.click(),
+    async () => {
+      await expect(share.status).toHaveText("Copied the link");
+      expect(await clipboard()).toBe(page.url());
+      expect(page.url()).toMatch(new RegExp(`/#${codeOf(zed)}$`));
+    },
+  );
+  await step(
+    "copy the scenario JSON: the CLI's and MCP's",
+    () => share.copyJSON.click(),
+    async () => {
+      await expect(share.status).toHaveText("Copied the scenario JSON");
+      expect(JSON.parse(await clipboard())).toMatchObject({ champion: "Zed", items: [3142], combo: "W E Q AA R", target: { preset: "squishy" } });
+    },
+  );
+  await step(
+    "Escape: closed, back on Share",
+    () => page.keyboard.press("Escape"),
+    async () => {
+      await expect(share.panel).toHaveCount(0);
+      await expect(share.button).toBeFocused();
+      await expect(share.button).toHaveAttribute("aria-expanded", "false");
+    },
+  );
+  await step(
+    "Share, then a click elsewhere: closed",
+    async () => {
+      await share.button.click();
+      await expect(share.panel).toBeVisible();
+      await page.locator("header h1").click();
+    },
+    () => expect(share.panel).toHaveCount(0),
   );
   await step(
     "Reset: the default state",
-    () => header.getByRole("button", { name: "Reset" }).click(),
+    () => page.locator("header").getByRole("button", { name: "Reset" }).click(),
     async () => expect(await ui.state()).toEqual(fresh),
   );
   await step(
     "Undo in Items: the items before Reset",
     () => ui.card("Items").getByRole("button", { name: "Undo" }).click(),
     async () => expect((await ui.state()).items).toEqual([3142, null, null, null, null, null]),
+  );
+});
+
+test("Share without the Clipboard API, as over plain http from another machine", async ({ ui, context }) => {
+  const { page, step } = ui;
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  // A page that isn't a secure context has no navigator.clipboard; the test keeps it to read what was copied.
+  await page.addInitScript(() => {
+    const clipboard = navigator.clipboard;
+    (window as any).readClipboard = () => clipboard.readText();
+    Object.defineProperty(Navigator.prototype, "clipboard", { get: () => undefined });
+  });
+  const clipboard = () => page.evaluate(() => (window as any).readClipboard());
+  const share = shareOf(ui);
+
+  await step(
+    "Zed with Youmuu's, Share",
+    async () => {
+      await ui.open(zed);
+      await share.button.click();
+    },
+    () => expect(page.evaluate(() => navigator.clipboard)).resolves.toBeUndefined(),
+  );
+  await step(
+    "Copy code: copied all the same, and the focus is back on Copy code",
+    () => share.copyCode.click(),
+    async () => {
+      await expect(share.status).toHaveText("Copied the code");
+      expect(await clipboard()).toBe(codeOf(zed));
+      await expect(share.copyCode).toBeFocused();
+    },
+  );
+  await step(
+    "Copy link: the link",
+    () => share.copyLink.click(),
+    async () => {
+      await expect(share.status).toHaveText("Copied the link");
+      expect(await clipboard()).toBe(page.url());
+    },
+  );
+  await step(
+    "the copy command refused too: it says so, and selects the code to copy by hand",
+    async () => {
+      await page.evaluate(() => (document.execCommand = () => false));
+      await share.copyCode.click();
+    },
+    async () => {
+      await expect(share.status).toHaveText("Couldn't copy: the browser didn't let the page");
+      await expect(share.code).toBeFocused();
+      expect(await share.code.evaluate((e: HTMLInputElement) => [e.selectionStart, e.selectionEnd])).toEqual([0, codeOf(zed).length]);
+      expect(await clipboard()).toBe(page.url());
+    },
+  );
+});
+
+test("Share: a code pasted loads", async ({ ui }) => {
+  const { page, step } = ui;
+  const share = shareOf(ui);
+  const champion = ui.card("Champion").getByRole("searchbox", { name: "Champion" });
+  const bruiser = ui.card("Target").getByRole("button", { name: "Bruiser" });
+  const lux = { champion: "Lux", target: { mode: "bruiser" } };
+
+  await step(
+    "load, Share",
+    async () => {
+      await ui.open();
+      await share.button.click();
+    },
+    () => expect(share.paste).toHaveValue(""),
+  );
+  await step(
+    "Lux against a bruiser's code: that scenario, its code the one shown",
+    () => share.paste.fill(codeOf(lux)),
+    async () => {
+      await expect(champion).toHaveValue("Lux");
+      await expect(bruiser).toHaveAttribute("aria-pressed", "true");
+      await expect(share.status).toHaveText("Loaded the code");
+      await expect(share.paste).toHaveValue("");
+      await expect(share.code).toHaveValue(codeOf(lux));
+      expect(new URL(page.url()).hash).toBe("#" + codeOf(lux));
+    },
+  );
+  await step(
+    "a link to Zed with Youmuu's, from another machine: Zed",
+    () => share.paste.fill(` http://192.168.1.20:5173/#${codeOf(zed)} `),
+    async () => {
+      await expect(champion).toHaveValue("Zed");
+      expect((await ui.state()).items).toEqual(zed.items);
+      await expect(share.paste).toHaveValue("");
+    },
+  );
+  await step(
+    "not a code: it says so, nothing changes",
+    () => share.paste.fill("hello"),
+    async () => {
+      await expect(share.panel.getByText("Not a scenario code")).toBeVisible();
+      await expect(share.paste).toHaveAttribute("aria-invalid", "true");
+      await expect(champion).toHaveValue("Zed");
+      expect(new URL(page.url()).hash).toBe("#" + codeOf(zed));
+    },
+  );
+  await step(
+    "emptied: no complaint",
+    () => share.paste.fill(""),
+    async () => {
+      await expect(share.panel.getByText("Not a scenario code")).toHaveCount(0);
+      await expect(share.paste).toHaveAttribute("aria-invalid", "false");
+    },
+  );
+  await step(
+    "Undo in Items: the items before the code",
+    () => ui.card("Items").getByRole("button", { name: "Undo" }).click(),
+    async () => expect((await ui.state()).items).toEqual([6655, 3020, null, null, null, null]),
   );
 });
 

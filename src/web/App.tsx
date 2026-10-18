@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DATA, loadBundledIcons } from "./data.ts";
-import { DEFAULT_STATE, decodeState, encodeState, loadSavedState, saveState, toScenario, type UIState } from "./state.ts";
+import { DEFAULT_STATE, decodeState, encodeState, loadSavedState, saveCode, toScenario, type UIState } from "./state.ts";
 import { simulate, Sim, type SimResult } from "../engine/sim.ts";
 import { clampCombo, formatCombo, parseCombo } from "../engine/combo.ts";
 import { AttackerPanel } from "./components/attacker.tsx";
@@ -11,6 +11,7 @@ import { SettingsPanel } from "./components/settings.tsx";
 import { ComboBuilder } from "./components/combo.tsx";
 import { Details, Summary } from "./components/results.tsx";
 import { ItemValueCard } from "./components/item-value.tsx";
+import { Share } from "./components/share.tsx";
 
 function useTheme() {
   const [theme, setTheme] = useState<"light" | "dark" | null>(() => {
@@ -46,15 +47,8 @@ function clampShorthand(combo: string, sim: Sim): string {
 }
 
 export function App() {
-  const [state, setState] = useState<UIState>(() => {
-    try {
-      return decodeState(location.hash) ?? loadSavedState() ?? DEFAULT_STATE;
-    } catch {
-      return DEFAULT_STATE;
-    }
-  });
+  const [state, setState] = useState<UIState>(() => decodeState(DATA, location.hash) ?? loadSavedState(DATA) ?? DEFAULT_STATE);
   const [pinned, setPinned] = useState<{ label: string; state: UIState }[]>([]);
-  const [copied, setCopied] = useState<string | null>(null);
   const [, setIconsReady] = useState(false);
   const theme = useTheme();
   const embedded = typeof window !== "undefined" && window.self !== window.top;
@@ -63,25 +57,37 @@ export function App() {
     loadBundledIcons().then((ok) => ok && setIconsReady(true));
   }, []);
 
-  const copy = (text: string, what: string) => {
-    const done = () => {
-      setCopied(what);
-      setTimeout(() => setCopied(null), 1500);
-    };
-    navigator.clipboard?.writeText(text).then(done, () => setCopied("Copy failed"));
-  };
-
+  // The hash holds the state's code, so the address is a link to the scenario. Writing it with
+  // replaceState fires no hashchange.
+  const code = useMemo(() => encodeState(DATA, state), [state]);
+  const shown = useRef(code);
   useEffect(() => {
-    saveState(state);
-    const h = "#" + encodeState(state);
+    shown.current = code;
+    saveCode(code);
     try {
-      if (location.hash !== h) history.replaceState(null, "", h);
+      if (location.hash !== "#" + code) history.replaceState(null, "", "#" + code);
     } catch {
       // Sandboxed frames may refuse history changes; the state just isn't mirrored to the URL.
     }
-  }, [state]);
+  }, [code]);
+  // A link pasted into the address bar on the page changes only the hash, which reloads nothing (nor
+  // do Back and Forward between two): its scenario loads here. A hash without another one goes back
+  // to this one's code.
+  useEffect(() => {
+    const follow = () => {
+      const next = decodeState(DATA, location.hash);
+      if (next && encodeState(DATA, next) !== shown.current) return setState(next);
+      try {
+        history.replaceState(null, "", "#" + shown.current);
+      } catch {
+        // As above.
+      }
+    };
+    window.addEventListener("hashchange", follow);
+    return () => window.removeEventListener("hashchange", follow);
+  }, []);
 
-  const scenario = useMemo(() => toScenario(state), [state]);
+  const scenario = useMemo(() => toScenario(DATA, state), [state]);
   const { result, sim, combo, error } = useMemo(() => {
     try {
       const sim = new Sim(DATA, { ...scenario, combo: [] });
@@ -109,18 +115,7 @@ export function App() {
         <h1>damagesim</h1>
         <span className="badge">patch {DATA.meta.patch}</span>
         <span className="spacer" />
-        {!embedded && (
-          <button className="btn small" onClick={() => copy(location.href, "Link copied")}>
-            {copied === "Link copied" ? copied : "Copy link"}
-          </button>
-        )}
-        <button
-          className="btn small"
-          title="Scenario JSON for the CLI (--scenario) or the MCP simulate tool"
-          onClick={() => copy(JSON.stringify(scenario, null, 2), "Scenario copied")}
-        >
-          {copied && copied !== "Link copied" ? copied : "Copy scenario"}
-        </button>
+        <Share code={code} scenario={scenario} embedded={embedded} onLoad={setState} />
         <button className="btn small" onClick={() => setState(DEFAULT_STATE)}>
           Reset
         </button>

@@ -3,7 +3,8 @@
 // numbers shown, and the one check every test makes: the console stays empty.
 
 import { test as base, expect, type Locator, type Page } from "@playwright/test";
-import type { UIState } from "../../src/web/state.ts";
+import { loadGameData } from "../../src/node/load.ts";
+import { DEFAULT_STATE, decodeState, encodeState, type UIState } from "../../src/web/state.ts";
 
 export { expect };
 
@@ -41,8 +42,24 @@ function isSettled(itemValue: boolean) {
   return window.__quiet.frames() >= 3;
 }
 
-/** A state as the app puts it in the URL hash; what's left out is the default. */
-export const encodeState = (state: object) => "#" + Buffer.from(JSON.stringify(state)).toString("base64url");
+/** The game data the page has, for the scenario codes. */
+const DATA = loadGameData();
+
+/** A state's code; what's left out is the default, in the target and the settings field by field. */
+export const codeOf = (state: Record<string, any>) =>
+  encodeState(DATA, {
+    ...DEFAULT_STATE,
+    ...state,
+    target: { ...DEFAULT_STATE.target, ...state.target },
+    settings: { ...DEFAULT_STATE.settings, ...state.settings },
+  });
+
+/** The state in a code, a hash or a link. */
+export function stateOf(code: string): UIState {
+  const state = decodeState(DATA, code);
+  if (!state) throw new Error(`not a scenario code: ${code}`);
+  return state;
+}
 
 /** The first number in a text: 1317 in "Total damage 1,317", −5 in "−5 (lvl 6)". */
 export const num = (text: string) => Number(/[−-]?\d[\d,]*(\.\d+)?/.exec(text)![0].replace(/,/g, "").replace("−", "-"));
@@ -109,7 +126,7 @@ export const test = base.extend<{ ui: UI; itemValue: boolean }>({
     const ui: UI = {
       page,
       open: async (state) => {
-        await page.goto("/" + (state ? encodeState(state) : ""));
+        await page.goto("/" + (state ? "#" + codeOf(state) : ""));
         await expect(page.locator("section.card").first()).toBeVisible();
         await settle(true);
       },
@@ -121,7 +138,7 @@ export const test = base.extend<{ ui: UI; itemValue: boolean }>({
           await check?.();
         }),
       settle: () => settle(),
-      state: async () => JSON.parse(Buffer.from(new URL(page.url()).hash.slice(1), "base64url").toString("utf8")),
+      state: async () => stateOf(new URL(page.url()).hash),
       card: (title) => page.locator("section.card").filter({ has: page.locator("h2", { hasText: new RegExp(`^${title}(?![a-z])`) }) }),
       details: () => page.locator("section.card").filter({ has: page.getByRole("tablist") }),
       total: async () => num(await page.locator(".hero .value").first().innerText()),

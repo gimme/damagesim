@@ -49,6 +49,20 @@ test("phone width", async ({ ui }) => {
     expect(layout).toEqual({ scroll: 0, columns: 1, outside: [] });
   };
   await step("load: one column, nothing past the screen's edge", () => ui.open(), fits);
+  const share = page.locator("header").getByRole("button", { name: "Share" });
+  await step(
+    "Share: its panel within the screen too",
+    () => share.tap(),
+    async () => {
+      await expect(page.getByRole("group", { name: "Share" })).toBeVisible();
+      await fits();
+    },
+  );
+  await step(
+    "Share again: closed",
+    () => share.tap(),
+    () => expect(page.getByRole("group", { name: "Share" })).toHaveCount(0),
+  );
 
   const iv = ui.card("Item value");
   const rows = iv

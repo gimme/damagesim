@@ -1,10 +1,11 @@
-// UI state ⇄ engine Scenario, plus URL-hash persistence (shareable links) and the last state in
-// localStorage (reloads where the page can't write its URL, e.g. the artifact frame).
+// UI state ⇄ engine Scenario, plus the scenario code: the state as a short string that people share,
+// the URL hash carries (links) and localStorage keeps (reloads where the page can't write its URL,
+// e.g. the artifact frame). It takes the game data as an argument, so Node (the UI test) reads codes too.
 
+import type { GameData } from "../engine/gamedata.ts";
 import type { Scenario, SimSettings, TargetSpec } from "../engine/sim.ts";
 import type { TargetPreset } from "../engine/presets.ts";
 import { pageRunes, type RunePage } from "../engine/rune-page.ts";
-import { DATA } from "./data.ts";
 
 /** Health, armor and magic resist. */
 export interface TargetStats {
@@ -78,14 +79,14 @@ export const DEFAULT_STATE: UIState = {
   settings: { finishDots: true, executes: true },
 };
 
-export function toScenario(s: UIState): Scenario {
+export function toScenario(data: GameData, s: UIState): Scenario {
   return {
     champion: s.champion,
     level: s.level,
     ...(s.ranks ? { ranks: s.ranks } : {}),
     skillOrder: s.skillOrder,
     items: s.items.filter((x): x is number => x != null),
-    runes: pageRunes(DATA, s.runes),
+    runes: pageRunes(data, s.runes),
     options: s.options,
     combo: s.combo,
     target: toTargetSpec(s.target),
@@ -110,45 +111,328 @@ export function toTargetSpec(t: TargetState): TargetSpec {
   return { preset: t.mode, levelDiff: t.levelDiff, ...(build ? { items: build.filter((x): x is number => x != null) } : {}), ...hp };
 }
 
-export function encodeState(s: UIState): string {
-  const json = JSON.stringify(s);
-  return btoa(unescape(encodeURIComponent(json)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+// The scenario code. After a version byte, a varint whose bits say which fields differ from
+// DEFAULT_STATE, then those fields in FIELDS' order: numbers as varints, items and runes by id,
+// champions by key, the combo's usual steps a byte each. It's written in base 62, so a double-click
+// selects it whole and a chat's formatting leaves it alone (base64's - and _ break both). A change to
+// the defaults changes what a code means; a change to the layout takes a new version, and a code of
+// another version doesn't load.
+
+const VERSION = 1;
+const DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+interface Out {
+  data: GameData;
+  bytes: number[];
+}
+interface In {
+  data: GameData;
+  bytes: Uint8Array;
+  at: number;
+}
+/** How a value is written into a code and read back; reading one that can't be, or past the end, throws. */
+interface Codec<T> {
+  put(o: Out, v: T): void;
+  get(i: In): T;
 }
 
-export function decodeState(hash: string): UIState | null {
+const fail = (why: string): never => {
+  throw new Error(why);
+};
+
+const byte = (i: In) => (i.at < i.bytes.length ? i.bytes[i.at++] : fail("the code ends early"));
+
+/** A whole number from 0 up, 7 bits a byte. */
+const uint: Codec<number> = {
+  put: (o, n) => {
+    if (!Number.isSafeInteger(n) || n < 0) fail(`${n} isn't a whole number from 0`);
+    for (; n >= 128; n = Math.floor(n / 128)) o.bytes.push((n % 128) + 128);
+    o.bytes.push(n);
+  },
+  get: (i) => {
+    let n = 0;
+    for (let f = 1; f < 2 ** 49; f *= 128) {
+      const b = byte(i);
+      n += (b % 128) * f;
+      if (b < 128) return n;
+    }
+    return fail("a number too long");
+  },
+};
+
+const zigzag = (n: number) => (n >= 0 ? 2 * n : -2 * n - 1);
+const unzigzag = (z: number) => (z % 2 ? -(z + 1) / 2 : z / 2);
+
+/** A whole number, negative too. */
+const sint: Codec<number> = {
+  put: (o, n) => uint.put(o, zigzag(n)),
+  get: (i) => unzigzag(uint.get(i)),
+};
+
+/** Any number: one with up to 6 decimals as its digits and how many are decimals (0.2: 2 and 1), else the 8 bytes of a double. */
+const num: Codec<number> = {
+  put: (o, v) => {
+    for (let e = 0; e < 7; e++) {
+      const m = Math.round(v * 10 ** e);
+      if (Math.abs(m) < 2 ** 40 && m / 10 ** e === v) return uint.put(o, zigzag(m) * 8 + e);
+    }
+    uint.put(o, 7);
+    const b = new DataView(new ArrayBuffer(8));
+    b.setFloat64(0, v);
+    for (let k = 0; k < 8; k++) o.bytes.push(b.getUint8(k));
+  },
+  get: (i) => {
+    const x = uint.get(i);
+    if (x % 8 < 7) return unzigzag(Math.floor(x / 8)) / 10 ** (x % 8);
+    const b = new DataView(new ArrayBuffer(8));
+    for (let k = 0; k < 8; k++) b.setUint8(k, byte(i));
+    return b.getFloat64(0);
+  },
+};
+
+const bool: Codec<boolean> = {
+  put: (o, b) => uint.put(o, b ? 1 : 0),
+  get: (i) => uint.get(i) === 1,
+};
+
+/** Text, as its length and UTF-8. */
+const str: Codec<string> = {
+  put: (o, s) => {
+    const b = new TextEncoder().encode(s);
+    uint.put(o, b.length);
+    o.bytes.push(...b);
+  },
+  get: (i) => {
+    const n = uint.get(i);
+    const end = i.at + n;
+    if (end > i.bytes.length) fail("the code ends early");
+    const s = new TextDecoder("utf-8", { fatal: true }).decode(i.bytes.subarray(i.at, end));
+    i.at = end;
+    return s;
+  },
+};
+
+const list = <T>(c: Codec<T>): Codec<T[]> => ({
+  put: (o, xs) => {
+    uint.put(o, xs.length);
+    for (const x of xs) c.put(o, x);
+  },
+  get: (i) => {
+    const n = uint.get(i);
+    // Each takes a byte at least: a longer list is a broken code, not one to make.
+    if (n > i.bytes.length - i.at) fail("a list longer than the code");
+    return Array.from({ length: n }, () => c.get(i));
+  },
+});
+
+const record = <K extends string, V>(k: Codec<K>, v: Codec<V>): Codec<Partial<Record<K, V>>> => {
+  const pairs = list<[K, V]>({ put: (o, [a, b]) => (k.put(o, a), v.put(o, b)), get: (i) => [k.get(i), v.get(i)] });
+  return { put: (o, r) => pairs.put(o, Object.entries(r) as [K, V][]), get: (i) => Object.fromEntries(pairs.get(i)) as Partial<Record<K, V>> };
+};
+
+/** One of a few values, by its place among them. */
+const oneOf = <T>(values: readonly T[]): Codec<T> => ({
+  put: (o, v) => uint.put(o, values.indexOf(v)),
+  get: (i) => values[uint.get(i)] ?? fail("not one of the values"),
+});
+
+/** A whole number from `min` to `max`. */
+const within = (min: number, max: number): Codec<number> => ({
+  put: uint.put,
+  get: (i) => {
+    const n = uint.get(i);
+    return n >= min && n <= max ? n : fail(`${n} isn't from ${min} to ${max}`);
+  },
+});
+
+/** A champion by its key (Ahri's is 103). */
+const champion: Codec<string> = {
+  put: (o, id) => uint.put(o, o.data.championIndex.find((c) => c.id === id)?.key ?? fail(`no champion ${id}`)),
+  get: (i) => {
+    const key = uint.get(i);
+    return i.data.championIndex.find((c) => c.key === key)?.id ?? fail(`no champion with the key ${key}`);
+  },
+};
+
+/** A rune tree by its place in the client's order. */
+const tree: Codec<string> = {
+  put: (o, key) =>
+    uint.put(
+      o,
+      o.data.runePage.trees.findIndex((t) => t.key === key),
+    ),
+  get: (i) => i.data.runePage.trees[uint.get(i)]?.key ?? fail("no such rune tree"),
+};
+
+/** Stat shards, numbered from 5001: as the difference from 5000, a byte each. */
+const shards: Codec<number[]> = {
+  put: (o, xs) =>
+    list(sint).put(
+      o,
+      xs.map((x) => x - 5000),
+    ),
+  get: (i) =>
+    list(sint)
+      .get(i)
+      .map((x) => x + 5000),
+};
+
+/** The steps the shorthand has most, a byte each. */
+const STEPS = ["P", "Q", "W", "E", "R", "AA", "AA!", "AA?", "ignite", "wait"];
+
+/** A step: one of STEPS by its place, or after a byte past them, its text. */
+const step: Codec<string> = {
+  put: (o, t) => (STEPS.includes(t) ? uint.put(o, STEPS.indexOf(t)) : (uint.put(o, STEPS.length), str.put(o, t))),
+  get: (i) => {
+    const k = uint.get(i);
+    return k < STEPS.length ? STEPS[k] : k === STEPS.length ? str.get(i) : fail("not a step");
+  },
+};
+
+/** The combo as typed, by what's between single spaces. */
+const combo: Codec<string> = {
+  put: (o, s) => list(step).put(o, s.split(" ")),
+  get: (i) => list(step).get(i).join(" "),
+};
+
+/** Item slots, 0 for an empty one; an item the data doesn't know (one since removed) reads as empty. */
+const slots: Codec<(number | null)[]> = {
+  put: (o, xs) =>
+    list(uint).put(
+      o,
+      xs.map((x) => x ?? 0),
+    ),
+  get: (i) =>
+    list(uint)
+      .get(i)
+      .map((id) => (i.data.items[id] ? id : null)),
+};
+
+/** The six slots, up to the last item. */
+const build: Codec<(number | null)[]> = {
+  put: (o, xs) => slots.put(o, xs.slice(0, xs.findLastIndex((x) => x != null) + 1)),
+  get: (i) => {
+    const xs = slots.get(i);
+    return [...xs, ...Array<null>(Math.max(0, DEFAULT_STATE.items.length - xs.length)).fill(null)];
+  },
+};
+
+/** Item or rune ids; one the data doesn't know is left out. */
+const known = (has: (data: GameData, id: number) => boolean): Codec<number[]> => ({
+  put: list(uint).put,
+  get: (i) =>
+    list(uint)
+      .get(i)
+      .filter((id) => has(i.data, id)),
+});
+const itemIds = known((data, id) => !!data.items[id]);
+const runeIds = known((data, id) => data.runes.some((r) => r.id === id));
+
+const stats: Codec<TargetStats> = {
+  put: (o, s) => [s.hp, s.armor, s.mr].forEach((v) => num.put(o, v)),
+  get: (i) => ({ hp: num.get(i), armor: num.get(i), mr: num.get(i) }),
+};
+
+/** Q, W, E and R, or nothing for the default leveling. */
+const ranks: Codec<UIState["ranks"]> = {
+  put: (o, r) => list(uint).put(o, r ? [r.Q, r.W, r.E, r.R] : []),
+  get: (i) => {
+    const r = list(uint).get(i);
+    return r.length === 4 ? { Q: r[0], W: r[1], E: r[2], R: r[3] } : r.length ? fail("not four ranks") : null;
+  },
+};
+
+/** What a code can hold, each by its bit: the likelier to differ from the defaults first, so the bits take fewer bytes. */
+const FIELDS: [path: string, codec: Codec<any>][] = [
+  ["champion", champion],
+  ["level", within(1, 20)],
+  ["items", build],
+  ["combo", combo],
+  ["runes.primary", tree],
+  ["runes.secondary", tree],
+  ["runes.picks", runeIds],
+  ["runes.shards", shards],
+  ["target.mode", oneOf(TARGET_MODES)],
+  ["target.champion", champion],
+  ["target.items", itemIds],
+  ["target.levelDiff", sint],
+  ["target.builds", record(oneOf(TARGET_MODES), slots)],
+  ["target.hpPercent", num],
+  ["target.damageReduction", num],
+  ["target.base", stats],
+  ["target.bonus", stats],
+  ["skillOrder", str],
+  ["ranks", ranks],
+  ["options", record(str, num)],
+  ["runes.held", runeIds],
+  ["settings.finishDots", bool],
+];
+
+const valueAt = (s: any, path: string) => path.split(".").reduce((x, k) => x[k], s);
+const withValueAt = (s: any, [k, ...rest]: string[], v: unknown): any => ({ ...s, [k]: rest.length ? withValueAt(s[k], rest, v) : v });
+
+function toBase62(bytes: number[]): string {
+  let n = bytes.reduce((n, b) => n * 256n + BigInt(b), 0n);
+  let s = "";
+  for (; n > 0n; n /= 62n) s = DIGITS[Number(n % 62n)] + s;
+  return s;
+}
+
+function fromBase62(code: string): Uint8Array | null {
+  let n = 0n;
+  for (const ch of code) {
+    const d = DIGITS.indexOf(ch);
+    if (d < 0) return null;
+    n = n * 62n + BigInt(d);
+  }
+  const bytes: number[] = [];
+  for (; n > 0n; n /= 256n) bytes.unshift(Number(n % 256n));
+  return Uint8Array.from(bytes);
+}
+
+/** The state's code. */
+export function encodeState(data: GameData, s: UIState): string {
+  const o: Out = { data, bytes: [VERSION] };
+  const differs = FIELDS.map(([path]) => JSON.stringify(valueAt(s, path)) !== JSON.stringify(valueAt(DEFAULT_STATE, path)));
+  uint.put(
+    o,
+    differs.reduce((mask, d, bit) => mask + (d ? 2 ** bit : 0), 0),
+  );
+  FIELDS.forEach(([path, codec], bit) => differs[bit] && codec.put(o, valueAt(s, path)));
+  return toBase62(o.bytes);
+}
+
+/** The state in a code, or in a link or hash ending in one; null if it holds none. */
+export function decodeState(data: GameData, code: string): UIState | null {
   try {
-    const b64 = hash.replace(/^#/, "").replace(/-/g, "+").replace(/_/g, "/");
-    if (!b64) return null;
-    const parsed = JSON.parse(decodeURIComponent(escape(atob(b64))));
-    const target: TargetState = TARGET_MODES.includes(parsed.target?.mode) ? { ...DEFAULT_STATE.target, ...parsed.target } : DEFAULT_STATE.target;
-    const runes: RunePage = isRunePage(parsed.runes) ? parsed.runes : DEFAULT_STATE.runes;
-    return { ...DEFAULT_STATE, ...parsed, runes, target, settings: { ...DEFAULT_STATE.settings, ...parsed.settings } };
+    const bytes = fromBase62(code.trim().replace(/^.*#/, ""));
+    if (bytes?.[0] !== VERSION) return null;
+    const i: In = { data, bytes, at: 1 };
+    const mask = uint.get(i);
+    if (mask >= 2 ** FIELDS.length) return null;
+    let s = DEFAULT_STATE;
+    FIELDS.forEach(([path, codec], bit) => {
+      if (Math.floor(mask / 2 ** bit) % 2) s = withValueAt(s, path.split("."), codec.get(i));
+    });
+    return i.at === bytes.length ? s : null;
   } catch {
     return null;
   }
 }
-
-const isRunePage = (p: any): p is RunePage =>
-  typeof p?.primary === "string" &&
-  typeof p.secondary === "string" &&
-  [p.picks, p.held, p.shards].every((xs) => Array.isArray(xs) && xs.every((x: unknown) => typeof x === "number"));
 
 const STORAGE_KEY = "damagesim:state";
 
-export function loadSavedState(): UIState | null {
+export function loadSavedState(data: GameData): UIState | null {
   try {
-    return decodeState(localStorage.getItem(STORAGE_KEY) ?? "");
+    return decodeState(data, localStorage.getItem(STORAGE_KEY) ?? "");
   } catch {
     return null;
   }
 }
 
-export function saveState(s: UIState): void {
+export function saveCode(code: string): void {
   try {
-    localStorage.setItem(STORAGE_KEY, encodeState(s));
+    localStorage.setItem(STORAGE_KEY, code);
   } catch {
     // storage unavailable
   }

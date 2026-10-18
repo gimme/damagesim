@@ -74,6 +74,7 @@
     --gold-wash: rgba(255, 197, 61, 0.14);
     --gold-glow: rgba(255, 197, 61, 0.55);
     --good: #0ca30c;
+    --critical: #ff7b72;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
   }
 }
@@ -104,6 +105,7 @@
   --gold-wash: rgba(255, 197, 61, 0.14);
   --gold-glow: rgba(255, 197, 61, 0.55);
   --good: #0ca30c;
+  --critical: #ff7b72;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
@@ -144,6 +146,7 @@ a {
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
 .topbar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -158,6 +161,40 @@ a {
 }
 .topbar .spacer {
   flex: 1;
+}
+/* Share drops down under the header, at its right edge. */
+.share-panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  right: 0;
+  width: min(460px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 12px;
+}
+.share-panel .code-row {
+  flex-wrap: nowrap;
+}
+.share-panel input.code {
+  flex: 1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+.share-panel input[aria-invalid="true"] {
+  border-color: var(--critical);
+}
+.share-panel .bad {
+  color: var(--critical);
+}
+.share-agents {
+  border-top: 1px solid var(--grid);
+  padding-top: 8px;
 }
 .badge {
   display: inline-flex;
