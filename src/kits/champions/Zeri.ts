@@ -1,9 +1,15 @@
 import type { BuffSpec, ChampionKit } from "../../engine/kit-types.ts";
+import type { Sim } from "../../engine/sim.ts";
 
 // Zeri — patch 16.20.
-// Living Battery: her right-click attack deals Q.calc.MinDamage magic damage (cannot crit) and
-// executes low-health targets; a fully charged attack deals PassiveMaxDamage + %max health instead.
-// Burst Fire (Q) is her real "attack": it applies on-hit and can crit.
+// Living Battery: her right-click attack is an ability with an attack's timing (the game: "Zeri's
+// Attacks deal magic damage and are treated as Abilities"; the wiki: spell damage that applies spell
+// effects and triggers on-cast effects, can't crit, applies and triggers no on-hit or on-attack
+// effects). It deals Q.calc.MinDamage magic damage and executes low-health targets; a fully charged
+// one deals PassiveMaxDamage + %max health instead.
+// Burst Fire (Q) is her real attack (wiki: "treated as a basic attack"): basic damage without spell
+// effects, can crit, applies on-hit and on-attack effects. It counts as an ability cast for on-cast
+// effects except Spellblade, so her right-click and W/E/R arm Spellblade and Burst Fire uses it.
 const charged: BuffSpec = {
   id: "zeriCharged",
   label: "Living Battery (charged)",
@@ -17,21 +23,41 @@ const charged: BuffSpec = {
   },
 };
 
+// Burst Fire's rounds fly at 2600 (the data's), 3400 while Overcharged (wiki, not in the data).
+const Q_TRAVEL = "reach / (buff.zeriR ? 3400 : missileSpeed)";
+// Its rounds are fired evenly over the cast time (wiki): one hit here, fired when the middle round is.
+const Q_DELAY = "-castTime / 2";
+
+/** Shorten the remaining cooldown of an ability (no-op if it is ready). */
+function reduceCooldown(sim: Sim, slot: "Q" | "W" | "E" | "R", seconds: number) {
+  const key = `ability:${slot}`;
+  const left = sim.cooldownReadyAt(key) - sim.time;
+  if (left > 0) sim.startCooldown(key, Math.max(0, left - seconds));
+}
+
 const kit: ChampionKit = {
   id: "Zeri",
   status: "curated",
   notes: [
-    "Basic attacks (AA) are Zeri's right-click: Q.calc.MinDamage magic damage that executes below PassiveExecuteThreshold health. In game they apply no on-hit/on-attack effects; the simulator still applies item on-hits to them.",
+    "Basic attacks (AA) are Zeri's right-click, an ability with an attack's timing: Q.calc.MinDamage magic damage that executes below PassiveExecuteThreshold health. They are spell damage (Liandry's, Luden's…) and arm Spellblade, but can't crit and apply no on-hit or on-attack effects (Spellblade's hit, Kraken Slayer, Energize charges…).",
     "Option charged (default on): the first AA of the combo is fully charged (she starts at full charge).",
-    "Burst Fire applies on-hit once per cast and can crit; its 7 rounds are one instance here. Its cooldown is the attack timer: max(MinCooldown, 1 / attack speed).",
+    "Burst Fire (Q) is her attack in all but timing: basic damage without spell effects, can crit, applies on-hit and on-attack effects (it uses an armed Spellblade). It is an ability cast that doesn't arm Spellblade. Its cast time is her attack windup (80% while Overcharged); its 7 rounds (3 while Overcharged) fire over it and fly to the target, one hit here when the middle round lands, so an AA after it lands as the last rounds do. Its cooldown is its own attack timer, separate from the AA's: max(MinCooldown, 1 / attack speed), not shortened by haste or Navori; Spark Surge resets it.",
     "The 1.5 attack speed cap and conversion of excess bonus attack speed into AD are not modeled.",
-    "Spark Surge adds its magic damage to Burst Fire casts for 5s. Lightning Crash: champion hits by abilities extend Overcharge by 2.5s (up to 5s remaining); chain damage to other enemies is ignored.",
+    "Spark Surge adds its magic damage to Burst Fire casts for 5s; charged attacks and Burst Fire shorten its cooldown by 0.5s (1.5s on a Burst Fire crit, its expected value by default). Lightning Crash: champion hits by abilities and charged attacks extend Overcharge by 2.5s (up to 5s remaining); chain damage to other enemies is ignored.",
   ],
   options: [{ key: "charged", label: "First attack is fully charged", default: 1, toggle: true }],
-  attack: { type: "magic", canCrit: false, damageMult: "Q.calc.MinDamage / ad" },
+  attack: { type: "magic", canCrit: false, damageMult: "Q.calc.MinDamage / ad", ability: true },
   hooks: {
     onStart(sim) {
       if (sim.opt.charged) sim.applyBuff(charged, "P", sim.spellFor("P"), 1);
+    },
+    onAttack(sim, atk) {
+      // Spark Surge's cooldown: Burst Fire and charged attacks (the right-click's empowered one).
+      const q = atk.fromAbility === "Q";
+      if (atk.phantom || !(q || (!atk.fromAbility && atk.replaceBase)) || sim.rankOf("E") <= 0) return;
+      const per = sim.evalExpr("E.dv.CDReductionPerHit", { slot: "E" });
+      const crit = sim.evalExpr("E.dv.CritCDReductionPerHit", { slot: "E" });
+      reduceCooldown(sim, "E", q ? per + (crit - per) * atk.naturalCrit : per);
     },
     afterDamage(sim, inst) {
       // Uncharged attack execute.
@@ -57,19 +83,24 @@ const kit: ChampionKit = {
   },
   abilities: {
     Q: {
-      // Burst Fire's cooldown is the attack timer (data cooldown 0; the spell ignores ability haste).
+      // Wiki: her attack windup, 80% of it while Overcharged.
+      castTime: "buff.zeriR ? 0.8 * windup : windup",
+      // The data's cooldown is 0; the wiki's is 1 / attack speed.
       cooldown: "max(dv.MinCooldown, 1 / as)",
+      attackTimer: true,
+      noSpellblade: true,
       components: [
-        // onHit + canCrit rather than attack: true — kit.attack.canCrit: false (right-click) would also stop Q crits.
+        // Treated as a basic attack (wiki): basic damage, no spell effects.
         {
           id: "burst",
           label: "Burst Fire",
           type: "physical",
           amount: "calc.ActiveDamageThatCanCrit",
-          canCrit: true,
-          onHit: true,
+          attack: true,
           onAttack: true,
-          travel: true,
+          noProc: true,
+          delay: Q_DELAY,
+          travel: Q_TRAVEL,
         },
         {
           id: "surge",
@@ -78,13 +109,16 @@ const kit: ChampionKit = {
           amount: "E.calc.BonusDamageTotal",
           hits: "buff.zeriE",
           maxHits: 1,
-          travel: true,
+          delay: Q_DELAY,
+          travel: Q_TRAVEL,
           proc: true,
           condition: "during Spark Surge",
         },
       ],
     },
     W: {
+      // Wiki: 0.55s less 0.09s per 100% bonus attack speed, at least 0.3s.
+      castTime: "max(dv.MinCastTime, dv.BaseCastTime - dv.ASpeedCastTimeScalarPerHundrethSecond * bonusAs)",
       cc: [{ kind: "slow", duration: "dv.SlowDuration" }],
       variants: {
         wall: {
@@ -100,6 +134,8 @@ const kit: ChampionKit = {
     E: {
       dash: true,
       noTarget: true,
+      // Wiki: resets her attack timer and Burst Fire's cooldown (an attack timer too).
+      resetsAttack: true,
       // Wiki: she dashes 300 units at 600 + her movement speed (not in the data); Ultrashock Laser and
       // Lightning Crash can be cast during the dash, Burst Fire can't.
       attackLockout: "castTime + dv.MaxDistance / (600 + ms)",

@@ -871,3 +871,49 @@ test('Hit labels name the hit on their own: an ability part is "Ability (part)",
   }
   assert.deepEqual([...bad], []);
 });
+
+test("An attack that is an ability (Zeri's right-click) arms Spellblade, is spell damage, and applies no on-hit or on-attack effects", () => {
+  const zeri = (combo: string, items: string[]) => simulate(data, { champion: "Zeri", level: 11, items, options: { charged: 0 }, combo, target: dummy });
+  const blades = (r: ReturnType<typeof simulate>) => r.events.filter((e) => e.label === "Spellblade");
+  // The attack arms Sheen and Burst Fire, which applies on-hit, uses it; Burst Fire doesn't arm it, and the attack doesn't use it.
+  const armed = zeri("AA Q", ["Sheen"]);
+  assert.deepEqual(
+    blades(armed).map((e) => e.castId),
+    [bySource(armed, "Q")[0].castId],
+  );
+  assert.equal(blades(zeri("Q Q", ["Sheen"])).length, 0);
+  assert.equal(blades(zeri("W AA AA", ["Sheen"])).length, 0);
+  // Spell effects (Liandry's burn), no on-hit (Blade of the Ruined King) or on-attack (Kraken Slayer's stacks) effects.
+  const items = ["Liandry's Torment", "Blade of The Ruined King", "Kraken Slayer"];
+  const aa = zeri("AA AA AA", items);
+  assert.ok(bySource(aa, "AA").every((e) => e.flags.ability && e.flags.attack));
+  assert.deepEqual([...new Set(aa.events.filter((e) => e.source.startsWith("item:")).map((e) => e.sourceLabel))], ["Liandry's Torment"]);
+  // Burst Fire is basic damage: on-hit and on-attack effects, no spell effects.
+  const q = zeri("Q Q Q", items);
+  assert.deepEqual([...new Set(q.events.filter((e) => e.source.startsWith("item:")).map((e) => e.label))].sort(), ["Bring It Down", "Mist's Edge"]);
+});
+
+test("An ability whose cooldown is an attack timer (Zeri's Burst Fire): attack resets reset it, haste and Navori don't shorten it", () => {
+  const run = (combo: string, items: string[] = []) => {
+    const r = simulate(data, { champion: "Zeri", level: 11, items, combo, target: dummy });
+    return { starts: r.timeline.map((t) => t.start), period: 1 / r.stats.attackSpeed };
+  };
+  // Spark Surge resets it: the next Burst Fire comes as the dash ends (it can't be cast during it).
+  const reset = run("Q E Q");
+  assert.ok(reset.starts[2] < reset.period - 0.2, `${reset.starts[2]} vs ${reset.period}`);
+  for (const items of [["Navori Flickerblade"], ["Ionian Boots of Lucidity"]]) {
+    const { starts, period } = run("Q Q", items);
+    assert.ok(Math.abs(starts[1] - period) < 1e-6, `${items}: ${starts[1]} vs ${period}`);
+  }
+});
+
+test("Zeri's Burst Fire takes her attack windup and blocks the attack after it, which lands as its rounds do and can execute (Q AA)", () => {
+  const r = simulate(data, { champion: "Zeri", level: 11, options: { charged: 0 }, combo: "Q AA", target: { maxHp: 200, armor: 80, mr: 50 } });
+  const [q, aa] = r.timeline;
+  const windup = aa.end - aa.start;
+  assert.ok(Math.abs(q.end - q.start - windup) < 1e-9 && Math.abs(aa.start - q.end) < 1e-9);
+  const burst = bySource(r, "Q")[0];
+  const attack = bySource(r, "AA")[0];
+  assert.ok(burst.time < attack.time, `Burst Fire ${burst.time}, attack ${attack.time}`);
+  assert.ok(r.events.some((e) => e.label === "Living Battery (execute)"));
+});

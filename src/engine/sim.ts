@@ -1491,7 +1491,7 @@ export class Sim {
    */
   launchAttack(o: Omit<AttackHit, "fromAbility" | "buffParts" | "launched" | "launch">) {
     const launch: AttackLaunch = { castId: o.castId };
-    for (const e of this.effects) e.onLaunch?.(this, launch);
+    for (const e of this.attackEffects(false)) e.onLaunch?.(this, launch);
     const buffParts = this.takeBuffParts(false);
     const travel = this.attackTravel();
     if (travel > 0) {
@@ -1500,15 +1500,25 @@ export class Sim {
     } else this.performAttackHit({ ...o, buffParts, launch });
   }
 
+  /** The effects an attack triggers: all, or the kit's own for an attack that is an ability
+   *  (kit.attack.ability), which applies no on-hit or on-attack effects. */
+  private attackEffects(fromAbility: boolean): Effect[] {
+    return !fromAbility && this.kit.attack?.ability ? this.effects.filter((e) => e.source === "kit") : this.effects;
+  }
+
   /** Resolve a basic attack (or an attack-like ability hit) landing on the target: launched now,
    *  unless launchAttack launched it. */
   performAttackHit(o: AttackHit) {
+    const effects = this.attackEffects(!!o.fromAbility);
+    /** A basic attack that is an ability (Zeri's): spell damage, no on-hit or on-attack effects. */
+    const abilityAttack = !o.fromAbility && !!this.kit.attack?.ability;
     if (!o.launch && (!o.fromAbility || o.comp?.onAttack)) {
       const launch: AttackLaunch = { castId: o.castId, ...(o.fromAbility ? { fromAbility: o.fromAbility } : {}) };
-      for (const e of this.effects) e.onLaunch?.(this, launch);
+      for (const e of effects) e.onLaunch?.(this, launch);
     }
     const st = this.stats;
-    const canCrit = this.kit.attack?.canCrit !== false && (o.comp ? o.comp.canCrit !== false : true);
+    // The champion's crit rules are its basic attacks'; an ability's attack hit crits by its own.
+    const canCrit = (!!o.fromAbility || this.kit.attack?.canCrit !== false) && (o.comp ? o.comp.canCrit !== false : true);
     const c = canCrit ? this.critFactor() : { crit: false, factor: 1 };
     const expected = this.critMode() === "expected";
     let critMult = st.critDamage;
@@ -1527,7 +1537,7 @@ export class Sim {
       extra: [],
       baseMult: 1,
       ...(o.fromAbility ? { fromAbility: o.fromAbility } : {}),
-      onAttack: !o.fromAbility || !!o.comp?.onAttack,
+      onAttack: o.fromAbility ? !!o.comp?.onAttack : !abilityAttack,
       ...(o.comp?.areaOnHit ? { areaOnHit: true } : {}),
       ...(o.launched !== undefined ? { launched: o.launched } : {}),
     };
@@ -1565,7 +1575,7 @@ export class Sim {
             flags: {
               ...flags,
               onHit: true,
-              ability: (from !== "P" || !!comp.spell) && flags.ability,
+              ability: (from !== "P" || !!comp.spell || abilityAttack) && flags.ability,
               crit: !!comp.canCrit && c.crit,
               ...(empowered ? { empowered } : {}),
             },
@@ -1624,14 +1634,14 @@ export class Sim {
       for (const p of parts) if (p.empower && !((this.buffs.get(p.id)?.charges ?? 1) > 0)) this.removeBuff(p.id);
     }
 
-    for (const e of this.effects) e.preAttack?.(this, atk);
+    for (const e of effects) e.preAttack?.(this, atk);
     if (atk.forcedCrit) {
       // Guaranteed crits (Sundered Sky, Fiendhunter Bolts): the natural roll picks the modifier.
       const f = atk.forcedCrit;
       atk.critFactor = atk.critMultiplier * (atk.naturalCrit * f.naturalModifier + (1 - atk.naturalCrit) * f.modifier);
       atk.crit = true;
     }
-    for (const e of this.effects) e.onAttack?.(this, atk);
+    for (const e of effects) e.onAttack?.(this, atk);
     const repeats = Math.max(0, Math.round(atk.repeatOnHit ?? 0));
     for (let i = 0; i < repeats; i++) {
       // Extra application of on-hit effects (no base damage, no passive every-Nth counting). Unlike
@@ -1640,7 +1650,7 @@ export class Sim {
       const again: AttackInfo = { ...atk, extra: [], phantom: true, repeatOnHit: 0 };
       if (kitAtk?.onHit && !o.fromAbility) pushCompsTo(again, kitAtk.onHit, this.champ.passive.name);
       for (const b of this.buffs.values()) if (b.expires >= this.time && b.spec?.onHit) pushCompsTo(again, b.spec.onHit, b.label, b.slot);
-      for (const e of this.effects) e.onAttack?.(this, again);
+      for (const e of effects) e.onAttack?.(this, again);
       atk.extra.push(...again.extra);
     }
 
@@ -1673,18 +1683,21 @@ export class Sim {
         type: o.comp && o.comp.type !== "adaptive" ? o.comp.type : o.comp?.type === "adaptive" ? "adaptive" : (kitAtk?.type ?? "physical"),
         amount: base,
         castId: o.castId,
-        // Attack-like ability hits (Urgot W, Azir soldiers…) deal basic damage too; an attack that is
-        // also an ability's spell damage (Wukong Q) is flagged as an attack its components replace.
-        flags: spellOf
-          ? { kind: "ability", slot: spellOf, attack: true, ability: true, crit: atk.crit }
-          : {
-              kind: o.fromAbility ? "ability" : "attack",
-              slot: o.fromAbility,
-              attack: !o.fromAbility,
-              ability: !!o.fromAbility,
-              crit: atk.crit,
-              ...(o.fromAbility ? { basic: true } : {}),
-            },
+        // Attack-like ability hits (Urgot W, Azir soldiers…) deal basic damage too, and only that
+        // when noProc (Zeri Q); an attack that is also an ability's spell damage (Wukong Q) is
+        // flagged as an attack its components replace, and an attack that is an ability (Zeri's) as
+        // her passive's.
+        flags:
+          spellOf || abilityAttack
+            ? { kind: "ability", slot: spellOf ?? "P", attack: true, ability: true, crit: atk.crit }
+            : {
+                kind: o.fromAbility ? "ability" : "attack",
+                slot: o.fromAbility,
+                attack: !o.fromAbility,
+                ability: !!o.fromAbility && !o.comp?.noProc,
+                crit: atk.crit,
+                ...(o.fromAbility ? { basic: true } : {}),
+              },
       });
     };
     const onHits = () => {
@@ -1933,6 +1946,7 @@ export class Sim {
       resetsAttack: !!resets,
       castTime,
       recast,
+      ...(spec.noSpellblade ? { noSpellblade: true } : {}),
     };
     // A P step is a passive proc, not an ability cast: only the kit's own hooks see it.
     for (const e of this.effects) if (slot !== "P" || e.source === "kit") e.onCast?.(this, cast);
@@ -1943,7 +1957,7 @@ export class Sim {
       const cdExpr = variant?.cooldown ?? spec.cooldown;
       const cd = cdExpr !== undefined ? this.evalExpr(cdExpr, ectx) : (cdSpell.cooldown?.[Math.min(rank, (cdSpell.cooldown?.length ?? 1) - 1)] ?? 0) || 0;
       const haste = this.stats.abilityHaste + (isUlt ? this.stats.ultimateHaste : this.stats.basicAbilityHaste);
-      const cdAfter = spell.cooldownFixed ? cd : hasteCooldown(cd, haste);
+      const cdAfter = spell.cooldownFixed || spec.attackTimer ? cd : hasteCooldown(cd, haste);
       const recasts = spec.recasts ?? 1;
       const used = (this.recastCount.get(slot) ?? 0) + 1;
       this.counters.set(`lastcast:${slot}`, this.time);
@@ -1968,7 +1982,10 @@ export class Sim {
     const lockExpr = variant?.lockout ?? spec.lockout;
     const lockout = lockExpr !== undefined ? this.evalExpr(lockExpr, ectx) : 0;
     this.freeAt = span !== undefined && lockExpr !== undefined ? end + span : Math.max(end, start + lockout);
-    if (resets) this.attackReadyAt = this.freeAt;
+    if (resets) {
+      this.attackReadyAt = this.freeAt;
+      this.resetAttackTimerCooldowns(this.freeAt);
+    }
     // A cast ended early (R{1s}) ends its lockouts with it.
     const until = (e: Expr) => Math.min(start + this.evalExpr(e, ectx), span !== undefined ? end + span : Infinity);
     const attackLock = variant?.attackLockout ?? spec.attackLockout;
@@ -2125,6 +2142,15 @@ export class Sim {
   /** Resets the attack timer: the next attack can start now (once nothing locks attacks out). */
   resetAttack() {
     this.attackReadyAt = Math.min(this.attackReadyAt, this.time);
+    this.resetAttackTimerCooldowns(this.time);
+  }
+
+  /** An attack reset also resets the cooldowns that are attack timers (AbilitySpec.attackTimer). */
+  private resetAttackTimerCooldowns(at: number) {
+    for (const slot of ["Q", "W", "E", "R"] as const) {
+      const key = `ability:${slot}`;
+      if (this.kit.abilities[slot]?.attackTimer && this.cooldownReadyAt(key) > at) this.cooldownReady.set(key, at);
+    }
   }
 
   /** No attack starts before `until` (attack resets don't change that). */
@@ -2218,6 +2244,9 @@ export class Sim {
       this.freeAt = start + windup;
       this.attackReadyAt = start + period;
       timeline.push({ step: step.crit === true ? "AA!" : step.crit === false ? "AA?" : "AA", start, end: start + windup });
+      // An attack that is an ability is cast as its windup starts (Spellblade, granted as a cast starts).
+      if (this.kit.attack?.ability)
+        for (const e of this.effects) e.onCast?.(this, { castId, slot: "P", hitsTarget: true, isUltimate: false, label: "Basic attack", castTime: windup });
       this.scheduleAt(start + windup, () => this.launchAttack({ castId, enable: step.enable }));
     }
   }

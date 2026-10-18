@@ -126,7 +126,7 @@ part that way when its hits are all one part of their source.
 | `onAttack: true` | with `onHit`/`attack`: also triggers on-attack effects (Ezreal Q, Smolder Q): Guinsoo's and Lethal Tempo stacks, Energize charges, Navori, Yun Tal, Hail of Blades |
 | `areaOnHit: true` | on-hit applied by an area effect, which Press the Attack ignores (Katarina daggers, Master Yi Q) |
 | `proc: true` | proc damage (the wiki's "spell effects: proc", "deals proc damage"; Lux's Illumination, Kog'Maw W's on-hit): no spell effects (Liandry's, Luden's, Comet), no rune triggers (Electrocute, Dark Harvest, Conqueror, Cheap Shot), doesn't apply or detonate the kit's marks |
-| `noProc: true` | not ability damage, but not proc damage either (the wiki's "default damage"): no spell effects, still triggers runes. Also an ability's attack that works like a regular attack (Jayce W, Rengar Q) |
+| `noProc: true` | not ability damage, but not proc damage either (the wiki's "default damage"): no spell effects, still triggers runes. Also an ability's attack that works like a regular attack (Jayce W, Rengar Q), and an `attack: true` hit that is basic damage only (Zeri's Burst Fire) |
 | `execute: true` | a literal execute (Pyke R, Urgot's Mercy): kills, so it sets off nothing at all. Like any damage counted past the kill, it counts for its full value, the health it executes below (`amount`, 0 when out of range), as true damage with no amps or mitigation, also when the target's health is already past 0. Only the largest execute counts, whenever it lands (the target dies once). From a hook, `sim.deal` with `flags.execute`. One a hook asks for, or one of a cast's hits landing together, lands after the rest of that instant's damage: the hits, then what they set off, then the execute |
 | `spell: true` | spell damage where the hit otherwise isn't: a passive's part of an attack (Diana's Moonsilver Blade), which is default damage unless marked |
 | `slot` | in the kit's `attack`: the basic ability whose passive deals the hit (Ekko W's Parallel Convergence, Teemo's Toxic Shot), shown under that ability, its `calc.`/`dv.` that ability's |
@@ -254,7 +254,17 @@ Percent penetration values are arrays (they multiply).
 (look up the passive's data value instead of hard-coding when it exists).
 
 **Abilities that are attacks** (Yasuo Q, Fiora Q's crit?): `canCrit: true`, `onHit: true` on the
-component; use `attack: true` only if it fully counts as a basic attack.
+component; use `attack: true` only if it fully counts as a basic attack. An `attack: true` hit crits
+by its own `canCrit` (default yes), not by `kit.attack.canCrit`, which is the champion's basic
+attacks'. A cast that counts as an ability cast except for Spellblade takes `noSpellblade: true`, and
+one whose cooldown is an attack timer (`1 / as`) `attackTimer: true`: ability haste and Navori don't
+shorten it, and attack resets reset it (Zeri's Burst Fire, reset by Spark Surge).
+
+**Attacks that are abilities** (Zeri's right-click, "treated as Abilities"): `attack: { ability: true }`
+keeps the attack's timing (attack timer, windup, range) but casts it as an ability: on-cast effects
+trigger as its windup starts (it arms Spellblade), all it deals is spell damage, and it applies no
+on-hit or on-attack effects of items or runes (it doesn't use Spellblade). What the kit's own buffs
+add to it (an empowered attack) and its hooks still apply.
 
 **On-hit vs on-attack.** The wiki's [Attack effects](https://wiki.leagueoflegends.com/en-us/Attack_effects)
 page lists which abilities apply on-hit effects and which also trigger on-attack effects (with

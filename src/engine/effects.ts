@@ -177,6 +177,7 @@ export function forceCrit(atk: AttackInfo, modifier: number, naturalModifier = m
 
 export interface CastInfo {
   castId: number;
+  /** "P" for a passive step, or an attack that is an ability (kit.attack.ability). */
   slot: Slot;
   /** The ability dashes/blinks the caster (Sudden Impact etc.). */
   dash?: boolean;
@@ -192,6 +193,8 @@ export interface CastInfo {
   castTime?: number;
   /** Its place in a recast chain (1: the first cast; expressions' `recast`). */
   recast?: number;
+  /** Not an ability cast for Spellblade (AbilitySpec.noSpellblade). */
+  noSpellblade?: boolean;
 }
 
 /**

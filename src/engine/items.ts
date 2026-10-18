@@ -109,7 +109,7 @@ function spellblade(
       if (opts.attackSpeedWhileReady && ready(sim)) return { attackSpeed: opts.attackSpeedWhileReady };
     },
     onCast(sim, cast) {
-      if (cast.item) return; // item actives (Rocketbelt) aren't abilities
+      if (cast.item || cast.noSpellblade) return; // item actives (Rocketbelt) aren't abilities
       if (sim.isReady("spellblade")) {
         empoweredUntil = sim.time + (dv(item, "SpellBladeDuration") || 10);
         sim.invalidateStats();
@@ -548,7 +548,8 @@ const ITEMS: Record<number, Factory> = {
     effect(item, {
       description: "Attacks reduce basic ability cooldowns by 15% of their remaining cooldown.",
       onLaunch(sim) {
-        for (const s of ["Q", "W", "E"]) {
+        for (const s of ["Q", "W", "E"] as const) {
+          if (sim.kit.abilities[s]?.attackTimer) continue; // Zeri's Burst Fire (wiki)
           const key = `ability:${s}`;
           const ready = sim.cooldownReadyAt(key);
           if (ready > sim.time) sim.startCooldown(key, (ready - sim.time) * (1 - dv(item, "CDRAmount")));

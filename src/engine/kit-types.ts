@@ -71,7 +71,10 @@ export interface ComponentSpec {
   critMultiplier?: Expr;
   /** Damage dealt by a pet/summon. */
   pet?: boolean;
-  /** Not counted as ability damage for item/rune triggers (e.g. passive procs). */
+  /**
+   * Not counted as ability damage for item/rune triggers (e.g. passive procs): no spell effects,
+   * still runes. Also an ability's attack that deals basic damage only (`attack: true`: Zeri's Burst Fire).
+   */
   noProc?: boolean;
   /** Proc damage (the wiki's "deals proc damage", Smolder's Q burn): no spell effects (Liandry's,
    *  Luden's) and no rune triggers (Dark Harvest). */
@@ -332,6 +335,13 @@ export interface AbilitySpec {
   recastWindowFrom?: "first" | "previous";
   /** Doesn't hit the target (self buff) — still counts as an ability cast for Sheen etc. */
   noTarget?: boolean;
+  /** An ability cast for on-cast effects, but not for Spellblade (Zeri's Burst Fire, wiki). */
+  noSpellblade?: boolean;
+  /**
+   * Its cooldown (`cooldown`) is an attack timer (Zeri's Burst Fire, "1 / attack speed"): ability
+   * haste and Navori's Transcendence don't shorten it, and attack resets reset it.
+   */
+  attackTimer?: boolean;
   /** Sets off a hit that can crit outside its components (Viego R's second strike), so a crit mark (R!) applies to it. */
   followUpCrits?: boolean;
   notes?: string[];
@@ -378,7 +388,7 @@ export interface ChampionKit {
     everyNth?: { n: number; components: ComponentSpec[]; label: string; counts?: "attacks" | "hits"; resetAfter?: number };
     /** Damage type of the basic attack itself (default physical). */
     type?: DamageType;
-    /** Can this champion's basic attack critically strike (default true). */
+    /** Can this champion's basic attacks critically strike (default true; an ability's attack hit crits by its own canCrit). */
     canCrit?: boolean;
     critMultiplier?: Expr;
     /** Fixed attack speed (attacks/second) replacing the normal formula (Jhin). */
@@ -386,6 +396,13 @@ export interface ChampionKit {
     /** Nonzero while a ranged champion's form attacks in melee (Elise's Spider Form, Nidalee's
      *  cougar): its attacks land as their windup ends, with no missile. */
     melee?: Expr;
+    /**
+     * Each attack is an ability (Zeri's Living Battery: "treated as Abilities"), with an attack's
+     * timing: on-cast effects trigger as its windup starts (it arms Spellblade), all it deals is spell
+     * damage (spell effects: Liandry's, Luden's), and it applies no on-hit or on-attack effects of
+     * items or runes (it doesn't use Spellblade). What the kit's own buffs add to it still applies.
+     */
+    ability?: boolean;
   };
   stats?: KitStatsFn;
   /** Stacking marks on the target (see MarkSpec). */

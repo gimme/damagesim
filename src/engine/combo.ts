@@ -236,13 +236,12 @@ const markMode = (crit?: boolean): CritMode => (crit === true ? "always" : crit 
 /** Whether a step rolls crits: basic attacks (unless the champion's can't crit), and casts with a hit
  *  that can crit (its variant's hits, for a variant). */
 export function rollsCrits(step: ComboStep, kit: ChampionKit): boolean {
-  const attacksCrit = kit.attack?.canCrit !== false;
-  if (step.type === "attack") return attacksCrit;
+  if (step.type === "attack") return kit.attack?.canCrit !== false;
   if (step.type !== "ability") return false;
   const spec = kit.abilities[step.slot];
   const key = step.variant ?? spec?.defaultVariant;
   const variant = key ? findVariant(spec, key)?.[1] : undefined;
-  return !!spec?.followUpCrits || (variant?.components ?? spec?.components ?? []).some((c) => c.canCrit || (c.attack && c.canCrit !== false && attacksCrit));
+  return !!spec?.followUpCrits || (variant?.components ?? spec?.components ?? []).some((c) => c.canCrit || (c.attack && c.canCrit !== false));
 }
 
 /** A step with the crit mark for `mode` (none for expected), if it rolls crits. */
