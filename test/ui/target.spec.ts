@@ -344,3 +344,57 @@ test("settings", async ({ ui }) => {
     },
   );
 });
+
+test("executes: the line on the health bar, and the setting that turns them off", async ({ ui }) => {
+  const { step } = ui;
+  const box = ui.card("Settings").getByRole("checkbox", { name: "Executes kill below their health line" });
+  const bar = ui.card("Result").getByRole("img", { name: /^Target health bar/ });
+  let total = 0;
+  await step(
+    "load Zeri's Burst Fire and an uncharged attack on 220 health: the attack takes it below her execute line, marked on the bar",
+    () =>
+      ui.open({
+        champion: "Zeri",
+        items: [],
+        options: { charged: 0 },
+        combo: "Q AA",
+        target: { mode: "custom", base: { hp: 220, armor: 30, mr: 30 }, bonus: { hp: 0, armor: 0, mr: 0 } },
+      }),
+    async () => {
+      await expect(box).toBeChecked();
+      await expect(bar).toHaveAttribute("aria-label", /; Living Battery \(execute\) below \d+$/);
+      await expect(ui.card("Result").locator(".stat-tile.end")).toContainText("Kill at");
+      total = await ui.total();
+    },
+  );
+  await step(
+    "hover the line: the execute and the health it kills below",
+    async () => {
+      const line = num(/below ([\d,]+)$/.exec((await bar.getAttribute("aria-label"))!)![1]);
+      const b = (await bar.boundingBox())!;
+      await ui.page.mouse.move(b.x + b.width * (1 - line / 220), b.y + 10);
+    },
+    async () => {
+      await expect(ui.tooltip).toContainText("Living Battery (execute)");
+      await expect(ui.tooltip).toContainText("Kills below");
+    },
+  );
+  await step("the pointer away", () => ui.unhover());
+  await step(
+    "uncheck it: no execute, no line",
+    () => box.click(),
+    async () => {
+      await expect(bar).not.toHaveAttribute("aria-label", /execute/);
+      await expect(ui.card("Result").locator(".stat-tile.end")).toHaveCount(0);
+      expect(await ui.total()).toBeLessThan(total);
+    },
+  );
+  await step(
+    "check it again: as before",
+    () => box.click(),
+    async () => {
+      await expect(bar).toHaveAttribute("aria-label", /execute/);
+      expect(await ui.total()).toBe(total);
+    },
+  );
+});

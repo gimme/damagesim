@@ -9,7 +9,8 @@ import type { Sim } from "../../engine/sim.ts";
 // one deals PassiveMaxDamage + %max health instead.
 // Burst Fire (Q) is her real attack (wiki: "treated as a basic attack"): basic damage without spell
 // effects, can crit, applies on-hit and on-attack effects. It counts as an ability cast for on-cast
-// effects except Spellblade, so her right-click and W/E/R arm Spellblade and Burst Fire uses it.
+// effects except Spellblade, so her right-click and W/E/R arm Spellblade and the Burst Fire fired
+// after uses it (AA Q; in Q AA the rounds were fired before the attack armed it).
 const charged: BuffSpec = {
   id: "zeriCharged",
   label: "Living Battery (charged)",
@@ -39,14 +40,20 @@ const kit: ChampionKit = {
   id: "Zeri",
   status: "curated",
   notes: [
-    "Basic attacks (AA) are Zeri's right-click, an ability with an attack's timing: Q.calc.MinDamage magic damage that executes below PassiveExecuteThreshold health. They are spell damage (Liandry's, Luden's…) and arm Spellblade, but can't crit and apply no on-hit or on-attack effects (Spellblade's hit, Kraken Slayer, Energize charges…).",
+    "Basic attacks (AA) are Zeri's right-click, an ability with an attack's timing (a windup of 15.6% of the attack timer, then the hit, no missile): Q.calc.MinDamage magic damage that executes below PassiveExecuteThreshold health (marked on the health bar; Settings turn executes off). They are spell damage (Liandry's, Luden's…) and arm Spellblade as the windup starts, but can't crit and apply no on-hit or on-attack effects (Spellblade's hit, Kraken Slayer, Energize charges…).",
     "Option charged (default on): the first AA of the combo is fully charged (she starts at full charge).",
-    "Burst Fire (Q) is her attack in all but timing: basic damage without spell effects, can crit, applies on-hit and on-attack effects (it uses an armed Spellblade). It is an ability cast that doesn't arm Spellblade. Its cast time is her attack windup (80% while Overcharged); its 7 rounds (3 while Overcharged) fire over it and fly to the target, one hit here when the middle round lands, so an AA after it lands as the last rounds do. Its cooldown is its own attack timer, separate from the AA's: max(MinCooldown, 1 / attack speed), not shortened by haste or Navori; Spark Surge resets it.",
-    "The 1.5 attack speed cap and conversion of excess bonus attack speed into AD are not modeled.",
+    "Burst Fire (Q) is her attack in all but timing: basic damage without spell effects, can crit, applies on-hit and on-attack effects (it uses Spellblade armed before it's fired: AA Q, not Q AA). It is an ability cast that doesn't arm Spellblade. Its cast time is her attack windup (80% while Overcharged); its 7 rounds (3 while Overcharged) fire over it and fly to the target, one hit here when the middle round lands, so an AA after it lands as the last rounds do. Its cooldown is its own attack timer, separate from the AA's: max(MinCooldown, 1 / attack speed), not shortened by haste or Navori; Spark Surge resets it.",
+    "Her attack speed cap is Q.dv.AttackSpeedCap (1.5), raised only by Overcharged's attack speed, by as much as it adds (not Hail of Blades); she gains Q.dv.ExcessAttackSpeedToADMult (0.6) bonus AD per 1% bonus attack speed past it, Overcharged's not counted.",
     "Spark Surge adds its magic damage to Burst Fire casts for 5s; charged attacks and Burst Fire shorten its cooldown by 0.5s (1.5s on a Burst Fire crit, its expected value by default). Lightning Crash: champion hits by abilities and charged attacks extend Overcharge by 2.5s (up to 5s remaining); chain damage to other enemies is ignored.",
   ],
   options: [{ key: "charged", label: "First attack is fully charged", default: 1, toggle: true }],
   attack: { type: "magic", canCrit: false, damageMult: "Q.calc.MinDamage / ad", ability: true },
+  // Burst Fire: her attack speed cap is 1.5 (raised by Overcharged's attack speed only), and 0.6 AD
+  // per 1% bonus attack speed past it (wiki: calculated before Overcharged's).
+  stats: ({ evalExpr }) => ({
+    attackSpeedCapLimit: evalExpr("Q.dv.AttackSpeedCap"),
+    conversions: [{ from: "bonusAttackSpeedOverCap", to: "ad", ratio: evalExpr("Q.dv.ExcessAttackSpeedToADMult") * 100, source: "Burst Fire" }],
+  }),
   hooks: {
     onStart(sim) {
       if (sim.opt.charged) sim.applyBuff(charged, "P", sim.spellFor("P"), 1);
@@ -61,14 +68,13 @@ const kit: ChampionKit = {
     },
     afterDamage(sim, inst) {
       // Uncharged attack execute.
-      const line = sim.evalExpr("Q.calc.PassiveExecuteThreshold", { slot: "Q" });
-      if (inst.flags.attack && inst.source === "AA" && sim.target.hp <= line)
+      if (inst.flags.attack && inst.source === "AA")
         sim.deal({
           source: "P",
           sourceLabel: "Living Battery",
           label: "Living Battery (execute)",
           type: "true",
-          amount: line,
+          amount: sim.evalExpr("Q.calc.PassiveExecuteThreshold", { slot: "Q" }),
           castId: inst.castId,
           flags: { kind: "ability", slot: "P", execute: true },
         });
@@ -143,7 +149,7 @@ const kit: ChampionKit = {
       buff: { id: "zeriE", label: "Spark Surge", duration: "dv.BuffDuration" },
     },
     R: {
-      buff: { id: "zeriR", label: "Lightning Crash", duration: "dv.RDuration", stats: { attackSpeed: "dv.BaseASPercent", msPercent: "dv.BaseBonusMS" } },
+      buff: { id: "zeriR", label: "Lightning Crash", duration: "dv.RDuration", stats: { attackSpeedPastCap: "dv.BaseASPercent", msPercent: "dv.BaseBonusMS" } },
       components: [{ id: "nova", label: "Lightning Crash", type: "magic", amount: "calc.TotalActiveDamage", aoe: true }],
     },
   },

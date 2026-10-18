@@ -13,6 +13,7 @@ import {
   SELF_HP,
   selfHp,
   triggersOnAttack,
+  type AttackInfo,
   type DamageInstance,
   type DamageRequest,
   type Effect,
@@ -98,8 +99,16 @@ function spellblade(
   opts: { repeatOnHit?: boolean; onProc?: (sim: Sim, castId: number) => void; attackSpeedWhileReady?: number } = {},
 ): Effect {
   let empoweredUntil = -Infinity;
+  // The next attack is one launched after the cast: one launched before, its missile flying as the
+  // cast arms it, doesn't use it (nor Zeri's Burst Fire before her attack, which arms it).
+  /** Basic attacks launched while it wasn't armed. */
+  const unarmed = new Set<number>();
+  /** When the cast that armed it started, for an ability's attack hit that flew (Burst Fire). */
+  let armedAt = -Infinity;
   const cd = dv(item, "SpellbladeCooldown") || dv(item, "Cooldown") || 1.5;
   const ready = (sim: Sim) => empoweredUntil >= sim.time && sim.isReady("spellblade");
+  const uses = (sim: Sim, atk: AttackInfo) =>
+    !atk.phantom && ready(sim) && !unarmed.has(atk.castId) && !(atk.fromAbility && atk.launched !== undefined && atk.launched < armedAt);
   return {
     id: "item:spellblade",
     label: item.name,
@@ -111,15 +120,19 @@ function spellblade(
     onCast(sim, cast) {
       if (cast.item || cast.noSpellblade) return; // item actives (Rocketbelt) aren't abilities
       if (sim.isReady("spellblade")) {
+        if (!ready(sim)) armedAt = sim.time;
         empoweredUntil = sim.time + (dv(item, "SpellBladeDuration") || 10);
         sim.invalidateStats();
       }
     },
+    onLaunch(sim, launch) {
+      if (!launch.fromAbility && !ready(sim)) unarmed.add(launch.castId);
+    },
     preAttack(sim, atk) {
-      if (opts.repeatOnHit && ready(sim) && !atk.phantom) addOnHitRepeat(atk);
+      if (opts.repeatOnHit && uses(sim, atk)) addOnHitRepeat(atk);
     },
     onAttack(sim, atk) {
-      if (atk.phantom || !ready(sim)) return;
+      if (!uses(sim, atk)) return;
       empoweredUntil = -Infinity;
       sim.startCooldown("spellblade", cd);
       sim.invalidateStats();
@@ -909,9 +922,7 @@ const ITEMS: Record<number, Factory> = {
         "The execute counts as 5% of the target's max health the first time it falls below 5%, also when the hit that took it there killed: what the rest of a bigger health bar would no longer need. A larger execute (Smolder's, Pyke's…) counts instead of it.",
       ],
       afterDamage(sim) {
-        const t = sim.target;
-        const line = dv(item, "ExecuteThreshold") * t.maxHp;
-        if (t.hp < line) sim.deal(hit(item, "Execute", "true", line, { execute: true }));
+        sim.deal(hit(item, "Execute", "true", dv(item, "ExecuteThreshold") * sim.target.maxHp, { execute: true }));
       },
     }),
   3168: (item) =>

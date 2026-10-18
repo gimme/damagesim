@@ -13,6 +13,10 @@ export function SettingsPanel({ state, set }: { state: UIState; set: Set }) {
           Let burns and bleeds finish after the combo
           <input type="checkbox" checked={st.finishDots} onChange={(e) => upd({ finishDots: e.target.checked })} />
         </label>
+        <label className="row small" style={{ justifyContent: "space-between" }}>
+          Executes kill below their health line
+          <input type="checkbox" checked={st.executes} onChange={(e) => upd({ executes: e.target.checked })} />
+        </label>
       </div>
     </Card>
   );

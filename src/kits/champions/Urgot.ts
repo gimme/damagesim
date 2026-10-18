@@ -112,7 +112,7 @@ const kit: ChampionKit = {
               id: "execute",
               label: "Mercy (execute)",
               type: "true",
-              amount: "target.hpPct <= dv.RHealthThreshold / 100 ? dv.RHealthThreshold / 100 * target.maxHp : 0",
+              amount: "dv.RHealthThreshold / 100 * target.maxHp",
               delay: "dv.RChannelTimeReel",
               execute: true,
               condition: "target below the health threshold",

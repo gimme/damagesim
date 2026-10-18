@@ -68,6 +68,9 @@ export interface TargetSpec {
 export interface SimSettings {
   /** Keep simulating damage-over-time effects after the last step (default true). */
   finishDots?: boolean;
+  /** Executes kill the target below their health line (default true); off, they deal nothing and
+   *  the results mark no lines. */
+  executes?: boolean;
   /** Wait for an ability's cooldown when it's used again (default true); otherwise cast anyway. */
   waitForCooldowns?: boolean;
 }
@@ -109,6 +112,14 @@ const hitsWithin = (first: number, interval: number, maxHits: number, seconds: n
 type CastCtx = { slot: Slot; spell: SpellData; rank: number; recast?: number; castTime?: number };
 /** An execute as dealt, and as the results show it (DamageRequest.normalAttack can split it). */
 type Execution = { inst: DamageInstance; records: DamageInstance[] };
+
+/** The health an execute kills below (SimResult.executeLines). */
+export interface ExecuteLine {
+  source: string;
+  sourceLabel: string;
+  label: string;
+  hp: number;
+}
 
 const round2 = (x: number) => Math.round(x * 100) / 100;
 
@@ -171,6 +182,9 @@ export interface SimResult {
   comboTime: number;
   killed: boolean;
   killTime?: number;
+  /** The health lines the scenario's executes kill below, as last checked (Sim.deal), whether they
+   *  were reached or not; none with settings.executes off. */
+  executeLines: ExecuteLine[];
   /** Fraction of the target's starting HP removed (can exceed 1). */
   percentOfHp: number;
   dps: number;
@@ -214,7 +228,7 @@ export interface AttackHit {
   enable?: string[];
   /** What the buffs add to it, decided when it was launched (default: now). */
   buffParts?: BuffPart[];
-  /** When the attack was launched, if before now (its missile flew). */
+  /** When the attack was launched (an ability's attack hit fired), if before now (its missile flew). */
   launched?: number;
   /** Its launch, when launchAttack launched it; else it's launched as it hits. */
   launch?: AttackLaunch;
@@ -280,6 +294,8 @@ export class Sim {
   private dealing = 0;
   /** The execute that counts: the largest (the target dies once), and how the results show it. */
   private execution: Execution | undefined;
+  /** Each execute's line as last checked, by its label. */
+  private executeLines = new Map<string, ExecuteLine>();
   private staticMods: StatMods;
   private statsCache: Stats | null = null;
   private attackIndex = 0;
@@ -325,6 +341,7 @@ export class Sim {
     this.level = clampInt(scenario.level ?? 11, 1, GAME.maxLevel);
     this.settings = {
       finishDots: scenario.settings?.finishDots ?? true,
+      executes: scenario.settings?.executes ?? true,
       waitForCooldowns: scenario.settings?.waitForCooldowns ?? true,
     };
     this.runes = (scenario.runes ?? []).map((q) => findRune(data, q));
@@ -1044,12 +1061,14 @@ export class Sim {
    * Deal one damage request: amps, mitigation, HP update, hooks. An item's, rune's or summoner
    * spell's proc that a cast's hits landing together set off is dealt after them (see landTogether).
    *
-   * An execute (flags.execute) kills the target. Like any damage counted past the kill, it counts for
-   * its full value (the health it executes below) as true damage, with no amps or mitigation, and sets
-   * off nothing. The target dies once: only the largest execute counts, whenever it lands, and takes
-   * the place of a smaller one before it. One asked for while hits are being dealt (by a hit's hooks,
-   * or among a cast's hits landing together) lands after the rest of this instant's damage: the hits,
-   * then what they set off, then the execute.
+   * An execute (flags.execute) is asked for with `amount` the health it kills below, its line, and
+   * kills the target if its health is at or under it then; the results mark the line either way
+   * (executeLines). Like any damage counted past the kill, it counts for its full value (the line) as
+   * true damage, with no amps or mitigation, and sets off nothing. The target dies once: only the
+   * largest execute counts, whenever it lands, and takes the place of a smaller one before it. One
+   * asked for while hits are being dealt (by a hit's hooks, or among a cast's hits landing together)
+   * lands after the rest of this instant's damage: the hits, then what they set off, then the
+   * execute, which checks the health they left. With settings.executes off they deal nothing.
    */
   deal(req: DamageRequest) {
     const kind = req.flags?.kind;
@@ -1062,7 +1081,9 @@ export class Sim {
     const st = this.stats;
     const execute = !!req.flags?.execute;
     if (execute) {
-      if (req.amount <= (this.execution?.inst.final ?? 0)) return;
+      if (!this.settings.executes) return;
+      this.noteExecuteLine(req.source, req.sourceLabel, req.label, req.amount);
+      if (this.target.hp > req.amount || req.amount <= (this.execution?.inst.final ?? 0)) return;
       if (this.execution) this.takeBack(this.execution);
     }
     let type: DamageType = execute ? "true" : req.type === "adaptive" ? (st.adaptiveType === "physical" ? "physical" : "magic") : req.type;
@@ -1153,6 +1174,11 @@ export class Sim {
       this.processMarks(inst);
     }
     this.dealing--;
+  }
+
+  /** Mark an execute's line in the results: its health line as checked now. */
+  private noteExecuteLine(source: string, sourceLabel: string, label: string, hp: number) {
+    if (this.settings.executes && hp > 0) this.executeLines.set(label, { source, sourceLabel, label, hp });
   }
 
   /** Take back an execute a larger one replaces: the hits after it find the health it took, and the
@@ -1403,7 +1429,19 @@ export class Sim {
 
   private dealComponent(
     comp: ComponentSpec,
-    ctx: { slot: Slot; spell: SpellData; rank: number; castId: number; sourceLabel: string; hit: number; hits: number; recast?: number; castTime?: number },
+    ctx: {
+      slot: Slot;
+      spell: SpellData;
+      rank: number;
+      castId: number;
+      sourceLabel: string;
+      hit: number;
+      hits: number;
+      recast?: number;
+      castTime?: number;
+      /** When the hit was fired, if before now (it flew). */
+      launched?: number;
+    },
   ) {
     const ectx = { slot: ctx.slot, spell: ctx.spell, rank: ctx.rank, hit: ctx.hit, hits: ctx.hits, recast: ctx.recast, castTime: ctx.castTime };
     let amount = this.evalExpr(comp.amount, ectx);
@@ -1422,6 +1460,7 @@ export class Sim {
         label: comp.label,
         sourceLabel: ctx.sourceLabel,
         fromAbility: ctx.slot,
+        ...(ctx.launched !== undefined ? { launched: ctx.launched } : {}),
       });
       return;
     }
@@ -2017,6 +2056,8 @@ export class Sim {
     const landing = new Map<number, (() => void)[]>();
     for (const comp of comps) {
       const enabled = step.enable?.includes(comp.id) || !comp.optional;
+      // An execute's line shows whether it hits or not (Pyke's R deals its other hit instead).
+      if (comp.execute && enabled) this.noteExecuteLine(slot, label, comp.label, this.evalExpr(comp.amount, ectx));
       let hits = step.hits?.[comp.id] ?? (enabled ? this.evalExpr(comp.hits ?? 1, ectx) : 0);
       hits = Math.max(0, Math.round(hits));
       const delay = this.landsAt(comp, ectx);
@@ -2027,14 +2068,16 @@ export class Sim {
         if (r) hits = hitsWithin(r.first, r.interval, r.maxHits, span);
         else if (interval <= 0 && this.firedAt(comp, ectx) > span + 1e-6) hits = 0;
       }
+      const travel = delay - this.firedAt(comp, ectx);
       for (let h = 0; h < hits; h++) {
         const at = end + delay + interval * h;
         const hitIdx = h;
+        const launched = travel > 0 ? at - travel : undefined;
         if (!landing.has(at)) landing.set(at, []);
         landing.get(at)!.push(() => {
           const n = ++landed;
           onHitN(n, "before");
-          this.dealComponent(comp, { slot, spell, rank, castId, sourceLabel: label, hit: hitIdx, hits, recast, castTime });
+          this.dealComponent(comp, { slot, spell, rank, castId, sourceLabel: label, hit: hitIdx, hits, recast, castTime, launched });
           onHitN(n, "after");
         });
       }
@@ -2405,6 +2448,7 @@ export class Sim {
       comboTime: comboEnd,
       killed: this.target.killTime !== undefined,
       ...(this.target.killTime !== undefined ? { killTime: this.target.killTime } : {}),
+      executeLines: [...this.executeLines.values()],
       percentOfHp: total / startHp,
       dps: lastDamage > 0 ? total / lastDamage : total,
       warnings: this.warnings,

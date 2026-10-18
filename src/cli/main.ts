@@ -180,6 +180,7 @@ function printResult(r: SimResult, events: boolean) {
     `TOTAL ${num(r.totalDamage)} damage (${num(r.byType.physical)} physical, ${num(r.byType.magic)} magic, ${num(r.byType.true)} true) = ${(r.percentOfHp * 100).toFixed(1)}% of target HP over ${r.duration.toFixed(2)}s${r.killed ? `  → KILL at ${r.killTime!.toFixed(2)}s` : `  → ${num(r.target.endHp)} HP left`}`,
   );
   if (r.dotDamage > 0.5) console.log(`  (${num(r.comboDamage)} burst + ${num(r.dotDamage)} damage over time: burns, bleeds, Ignite, auras)`);
+  for (const l of r.executeLines) console.log(`  ${l.label}: kills below ${num(l.hp)} HP`);
   for (const w of r.warnings) console.log(`WARNING: ${w}`);
   for (const n of r.notes) console.log(`note: ${n}`);
 }

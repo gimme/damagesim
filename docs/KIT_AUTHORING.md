@@ -127,7 +127,7 @@ part that way when its hits are all one part of their source.
 | `areaOnHit: true` | on-hit applied by an area effect, which Press the Attack ignores (Katarina daggers, Master Yi Q) |
 | `proc: true` | proc damage (the wiki's "spell effects: proc", "deals proc damage"; Lux's Illumination, Kog'Maw W's on-hit): no spell effects (Liandry's, Luden's, Comet), no rune triggers (Electrocute, Dark Harvest, Conqueror, Cheap Shot), doesn't apply or detonate the kit's marks |
 | `noProc: true` | not ability damage, but not proc damage either (the wiki's "default damage"): no spell effects, still triggers runes. Also an ability's attack that works like a regular attack (Jayce W, Rengar Q), and an `attack: true` hit that is basic damage only (Zeri's Burst Fire) |
-| `execute: true` | a literal execute (Pyke R, Urgot's Mercy): kills, so it sets off nothing at all. Like any damage counted past the kill, it counts for its full value, the health it executes below (`amount`, 0 when out of range), as true damage with no amps or mitigation, also when the target's health is already past 0. Only the largest execute counts, whenever it lands (the target dies once). From a hook, `sim.deal` with `flags.execute`. One a hook asks for, or one of a cast's hits landing together, lands after the rest of that instant's damage: the hits, then what they set off, then the execute |
+| `execute: true` | a literal execute (Pyke R, Urgot's Mercy): `amount` is the health it executes below, its line. It kills a target at or under the line as it lands, and so sets off nothing at all; above it, it deals nothing. Like any damage counted past the kill, it counts for its full value (the line) as true damage with no amps or mitigation, also when the target's health is already past 0. Only the largest execute counts, whenever it lands (the target dies once). From a hook, `sim.deal` with `flags.execute` and the line as `amount`, every time it's checked, without comparing the health yourself: the results mark the line on the health bar whether it's reached or not (`executeLines`), and Settings can turn executes off. One a hook asks for, or one of a cast's hits landing together, lands after the rest of that instant's damage: the hits, then what they set off, then the execute, which checks the health they left |
 | `spell: true` | spell damage where the hit otherwise isn't: a passive's part of an attack (Diana's Moonsilver Blade), which is default damage unless marked |
 | `slot` | in the kit's `attack`: the basic ability whose passive deals the hit (Ekko W's Parallel Convergence, Teemo's Toxic Shot), shown under that ability, its `calc.`/`dv.` that ability's |
 | `min`, `max` | clamp the amount (e.g. Darius R cap) |
@@ -229,8 +229,8 @@ on every ability that applies it. A hit from a different cast detonates it.
 
 **Delayed detonation storing damage** (Zed R): `debuff.detonate: { components, storeFraction, storeType }`.
 
-**Execute / missing-health scaling**: use `target.hp`, `target.missingHpPct`:
-`'target.hp <= calc.ExecuteThreshold ? calc.ExecuteThreshold : 0'` with `execute: true` (a literal execute) or
+**Execute / missing-health scaling**: `'calc.ExecuteThreshold'` with `execute: true` (a literal execute;
+the engine checks the target's health), or use `target.hp`, `target.missingHpPct`:
 `'calc.Base * (1 + dv.Amp * target.missingHpPct)'`.
 
 **Forms and alternate spells** (Jayce, Nidalee, Elise, Gnar, Kayle R…): variants with `spell: 'ScriptName'`
@@ -250,6 +250,13 @@ Game formulas that read buff counters (`stacks({abcd1234})` in inspect output) c
 **Passive stat bonuses** (`stats`): `stats: ({ level, opt, ranks, evalExpr }) => ({ armorPenPercent: [evalExpr('E.dv.ArmorPen') / 100] })`.
 Percent penetration values are arrays (they multiply).
 
+**Attack speed caps**: `attackSpeedCap` raises the cap (Bel'Veth, Hail of Blades);
+`attackSpeedCapLimit` lowers it, and then nothing raises it but `attackSpeedPastCap`, bonus attack
+speed that raises the cap by as much as it adds (Zeri: `attackSpeedCapLimit: 1.5` in `stats`, her
+Overcharged buff's `stats: { attackSpeedPastCap: 'dv.BaseASPercent' }`; Kennen's Lightning Rush).
+The conversion source `bonusAttackSpeedOverCap` is the bonus attack speed past the cap, without what
+raises it (Zeri's AD from it, like Yasuo's `critChanceOverCap`).
+
 **Crit modifiers** (Yasuo/Yone ×0.95, Jhin ×0.75, Senna ×0.8): `attack: { critMultiplier: 'critDamage * 0.95' }`
 (look up the passive's data value instead of hard-coding when it exists).
 
@@ -265,6 +272,10 @@ keeps the attack's timing (attack timer, windup, range) but casts it as an abili
 trigger as its windup starts (it arms Spellblade), all it deals is spell damage, and it applies no
 on-hit or on-attack effects of items or runes (it doesn't use Spellblade). What the kit's own buffs
 add to it (an empowered attack) and its hooks still apply.
+
+Spellblade goes to the next attack *launched* after the cast that armed it: not an attack whose
+missile is in flight as the cast starts (Ezreal `AA W AA`: the second attack), nor an ability's
+`attack: true` hit fired before it (Zeri's `Q AA`: her attack arms it as Burst Fire's rounds fly).
 
 **On-hit vs on-attack.** The wiki's [Attack effects](https://wiki.leagueoflegends.com/en-us/Attack_effects)
 page lists which abilities apply on-hit effects and which also trigger on-attack effects (with

@@ -145,7 +145,8 @@ export interface AttackInfo {
   repeatOnHit?: number;
   /** This pass is the repeated on-hit application (no base damage). */
   phantom?: boolean;
-  /** When a basic attack was launched (its windup ended), when its missile flew before it hit. */
+  /** When a basic attack was launched (its windup ended), or an ability's attack hit fired (Zeri's
+   *  Burst Fire), when its missile flew before it hit. */
   launched?: number;
 }
 

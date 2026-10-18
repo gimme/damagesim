@@ -3,7 +3,7 @@
 
 import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { DamageInstance } from "../../engine/effects.ts";
-import type { SourceTotal } from "../../engine/sim.ts";
+import type { ExecuteLine, SourceTotal } from "../../engine/sim.ts";
 import { abilityIcon } from "../data.ts";
 import { Icon, initials, sourceMark } from "./icons.tsx";
 import { fmt } from "./common.tsx";
@@ -215,6 +215,7 @@ export function HpBar({
   maxHp,
   startHp,
   champion,
+  executes = [],
 }: {
   sources: SourceTotal[];
   events: DamageInstance[];
@@ -222,6 +223,8 @@ export function HpBar({
   maxHp: number;
   startHp: number;
   champion: string;
+  /** Health lines the executes kill below, marked across the bar as the game's last hit indicator does. */
+  executes?: ExecuteLine[];
 }) {
   const tt = useTooltip();
   const clipId = useId().replace(/[^\w-]/g, "");
@@ -268,11 +271,20 @@ export function HpBar({
   const tick = (100 / maxHp) * W;
   const notches: number[] = [];
   for (let k = 1; startOffset + k * tick < x - 1; k++) if (k % 10 === 0 || tick >= 4) notches.push(k);
-  const leftText = [`${fmt(left)} HP left`, fmt(left)].find((s) => s.length * 6.5 < W - x - 16);
+  // An execute's line where the target has that much health left, as on the game's health bar.
+  const marks = executes.filter((l) => l.hp < maxHp).map((l) => ({ l, x: W * (1 - l.hp / maxHp) }));
+  // The health left is named in the widest stretch of it the marks leave.
+  const stops = [x, ...marks.map((m) => m.x).filter((m) => m > x), W].sort((a, b) => a - b);
+  const room = stops.slice(1).reduce((r, b, i) => (b - stops[i] > r.b - r.a ? { a: stops[i], b } : r), { a: x, b: x });
+  const leftText = [`${fmt(left)} HP left`, fmt(left)].find((s) => s.length * 6.5 < room.b - room.a - 16);
   const ICON = 18;
   return (
     <div className="chart-wrap" ref={tt.ref}>
-      <svg viewBox={`0 0 ${W} ${H + 22}`} role="img" aria-label={`Target health bar: ${fmt(total)} damage of ${fmt(startHp)} health`}>
+      <svg
+        viewBox={`0 0 ${W} ${H + 22}`}
+        role="img"
+        aria-label={`Target health bar: ${fmt(total)} damage of ${fmt(startHp)} health${marks.map(({ l }) => `; ${executeName(l)} below ${fmt(l.hp)}`).join("")}`}
+      >
         <defs>
           <clipPath id={`${clipId}bar`}>
             <rect x={0} y={0} width={W} height={H} rx={6} />
@@ -313,7 +325,7 @@ export function HpBar({
             <rect x={x} y={0} width={W - x} height={H} fill="transparent" />
             {leftText && (
               <text
-                x={(x + W) / 2}
+                x={(room.a + room.b) / 2}
                 y={H / 2 + 4}
                 textAnchor="middle"
                 fontSize={12}
@@ -387,6 +399,29 @@ export function HpBar({
             );
           })}
         </g>
+        {marks.map(({ l, x }) => (
+          <g
+            key={l.label}
+            onPointerMove={(e) =>
+              tt.show(
+                e,
+                <>
+                  <div className="tt-title">{executeName(l)}</div>
+                  <div className="tt-row">
+                    <span>Kills below · {((l.hp / maxHp) * 100).toFixed(1)}% max HP</span>
+                    <strong>{fmt(l.hp)}</strong>
+                  </div>
+                </>,
+              )
+            }
+            onPointerLeave={tt.hide}
+          >
+            <rect x={x - 5} y={0} width={10} height={H + 4} fill="transparent" />
+            {/* White on a dark edge, so it shows on any block */}
+            <line x1={x} x2={x} y1={0} y2={H + 4} stroke="var(--hp-track)" strokeWidth={4} />
+            <line x1={x} x2={x} y1={1} y2={H + 3} stroke="var(--hp-execute)" strokeWidth={2} />
+          </g>
+        ))}
         <text x={0} y={H + 16} fontSize={12} fill="var(--text-muted)">
           0
         </text>
@@ -398,6 +433,9 @@ export function HpBar({
     </div>
   );
 }
+
+/** An execute as its line's tooltip names it: "Living Battery (execute)", "The Collector: Execute". */
+const executeName = (l: ExecuteLine) => (l.label.includes(l.sourceLabel) ? l.label : `${l.sourceLabel}: ${l.label}`);
 
 /** A source's name, or `children` in its place, with its icon on the left (the initials of its name when it has none). */
 export function SourceName({ source, label, champion, children = label }: { source: string; label: string; champion: string; children?: ReactNode }) {

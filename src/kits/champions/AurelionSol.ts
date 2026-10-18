@@ -78,7 +78,7 @@ const kit: ChampionKit = {
           id: "execute",
           label: "Singularity (execute)",
           type: "true",
-          amount: "target.hp <= calc.CurrentExecutionThreshold / 100 * target.maxHp ? calc.CurrentExecutionThreshold / 100 * target.maxHp : 0",
+          amount: "calc.CurrentExecutionThreshold / 100 * target.maxHp",
           delay: 1.5,
           optional: true,
           execute: true,

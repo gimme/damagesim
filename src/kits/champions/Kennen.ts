@@ -80,10 +80,11 @@ const kit: ChampionKit = {
     },
     E: {
       // No cast time: Kennen runs as lightning, unable to attack (wiki; he can cast), until he ends it
-      // with the recast after 0.5s. The attack speed starts when the ball ends.
+      // with the recast after 0.5s. The attack speed starts when the ball ends, and raises his attack
+      // speed cap by as much (wiki).
       attackLockout: 0.5,
       notes: ["Hits the target as it starts (he runs through it at once); the ball is ended as early as it can be (0.5s), then +attack speed for 4s."],
-      buff: { id: "kennenE", label: "Lightning Rush", duration: "dv.DurationAfterBall + 0.5", stats: { attackSpeed: "dv.TotalAS" } },
+      buff: { id: "kennenE", label: "Lightning Rush", duration: "dv.DurationAfterBall + 0.5", stats: { attackSpeedPastCap: "dv.TotalAS" } },
       components: [{ id: "rush", label: "Lightning Rush", type: "magic", amount: "calc.TotalDamage", aoe: true }],
     },
     R: {

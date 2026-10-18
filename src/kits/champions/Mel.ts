@@ -19,14 +19,12 @@ function checkExecute(sim: Sim) {
     { flat: red.mrFlat, percent: red.mrPercent },
     { percent: s.magicPenPercent, bonusPercent: s.bonusMagicPenPercent, flat: s.magicPenFlat },
   );
-  const line = stored * resistMultiplier(mr) * (1 - sim.target.damageReduction);
-  if (line < sim.target.hp) return;
   sim.deal({
     source: "P",
     sourceLabel: "Searing Brilliance",
     label: "Overwhelm execute",
     type: "true",
-    amount: line,
+    amount: stored * resistMultiplier(mr) * (1 - sim.target.damageReduction),
     flags: { kind: "ability", slot: "P", execute: true },
   });
 }

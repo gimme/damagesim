@@ -38,7 +38,15 @@ export function Summary({ r }: { r: SimResult }) {
         )}
       </div>
       <div style={{ marginTop: 14 }}>
-        <HpBar sources={r.bySource} events={r.events} by={by} maxHp={r.target.maxHp} startHp={r.target.startHp} champion={r.champion.id} />
+        <HpBar
+          sources={r.bySource}
+          events={r.events}
+          by={by}
+          maxHp={r.target.maxHp}
+          startHp={r.target.startHp}
+          champion={r.champion.id}
+          executes={r.executeLines}
+        />
       </div>
       <div className="row">
         <span className="muted small" style={{ flex: 1 }}>

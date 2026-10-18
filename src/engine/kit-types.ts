@@ -82,8 +82,9 @@ export interface ComponentSpec {
   /** Proc damage special-cased to trigger Dark Harvest anyway (Teemo's Toxic Shot). */
   harvest?: boolean;
   /**
-   * A literal execute: kills the target and sets off nothing. `amount` is its full value, the health
-   * it executes below (`'target.hp <= calc.Threshold ? calc.Threshold : 0'`). See Sim.deal.
+   * A literal execute: `amount` is the health it executes below (`calc.Threshold`); it kills a target
+   * at or under it as it lands, counting for that full value, and sets off nothing. The results mark
+   * the line whether it's reached or not. See Sim.deal.
    */
   execute?: boolean;
   /**

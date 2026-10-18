@@ -114,6 +114,12 @@ export interface StatMods {
   mrMult: number[];
   /** Raises the attack speed cap (Lethal Tempo etc.). */
   attackSpeedCap: number;
+  /** Lowers the attack speed cap, which then only attackSpeedPastCap raises (Zeri's Burst Fire: 1.5;
+   *  Hail of Blades doesn't raise it, wiki). 0 = none; the lowest counts. */
+  attackSpeedCapLimit: number;
+  /** Bonus attack speed that raises the cap by as much as it adds (Zeri's Lightning Crash, Kennen's
+   *  Lightning Rush). */
+  attackSpeedPastCap: number;
   /** Multipliers on crit chance (Yasuo/Yone passive ×2). Combined multiplicatively. */
   critChanceMult: number[];
   /** Conversions applied after flat stats: e.g. 3% of bonus HP as AD. */
@@ -134,6 +140,7 @@ export interface Conversion {
     | "totalAd"
     | "critChanceOverCap"
     | "bonusAttackSpeed"
+    | "bonusAttackSpeedOverCap"
     | "lethality";
   to: "ad" | "ap" | "hp" | "abilityHaste" | "armor" | "mr" | "attackSpeed" | "msPercent" | "lethality" | "critDamage";
   ratio: number;
@@ -177,6 +184,8 @@ export function emptyMods(): StatMods {
     armorMult: [],
     mrMult: [],
     attackSpeedCap: 0,
+    attackSpeedCapLimit: 0,
+    attackSpeedPastCap: 0,
     critChanceMult: [],
     conversions: [],
   };
@@ -188,6 +197,8 @@ export function mergeMods(into: StatMods, from: Partial<StatMods>): StatMods {
     const cur = into[k] as any;
     if (Array.isArray(cur)) cur.push(...(Array.isArray(v) ? v : [v]));
     else if (k === "attackSpeedCap") into.attackSpeedCap = Math.max(into.attackSpeedCap, v);
+    else if (k === "attackSpeedCapLimit")
+      into.attackSpeedCapLimit = into.attackSpeedCapLimit > 0 && v > 0 ? Math.min(into.attackSpeedCapLimit, v) : into.attackSpeedCapLimit || v;
     else (into as any)[k] = cur + v;
   }
   return into;
@@ -271,7 +282,7 @@ export function computeStats(input: BaseStatsInput, mods: StatMods, currentHpPct
   let bonusMana = mods.mana;
   let bonusArmor = mods.armor;
   let bonusMr = mods.mr;
-  let bonusAs = lv.attackSpeedBonus + mods.attackSpeed;
+  let bonusAs = lv.attackSpeedBonus + mods.attackSpeed + mods.attackSpeedPastCap;
   let abilityHaste = mods.abilityHaste;
   let msPercent = mods.msPercent;
   let lethality = mods.lethality;
@@ -283,6 +294,12 @@ export function computeStats(input: BaseStatsInput, mods: StatMods, currentHpPct
   else if (ap > bonusAd) adaptiveType = "magic";
   if (adaptiveType === "physical") bonusAd += mods.adaptive * GAME.adaptiveToAd;
   else ap += mods.adaptive * GAME.adaptiveToAp;
+
+  // The attack speed cap: lowered (Zeri's), or raised, then raised by what attackSpeedPastCap adds.
+  const asMult = 1 + mods.attackSpeedMult;
+  const raised = Math.max(GAME.attackSpeedCap, mods.attackSpeedCap);
+  const capBefore = mods.attackSpeedCapLimit > 0 ? Math.min(mods.attackSpeedCapLimit, raised) : raised;
+  const asCap = capBefore + mods.attackSpeedPastCap * base.attackSpeedRatio * asMult;
 
   // Conversions (Titanic Hydra, Manamune, Archangel's, Heartsteel…), evaluated on pre-conversion values.
   const critChanceRaw = mods.critChance * product(mods.critChanceMult);
@@ -299,6 +316,9 @@ export function computeStats(input: BaseStatsInput, mods: StatMods, currentHpPct
     totalAd: baseAd + bonusAd,
     critChanceOverCap: Math.max(0, critChanceRaw - 1),
     bonusAttackSpeed: bonusAs,
+    // Bonus attack speed past what reaches the cap, without what raises the cap as it adds
+    // (Zeri's Burst Fire: wiki, after cripples).
+    bonusAttackSpeedOverCap: Math.max(0, bonusAs - mods.attackSpeedPastCap - (capBefore / asMult - base.attackSpeed) / base.attackSpeedRatio),
     lethality,
   };
   for (const c of mods.conversions) {
@@ -344,8 +364,7 @@ export function computeStats(input: BaseStatsInput, mods: StatMods, currentHpPct
   const mrMult = product(mods.mrMult);
 
   const maxHp = lv.hp + bonusHp;
-  const asCap = Math.max(GAME.attackSpeedCap, mods.attackSpeedCap);
-  const asUncapped = (base.attackSpeed + bonusAs * base.attackSpeedRatio) * (1 + mods.attackSpeedMult);
+  const asUncapped = (base.attackSpeed + bonusAs * base.attackSpeedRatio) * asMult;
   const ms = (base.ms + mods.msFlat) * (1 + msPercent);
 
   return {

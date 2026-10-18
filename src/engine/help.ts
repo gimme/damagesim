@@ -25,6 +25,7 @@ export const SCENARIO_HELP = `Scenario JSON (all fields except champion and comb
   },
   "settings": {
     "finishDots": true,               // keep simulating burns/bleeds after the last step (else they stop 3s after it)
+    "executes": true,                 // executes kill below their health line (else they deal nothing)
     "waitForCooldowns": true          // repeated abilities wait for their cooldown
   }
 }

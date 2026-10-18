@@ -97,6 +97,7 @@ const scenarioShape = {
   settings: z
     .object({
       finishDots: z.boolean().optional(),
+      executes: z.boolean().optional(),
       waitForCooldowns: z.boolean().optional(),
     })
     .optional(),
@@ -145,6 +146,7 @@ function compactResult(r: SimResult, includeEvents: boolean) {
     percentOfTargetHp: round(r.percentOfHp * 100, 1),
     killed: r.killed,
     ...(r.killTime !== undefined ? { killTime: round(r.killTime, 2) } : {}),
+    ...(r.executeLines.length ? { executeLines: r.executeLines.map((l) => ({ execute: l.label, killsBelowHp: round(l.hp) })) } : {}),
     durationSeconds: round(r.duration, 2),
     bySource: r.bySource.map((s) => ({ source: s.label, hits: s.hits, damage: round(s.damage), raw: round(s.raw) })),
     ...(includeEvents

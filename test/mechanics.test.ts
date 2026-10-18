@@ -718,14 +718,17 @@ test("What kit buffs add to an attack is decided at launch: a cast while it flie
   assert.ok(barrage.every((e) => e.castId !== first.castId) && barrage.some((e) => e.castId === second.castId));
 });
 
-test("On-attack effects trigger at launch (Lucian's double shot), on-hit ones as it hits (Spellblade, granted as a cast starts)", () => {
+test("What empowers the next attack goes to one launched after it (Lucian's double shot; Spellblade, granted as a cast starts), not one in flight", () => {
   // Each ability grants its own second shot, though the next cast comes while the first attack flies.
   const lucian = simulate(data, { champion: "Lucian", level: 11, combo: "Q AA W AA", target: dummy });
   assert.equal(lucian.events.filter((e) => e.label === "Lightslinger (2nd shot)").length, 2);
-  // Sheen's Spellblade, granted by W while the attack flies, is used by that attack (on-hit, wiki).
-  const ezreal = simulate(data, { champion: "Ezreal", level: 11, items: ["Sheen"], combo: "AA W", target: dummy });
-  const blade = ezreal.events.find((e) => e.label === "Spellblade")!;
-  assert.equal(blade.castId, bySource(ezreal, "AA")[0].castId);
+  // Sheen's Spellblade, granted by W while the attack flies, is the next attack's.
+  const ezreal = simulate(data, { champion: "Ezreal", level: 11, items: ["Sheen"], combo: "AA W AA", target: dummy });
+  const blades = ezreal.events.filter((e) => e.label === "Spellblade");
+  assert.deepEqual(
+    blades.map((e) => e.castId),
+    [bySource(ezreal, "AA")[1].castId],
+  );
 });
 
 const timelineOf = (champion: string, combo: string) => new Sim(data, { champion, level: 11, combo, target: dummy }).run(parseCombo(combo)).timeline;
@@ -827,10 +830,10 @@ test("Voltaic Cyclosword's Firmament lands before the attack or ability that fir
   assert.deepEqual(order("Q"), ["item:6699", "Q"]);
 });
 
-test("On-hit effects applied again (Dusk and Dawn, Guinsoo's Phantom Hit) take the buffs active as the attack lands: Yunara AA Q AA", () => {
-  const r = simulate(data, { champion: "Yunara", level: 11, items: ["Dusk and Dawn"], combo: "AA Q AA", target: dummy });
+test("On-hit effects applied again (Dusk and Dawn, Guinsoo's Phantom Hit) take the buffs active as the attack lands: Yunara W AA Q", () => {
+  const r = simulate(data, { champion: "Yunara", level: 11, items: ["Dusk and Dawn"], combo: "W AA Q", target: dummy });
   const first = bySource(r, "AA")[0].castId;
-  // Q, cast while the first attack flies, isn't part of it, but Spellblade's second on-hit pass gets it.
+  // Q, cast while the attack W armed Spellblade for flies, isn't part of it, but Spellblade's second on-hit pass gets it.
   const active = r.events.filter((e) => e.label === "Cultivation of Spirit (active)");
   assert.equal(active.filter((e) => e.castId === first).length, 1);
   assert.ok(r.events.some((e) => e.label === "Spellblade" && e.castId === first));
@@ -883,6 +886,13 @@ test("An attack that is an ability (Zeri's right-click) arms Spellblade, is spel
   );
   assert.equal(blades(zeri("Q Q", ["Sheen"])).length, 0);
   assert.equal(blades(zeri("W AA AA", ["Sheen"])).length, 0);
+  // Burst Fire fired before the attack armed it, its rounds still flying, doesn't use it; the next one does.
+  assert.equal(blades(zeri("Q AA", ["Sheen"])).length, 0);
+  const next = zeri("Q AA Q", ["Sheen"]);
+  assert.deepEqual(
+    blades(next).map((e) => e.castId),
+    [bySource(next, "Q")[1].castId],
+  );
   // Spell effects (Liandry's burn), no on-hit (Blade of the Ruined King) or on-attack (Kraken Slayer's stacks) effects.
   const items = ["Liandry's Torment", "Blade of The Ruined King", "Kraken Slayer"];
   const aa = zeri("AA AA AA", items);
@@ -916,4 +926,50 @@ test("Zeri's Burst Fire takes her attack windup and blocks the attack after it, 
   const attack = bySource(r, "AA")[0];
   assert.ok(burst.time < attack.time, `Burst Fire ${burst.time}, attack ${attack.time}`);
   assert.ok(r.events.some((e) => e.label === "Living Battery (execute)"));
+});
+
+test("Zeri's attack speed cap is 1.5, raised only by Overcharged's attack speed; 0.6 AD per 1% bonus attack speed past it", () => {
+  const items = ["Berserker's Greaves", "Runaan's Hurricane", "Statikk Shiv", "Phantom Dancer", "Rapid Firecannon"];
+  const zeri = (o: object = {}) => new Sim(data, { champion: "Zeri", level: 18, items, combo: [], ...o }).stats;
+  const st = zeri();
+  const itemAd = items.reduce((s, i) => s + (findItem(data, i).stats.ad ?? 0), 0);
+  const past = st.bonusAttackSpeed - (1.5 - st.baseAttackSpeed) / st.attackSpeedRatio;
+  assert.ok(past > 0.5);
+  assert.equal(st.attackSpeed, 1.5);
+  assert.ok(Math.abs(st.bonusAd - itemAd - 60 * past) < 1e-3, `${st.bonusAd} vs ${itemAd} + 60 × ${past}`);
+  // Hail of Blades doesn't raise it (wiki).
+  assert.equal(zeri({ runes: ["Hail of Blades"] }).attackSpeedCap, 1.5);
+  // Overcharged raises it by its 30% (× her ratio), and doesn't change the AD: Burst Fire comes every 1 / 1.6875s.
+  const r = simulate(data, { champion: "Zeri", level: 18, items, combo: "R Q Q", target: dummy });
+  const [, q1, q2] = r.timeline;
+  assert.ok(Math.abs(q2.start - q1.start - 1 / (1.5 + 0.3 * st.attackSpeedRatio)) < 1e-6, `${q2.start - q1.start}`);
+  // Others keep the game's.
+  assert.equal(new Sim(data, { champion: "Jinx", level: 18, items, combo: [] }).stats.attackSpeedCap, 3);
+});
+
+test("An execute's line shows in the results whether it's reached or not; settings.executes off, executes deal nothing and show none", () => {
+  const zeri = (hp: number, executes?: boolean) =>
+    simulate(data, { champion: "Zeri", level: 11, options: { charged: 0 }, combo: "Q AA", target: { maxHp: hp, armor: 30, mr: 30 }, settings: { executes } });
+  const line = new Sim(data, { champion: "Zeri", level: 11, combo: [] }).evalExpr("Q.calc.PassiveExecuteThreshold", { slot: "Q" });
+  for (const hp of [220, 2000]) {
+    const r = zeri(hp);
+    assert.deepEqual(
+      r.executeLines.map((l) => [l.label, l.hp]),
+      [["Living Battery (execute)", line]],
+    );
+    assert.equal(
+      r.events.some((e) => e.flags.execute),
+      hp === 220,
+    );
+  }
+  const off = zeri(220, false);
+  assert.equal(off.executeLines.length, 0);
+  assert.ok(!off.events.some((e) => e.flags.execute) && !off.killed);
+  // Pyke's R deals its other hit above the line, which shows all the same.
+  const pyke = simulate(data, { champion: "Pyke", level: 11, combo: "R", target: { maxHp: 3000, armor: 30, mr: 30 } });
+  assert.deepEqual(
+    pyke.executeLines.map((l) => l.label),
+    ["Death From Below (execute)"],
+  );
+  assert.ok(!pyke.events.some((e) => e.flags.execute));
 });

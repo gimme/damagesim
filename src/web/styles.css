@@ -32,6 +32,8 @@
   --hp-track: #2c2c2a;
   --hp-stripe: #4d4c48;
   --hp-left-text: #c3c2b7;
+  /* An execute's line across it: white, as the game's last hit indicator. */
+  --hp-execute: #ffffff;
   /* An item far ahead of the rest in the item value ranking: a star, a ring, a glow. */
   --gold: #e3a008;
   --gold-wash: rgba(250, 178, 25, 0.22);

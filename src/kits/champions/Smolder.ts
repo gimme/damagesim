@@ -139,14 +139,12 @@ const kit: ChampionKit = {
       if (inst.source === "Q" && inst.label === "Super Scorcher Breath" && sim.opt.stacks >= sim.evalExpr("Q.dv.StackTier3", q))
         sim.setCounter("smolderBurnUntil", sim.time + sim.evalExpr("Q.dv.Tier3_DotLength", q));
       if (sim.time > sim.counter("smolderBurnUntil")) return;
-      const line = sim.evalExpr("Q.calc.Tier3_ExecuteThreshold", q) * sim.target.maxHp;
-      if (sim.target.hp >= line) return;
       sim.deal({
         source: "Q",
         sourceLabel: "Super Scorcher Breath",
         label: "Super Scorcher Breath (execute)",
         type: "true",
-        amount: line,
+        amount: sim.evalExpr("Q.calc.Tier3_ExecuteThreshold", q) * sim.target.maxHp,
         castId: inst.castId,
         flags: { kind: "ability", slot: "Q", execute: true },
       });

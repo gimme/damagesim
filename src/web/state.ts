@@ -48,7 +48,7 @@ export interface UIState {
   options: Record<string, number>;
   combo: string;
   target: TargetState;
-  settings: Required<Pick<SimSettings, "finishDots">>;
+  settings: Required<Pick<SimSettings, "finishDots" | "executes">>;
 }
 
 /** How a card changes the state: from the state as it is. */
@@ -75,7 +75,7 @@ export const DEFAULT_STATE: UIState = {
     hpPercent: 100,
     damageReduction: 0,
   },
-  settings: { finishDots: true },
+  settings: { finishDots: true, executes: true },
 };
 
 export function toScenario(s: UIState): Scenario {

@@ -53,7 +53,7 @@ const kit: ChampionKit = {
           id: "execute",
           label: "Whirling Death (execute)",
           type: "true",
-          amount: "target.hp < calc.RPassiveTrueDamage ? calc.RPassiveTrueDamage : 0",
+          amount: "calc.RPassiveTrueDamage",
           hits: "opt.adoration > 0 ? 1 : 0",
           travel: true,
           execute: true,

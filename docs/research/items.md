@@ -167,6 +167,7 @@ On top of these, every Legendary item can be owned only once.
 **Rules shared by every Spellblade item** (wiki "Spellblade info" plus item notes; confidence H):
 - **Trigger:** the buff is granted when you **start** casting any ability, even if the cast is cancelled. It lasts 10 s (`SpellBladeDuration`). Casting again refreshes the 10 s.
 - **Consumption:** the next basic attack consumes it, or an ability that applies on-hit effects.
+  - The next attack is one launched after the cast. In game, Zeri's Burst Fire doesn't use the Spellblade that her attack right after it arms while the rounds are still flying; you have to attack first (user report, 16.20). The simulator applies this to every attack: one whose missile is in flight when the cast starts doesn't use it. The wiki doesn't say either way (confidence M).
 - **Damage:** dealt on-hit as proc damage, so it does not trigger ability effects. Life steal applies. **It cannot crit.**
 - **Cooldown:** `Cooldown`/`SpellbladeCooldown` = 1.5 s, starting after the empowered hit. Ability Haste does not affect it.
 - **Spell shields:** not blocked when the attack is a basic attack; blocked when an on-hit ability carries it.
