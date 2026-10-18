@@ -1316,3 +1316,53 @@ test("Burst Fire's rounds: at most one a server tick (1/30s), and she can't atta
   const [q, aa] = r.timeline;
   assert.ok(Math.abs(q.end - q.start - 0.2) < 1e-9 && Math.abs(aa.start - q.end) < 1e-9);
 });
+
+test("Items' stacks at start count hits already made: Kraken Slayer at 2 and Hullbreaker at 4 proc on the first attack, Guinsoo's at 6 makes it a Phantom Hit", () => {
+  const first = (champion: string, item: string, options: Record<string, number>, label: string) => {
+    const r = simulate(data, { champion, level: 18, items: [item], options, combo: "AA*3", target: dummy });
+    return r.events.filter((e) => e.label === label && e.castId === bySource(r, "AA")[0].castId).length;
+  };
+  assert.equal(first("Jinx", "Kraken Slayer", {}, "Bring It Down"), 0);
+  assert.equal(first("Jinx", "Kraken Slayer", { "kraken.stacks": 1 }, "Bring It Down"), 0);
+  assert.equal(first("Jinx", "Kraken Slayer", { "kraken.stacks": 2 }, "Bring It Down"), 1);
+  assert.equal(first("Garen", "Hullbreaker", { "hullbreaker.stacks": 3 }, "Skipper"), 0);
+  assert.equal(first("Garen", "Hullbreaker", { "hullbreaker.stacks": 4 }, "Skipper"), 1);
+  assert.equal(first("Jinx", "Guinsoo's Rageblade", { "guinsoo.stacks": 6 }, "Wrath"), 2);
+  // At full stacks the attack speed is there from the start, and the third attack is the Phantom Hit.
+  const guinsoo = (n: number) =>
+    simulate(data, { champion: "Jinx", level: 18, items: ["Guinsoo's Rageblade"], options: { "guinsoo.stacks": n }, combo: "AA*3", target: dummy });
+  const [none, full] = [guinsoo(0), guinsoo(4)];
+  assert.ok(bySource(full, "AA")[0].time < bySource(none, "AA")[0].time);
+  assert.deepEqual(
+    bySource(full, "AA").map((a) => full.events.filter((e) => e.label === "Wrath" && e.castId === a.castId).length),
+    [1, 1, 2],
+  );
+});
+
+test("Items' stacks at start: Terminus's penetration, Black Cleaver's and Bloodletter's shred and Shojin's amp apply from the first hit, and run out as stacks gained then would", () => {
+  const target = { maxHp: 5000, armor: 100, mr: 100 };
+  const terminus = simulate(data, { champion: "Jinx", level: 18, items: ["Terminus"], options: { "terminus.stacks": 3 }, combo: "AA", target });
+  assert.ok(near(bySource(terminus, "AA")[0].effectiveResist!, 70));
+  const cleaver = simulate(data, {
+    champion: "Garen",
+    level: 18,
+    items: ["Black Cleaver"],
+    options: { "blackCleaver.stacks": 5 },
+    combo: "AA wait{7s} AA",
+    target,
+  });
+  assert.deepEqual(
+    bySource(cleaver, "AA").map((e) => Math.round(e.effectiveResist!)),
+    [70, 100],
+  );
+  const curse = simulate(data, { champion: "Ahri", level: 18, items: ["Bloodletter's Curse"], options: { "bloodletter.stacks": 4 }, combo: "Q", target });
+  assert.ok(near(bySource(curse, "Q")[0].effectiveResist!, 70));
+  const shojin = simulate(data, { champion: "Ahri", level: 18, items: ["Spear of Shojin"], options: { "shojin.stacks": 4 }, combo: "Q", target });
+  assert.ok(near(bySource(shojin, "Q")[0].amps.find((a) => a.source === "Spear of Shojin")!.value, 0.12));
+  // None by default: nothing changes until the field is set.
+  const items = ["Kraken Slayer", "Guinsoo's Rageblade", "Terminus", "Black Cleaver", "Hullbreaker", "Spear of Shojin"];
+  const zero = Object.fromEntries(["kraken", "guinsoo", "terminus", "blackCleaver", "hullbreaker", "shojin"].map((k) => [`${k}.stacks`, 0]));
+  const build = (options: Record<string, number>) =>
+    simulate(data, { champion: "Jax", level: 18, items, options, combo: "AA Q AA W AA E AA", target }).totalDamage;
+  assert.equal(build(zero), build({}));
+});

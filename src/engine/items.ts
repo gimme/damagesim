@@ -18,6 +18,7 @@ import {
   type Effect,
   type SetupCtx,
 } from "./effects.ts";
+import type { KitOption } from "./kit-types.ts";
 import type { Sim } from "./sim.ts";
 import type { StatMods } from "./stats.ts";
 
@@ -69,6 +70,18 @@ const isChampionAbilityDamage = (inst: DamageInstance) => inst.flags.kind === "a
 
 /** End time stored in a counter by a timed effect; -Infinity if it never started. */
 const timerEnd = (sim: Sim, key: string) => sim.counters.get(key) ?? -Infinity;
+
+/**
+ * An item's stacks as the combo starts, from hits just before it (none by default), `max` at most:
+ * they're fresh, lasting as long from the start as stacks gained then would. They count hits already
+ * made, so the combo's first is the next: Kraken Slayer at 2 procs on the first attack.
+ */
+function startStacks(item: ItemData, key: string, max: number, description: string): KitOption {
+  return { key, label: `${item.name} stacks at start`, default: 0, min: 0, max, step: 1, description };
+}
+const optStacks = (sim: Sim, o: KitOption) => Math.max(0, Math.min(o.max ?? Infinity, Math.round(sim.opt[o.key] ?? 0)));
+/** A fraction as a percentage for a description: 0.075 → 7.5. */
+const pct = (x: number) => +(x * 100).toFixed(1);
 
 /**
  * Seconds in combat with champions, for "+X% per second in combat" passives. Combo start counts as
@@ -312,8 +325,21 @@ const ITEMS: Record<number, Factory> = {
     // A Dark attack's new stack applies only after its own hit (stats can be recomputed mid-attack).
     let lastDarkAt = -Infinity;
     let stacksBefore = 0;
+    const maxDark = Math.round(dv(item, "PenMax") / dv(item, "PenPerHit"));
+    const start = startStacks(
+      item,
+      "terminus.stacks",
+      maxDark,
+      `Dark stacks from attacks just before the combo, lasting ${dv(item, "BuffDuration")}s: ${pct(dv(item, "PenPerHit"))}% armor and magic penetration each. The combo's first attack is Light.`,
+    );
     return effect(item, {
       description: "On-hit magic damage. Alternating Light/Dark attacks: Dark attacks grant 10% armor and magic penetration (max 30%) for 5s.",
+      options: [start],
+      onStart(sim) {
+        darkStacks = optStacks(sim, start);
+        darkUntil = sim.time + dv(item, "BuffDuration");
+        sim.invalidateStats();
+      },
       dynamicStats(sim) {
         const n = Math.abs(sim.time - lastDarkAt) < 1e-9 ? stacksBefore : darkStacks;
         if (sim.time > darkUntil || n <= 0) return;
@@ -327,7 +353,7 @@ const ITEMS: Record<number, Factory> = {
         if (sim.time > darkUntil) darkStacks = 0;
         if (attacks % 2 === 0) {
           stacksBefore = darkStacks;
-          darkStacks = Math.min(Math.round(dv(item, "PenMax") / dv(item, "PenPerHit")), darkStacks + 1);
+          darkStacks = Math.min(maxDark, darkStacks + 1);
           darkUntil = sim.time + dv(item, "BuffDuration");
           lastDarkAt = sim.time;
           sim.schedule(1e-4, () => sim.invalidateStats());
@@ -341,8 +367,24 @@ const ITEMS: Record<number, Factory> = {
     let count = 0;
     /** Attacks launched at max stacks whose on-hit effects apply twice (Phantom Hit). */
     const phantom = new Set<number>();
+    const max = dv(item, "MaxStacks");
+    // Past full stacks, the count goes on as Phantom Hit's: its every third attack at full stacks.
+    const start = startStacks(
+      item,
+      "guinsoo.stacks",
+      max + 2,
+      `Seething Strike stacks from attacks just before the combo, lasting ${dv(item, "BuffDuration")}s: +${pct(dv(item, "AttackSpeedPerStack"))}% attack speed each, up to ${max}. Past ${max} they count toward Phantom Hit, every third attack at full stacks: at ${max + 2} the first attack is one.`,
+    );
     return effect(item, {
       description: "On-hit magic damage; attacks stack attack speed (4×8%). At max stacks every third attack applies on-hit effects twice.",
+      options: [start],
+      onStart(sim) {
+        const n = optStacks(sim, start);
+        stacks = Math.min(max, n);
+        count = n - stacks;
+        until = sim.time + dv(item, "BuffDuration");
+        sim.invalidateStats();
+      },
       dynamicStats(sim) {
         if (sim.time > until || !stacks) return;
         return { attackSpeed: stacks * dv(item, "AttackSpeedPerStack") };
@@ -352,11 +394,11 @@ const ITEMS: Record<number, Factory> = {
           stacks = 0;
           count = 0;
         }
-        if (stacks >= dv(item, "MaxStacks")) {
+        if (stacks >= max) {
           count++;
           if (count % 3 === 0) phantom.add(launch.castId);
         }
-        stacks = Math.min(dv(item, "MaxStacks"), stacks + 1);
+        stacks = Math.min(max, stacks + 1);
         until = sim.time + dv(item, "BuffDuration");
         sim.invalidateStats();
       },
@@ -371,15 +413,27 @@ const ITEMS: Record<number, Factory> = {
   6672: (item) => {
     let stacks = 0;
     let until = -Infinity;
+    const ready = dv(item, "AttackCount") - 1;
+    const start = startStacks(
+      item,
+      "kraken.stacks",
+      ready,
+      `Bring It Down stacks from attacks just before the combo, lasting ${dv(item, "BuffDuration")}s: at ${ready} the first attack procs.`,
+    );
     return effect(item, {
       description: "Every third attack deals bonus physical damage on-hit, up to +75% against low-health targets.",
       limitations: ["Damage increase assumed linear with the target's missing health %."],
+      options: [start],
+      onStart(sim) {
+        stacks = optStacks(sim, start);
+        until = sim.time + dv(item, "BuffDuration");
+      },
       onAttack(sim, atk) {
         if (sim.time > until) stacks = 0;
         until = sim.time + dv(item, "BuffDuration");
         // Guinsoo's Phantom Hit adds a stack but never consumes them.
-        if (atk.phantom || stacks < dv(item, "AttackCount") - 1) {
-          stacks = Math.min(dv(item, "AttackCount") - 1, stacks + 1);
+        if (atk.phantom || stacks < ready) {
+          stacks = Math.min(ready, stacks + 1);
           return;
         }
         stacks = 0;
@@ -392,8 +446,19 @@ const ITEMS: Record<number, Factory> = {
   3181: (item) => {
     let n = 0;
     let lastAttack = -Infinity;
+    const start = startStacks(
+      item,
+      "hullbreaker.stacks",
+      4,
+      `Skipper stacks from attacks on champions just before the combo, lasting ${dv(item, "SkipperStackDuration")}s: at 4 the first attack procs.`,
+    );
     return effect(item, {
       description: "Every fifth attack against champions deals bonus physical damage (stacks last 10s).",
+      options: [start],
+      onStart(sim) {
+        n = optStacks(sim, start);
+        lastAttack = sim.time;
+      },
       onAttack(sim, atk) {
         if (atk.phantom) return;
         if (sim.time - lastAttack > dv(item, "SkipperStackDuration")) n = 0;
@@ -732,10 +797,20 @@ const ITEMS: Record<number, Factory> = {
     const lastByCast = new Map<number, number>();
     // Innate abilities don't grant stacks, except these special cases (wiki).
     const innateStacks = setup.champion === "Urgot" || setup.champion === "Rengar";
+    const start = startStacks(
+      item,
+      "shojin.stacks",
+      dv(item, "StackCount"),
+      `Stacks from champion-ability hits just before the combo, lasting ${dv(item, "StackDuration")}s: +${pct(dv(item, "SpellDamageIncrease"))}% ability damage each.`,
+    );
     return effect(item, {
       description: "Damage from a non-innate champion ability grants a stack (max 4, 6s): +3% ability damage per stack. +25 basic ability haste.",
-      options: [{ key: "shojin.rangedPenalty", label: "Shojin: apply ranged 50% (tooltip-only per wiki)", default: 0, min: 0, max: 1, step: 1 }],
+      options: [{ key: "shojin.rangedPenalty", label: "Shojin: apply ranged 50% (tooltip-only per wiki)", default: 0, min: 0, max: 1, step: 1 }, start],
       stats: () => ({ basicAbilityHaste: dv(item, "AHBase") }),
+      onStart(sim) {
+        stacks = optStacks(sim, start);
+        until = sim.time + dv(item, "StackDuration");
+      },
       beforeDamage(sim, inst) {
         // Ability damage that is also basic damage (Garen Q, Darius W) is amplified too.
         if (inst.flags.kind !== "ability" || sim.time > until || !stacks) return;
@@ -825,8 +900,19 @@ const ITEMS: Record<number, Factory> = {
     let stacks = 0;
     let until = -Infinity;
     let lastStack = -Infinity;
+    const start = startStacks(
+      item,
+      "blackCleaver.stacks",
+      dv(item, "MaxStacks"),
+      `Carve stacks on the target from physical damage just before the combo, lasting ${dv(item, "DebuffDuration")}s: ${pct(dv(item, "ShredPerStack"))}% armor reduction each.`,
+    );
     return effect(item, {
       description: "Physical damage to champions shreds 6% armor per stack (5 stacks, 6s).",
+      options: [start],
+      onStart(sim) {
+        stacks = optStacks(sim, start);
+        until = sim.time + dv(item, "DebuffDuration");
+      },
       targetResist(sim) {
         if (sim.time <= until && stacks) return { armorPercent: stacks * dv(item, "ShredPerStack") };
       },
@@ -846,8 +932,19 @@ const ITEMS: Record<number, Factory> = {
     let stacks = 0;
     let until = -Infinity;
     const lastByCast = new Map<number, number>();
+    const start = startStacks(
+      item,
+      "bloodletter.stacks",
+      dv(item, "MaxStacks"),
+      `Stacks on the target from ability magic damage just before the combo, lasting ${dv(item, "DebuffDuration")}s: ${pct(dv(item, "ShredPerStack"))}% magic resist reduction each.`,
+    );
     return effect(item, {
       description: "Magic damage from abilities or passives shreds 7.5% magic resist per stack (4 stacks, 6s; once per cast instance every 0.3s).",
+      options: [start],
+      onStart(sim) {
+        stacks = optStacks(sim, start);
+        until = sim.time + dv(item, "DebuffDuration");
+      },
       targetResist(sim) {
         if (sim.time <= until && stacks) return { mrPercent: stacks * dv(item, "ShredPerStack") };
       },
