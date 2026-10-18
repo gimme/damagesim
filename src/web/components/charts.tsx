@@ -367,10 +367,10 @@ export function HpBar({
           {blocks.map(({ s, x, w }, i) => {
             const mark = blockMark(s.source, s.label, champion);
             const icon = mark.icon && !broken.has(mark.icon) ? mark.icon : "";
-            // A source's icon names it, and an ability's key with it where there's room: a champion's
-            // ability icons are less known than which key they're on. Letters stand in for no icon. A
-            // block too narrow for the icon shows nothing.
-            const key = /^[QWER]$/.test(s.source);
+            // A source's icon names it, and an ability's key (the passive's P too) with it where there's
+            // room: a champion's ability icons are less known than which key they're on. Letters stand
+            // in for no icon. A block too narrow for the icon shows nothing.
+            const key = /^[PQWER]$/.test(s.source);
             const textW = textWidth(mark.text, "650 12.5px");
             const show = icon ? (key && ICON + 3 + textW + 8 <= w ? "both" : ICON + 6 <= w ? "icon" : null) : textW + 6 <= w ? "text" : null;
             const cx = x + w / 2;

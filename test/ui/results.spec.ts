@@ -79,6 +79,18 @@ test("summary and the health bar", async ({ ui }) => {
   );
 });
 
+test("a passive's block on the health bar", async ({ ui }) => {
+  const { step } = ui;
+  const result = ui.card("Result");
+  const bar = result.getByRole("img", { name: /^Target health bar/ });
+  await step("load: Brand, Q W E R", () => ui.open({ champion: "Brand", combo: "Q W E R" }));
+  await step(
+    "by source: his passive's block names its key beside its icon, as his abilities' do",
+    () => result.getByRole("group", { name: "Order the bar's sources" }).getByRole("button", { name: "By source" }).click(),
+    async () => expect((await bar.locator("text").allTextContents()).filter((t) => /^[PQWER]$/.test(t)).sort()).toEqual(["E", "P", "Q", "R", "W"]),
+  );
+});
+
 test("details tabs", async ({ ui }) => {
   const { page, step } = ui;
   const details = ui.details();
