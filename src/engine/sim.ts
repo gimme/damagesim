@@ -280,6 +280,9 @@ interface ActiveDebuff {
 
 const ULT: Slot = "R";
 
+/** Each champion's spells by the names kits give them (Sim.findSpell). */
+const spellsByName = new WeakMap<ChampionData, Map<string, SpellData | undefined>>();
+
 export class Sim {
   readonly data: GameData;
   readonly champ: ChampionData;
@@ -498,6 +501,13 @@ export class Sim {
   }
 
   findSpell(name: string): SpellData | undefined {
+    let found = spellsByName.get(this.champ);
+    if (!found) spellsByName.set(this.champ, (found = new Map()));
+    if (!found.has(name)) found.set(name, this.lookSpell(name));
+    return found.get(name);
+  }
+
+  private lookSpell(name: string): SpellData | undefined {
     const n = name.toLowerCase();
     for (const ab of this.champ.abilities)
       for (const s of ab.spells) if (s.scriptName.toLowerCase() === n || s.path.toLowerCase() === n || s.path.toLowerCase().endsWith("/" + n)) return s;
@@ -727,7 +737,8 @@ export class Sim {
     if (typeof e === "number") return e;
     const spell = ctx.spell ?? this.spellFor(ctx.slot);
     const rank = ctx.rank ?? this.abilityRank(ctx.slot);
-    const resolve: Resolver = (path) => this.resolvePath(path, { ...ctx, spell, rank });
+    const full = ctx.spell !== undefined && ctx.rank !== undefined ? (ctx as typeof ctx & { spell: SpellData; rank: number }) : { ...ctx, spell, rank };
+    const resolve: Resolver = (path) => this.resolvePath(path, full);
     try {
       return compile(e)(resolve);
     } catch (err) {
@@ -749,45 +760,20 @@ export class Sim {
     path: string[],
     ctx: { slot: Slot; spell: SpellData; rank: number; hit?: number; hits?: number; recast?: number; castTime?: number; distance?: number },
   ): number {
-    const [h, ...rest] = path;
+    const h = path[0];
     const distance = ctx.distance ?? this.distance;
     const st = this.stats;
     const t = this.target;
-    const sub = (spell: SpellData, rank: number, p: string[]): number => {
-      switch (p[0]) {
-        case "calc":
-          return this.calc(spell, p[1], rank);
-        case "dv":
-          return this.dataValue(spell, p[1], rank);
-        case "rank":
-          return rank;
-        case "cooldown":
-          return spell.cooldown?.[Math.min(rank, (spell.cooldown?.length ?? 1) - 1)] ?? 0;
-        case "castTime":
-          return spell.castTime;
-        case "castRange":
-          if (!spell.castRange) throw new Error(`${spell.name} has no range in the data`);
-          return spell.castRange[Math.min(rank, spell.castRange.length - 1)];
-        case "missileSpeed":
-          if (!spell.missileSpeed) throw new Error(`${spell.name} has no missile speed in the data`);
-          return spell.missileSpeed;
-        case "reach":
-          // How far it goes to the target: there, or as far as its range if that's shorter.
-          return spell.castRange ? Math.min(distance, spell.castRange[Math.min(rank, spell.castRange.length - 1)]) : distance;
-        default:
-          throw new Error(`unknown name ${p.join(".")}`);
-      }
-    };
     switch (h) {
       case "castTime":
-        return ctx.castTime ?? sub(ctx.spell, ctx.rank, path);
+        return ctx.castTime ?? this.spellValue(ctx.spell, ctx.rank, path, 0, distance);
       case "calc":
       case "dv":
       case "cooldown":
       case "castRange":
       case "missileSpeed":
       case "reach":
-        return sub(ctx.spell, ctx.rank, path);
+        return this.spellValue(ctx.spell, ctx.rank, path, 0, distance);
       case "rank":
         return ctx.rank;
       case "P":
@@ -797,20 +783,20 @@ export class Sim {
       case "R": {
         const slot = h as Slot;
         const rank = this.abilityRank(slot);
-        if (rest[0] === "rank") return rank;
-        return sub(this.spellFor(slot), rank, rest);
+        if (path[1] === "rank") return rank;
+        return this.spellValue(this.spellFor(slot), rank, path, 1, distance);
       }
       case "spell": {
-        const s = this.findSpell(rest[0]);
-        if (!s) throw new Error(`unknown spell ${rest[0]}`);
+        const s = this.findSpell(path[1]);
+        if (!s) throw new Error(`unknown spell ${path[1]}`);
         // Unslotted spells (other forms: Elise spider, Gnar mega…) use the rank of the slot
         // whose expression references them.
         const unslotted = this.champ.abilities.find((a) => a.spells.includes(s))?.slot === "X";
-        return sub(s, unslotted ? ctx.rank : this.abilityRank(this.slotOfSpell(s)), rest.slice(1));
+        return this.spellValue(s, unslotted ? ctx.rank : this.abilityRank(this.slotOfSpell(s)), path, 2, distance);
       }
       case "target": {
         const hp = Math.max(0, t.hp);
-        switch (rest[0]) {
+        switch (path[1]) {
           case "maxHp":
             return t.maxHp;
           case "hp":
@@ -842,18 +828,18 @@ export class Sim {
           case "cced":
             return this.targetHasCC(["immobilize", "slow", "impair"]) ? 1 : 0;
         }
-        throw new Error(`unknown target.${rest[0]}`);
+        throw new Error(`unknown target.${path[1]}`);
       }
       case "opt":
-        return this.opt[rest[0]] ?? 0;
+        return this.opt[path[1]] ?? 0;
       case "stacks":
-        return this.markStacks(rest[0]) ?? this.counters.get(rest[0]) ?? 0;
+        return this.markStacks(path[1]) ?? this.counters.get(path[1]) ?? 0;
       case "buff": {
-        const b = this.getBuff(rest[0]);
+        const b = this.getBuff(path[1]);
         return b ? b.stacks || 1 : 0;
       }
       case "debuff": {
-        const d = this.getDebuff(rest[0]);
+        const d = this.getDebuff(path[1]);
         return d ? d.stacks || 1 : 0;
       }
       case "recast":
@@ -925,6 +911,33 @@ export class Sim {
         return st.ranged ? 1 : 0;
     }
     throw new Error(`unknown name "${path.join(".")}"`);
+  }
+
+  /** A spell's value an expression names: path[at] and on (calc.X, dv.X, rank, cooldown…). */
+  private spellValue(spell: SpellData, rank: number, path: string[], at: number, distance: number): number {
+    switch (path[at]) {
+      case "calc":
+        return this.calc(spell, path[at + 1], rank);
+      case "dv":
+        return this.dataValue(spell, path[at + 1], rank);
+      case "rank":
+        return rank;
+      case "cooldown":
+        return spell.cooldown?.[Math.min(rank, (spell.cooldown?.length ?? 1) - 1)] ?? 0;
+      case "castTime":
+        return spell.castTime;
+      case "castRange":
+        if (!spell.castRange) throw new Error(`${spell.name} has no range in the data`);
+        return spell.castRange[Math.min(rank, spell.castRange.length - 1)];
+      case "missileSpeed":
+        if (!spell.missileSpeed) throw new Error(`${spell.name} has no missile speed in the data`);
+        return spell.missileSpeed;
+      case "reach":
+        // How far it goes to the target: there, or as far as its range if that's shorter.
+        return spell.castRange ? Math.min(distance, spell.castRange[Math.min(rank, spell.castRange.length - 1)]) : distance;
+      default:
+        throw new Error(`unknown name ${path.slice(at).join(".")}`);
+    }
   }
 
   // ---------------------------------------------------------------------------
