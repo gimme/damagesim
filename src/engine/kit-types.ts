@@ -399,7 +399,7 @@ export interface ChampionKit {
     melee?: Expr;
     /**
      * Each attack is an ability (Zeri's Living Battery: "treated as Abilities"), with an attack's
-     * timing: on-cast effects trigger as its windup starts (it arms Spellblade), all it deals is spell
+     * timing: on-cast effects trigger as it hits (it arms Spellblade then), all it deals is spell
      * damage (spell effects: Liandry's, Luden's), and it applies no on-hit or on-attack effects of
      * items or runes (it doesn't use Spellblade). What the kit's own buffs add to it still applies.
      */

@@ -228,7 +228,7 @@ export interface AttackHit {
   enable?: string[];
   /** What the buffs add to it, decided when it was launched (default: now). */
   buffParts?: BuffPart[];
-  /** When the attack was launched (an ability's attack hit fired), if before now (its missile flew). */
+  /** When the attack was launched, if before now (its missile flew). */
   launched?: number;
   /** Its launch, when launchAttack launched it; else it's launched as it hits. */
   launch?: AttackLaunch;
@@ -1429,19 +1429,7 @@ export class Sim {
 
   private dealComponent(
     comp: ComponentSpec,
-    ctx: {
-      slot: Slot;
-      spell: SpellData;
-      rank: number;
-      castId: number;
-      sourceLabel: string;
-      hit: number;
-      hits: number;
-      recast?: number;
-      castTime?: number;
-      /** When the hit was fired, if before now (it flew). */
-      launched?: number;
-    },
+    ctx: { slot: Slot; spell: SpellData; rank: number; castId: number; sourceLabel: string; hit: number; hits: number; recast?: number; castTime?: number },
   ) {
     const ectx = { slot: ctx.slot, spell: ctx.spell, rank: ctx.rank, hit: ctx.hit, hits: ctx.hits, recast: ctx.recast, castTime: ctx.castTime };
     let amount = this.evalExpr(comp.amount, ectx);
@@ -1460,7 +1448,6 @@ export class Sim {
         label: comp.label,
         sourceLabel: ctx.sourceLabel,
         fromAbility: ctx.slot,
-        ...(ctx.launched !== undefined ? { launched: ctx.launched } : {}),
       });
       return;
     }
@@ -1551,6 +1538,10 @@ export class Sim {
     const effects = this.attackEffects(!!o.fromAbility);
     /** A basic attack that is an ability (Zeri's): spell damage, no on-hit or on-attack effects. */
     const abilityAttack = !o.fromAbility && !!this.kit.attack?.ability;
+    // It counts as a cast as it hits (Spellblade is granted then: Burst Fire's rounds landing before
+    // it don't use it).
+    if (abilityAttack)
+      for (const e of this.effects) e.onCast?.(this, { castId: o.castId, slot: "P", hitsTarget: true, isUltimate: false, label: "Basic attack", castTime: 0 });
     if (!o.launch && (!o.fromAbility || o.comp?.onAttack)) {
       const launch: AttackLaunch = { castId: o.castId, ...(o.fromAbility ? { fromAbility: o.fromAbility } : {}) };
       for (const e of effects) e.onLaunch?.(this, launch);
@@ -2068,16 +2059,14 @@ export class Sim {
         if (r) hits = hitsWithin(r.first, r.interval, r.maxHits, span);
         else if (interval <= 0 && this.firedAt(comp, ectx) > span + 1e-6) hits = 0;
       }
-      const travel = delay - this.firedAt(comp, ectx);
       for (let h = 0; h < hits; h++) {
         const at = end + delay + interval * h;
         const hitIdx = h;
-        const launched = travel > 0 ? at - travel : undefined;
         if (!landing.has(at)) landing.set(at, []);
         landing.get(at)!.push(() => {
           const n = ++landed;
           onHitN(n, "before");
-          this.dealComponent(comp, { slot, spell, rank, castId, sourceLabel: label, hit: hitIdx, hits, recast, castTime, launched });
+          this.dealComponent(comp, { slot, spell, rank, castId, sourceLabel: label, hit: hitIdx, hits, recast, castTime });
           onHitN(n, "after");
         });
       }
@@ -2287,9 +2276,6 @@ export class Sim {
       this.freeAt = start + windup;
       this.attackReadyAt = start + period;
       timeline.push({ step: step.crit === true ? "AA!" : step.crit === false ? "AA?" : "AA", start, end: start + windup });
-      // An attack that is an ability is cast as its windup starts (Spellblade, granted as a cast starts).
-      if (this.kit.attack?.ability)
-        for (const e of this.effects) e.onCast?.(this, { castId, slot: "P", hitsTarget: true, isUltimate: false, label: "Basic attack", castTime: windup });
       this.scheduleAt(start + windup, () => this.launchAttack({ castId, enable: step.enable }));
     }
   }

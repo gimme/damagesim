@@ -718,17 +718,14 @@ test("What kit buffs add to an attack is decided at launch: a cast while it flie
   assert.ok(barrage.every((e) => e.castId !== first.castId) && barrage.some((e) => e.castId === second.castId));
 });
 
-test("What empowers the next attack goes to one launched after it (Lucian's double shot; Spellblade, granted as a cast starts), not one in flight", () => {
+test("On-attack effects trigger at launch (Lucian's double shot), on-hit ones as it hits (Spellblade, granted as a cast starts)", () => {
   // Each ability grants its own second shot, though the next cast comes while the first attack flies.
   const lucian = simulate(data, { champion: "Lucian", level: 11, combo: "Q AA W AA", target: dummy });
   assert.equal(lucian.events.filter((e) => e.label === "Lightslinger (2nd shot)").length, 2);
-  // Sheen's Spellblade, granted by W while the attack flies, is the next attack's.
-  const ezreal = simulate(data, { champion: "Ezreal", level: 11, items: ["Sheen"], combo: "AA W AA", target: dummy });
-  const blades = ezreal.events.filter((e) => e.label === "Spellblade");
-  assert.deepEqual(
-    blades.map((e) => e.castId),
-    [bySource(ezreal, "AA")[1].castId],
-  );
+  // Sheen's Spellblade, granted by W while the attack flies, is used by that attack (on-hit, wiki).
+  const ezreal = simulate(data, { champion: "Ezreal", level: 11, items: ["Sheen"], combo: "AA W", target: dummy });
+  const blade = ezreal.events.find((e) => e.label === "Spellblade")!;
+  assert.equal(blade.castId, bySource(ezreal, "AA")[0].castId);
 });
 
 const timelineOf = (champion: string, combo: string) => new Sim(data, { champion, level: 11, combo, target: dummy }).run(parseCombo(combo)).timeline;
@@ -830,10 +827,10 @@ test("Voltaic Cyclosword's Firmament lands before the attack or ability that fir
   assert.deepEqual(order("Q"), ["item:6699", "Q"]);
 });
 
-test("On-hit effects applied again (Dusk and Dawn, Guinsoo's Phantom Hit) take the buffs active as the attack lands: Yunara W AA Q", () => {
-  const r = simulate(data, { champion: "Yunara", level: 11, items: ["Dusk and Dawn"], combo: "W AA Q", target: dummy });
+test("On-hit effects applied again (Dusk and Dawn, Guinsoo's Phantom Hit) take the buffs active as the attack lands: Yunara AA Q AA", () => {
+  const r = simulate(data, { champion: "Yunara", level: 11, items: ["Dusk and Dawn"], combo: "AA Q AA", target: dummy });
   const first = bySource(r, "AA")[0].castId;
-  // Q, cast while the attack W armed Spellblade for flies, isn't part of it, but Spellblade's second on-hit pass gets it.
+  // Q, cast while the first attack flies, isn't part of it, but Spellblade's second on-hit pass gets it.
   const active = r.events.filter((e) => e.label === "Cultivation of Spirit (active)");
   assert.equal(active.filter((e) => e.castId === first).length, 1);
   assert.ok(r.events.some((e) => e.label === "Spellblade" && e.castId === first));
@@ -886,7 +883,7 @@ test("An attack that is an ability (Zeri's right-click) arms Spellblade, is spel
   );
   assert.equal(blades(zeri("Q Q", ["Sheen"])).length, 0);
   assert.equal(blades(zeri("W AA AA", ["Sheen"])).length, 0);
-  // Burst Fire fired before the attack armed it, its rounds still flying, doesn't use it; the next one does.
+  // The attack counts as a cast as it hits, after the Burst Fire before it (Q AA); the next Burst Fire uses it.
   assert.equal(blades(zeri("Q AA", ["Sheen"])).length, 0);
   const next = zeri("Q AA Q", ["Sheen"]);
   assert.deepEqual(

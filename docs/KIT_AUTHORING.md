@@ -269,13 +269,9 @@ shorten it, and attack resets reset it (Zeri's Burst Fire, reset by Spark Surge)
 
 **Attacks that are abilities** (Zeri's right-click, "treated as Abilities"): `attack: { ability: true }`
 keeps the attack's timing (attack timer, windup, range) but casts it as an ability: on-cast effects
-trigger as its windup starts (it arms Spellblade), all it deals is spell damage, and it applies no
+trigger as it hits (it arms Spellblade then), all it deals is spell damage, and it applies no
 on-hit or on-attack effects of items or runes (it doesn't use Spellblade). What the kit's own buffs
 add to it (an empowered attack) and its hooks still apply.
-
-Spellblade goes to the next attack *launched* after the cast that armed it: not an attack whose
-missile is in flight as the cast starts (Ezreal `AA W AA`: the second attack), nor an ability's
-`attack: true` hit fired before it (Zeri's `Q AA`: her attack arms it as Burst Fire's rounds fly).
 
 **On-hit vs on-attack.** The wiki's [Attack effects](https://wiki.leagueoflegends.com/en-us/Attack_effects)
 page lists which abilities apply on-hit effects and which also trigger on-attack effects (with
