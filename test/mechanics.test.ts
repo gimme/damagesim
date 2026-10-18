@@ -151,9 +151,9 @@ test("Yunara's passive amps Shadowflame's crits of her magic damage, and its own
     const q = simulate(data, s);
     assert.equal(q.events.filter((e) => e.label === "Vow of the First Lands (crit)").length, 1);
   }
-  // Item value: Shadowflame's own hits are Cinderbloom's, its procs what its crits unlock (the passive's crit hit, named by the passive).
+  // Item value: Shadowflame's own hits are Cinderbloom's, its procs what its crits unlock (the passive's crit hit, named as it is called).
   const row = rankItems(data, sc("W AA!", 30, []), { candidates: ["Shadowflame"] }).items[0];
-  assert.deepEqual([row.itemHits.map((h) => h.name), row.procs.map((p) => [p.source, p.name])], [["Cinderbloom"], [["P", "Vow of the First Lands"]]]);
+  assert.deepEqual([row.itemHits.map((h) => h.name), row.procs.map((p) => [p.source, p.name])], [["Cinderbloom"], [["P", "Vow of the First Lands (crit)"]]]);
 });
 
 test("Luden's Echo: one full echo plus five at 20% on a single target", () => {

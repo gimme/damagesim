@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { loadGameData } from "../src/node/load.ts";
 import { loadAllKits } from "../src/node/kits.ts";
-import { simulate, Sim, resolveRanks } from "../src/engine/sim.ts";
+import { simulate, Sim, resolveRanks, type Scenario } from "../src/engine/sim.ts";
 import { effectiveResist, resistMultiplier } from "../src/engine/damage.ts";
 import { computeStats, emptyMods, levelStats } from "../src/engine/stats.ts";
 import { statProgression, evalPart } from "../src/engine/calc.ts";
@@ -459,6 +459,7 @@ test("rank items: what an item takes away from your other damage is lost, and th
   const [waited, rushed] = [rfc("W wait Q AA"), rfc("W Q AA")];
   assert.deepEqual([waited.lost, waited.lostDamage], [[], 0]);
   assert.ok(firmament("W Q AA", [...base.items, "Rapid Firecannon"]) > firmament("W Q AA", base.items));
+  // Achooo! and its explosion both deal less: a line named by what they share.
   assert.deepEqual(
     rushed.lost.map((l) => [l.source, l.name]),
     [
@@ -466,8 +467,41 @@ test("rank items: what an item takes away from your other damage is lost, and th
       ["W", "Achooo!"],
     ],
   );
+  const achooo = simulate(data, { ...base, combo: "W Q AA", items: [...base.items, "Rapid Firecannon"] }).events.filter((e) => e.source === "W");
+  assert.ok(["Achooo!", "Achooo! (explosion)"].every((label) => achooo.some((e) => e.label === label)));
   assert.ok(rushed.lostDamage < -50);
   for (const x of [waited, rushed]) near(x.baseDamage + x.itemDamage + x.procDamage + x.lostDamage, x.gain, 0.2);
+});
+
+test("rank items: a proc or lost line is named as its hits are called in the run its number comes from", () => {
+  const labels = (sc: Scenario, source: string) => [
+    ...new Set(
+      simulate(data, sc)
+        .events.filter((e) => e.source === source)
+        .map((e) => e.label),
+    ),
+  ];
+  // A proc, with the item: Sundered Sky crits Yunara's attack, so her passive's crit hit lands, which without it doesn't.
+  const yunara: Scenario = { champion: "Yunara", level: 11, combo: "Q W E R AA AA", target: { maxHp: 2200, armor: 80, mr: 55 } };
+  assert.ok(!labels(yunara, "P").includes("Vow of the First Lands (crit)"));
+  assert.ok(labels({ ...yunara, items: ["Sundered Sky"] }, "P").includes("Vow of the First Lands (crit)"));
+  assert.deepEqual(
+    rankItems(data, yunara, { candidates: ["Sundered Sky"] }).items[0].procs.map((p) => [p.source, p.name]),
+    [["P", "Vow of the First Lands (crit)"]],
+  );
+  // A hit that lands only without the item, as it's called without it: Lucian's second Lightslinger shot.
+  const lucian: Scenario = {
+    champion: "Lucian",
+    level: 16,
+    items: ["Luden's Echo", "Sorcerer's Shoes", "Rabadon's Deathcap", "Void Staff"],
+    runes: ["Electrocute", "Cheap Shot", 5008, 5008, 5001],
+    combo: "Q W E R AA",
+    target: { maxHp: 2800, armor: 110, mr: 75, bonusHp: 900 },
+  };
+  assert.ok(!labels({ ...lucian, items: [...lucian.items!, "Lord Dominik's Regards"] }, "AA").includes("Lightslinger (2nd shot)"));
+  const ldr = rankItems(data, lucian, { candidates: ["Lord Dominik's Regards"] }).items[0];
+  assert.ok(ldr.lost.some((l) => l.source === "AA" && l.name === "Lightslinger (2nd shot)"));
+  // Hits called several things there are named by what they share: Achooo! and its explosion (see the lost test).
 });
 
 test("rank items: a candidate's active in the combo is used with it, though the build hasn't the item", () => {

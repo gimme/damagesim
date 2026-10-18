@@ -1,4 +1,5 @@
-// The Item value card: the slot to rank for, the ranking sorted two ways, Show all, buying from a row, and the gold map.
+// The Item value card: the slot to rank for, the ranking sorted two ways, Show all, buying from a row, the gold map, and
+// what a card calls a hit.
 
 import { test, expect, attrs, num, texts, type UI } from "./ui.ts";
 
@@ -379,5 +380,20 @@ test("the mid lane quest's tier 3 boots, ranked with their setting", async ({ ui
     "check their setting: ranked too",
     () => ui.card("Settings").getByRole("checkbox", { name: "Tier 3 boots (mid lane quest)" }).check(),
     async () => expect(await names()).toContain("Spellslinger's Shoes"),
+  );
+});
+
+test("a card names a hit as the run it comes from calls it", async ({ ui }) => {
+  const { step } = ui;
+  const { card, rows } = parts(ui);
+
+  await step(
+    "Yunara without items, every item shown: Sundered Sky's card has her passive's crit hit as a proc, (crit) and all",
+    async () => {
+      await ui.open({ champion: "Yunara", items: [null, null, null, null, null, null], combo: "Q W E R AA AA" });
+      await card.getByRole("button", { name: "Show all" }).click();
+      await rows.filter({ hasText: "Sundered Sky" }).locator(".iv-track").hover();
+    },
+    () => expect(ui.tooltip).toContainText("Vow of the First Lands (crit)"),
   );
 });

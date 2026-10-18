@@ -150,26 +150,39 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
 /** A hit's name without its variant (Luden's Echo and its repeats, Varus's detonation at any stacks). */
 const hitName = (label: string) => label.replace(/ \(.*\)$/, "");
 
-/** What a hit of your damage is called in an item's parts: by its rune or item (Electrocute), by the
- *  champion's hit without its variant (Achooo! with its explosion, an attack critting or not), an
- *  execute by its own (Super Scorcher Breath (execute)). */
+/** How a hit of your damage is matched across the runs with and without an item: by its rune or item
+ *  (Electrocute), by the champion's hit without its variant (Achooo! with its explosion, an attack
+ *  critting or not), an execute by its own (Super Scorcher Breath (execute)). A line is named otherwise
+ *  (shownAs). */
 const nameOf = (e: DamageInstance) => (e.source.includes(":") ? e.sourceLabel : e.flags.execute ? e.label : hitName(e.label));
 
-type Named = Map<string, { source: string; damage: number }>;
+/** What a hit is called in its run, as a line shows it: by its rune or item, or as the champion's hit is
+ *  labelled, with its variant (Achooo! (explosion), Vow of the First Lands (crit)). */
+const shownAs = (e: DamageInstance) => (e.source.includes(":") ? e.sourceLabel : e.label);
+
+/** Damage by name, and what the hits of each are called in the run it comes from, with what each deals there. */
+type Named = Map<string, { source: string; damage: number; shown: Map<string, number> }>;
 
 const sum = (named: Named) => [...named.values()].reduce((total, n) => total + n.damage, 0);
 
-const addTo = (named: Named, key: string, source: string, damage: number) => {
-  if (!named.has(key)) named.set(key, { source, damage: 0 });
-  named.get(key)!.damage += damage;
+const addTo = (named: Named, key: string, source: string, damage: number, shown?: ReadonlyMap<string, number>) => {
+  if (!named.has(key)) named.set(key, { source, damage: 0, shown: new Map() });
+  const n = named.get(key)!;
+  n.damage += damage;
+  for (const [as, d] of shown ?? []) n.shown.set(as, (n.shown.get(as) ?? 0) + d);
 };
 
-/** Damage by name, largest first, leaving out what rounds to nothing. */
+/** Damage by name, largest first, leaving out what rounds to nothing. Each named as its hits are called
+ *  in the run it comes from (Vow of the First Lands (crit)), or where they're called several things
+ *  there (Achooo! and its explosion), by the name they share. */
 const byName = (named: Named) =>
   [...named]
     .filter(([, n]) => n.damage >= 0.5)
     .sort((a, b) => b[1].damage - a[1].damage)
-    .map(([key, n]) => ({ source: n.source, name: key.slice(key.indexOf("|") + 1), damage: round(n.damage) }));
+    .map(([key, n]) => {
+      const shown = [...n.shown].filter(([, d]) => d > 0);
+      return { source: n.source, name: shown.length === 1 ? shown[0][0] : key.slice(key.indexOf("|") + 1), damage: round(n.damage) };
+    });
 
 /** The damage of the items' own hits (their sources: item:3089) by their name (Squall, Spellblade, Echo), largest first. */
 function ownHits(r: SimResult, items: ReadonlySet<string>) {
@@ -184,14 +197,14 @@ function ownHits(r: SimResult, items: ReadonlySet<string>) {
  *  kinds they land (Achooo! with its explosion); and its damage by name. */
 function tally(r: SimResult) {
   const names: Named = new Map();
-  const kinds = new Map<string, { source: string; name: string; events: number; damage: number }>();
+  const kinds = new Map<string, { source: string; name: string; shown: string; events: number; damage: number }>();
   const hits = new Map<string, { src: string; kinds: Map<string, number> }>();
   for (const e of r.events) {
     const src = `${e.source}|${e.sourceLabel}`;
     const kind = `${src}|${e.label}`;
     const name = `${e.source}|${nameOf(e)}`;
-    addTo(names, name, e.source, e.final ?? 0);
-    if (!kinds.has(kind)) kinds.set(kind, { source: e.source, name, events: 0, damage: 0 });
+    addTo(names, name, e.source, e.final ?? 0, new Map([[shownAs(e), e.final ?? 0]]));
+    if (!kinds.has(kind)) kinds.set(kind, { source: e.source, name, shown: shownAs(e), events: 0, damage: 0 });
     const k = kinds.get(kind)!;
     k.events++;
     k.damage += e.final ?? 0;
@@ -255,7 +268,9 @@ function gainParts(baseRes: SimResult, baseTally: ReturnType<typeof tally>, r: S
  * - base: by name, what the same hits deal more with it.
  * A kind's and a name's new hits are at most what it gained (First Strike's hit on an aura tick is
  * smaller than its average), their lost ones at most what it lost. base + procs − lost is the gain less
- * the items' own damage. Named by the rune or item, or by the champion's hit (nameOf).
+ * the items' own damage. Matched by the rune or item, or by the champion's hit (nameOf), and named as
+ * the hits are called in the run each number comes from (byName): procs and what deals less as with the
+ * items, what lands only without them as without.
  */
 function attribute(was: ReturnType<typeof tally>, now: ReturnType<typeof tally>, items: ReadonlySet<string>) {
   // The events of each kind the hits that land only with the item (+) or only without it (−) have.
@@ -293,7 +308,7 @@ function attribute(was: ReturnType<typeof tally>, now: ReturnType<typeof tally>,
     if (!(events > 0)) continue;
     const at = sign > 0 ? b! : a!;
     const damage = Math.min((at.damage / at.events) * events, sign * ((b?.damage ?? 0) - (a?.damage ?? 0)));
-    if (damage > 0) addTo(sign > 0 ? procs : lost, k.name, k.source, damage);
+    if (damage > 0) addTo(sign > 0 ? procs : lost, k.name, k.source, damage, new Map([[k.shown, damage]]));
   }
   // A name's new hits are at most what it gained, its lost ones at most what it lost; the rest of its
   // gain is the same hits dealing more or less.
@@ -307,7 +322,7 @@ function attribute(was: ReturnType<typeof tally>, now: ReturnType<typeof tally>,
     if (l) l.damage = Math.min(l.damage, Math.max(0, -d));
     const rest = d - (p?.damage ?? 0) + (l?.damage ?? 0);
     if (rest > 0) base += rest;
-    else addTo(lost, name, source, -rest);
+    else addTo(lost, name, source, -rest, (now.names.get(name) ?? was.names.get(name))!.shown);
   }
   return { base, procs, lost };
 }
