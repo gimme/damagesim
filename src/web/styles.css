@@ -1037,14 +1037,17 @@ input.combo-text {
 .compare-scroll {
   --names: 150px;
   --col: 132px;
+  --fade: 32px;
   position: relative;
 }
 /* On a phone, a difference under its figure, so a column is narrow enough for two builds to fit
-   beside the names, and a third's figures to be in view with its neighbour's */
+   beside the names, and a third's figures to be in view with its neighbour's; the fades narrower,
+   so they don't hide a column's last digit */
 @media (max-width: 600px) {
   .compare-scroll {
     --names: 108px;
     --col: 92px;
+    --fade: 14px;
   }
   .compare-table td.r {
     vertical-align: baseline;
@@ -1063,7 +1066,7 @@ input.combo-text {
   z-index: 2;
   top: 0;
   bottom: 0;
-  width: 32px;
+  width: var(--fade);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s;
@@ -2006,13 +2009,6 @@ table.data th.r {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
-.grid3 {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-.grid3 select,
-.grid3 input[type="number"],
 .grid2 input[type="number"] {
   width: 100%;
 }
@@ -2364,8 +2360,5 @@ details summary {
 @media (max-width: 520px) {
   .hero .value {
     font-size: 40px;
-  }
-  .grid3 {
-    grid-template-columns: 1fr 1fr;
   }
 }

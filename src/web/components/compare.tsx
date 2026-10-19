@@ -1,23 +1,32 @@
 // The builds compared, in the Result card: a health bar each in the tabs' order, the one on screen's
-// tinted, a click on one's name opening it; then a table of their items and runes, totals, time to
-// kill, gold and damage by source, each against the first build, its top rows until it's shown all,
-// its columns as wide each and a click on one opening its build. What the builds share (the champion,
-// the target…) is the screen's, so they're all against one target. Folded (the page's, see
+// tinted, a click on one's name opening it; then a table of their items and keystones, totals, time
+// to kill, gold and damage by source, each against the first build, its top rows until it's shown
+// all, its columns as wide each and a click on one opening its build. What the builds share (the
+// champion, the target…) is the screen's, so they're all against one target. Folded (the page's, see
 // encodePage), the card has the build on screen alone.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { DATA } from "../data.ts";
 import { ItemIcon, RuneIcon } from "./icons.tsx";
-import { fmt } from "./common.tsx";
+import { Chevron, fmt } from "./common.tsx";
 import { HpBar, SourceName } from "./charts.tsx";
-import { Chevron } from "./item-value.tsx";
 import { scenarioKey, toScenario, type UIState } from "../state.ts";
 import { simulate, type SimResult } from "../../engine/sim.ts";
+import type { RunePage } from "../../engine/rune-page.ts";
 import { withBuild } from "../tabs.ts";
 import type { Tabs } from "./tabs.tsx";
 
 /** The table's rows shown until all are: the top ones, fading. */
 const PEEK = 3;
+
+/** A rune page's keystone, its primary tree's pick in the keystone row: nothing where it has none. */
+function Keystone({ runes }: { runes: RunePage }) {
+  const id = runes.picks.find((x) => {
+    const r = DATA.runes.find((r) => r.id === x);
+    return r?.tree === runes.primary && r.row === 0;
+  });
+  return id == null ? null : <RuneIcon id={id} />;
+}
 
 /** The difference from the first build: "+212", "−0.35s"; nothing where there's none, or with `room`, its room. */
 function Delta({ v, base, digits = 0, unit = "", room }: { v?: number; base?: number; digits?: number; unit?: string; room?: boolean }) {
@@ -139,7 +148,7 @@ export function Compared({
         <td key={c.id} {...col(c, i)}>
           <span className="compare-build">
             {c.state.items.map((id, k) => id != null && <ItemIcon key={k} id={id} size="sm" />)}
-            {c.state.runes.picks[0] != null && <RuneIcon id={c.state.runes.picks[0]} />}
+            <Keystone runes={c.state.runes} />
           </span>
         </td>
       ))}

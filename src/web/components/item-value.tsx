@@ -19,7 +19,7 @@ import { DATA } from "../data.ts";
 import { BootsGlyph, Icon, ItemIcon, sourceMark } from "./icons.tsx";
 import { ItemTip, useHoverCard } from "./hover.tsx";
 import { useItemSlots } from "./drag.tsx";
-import { Card, fmt } from "./common.tsx";
+import { Card, Chevron, fmt } from "./common.tsx";
 import { GoldScatter, useTooltip, type GoldPoint } from "./charts.tsx";
 import { CountPicker, Excluded, SetItems, setKey, setList, setName } from "./item-sets.tsx";
 import { defaultCandidates, type ItemSet } from "../../engine/analysis.ts";
@@ -880,12 +880,6 @@ export function Sparkle({ className }: { className?: string }) {
     </svg>
   );
 }
-
-export const Chevron = () => (
-  <svg className="chevron" viewBox="0 0 10 10" aria-hidden>
-    <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
 
 const SwapIcon = () => (
   <svg className="chevron" viewBox="0 0 10 10" aria-hidden>

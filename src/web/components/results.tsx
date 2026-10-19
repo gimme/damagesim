@@ -2,14 +2,13 @@ import { useMemo, useState } from "react";
 import { DATA, castIcon } from "../data.ts";
 import { Icon, sourceMark } from "./icons.tsx";
 import { useHoverCard } from "./hover.tsx";
-import { Card, fmt } from "./common.tsx";
+import { Card, Chevron, fmt } from "./common.tsx";
 import { HpBar, LineChart, SourceBars, SourceName, Timeline, TypeLegend, TYPE_COLOR, TYPE_LABEL, type DmgType } from "./charts.tsx";
 import type { DamageInstance } from "../../engine/effects.ts";
 import type { Scenario, SimResult, Sim } from "../../engine/sim.ts";
 import { resistSweep } from "../../engine/analysis.ts";
 import { describeChampion } from "../../engine/describe.ts";
 import { Compared } from "./compare.tsx";
-import { Chevron } from "./item-value.tsx";
 import type { Tabs } from "./tabs.tsx";
 import type { UIState } from "../state.ts";
 

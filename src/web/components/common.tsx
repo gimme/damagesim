@@ -1,5 +1,5 @@
-// What every card shares: its frame, a number field, number formatting, prop merging and undo.
-// Icons, pickers, hover cards and drag and drop have their own files.
+// What every card shares: its frame, a number field, number formatting, prop merging, undo and a
+// chevron. Icons, pickers, hover cards and drag and drop have their own files.
 
 import { useState, type ReactNode } from "react";
 
@@ -20,6 +20,13 @@ export const BuildTitle = ({ title, build }: { title: string; build?: string }) 
   <>
     {title} {build && <span className="build-of">{build}</span>}
   </>
+);
+
+/** A chevron pointing down: Show more's and the comparison's fold's, turned by their CSS as they open, and a sorted column's. */
+export const Chevron = () => (
+  <svg className="chevron" viewBox="0 0 10 10" aria-hidden>
+    <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
 );
 
 export function NumberField({

@@ -172,15 +172,39 @@ test("compared", async ({ ui }) => {
     await search.fill(name);
     await search.press("Enter");
   };
+  // The default page with Dark Harvest picked in Electrocute's place: last, as a page keeps its picks in the order they came.
+  const harvest = { primary: "Domination", secondary: "Sorcery", picks: [8126, 8140, 8106, 8233, 8237, 8128], held: [], shards: [5008, 5008, 5001] };
 
   await step(
     "a link to three builds, Build 2 with Rabadon's on screen",
-    () => ui.open(pageAddressOf({}, [{}, { items: [6655, 3020, 3089, null, null, null] }, { items: [3020, null, null, null, null, null], name: "Boots" }], 1)),
+    () =>
+      ui.open(
+        pageAddressOf(
+          {},
+          [{}, { items: [6655, 3020, 3089, null, null, null] }, { items: [3020, null, null, null, null, null], runes: harvest, name: "Boots" }],
+          1,
+        ),
+      ),
     async () => {
       expect(await tabs(ui)).toEqual(["Build 1", "Build 2 *", "Boots"]);
       await expect(bars(ui)).toHaveCount(3);
       await expect(card.getByRole("group", { name: "Build 2" }).getByRole("button", { name: "Build 2" })).toHaveAttribute("aria-pressed", "true");
       expect(await texts(table.getByRole("columnheader"))).toEqual(["", "Build 1", "Build 2", "Boots"]);
+    },
+  );
+  await step(
+    "each build's items and of its runes the keystone alone, Boots' Dark Harvest though it was picked last",
+    async () => {},
+    async () => {
+      const runes = (k: number) => row("Build").getByRole("cell").nth(k).locator("img[src*='perk-images']");
+      for (const [k, keystone] of [
+        [0, /Electrocute/],
+        [1, /Electrocute/],
+        [2, /DarkHarvest/],
+      ] as const) {
+        await expect(runes(k)).toHaveCount(1);
+        await expect(runes(k)).toHaveAttribute("src", keystone);
+      }
     },
   );
   await step(
