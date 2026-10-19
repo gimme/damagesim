@@ -41,7 +41,12 @@ const DEFAULT_IDS = defaultCandidates(DATA).map((i) => i.id);
 const SHOWN = 8;
 /** How far ahead of the next best an item has to be, per gold, to stand out. */
 const STANDOUT = 1.15;
-const signed = (v: number) => `${v >= 0 ? "+" : "−"}${fmt(Math.abs(v))}`;
+/** Whether a number shows as 0, to d decimals. */
+const nil = (v: number, d = 0) => Math.abs(v) < 0.5 / 10 ** d;
+/** A gain: + or −, and no sign for one that shows as 0. */
+const signed = (v: number) => (nil(v) ? "0" : `${v > 0 ? "+" : "−"}${fmt(Math.abs(v))}`);
+/** Per gold: − for a loss, as a gain has it. */
+const perGold = (v: number, d = 0) => `${v < 0 && !nil(v, d) ? "−" : ""}${fmt(Math.abs(v), d)}`;
 
 /** The parts of an item's bar: base, what it adds to your other damage (its stats, Rabadon's-style
  *  multipliers); effect, the damage it deals itself (its procs, burns); procs, the hits of your other
@@ -63,19 +68,20 @@ function segments(r: Entry): { part: Part; key: string; damage: number }[] {
 
 /** What the bar's segments add up to, before what the items take away. */
 const added = (r: Entry) => r.baseDamage + r.itemDamage + r.procDamage;
-const loses = (r: Entry) => r.lostDamage <= -0.5;
+/** Whether the bar's end is struck out: one that only takes away has no bar to strike. */
+const loses = (r: Entry) => r.lostDamage <= -0.5 && added(r) > 0;
 
 const Swatch = ({ part, gap }: { part: Part; gap?: boolean }) => <span className={`swatch iv-${part}`} style={gap ? { marginRight: 6 } : undefined} />;
 
 /**
  * The items far more gold-efficient than the rest: the best one, or the best two, when they're 15%
- * or more ahead of the next best per gold. About 2 rankings in 5 have one.
+ * or more ahead of the next best per gold. About 2 rankings in 5 have one. Only items whose damage
+ * per gold shows as more than 0 count: being ahead of a pair of boots that adds nothing isn't standing out.
  */
 function standouts(rows: Row[]): ReadonlySet<number> {
-  const v = [...rows].sort((a, b) => b.gainPerGold - a.gainPerGold);
+  const v = rows.filter((r) => r.gainPerGold > 0 && !nil(r.gainPerGold)).sort((a, b) => b.gainPerGold - a.gainPerGold);
   for (let k = 0; k < 2 && k + 1 < v.length; k++) {
-    const rest = v[k + 1].gainPerGold;
-    if (rest > 0 && v[k].gainPerGold >= STANDOUT * rest) return new Set(v.slice(0, k + 1).map((r) => r.id));
+    if (v[k].gainPerGold >= STANDOUT * v[k + 1].gainPerGold) return new Set(v.slice(0, k + 1).map((r) => r.id));
   }
   return new Set();
 }
@@ -139,13 +145,14 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
 
   const ranking = items.result;
   const rows = useMemo(() => {
-    // In place of an item, not an upgrade of another.
+    // The items that add damage, in place of an item, not an upgrade of another; for the boots slot,
+    // every pair that could go there, whatever it adds, as it holds boots or nothing.
     const useful = (ranking?.items ?? []).filter(
-      (r) => (r.gain > 0.5 || r.id === current) && !(current != null && r.replaces) && (r.id === current || !state.excluded.includes(r.id)),
+      (r) => (forBoots || r.gain > 0.5 || r.id === current) && !(current != null && r.replaces) && (r.id === current || !state.excluded.includes(r.id)),
     );
     useful.sort((a, b) => (by === "perGold" ? b.gainPerGold - a.gainPerGold : b.gain - a.gain));
     return useful;
-  }, [ranking, by, current, state.excluded]);
+  }, [ranking, by, current, forBoots, state.excluded]);
   const lead = useMemo(() => standouts(rows), [rows]);
   // A set with an item just excluded goes at once, before the ranking without it is ready.
   const setRows = useMemo(() => {
@@ -287,11 +294,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
         {ranked.result && (
           <div className="iv-body" style={{ opacity: ranked.stale ? 0.55 : 1 }} aria-busy={ranked.stale}>
             {!shown.length ? (
-              <div className="muted small">
-                {count > 1
-                  ? `No set of ${count} items adds damage to this combo.`
-                  : `No ${forBoots ? "pair of boots" : bootsSlot && current != null ? "legendary item" : "legendary item or pair of boots"} adds damage to this combo.`}
-              </div>
+              count > 1 && <div className="muted small">No set of {count} items adds damage to this combo.</div>
             ) : view === "list" ? (
               <RankList
                 rows={shown}
@@ -682,7 +685,7 @@ function RankList({
           </span>
         )}
         <span role="cell" className={`iv-pg num ${by === "perGold" ? "on" : ""}`}>
-          {fmt(r.gainPerGold)}
+          {perGold(r.gainPerGold)}
         </span>
         <span role="cell" className={`iv-dmg num ${by === "damage" ? "on" : ""}`}>
           {signed(r.gain)}
@@ -837,7 +840,7 @@ function RowTip({
           </div>
           <div className="tt-row">
             <span>Per 1000 gold</span>
-            <strong>{fmt(r.gainPerGold, 1)}</strong>
+            <strong>{perGold(r.gainPerGold, 1)}</strong>
           </div>
           {procs}
           {lost}

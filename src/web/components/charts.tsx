@@ -840,12 +840,15 @@ export function GoldScatter({
   const golds = points.map((p) => p.gold);
   const xLo = Math.max(0, Math.floor((Math.min(...golds) - 150) / 500) * 500);
   const xHi = Math.ceil((Math.max(...golds) + 150) / 500) * 500;
+  // Down to the most an item takes away, if any does, in whole steps, as gains show as whole numbers.
   const top = Math.max(1, ...points.map((p) => p.gain)) * 1.05;
-  const yStep = niceMax(top / 4);
+  const bottom = Math.min(0, ...points.map((p) => p.gain)) * 1.05;
+  const yStep = Math.ceil(niceMax((top - bottom) / 4));
   const yMax = Math.ceil(top / yStep) * yStep;
-  const yTicks = Array.from({ length: Math.round(yMax / yStep) + 1 }, (_, i) => i * yStep);
+  const yMin = Math.floor(bottom / yStep) * yStep;
+  const yTicks = Array.from({ length: Math.round((yMax - yMin) / yStep) + 1 }, (_, i) => yMin + i * yStep);
   const sx = (g: number) => m.l + ((g - xLo) / (xHi - xLo)) * (W - m.l - m.r);
-  const sy = (v: number) => m.t + (1 - Math.max(0, v) / yMax) * (H - m.t - m.b);
+  const sy = (v: number) => m.t + ((yMax - v) / (yMax - yMin)) * (H - m.t - m.b);
   const xStep = (W - m.l - m.r) / ((xHi - xLo) / 500) < 120 ? 1000 : 500;
   const xTicks: number[] = [];
   for (let g = Math.ceil(xLo / xStep) * xStep; g <= xHi; g += xStep) xTicks.push(g);
@@ -861,6 +864,18 @@ export function GoldScatter({
     rays.push({ k, x: exit.x - 4, y: exit.y + (yAtHi <= yMax ? -5 : 12), w: `${fmt(k)} per 1000g`.length * 5.9 });
   }
 
+  // Dots on one spot (items of a cost adding the same, as pairs of boots adding nothing do) side by
+  // side, so each shows and can be hovered.
+  const spots: { x: number; y: number; ids: number[] }[] = [];
+  for (const p of points) {
+    const [x, y] = [sx(p.gold), sy(p.gain)];
+    const spot = spots.find((s) => Math.abs(s.x - x) < 4 && Math.abs(s.y - y) < 4);
+    if (spot) spot.ids.push(p.id);
+    else spots.push({ x, y, ids: [p.id] });
+  }
+  const dotX = new Map(spots.flatMap((s) => s.ids.map((id, k) => [id, s.x + (k - (s.ids.length - 1) / 2) * 12] as const)));
+  const px = (p: GoldPoint) => dotX.get(p.id)!;
+
   // Direct labels for the current item, the most efficient items and the biggest gains: right of
   // the dot, else left, else skipped when both sides would cover another label or dot.
   const labels = new Map<number, { x: number; y: number; w: number }>();
@@ -873,21 +888,21 @@ export function GoldScatter({
     const free = (x: number) =>
       x >= m.l &&
       x + w <= W - m.r &&
-      !points.some((q) => q.id !== p.id && sx(q.gold) > x - 6 && sx(q.gold) < x + w + 6 && Math.abs(sy(q.gain) - sy(p.gain)) < 10) &&
+      !points.some((q) => q.id !== p.id && px(q) > x - 6 && px(q) < x + w + 6 && Math.abs(sy(q.gain) - sy(p.gain)) < 10) &&
       ![...labels.values()].some((b) => x < b.x + b.w && b.x < x + w && Math.abs(y - b.y) < 14) &&
       !rays.some((r) => x < r.x && r.x - r.w < x + w && Math.abs(y + 7 - (r.y - 4)) < 13);
-    const x = [sx(p.gold) + 9, sx(p.gold) - 9 - w].find(free);
+    const x = [px(p) + 9, px(p) - 9 - w].find(free);
     if (x !== undefined) labels.set(p.id, { x, y, w });
   }
 
   const nearest = (e: React.MouseEvent<SVGRectElement>) => {
     const box = (e.currentTarget.ownerSVGElement as SVGSVGElement).getBoundingClientRect();
-    const px = ((e.clientX - box.left) / box.width) * W;
-    const py = ((e.clientY - box.top) / box.height) * H;
+    const x = ((e.clientX - box.left) / box.width) * W;
+    const y = ((e.clientY - box.top) / box.height) * H;
     let hit: GoldPoint | null = null;
     let bestD = 28 * 28;
     for (const p of points) {
-      const d = (sx(p.gold) - px) ** 2 + (sy(p.gain) - py) ** 2;
+      const d = (px(p) - x) ** 2 + (sy(p.gain) - y) ** 2;
       if (d < bestD) [hit, bestD] = [p, d];
     }
     return hit;
@@ -906,7 +921,7 @@ export function GoldScatter({
           <g key={v}>
             <line x1={m.l} x2={W - m.r} y1={sy(v)} y2={sy(v)} stroke="var(--grid)" />
             <text x={m.l - 8} y={sy(v) + 4} fontSize={11} textAnchor="end" fill="var(--text-muted)" className="num">
-              {v > 0 ? `+${compact(v)}` : "0"}
+              {v > 0 ? `+${compact(v)}` : v < 0 ? `−${compact(-v)}` : "0"}
             </text>
           </g>
         ))}
@@ -931,7 +946,7 @@ export function GoldScatter({
         {points.map(
           (p) =>
             p.standout && (
-              <g key={p.id} transform={`translate(${sx(p.gold)} ${sy(p.gain)})`} style={{ pointerEvents: "none" }}>
+              <g key={p.id} transform={`translate(${px(p)} ${sy(p.gain)})`} style={{ pointerEvents: "none" }}>
                 <circle className="gs-halo" r={6} />
               </g>
             ),
@@ -940,7 +955,7 @@ export function GoldScatter({
           p.highlight ? (
             <circle
               key={p.id}
-              cx={sx(p.gold)}
+              cx={px(p)}
               cy={sy(p.gain)}
               r={5}
               fill="var(--surface)"
@@ -950,7 +965,7 @@ export function GoldScatter({
           ) : (
             <circle
               key={p.id}
-              cx={sx(p.gold)}
+              cx={px(p)}
               cy={sy(p.gain)}
               r={p.standout ? 6 : 5}
               fill="var(--accent)"
@@ -985,13 +1000,14 @@ export function GoldScatter({
           );
         })}
         {hovered && (
-          <circle cx={sx(hovered.gold)} cy={sy(hovered.gain)} r={9} fill="none" stroke="var(--accent)" strokeWidth={2} style={{ pointerEvents: "none" }} />
+          <circle cx={px(hovered)} cy={sy(hovered.gain)} r={9} fill="none" stroke="var(--accent)" strokeWidth={2} style={{ pointerEvents: "none" }} />
         )}
+        {/* Past the plot by a dot's width, so one on its edge (at 0, when no item takes damage away) is hovered whole. */}
         <rect
-          x={m.l}
-          y={m.t}
-          width={W - m.l - m.r}
-          height={H - m.t - m.b}
+          x={m.l - 8}
+          y={m.t - 8}
+          width={W - m.l - m.r + 16}
+          height={H - m.t - m.b + 16}
           fill="transparent"
           style={{ cursor: hovered && onPick && !hovered.highlight ? "pointer" : "default" }}
           onPointerDown={(e) => {
