@@ -353,13 +353,13 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
 
 /** How long a search runs before its time left is judged, and how long that must be for its progress to show. */
 const PROGRESS_SAMPLE = 150;
-const PROGRESS_WORTH = 500;
+const PROGRESS_WORTH = 1000;
 
 /**
  * How far a search for sets has got, shown only for one that will take a while: once it has run a
  * moment, its time left is judged by how far it is, elapsed × (1 − p) / p as last heard, less the time
  * since (p by the search's bound on its total, so the guess is long rather than short), and the bar
- * shows once that's 500 ms or more; a search done sooner never shows one. Drawn each frame, easing
+ * shows once that's a second or more; a search done sooner never shows one. Drawn each frame, easing
  * toward the progress the worker's messages keep current, never going back, and faded out as the
  * search finishes. `since` is when the wait for a result began, null once there's one.
  */
