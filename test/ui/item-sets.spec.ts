@@ -8,20 +8,14 @@ import type { Locator } from "@playwright/test";
 // Every step checks the ranking as the build then is.
 test.use({ itemValue: true });
 
-declare global {
-  interface Window {
-    __progressed: boolean;
-  }
-}
-
 const parts = (ui: UI) => {
   const card = ui.card("Item value");
-  // The rows: not the heading's, nor Show all's.
+  // The rows: not the heading's, nor Show more's.
   const rows = card
     .getByRole("table")
     .getByRole("row")
     .filter({ has: ui.page.getByRole("cell") })
-    .filter({ hasNot: ui.page.getByRole("button", { name: /^Show (all|less)$/ }) });
+    .filter({ hasNot: ui.page.getByRole("button", { name: /^Show (more|less)$/ }) });
   /** A set's items, each a button that leaves it out of the ranking. */
   const items = (row: Locator) => row.getByRole("button", { name: /^Exclude / });
   return {
@@ -61,17 +55,8 @@ test("sets of items, and items left out of the ranking", async ({ ui }) => {
     },
   );
   await step(
-    "3 items: the best sets of 3, per gold, a progress bar while they're searched",
-    async () => {
-      await page.evaluate(() => {
-        window.__progressed = false;
-        new MutationObserver(() => (window.__progressed ||= !!document.querySelector("[role=progressbar]"))).observe(document.body, {
-          subtree: true,
-          childList: true,
-        });
-      });
-      await count(3).click();
-    },
+    "3 items: the best sets of 3, per gold",
+    () => count(3).click(),
     async () => {
       await expect(caption).toHaveText("Next 3 items");
       await expect(card.getByRole("table", { name: "Sets of items ranked by the damage they add" })).toBeVisible();
@@ -82,7 +67,7 @@ test("sets of items, and items left out of the ranking", async ({ ui }) => {
       expect(descending(await perGold())).toBe(true);
       // No slot is ranked: a set fills the empty ones.
       await expect(card.locator(".slots > .slot[aria-pressed=true]")).toHaveCount(0);
-      expect(await page.evaluate(() => window.__progressed)).toBe(true);
+      // Its progress, shown only for a search that takes a while, is gone once it's done.
       await expect(card.getByRole("progressbar")).toHaveCount(0);
     },
   );
@@ -147,7 +132,7 @@ test("sets of items, and items left out of the ranking", async ({ ui }) => {
     async () => {
       expect(await excludedIds()).toEqual([first, second]);
       await expect(count(1)).toHaveAttribute("aria-pressed", "true");
-      await card.getByRole("button", { name: "Show all" }).click();
+      await card.getByRole("button", { name: "Show more" }).click();
       const listed = await texts(rows.locator(".iv-name"));
       expect(listed.length).toBeGreaterThan(8);
       expect(listed).not.toContain(set[0]);
@@ -200,6 +185,30 @@ test("sets of items, and items left out of the ranking", async ({ ui }) => {
       await expect(caption).toHaveText("Next item");
       await expect(count(1)).toHaveAttribute("aria-pressed", "true");
       for (const n of [2, 3, 4, 5, 6]) await expect(count(n)).toBeDisabled();
+    },
+  );
+});
+
+test("a set's item dragged onto a slot is bought there alone", async ({ ui }) => {
+  const { step } = ui;
+  const { card, rows, items, names, picker, build } = parts(ui);
+  const slots = card.locator(".slots > .slot:not(.vacated)");
+  let was: (string | null)[] = [];
+  let item = "";
+  await step("load, 2 items", async () => {
+    await ui.open();
+    await picker.getByRole("button", { name: "2", exact: true }).click();
+  });
+  await step(
+    "drag a set's second item onto slot 6: outlined while over it, bought there alone, nothing left out",
+    async () => {
+      was = await build();
+      item = (await names(rows.first()))[1];
+      await ui.drag(items(rows.first()).nth(1), slots.nth(5), () => expect(slots.nth(5)).toHaveClass(/landing/));
+    },
+    async () => {
+      expect(await build()).toEqual([...was.slice(0, 5), item]);
+      expect((await ui.state()).excluded).toEqual([]);
     },
   );
 });

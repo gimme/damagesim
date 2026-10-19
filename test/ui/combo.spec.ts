@@ -651,7 +651,7 @@ test.describe(() => {
     await step(
       "Item value: Gunblade's worth has its Lightning Bolt",
       async () => {
-        const all = value.getByRole("button", { name: "Show all" });
+        const all = value.getByRole("button", { name: "Show more" });
         if (await all.count()) await all.click();
         await value.getByRole("row").filter({ hasText: "Hextech Gunblade" }).locator(".iv-track").hover();
       },

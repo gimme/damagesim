@@ -22,9 +22,15 @@ export function slotFits(items: (number | null)[], i: number, id: number | null)
  */
 export function buyItem(items: (number | null)[], i: number, id: number): (number | null)[] {
   const used = builtFrom(DATA, items, id);
-  const boots = isBoots(id) ? (items.length > BOOTS_SLOT ? BOOTS_SLOT : items.findIndex((x) => x != null && isBoots(x))) : -1;
-  const to = boots >= 0 ? boots : used.length ? used[0] : i;
+  const to = buyAt(items, i, id);
   return items.map((x, k) => (k === to ? id : used.includes(k) ? null : x));
+}
+
+/** The slot buying an item for slot i puts it in (see buyItem). */
+export function buyAt(items: (number | null)[], i: number, id: number): number {
+  const used = builtFrom(DATA, items, id);
+  const boots = isBoots(id) ? (items.length > BOOTS_SLOT ? BOOTS_SLOT : items.findIndex((x) => x != null && isBoots(x))) : -1;
+  return boots >= 0 ? boots : used.length ? used[0] : i;
 }
 
 /** The build after buying items one after another (a set from Item value), each as buyItem places it, in the first empty slot that takes it. */

@@ -681,6 +681,16 @@ label.field {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+/* An item dragged in to buy, from Item value's rankings: in the first slot's place, over the slots,
+   following the pointer by its transform */
+.slot.incoming {
+  position: absolute;
+  grid-row: 1 / span 1;
+  grid-column: 1 / span 1;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
 /* While an item is dragged, the slot it left shows as empty */
 .slot.vacated {
   position: absolute;
@@ -1543,6 +1553,14 @@ table.data .source-name {
   display: block;
   height: 100%;
   background: var(--accent);
+  transform-origin: left;
+  transform: scaleX(var(--at, 0));
+}
+.iv-progress {
+  transition: opacity 0.2s;
+}
+.iv-progress.fading {
+  opacity: 0;
 }
 
 /* The ranking. One grid for every row, so the item column fits the longest name and the bars start
@@ -1819,7 +1837,7 @@ table.data .source-name {
   }
 }
 
-/* Show all / Show less, centered on a line under the top rows, with the rest of the list under it */
+/* Show more / Show less, centered on a line under the top rows, with the rest of the list under it */
 .iv-more-row {
   grid-column: 1 / -1;
   margin-block: 4px;

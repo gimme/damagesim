@@ -13,6 +13,7 @@ import {
   type MouseEvent,
   type PointerEvent,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { DATA } from "../data.ts";
 import { BootsGlyph, Icon, ItemIcon, sourceMark } from "./icons.tsx";
@@ -21,10 +22,10 @@ import { useItemSlots } from "./drag.tsx";
 import { Card, fmt } from "./common.tsx";
 import { GoldScatter, useTooltip, type GoldPoint } from "./charts.tsx";
 import { CountPicker, Excluded, SetItems, setKey, setList, setName } from "./item-sets.tsx";
-import { defaultCandidates, type ItemSet, type SearchProgress } from "../../engine/analysis.ts";
+import { defaultCandidates, type ItemSet } from "../../engine/analysis.ts";
 import type { Scenario, Sim } from "../../engine/sim.ts";
 import { buildItems, type Set, type UIState } from "../state.ts";
-import { useRanking, type ItemRanking } from "../ranking.ts";
+import { useRanking, type ItemRanking, type RunProgress } from "../ranking.ts";
 import { BOOTS_SLOT, buyItem, buyItems, isBoots, isQuestBoots, slotFits } from "../slots.ts";
 
 type Row = ItemRanking["items"][number];
@@ -180,6 +181,12 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
 
   const hover = useHoverCard();
   const slots = useItemSlots(state.items, (fn) => set((s) => ({ ...s, items: fn(s.items) })), { onPick: hover.hide, onSell: hover.hide });
+  // A row's item, or a set's, dragged onto a slot is bought there alone; with a mouse or a pen, as a
+  // finger on a row scrolls the list or opens its card.
+  const dragOut = (id: number) => {
+    const own = slots.source(id);
+    return { ...own, onPointerDown: (e: PointerEvent<HTMLElement>) => e.pointerType !== "touch" && own.onPointerDown(e) };
+  };
 
   const slotLabel = (r: Row) =>
     r.replaces
@@ -254,6 +261,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
               </div>
             );
           })}
+          {slots.incoming}
           {slots.vacated}
         </div>
         <div className="iv-caption small secondary">
@@ -285,7 +293,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
       {hover.node}
       {ranked.error && <div className="notice warn small">{ranked.error}</div>}
       <div className="iv-results">
-        {ranked.progress && <Progress {...ranked.progress} />}
+        {size > 1 && <Progress since={sets.since} progress={sets.progress} />}
         {!ranked.result && !ranked.error && <div className="muted small">Simulating…</div>}
         {ranked.result && (
           <div className="iv-body" style={{ opacity: ranked.stale ? 0.55 : 1 }} aria-busy={ranked.stale}>
@@ -308,6 +316,8 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
                 buyLabel={buyLabel}
                 onBuy={buy}
                 onExclude={exclude}
+                dragOut={dragOut}
+                dragging={slots.bringing}
                 sim={sim}
                 champion={state.champion}
               />
@@ -341,11 +351,71 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   );
 }
 
-/** How far a search for sets has got, in simulations. */
-function Progress({ done, total }: SearchProgress) {
+/** How long a search runs before its time left is judged, and how long that must be for its progress to show. */
+const PROGRESS_SAMPLE = 150;
+const PROGRESS_WORTH = 500;
+
+/**
+ * How far a search for sets has got, shown only for one that will take a while: once it has run a
+ * moment, its time left is judged by how far it is, elapsed × (1 − p) / p as last heard, less the time
+ * since (p by the search's bound on its total, so the guess is long rather than short), and the bar
+ * shows once that's 500 ms or more; a search done sooner never shows one. Drawn each frame, easing
+ * toward the progress the worker's messages keep current, never going back, and faded out as the
+ * search finishes. `since` is when the wait for a result began, null once there's one.
+ */
+function Progress({ since, progress }: { since: number | null; progress: RefObject<RunProgress | null> }) {
+  const bar = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);
+  // What the frames share: whether the wait goes on, how full the bar is drawn, whether it's in view,
+  // and when it began to fade (0: it hasn't).
+  const draw = useRef({ since, at: 0, on: false, fade: 0 });
+  draw.current.since = since;
+  useEffect(() => {
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const d = draw.current;
+    // Another search while the last one's bar fades: it's judged afresh.
+    if (since != null && d.on && d.fade) {
+      d.on = false;
+      setShown(false);
+    }
+    let frame = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const running = d.since != null;
+      const dt = now - last;
+      last = now;
+      const p = progress.current;
+      const f = p ? Math.min(1, p.done / p.total) : 0;
+      if (!d.on) {
+        if (!running) return;
+        const ran = p ? p.at - p.start : 0;
+        if (f > 0 && ran >= PROGRESS_SAMPLE && (ran * (1 - f)) / f - (now - p!.at) >= PROGRESS_WORTH) {
+          [d.on, d.at, d.fade] = [true, 0, 0];
+          setShown(true);
+        }
+      } else {
+        // Filling as it fades once the search is done.
+        const to = running ? f : 1;
+        d.at = Math.max(d.at, still ? to : d.at + (to - d.at) * (1 - Math.exp(-dt / 80)));
+        if (!running && !d.fade) d.fade = now;
+        const el = bar.current;
+        el?.style.setProperty("--at", d.at.toFixed(4));
+        el?.setAttribute("aria-valuenow", String(Math.round(d.at * 100)));
+        el?.classList.toggle("fading", !!d.fade);
+        if (d.fade && now - d.fade >= 200) {
+          d.on = false;
+          return setShown(false);
+        }
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [since]);
+  if (!shown) return null;
   return (
-    <div className="iv-progress" role="progressbar" aria-label="Simulating" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}>
-      <span style={{ width: `${(done / total) * 100}%` }} />
+    <div ref={bar} className="iv-progress" role="progressbar" aria-label="Simulating" aria-valuemin={0} aria-valuemax={100} aria-valuenow={0}>
+      <span />
     </div>
   );
 }
@@ -395,6 +465,8 @@ function RankList({
   buyLabel,
   onBuy,
   onExclude,
+  dragOut,
+  dragging,
   sim,
   champion,
 }: {
@@ -409,12 +481,14 @@ function RankList({
   buyLabel: (r: Entry) => string;
   onBuy: (r: Entry) => void;
   onExclude: (id: number) => void;
+  dragOut: (id: number) => object;
+  dragging: boolean;
   sim: Sim | null;
   champion: string;
 }) {
   const tt = useTooltip();
   const isCurrent = (r: Entry) => !isSet(r) && r.id === current;
-  // Under the top rows, a line with Show all / Show less, then the rest: collapsed, only the current
+  // Under the top rows, a line with Show more / Show less, then the rest: collapsed, only the current
   // item, when it isn't in the top rows. Rows come and go only under the line, so it stays in place.
   const rank = all.findIndex(isCurrent) + 1;
   const top = all.slice(0, shown);
@@ -509,6 +583,9 @@ function RankList({
     }
   };
   useEffect(() => {
+    if (dragging) close();
+  }, [dragging]);
+  useEffect(() => {
     if (tapped == null) return;
     const outside = (e: globalThis.PointerEvent) => !tt.ref.current?.contains(e.target as Node) && close();
     document.addEventListener("pointerdown", outside);
@@ -542,7 +619,7 @@ function RankList({
       </span>
     );
     let item: ReactNode;
-    if (isSet(r)) item = <SetItems set={r} onClick={excludeClick} />;
+    if (isSet(r)) item = <SetItems set={r} onClick={excludeClick} drag={dragOut} />;
     else {
       const named = (
         <>
@@ -558,7 +635,7 @@ function RankList({
         named
       ) : (
         // For the keyboard; its click reaches the row, which buys.
-        <button type="button" className="iv-buy" aria-label={`${buyLabel(r)}${ahead ? ", far more damage per gold than the rest" : ""}`}>
+        <button type="button" className="iv-buy" aria-label={`${buyLabel(r)}${ahead ? ", far more damage per gold than the rest" : ""}`} {...dragOut(r.id)}>
           {named}
         </button>
       );
@@ -582,6 +659,8 @@ function RankList({
           }, 200);
         }}
         onPointerMove={(e) => {
+          // An item dragged out of the row to a slot: no card meanwhile.
+          if (dragging) return;
           if (e.pointerType !== "touch") {
             setTapped(null);
             show(e, r, spot(e, r), "hover");
@@ -663,7 +742,7 @@ function RankList({
                 <button className="iv-more" aria-expanded={expanded} onClick={() => onExpand(!expanded)}>
                   <span>
                     <Chevron />
-                    {expanded ? "Show less" : "Show all"}
+                    {expanded ? "Show less" : "Show more"}
                   </span>
                 </button>
               </div>

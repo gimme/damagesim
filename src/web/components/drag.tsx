@@ -3,7 +3,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 import { DATA } from "../data.ts";
 import { mergeProps } from "./common.tsx";
-import { slotFits } from "../slots.ts";
+import { ItemIcon } from "./icons.tsx";
+import { buyAt, buyItem, slotFits } from "../slots.ts";
 
 /** Where a box's child is laid out in it. */
 export type Place = { x: number; y: number; w: number; h: number };
@@ -309,11 +310,15 @@ type Slots = (number | null)[];
  * dragged to another slot, whose outline shows where it will land; nothing else moves meanwhile.
  * Dropped on an item, the two swap; on an empty slot, it moves there. Arrow keys swap a focused item
  * with its neighbour; its ✕ in the corner, or Delete, sells it. With the boots slot, the boots stay
- * in it and the other items out of it (slotFits).
+ * in it and the other items out of it (slotFits). An item dragged in from outside (Item value's
+ * rankings) is bought in the slot it's dropped on, in place of what's there, where the shop would put
+ * it: boots in the boots slot or in place of the build's, an upgrade in place of what it's built from.
  *
  * - `slot(i, own)`: props for slot i, the box's child i, with the panel's own merged in.
  * - `remove(i)`: slot i's ✕, when it has an item.
  * - `vacated`: while an item is dragged, the empty slot it left, to render after the slots.
+ * - `source(id)`: props for what, dragged, brings item `id` in to buy; `incoming`, the item it brings
+ *   while it's dragged, to render after the slots; `bringing`, whether one is.
  * - `onMove(from, to)`, `onSell(i)`: after a move, before a sale, for what goes with the slots.
  * - `focusLater(i)`: focuses slot i after the next render.
  */
@@ -322,29 +327,42 @@ export function useItemSlots(
   change: (fn: (items: Slots) => Slots) => void,
   { onPick, onMove, onSell }: { onPick?: () => void; onMove?: (from: number, to: number) => void; onSell?: (i: number) => void } = {},
 ) {
+  // The item dragged in, the box's child after the slots meanwhile.
+  const [incoming, setIncoming] = useState<number | null>(null);
+  const n = items.length;
   const swap = (from: number, to: number) => {
     const next = items.map((_, j) => j);
+    // Brought in: it takes the slot's place, and glides there from where it's let go.
+    if (from === n) return next.map((j) => (j === to ? n : j));
     [next[from], next[to]] = [next[to], next[from]];
     return next;
   };
   const order = useDragOrder({
-    count: items.length,
+    count: n + (incoming != null ? 1 : 0),
     arrange: swap,
     // The slot the pointer is nearest, within a slot's size; farther away, it goes back. By the
     // pointer, not the item's middle, as the item is held wherever it was grabbed.
     landAt: (x, y, cells, _at, from) => {
-      const d = cells.map((c) => Math.hypot((x - c.x) / c.w - 0.5, (y - c.y) / c.h - 0.5));
+      const d = cells.map((c, k) => (k === n ? Infinity : Math.hypot((x - c.x) / c.w - 0.5, (y - c.y) / c.h - 0.5)));
       const k = d.indexOf(Math.min(...d));
       return d[k] < 1 ? k : from;
     },
     move: (from, to) => {
+      if (from === n) {
+        setIncoming(null);
+        if (incoming != null && to < n) change((xs) => buyItem(xs, to, incoming));
+        return;
+      }
       change((xs) => swap(from, to).map((j) => xs[j]));
       onMove?.(from, to);
     },
     makeWay: false,
     byPointer: true,
-    movable: (i) => items[i] != null,
-    canMove: (from, to) => slotFits(items, to, items[from]) && slotFits(items, from, items[to]),
+    movable: (i) => i === n || items[i] != null,
+    canMove: (from, to) =>
+      from === n
+        ? to < n && incoming != null && slotFits(items, to, incoming) && buyAt(items, to, incoming) === to
+        : slotFits(items, to, items[from]) && slotFits(items, from, items[to]),
     onPick,
   });
   const landing = order.drag && order.drag.to !== order.drag.from ? order.drag.to : null;
@@ -387,10 +405,16 @@ export function useItemSlots(
       </button>
     );
   };
-  const vacated = order.drag && (
+  const vacated = order.drag && order.drag.from < n && (
     <div className="slot vacated" aria-hidden style={{ gridColumn: `${order.drag.from + 1} / span 1` }}>
       +
     </div>
   );
-  return { box: order.box, drag: order.drag, slot, remove, vacated, focusLater: order.focusLater };
+  const source = (id: number) => order.source((on) => setIncoming(on ? id : null));
+  const brought = incoming != null && (
+    <div className="slot filled dragging incoming" aria-hidden>
+      <ItemIcon id={incoming} />
+    </div>
+  );
+  return { box: order.box, drag: order.drag, slot, remove, vacated, source, incoming: brought, bringing: incoming != null, focusLater: order.focusLater };
 }

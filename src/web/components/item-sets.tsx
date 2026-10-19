@@ -51,8 +51,9 @@ export function CountPicker({ count, slots, empty, onChange }: { count: number; 
   );
 }
 
-/** A set's items in its row: each a button that leaves it out of the ranking, what its click does is the list's. */
-export function SetItems({ set, onClick }: { set: ItemSet; onClick: (e: MouseEvent, id: number) => void }) {
+/** A set's items in its row, in the order to buy them: each a button that leaves it out of the ranking,
+ *  what its click does being the list's, and that `drag` lets be dragged onto a slot to buy it alone. */
+export function SetItems({ set, onClick, drag }: { set: ItemSet; onClick: (e: MouseEvent, id: number) => void; drag?: (id: number) => object }) {
   return (
     <span className="iv-set">
       {set.items.map((x) => (
@@ -62,6 +63,7 @@ export function SetItems({ set, onClick }: { set: ItemSet; onClick: (e: MouseEve
           className="iv-set-item"
           data-item={x.id}
           aria-label={`Exclude ${x.item} from the ranking`}
+          {...drag?.(x.id)}
           onClick={(e) => onClick(e, x.id)}
         >
           <ItemIcon id={x.id} size="sm" />

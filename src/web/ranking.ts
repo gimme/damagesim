@@ -9,6 +9,9 @@ import type { FromWorker, RankJob, RankResult, ToWorker } from "./ranking-runner
 
 export type { ItemRanking, RankJob, RankResult, SetRanking } from "./ranking-runner.ts";
 
+/** How far a run is, when it began and when that was heard (performance.now()). */
+export type RunProgress = SearchProgress & { start: number; at: number };
+
 let worker: Worker | null = null;
 /** Each open lane: the job it's waiting on, and what to do with the worker's answers. */
 const lanes = new Map<number, { id: () => number; receive: (m: FromWorker) => void }>();
@@ -84,13 +87,17 @@ export function openLane(): Lane {
 /**
  * A job's result from the worker: run at once the first time, then `delay` ms after the job last
  * changed, so a run doesn't start on every keystroke. A change stops the run under way; the last
- * result stays meanwhile, stale, and `progress` tells how far the next one is (searchItemSets' jobs).
+ * result stays meanwhile, stale. `since` is when the wait for a result began (performance.now(), null
+ * when there's none): the first run since the last result, so a job changed under way doesn't start
+ * it again. `progress` is how far the run under way is (searchItemSets' jobs) and when it began, kept
+ * current without rendering, for a bar drawn each frame.
  */
 export function useRanking<J extends RankJob>(job: J | null, delay: number) {
   const key = useMemo(() => (job ? JSON.stringify(job) : null), [job]);
   const lane = useRef<Lane | null>(null);
   const [res, setRes] = useState<{ key: string; result?: RankResult<J>; error?: string } | null>(null);
-  const [progress, setProgress] = useState<SearchProgress | null>(null);
+  const [since, setSince] = useState<number | null>(null);
+  const progress = useRef<RunProgress | null>(null);
   useEffect(() => {
     lane.current = openLane();
     return () => lane.current?.close();
@@ -98,25 +105,26 @@ export function useRanking<J extends RankJob>(job: J | null, delay: number) {
   useEffect(() => {
     const l = lane.current!;
     l.stop();
-    setProgress(null);
+    progress.current = null;
     // None, or the one it has the result of (back from another, as Item value from sets to one item).
-    if (!job || key == null || res?.key === key) return;
+    if (!job || key == null || res?.key === key) return setSince(null);
+    const done = (r: { key: string; result?: RankResult<J>; error?: string }) => {
+      setSince(null);
+      setRes(r);
+    };
     const t = setTimeout(
-      () =>
+      () => {
+        const start = performance.now();
+        setSince((s) => s ?? start);
         l.run(job, {
-          progress: setProgress,
-          result: (result) => {
-            setProgress(null);
-            setRes({ key, result });
-          },
-          error: (error) => {
-            setProgress(null);
-            setRes({ key, error });
-          },
-        }),
+          progress: (p) => (progress.current = { ...p, start, at: performance.now() }),
+          result: (result) => done({ key, result }),
+          error: (error) => done({ key, error }),
+        });
+      },
       res ? delay : 0,
     );
     return () => clearTimeout(t);
   }, [key]);
-  return { result: res?.result ?? null, error: res?.error, stale: res?.key !== key, progress };
+  return { result: res?.result ?? null, error: res?.error, stale: res?.key !== key, since, progress };
 }

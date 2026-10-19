@@ -1,4 +1,4 @@
-// The Item value card: the slot to rank for, the ranking sorted two ways, Show all, buying from a row, the gold map, and
+// The Item value card: the slot to rank for, the ranking sorted two ways, Show more, buying from a row or by dragging its item onto a slot, the gold map, and
 // what a card calls a hit.
 
 import { test, expect, attrs, num, texts, type UI } from "./ui.ts";
@@ -8,12 +8,12 @@ test.use({ itemValue: true });
 
 const parts = (ui: UI) => {
   const card = ui.card("Item value");
-  // The items' rows: not the heading's, nor Show all's.
+  // The items' rows: not the heading's, nor Show more's.
   const rows = card
     .getByRole("table")
     .getByRole("row")
     .filter({ has: ui.page.getByRole("cell") })
-    .filter({ hasNot: ui.page.getByRole("button", { name: /^Show (all|less)$/ }) });
+    .filter({ hasNot: ui.page.getByRole("button", { name: /^Show (more|less)$/ }) });
   return {
     card,
     slots: card.locator(".slots > .slot:not(.vacated)"),
@@ -53,8 +53,8 @@ test("ranking, sorting and buying", async ({ ui }) => {
     },
   );
   await step(
-    "Show all: more",
-    () => card.getByRole("button", { name: "Show all" }).click(),
+    "Show more: more rows",
+    () => card.getByRole("button", { name: "Show more" }).click(),
     async () => expect(await rows.count()).toBeGreaterThan(shown),
   );
   await step(
@@ -208,7 +208,7 @@ test("slots and the gold map", async ({ ui }) => {
   await step(
     "Gold map: a dot per item the list has",
     async () => {
-      await card.getByRole("button", { name: "Show all" }).click();
+      await card.getByRole("button", { name: "Show more" }).click();
       listed = await rows.count();
       await view.getByRole("button", { name: "Gold map" }).click();
     },
@@ -305,7 +305,7 @@ test("the boots slot", async ({ ui }) => {
     "slot 2 again, every item shown: none of those boots, as the boots slot has a pair",
     async () => {
       await slots.nth(1).click();
-      await card.getByRole("button", { name: "Show all" }).click();
+      await card.getByRole("button", { name: "Show more" }).click();
     },
     async () => {
       const all = await names();
@@ -333,7 +333,7 @@ test("an upgrade of the build's Boots", async ({ ui }) => {
     "load Luden's Echo and Boots: slot 3 ranked, boots among the items, as upgrades of the Boots",
     async () => {
       await ui.open({ items: [6655, 1001, null, null, null, null] });
-      await card.getByRole("button", { name: "Show all" }).click();
+      await card.getByRole("button", { name: "Show more" }).click();
     },
     async () => {
       expect(await ranked()).toBe(2);
@@ -369,7 +369,7 @@ test("the mid lane quest's tier 3 boots, ranked with their setting", async ({ ui
     "load Luden's Echo alone, every item shown: boots, but no tier 3 ones",
     async () => {
       await ui.open({ items: [6655, null, null, null, null, null] });
-      await card.getByRole("button", { name: "Show all" }).click();
+      await card.getByRole("button", { name: "Show more" }).click();
     },
     async () => {
       expect(await names()).toContain("Sorcerer's Shoes");
@@ -391,9 +391,48 @@ test("a card names a hit as the run it comes from calls it", async ({ ui }) => {
     "Yunara without items, every item shown: Sundered Sky's card has her passive's crit hit as a proc, (crit) and all",
     async () => {
       await ui.open({ champion: "Yunara", items: [null, null, null, null, null, null], combo: "Q W E R AA AA" });
-      await card.getByRole("button", { name: "Show all" }).click();
+      await card.getByRole("button", { name: "Show more" }).click();
       await rows.filter({ hasText: "Sundered Sky" }).locator(".iv-track").hover();
     },
     () => expect(ui.tooltip).toContainText("Vow of the First Lands (crit)"),
+  );
+});
+
+test("a row's item dragged onto a slot is bought there alone", async ({ ui }) => {
+  const { step } = ui;
+  const { slots, rows, names, build } = parts(ui);
+  let was: (string | null)[] = [];
+  let name = "";
+  await step(
+    "load",
+    () => ui.open(),
+    async () => {
+      was = await build();
+    },
+  );
+  await step(
+    "drag the second row's item onto slot 5: outlined while over it, bought there alone",
+    async () => {
+      name = (await names())[1];
+      await ui.drag(rows.nth(1).locator(".iv-icon"), slots.nth(4), () => expect(slots.nth(4)).toHaveClass(/landing/));
+    },
+    async () => expect(await build()).toEqual([...was.slice(0, 4), name, null]),
+  );
+  await step(
+    "drag the top row's item onto slot 1: bought in place of Luden's Echo",
+    async () => {
+      was = await build();
+      name = (await names())[0];
+      await ui.drag(rows.first().locator(".iv-icon"), slots.nth(0));
+    },
+    async () => expect(await build()).toEqual([name, ...was.slice(1)]),
+  );
+  await step(
+    "drag one and let it go away from the slots: nothing bought",
+    async () => {
+      was = await build();
+      await ui.drag(rows.first().locator(".iv-icon"), { x: 5, y: 5 });
+    },
+    async () => expect(await build()).toEqual(was),
   );
 });
