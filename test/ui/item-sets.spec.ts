@@ -1,6 +1,7 @@
 // Item value's sets: how many items to rank together, the best sets of them, a set's item clicked to
 // leave it out of the ranking (in the setup, so in the page's address), the items left out at the top
-// of the card, put back one by one or all at once, and a set bought into the empty slots.
+// of the card, put back one by one or all at once, a set bought into the empty slots, and the count
+// back to one item once a set is bought or it no longer fits.
 
 import { test, expect, attrs, num, texts, type UI } from "./ui.ts";
 import type { Locator } from "@playwright/test";
@@ -170,9 +171,9 @@ test("sets of items, and items left out of the ranking", async ({ ui }) => {
   );
   let was: (string | null)[] = [];
   await step(
-    "3 items, then a click on the top set: all 3 bought, in the empty slots; one left, one item ranked",
+    "2 items, then a click on the top set: both bought, in the empty slots; back to one item, the next, though 2 still fit",
     async () => {
-      await count(3).click();
+      await count(2).click();
       await ui.settle();
       was = await build();
       set = await names(rows.first());
@@ -184,7 +185,23 @@ test("sets of items, and items left out of the ranking", async ({ ui }) => {
       expect(now.filter((x) => x != null).sort()).toEqual([...was.slice(0, 2), ...set].sort() as string[]);
       await expect(caption).toHaveText("Next item");
       await expect(count(1)).toHaveAttribute("aria-pressed", "true");
-      for (const n of [2, 3, 4, 5, 6]) await expect(count(n)).toBeDisabled();
+      await expect(count(2)).toBeEnabled();
+      for (const n of [3, 4, 5, 6]) await expect(count(n)).toBeDisabled();
+    },
+  );
+  await step(
+    "2 items again, then a set's item dragged onto an empty slot: 2 no longer fit, back to one item",
+    async () => {
+      await count(2).click();
+      await ui.settle();
+      const slots = card.locator(".slots > .slot:not(.vacated)");
+      await ui.drag(items(rows.first()).first(), slots.nth((await build()).indexOf(null)));
+    },
+    async () => {
+      expect((await build()).filter((x) => x == null)).toHaveLength(1);
+      await expect(caption).toHaveText("Next item");
+      await expect(count(1)).toHaveAttribute("aria-pressed", "true");
+      await expect(count(2)).toBeDisabled();
     },
   );
 });
@@ -209,6 +226,8 @@ test("a set's item dragged onto a slot is bought there alone", async ({ ui }) =>
     async () => {
       expect(await build()).toEqual([...was.slice(0, 5), item]);
       expect((await ui.state()).excluded).toEqual([]);
+      // 2 still fit the 3 empty slots: still 2.
+      await expect(picker.getByRole("button", { name: "2", exact: true })).toHaveAttribute("aria-pressed", "true");
     },
   );
 });
