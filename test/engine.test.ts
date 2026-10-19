@@ -614,6 +614,49 @@ test("item sets: the best by damage and per gold of every set of the candidates"
   near(top.gainPerGold, (top.gain / gold) * 1000, 0.1);
 });
 
+test("item sets: an item that adds nothing alone, tried with the best sets until it adds to one: Stormsurge, short of its burst alone", () => {
+  // With no combo, Singed's items deal some 215 in Stormsurge's 2.5s, short of the 25% of the target's
+  // 925 HP that sets off its Squall; each of the other items that add damage takes them past it.
+  const base = {
+    champion: "Singed",
+    level: 6,
+    items: ["Sunfire Aegis", "Warmog's Armor", "Heartsteel", "Abyssal Mask"],
+    combo: "",
+    target: { maxHp: 925, armor: 0, mr: 0 },
+  };
+  const others = ["Winter's Approach", "Protoplasm Harness", "Titanic Hydra", "Riftmaker", "Liandry's Torment"];
+  const candidates = ["Stormsurge", ...others, "Rabadon's Deathcap", "Boots of Swiftness"];
+  assert.equal(rankItems(data, base, { candidates: ["Stormsurge"] }).items[0].gain, 0);
+  for (const it of others) assert.equal(rankItems(data, { ...base, items: [...base.items, it] }, { candidates }).items[0].item, "Stormsurge", it);
+  const names = (s: ItemSet) => s.items.map((x) => x.item);
+  const key = (s: ItemSet) => names(s).sort().join(" + ");
+  // The best pairs, both ways: Stormsurge with each of them.
+  const pairs = rankItemSets(data, base, { size: 2, candidates }).sets;
+  const withIt = new Set(others.map((it) => [it, "Stormsurge"].sort().join(" + ")));
+  assert.deepEqual(new Set(pairs.slice(0, 5).map(key)), withIt);
+  assert.deepEqual(
+    new Set(
+      [...pairs]
+        .sort((a, b) => b.gainPerGold - a.gainPerGold)
+        .slice(0, 5)
+        .map(key),
+    ),
+    withIt,
+  );
+  const was = simulate(data, base).totalDamage;
+  near(pairs[0].gain, simulate(data, { ...base, items: [...base.items, ...names(pairs[0])] }).totalDamage - was, 0.1);
+  // Not with an item that adds nothing to the set it's tried with: the boots, or Rabadon's Deathcap,
+  // whose only AP to multiply is Stormsurge's, for a Squall no pair of the two sets off.
+  assert.ok(pairs.every((s) => !names(s).includes("Boots of Swiftness") && !names(s).includes("Rabadon's Deathcap")));
+  // In seven slots, Rabadon's Deathcap adds to the best pair, Stormsurge's Squall: so it's tried with the others too.
+  const threes = rankItemSets(data, base, { size: 3, candidates, fits: (b) => b.length <= 7 }).sets;
+  assert.ok(names(threes[0]).includes("Stormsurge"));
+  const deathcap = threes.find((s) => key(s) === "Liandry's Torment + Rabadon's Deathcap + Stormsurge")!;
+  near(deathcap.gain, simulate(data, { ...base, items: [...base.items, ...names(deathcap)] }).totalDamage - was, 0.1);
+  assert.ok(threes.some((s) => key(s) === "Rabadon's Deathcap + Stormsurge + Winter's Approach"));
+  assert.ok(threes.every((s) => !names(s).includes("Boots of Swiftness")));
+});
+
 test("item sets: bought as the shop buys them, fitting the build's slots", () => {
   const base = { champion: "Ahri", level: 11, items: ["Luden's Echo", "Boots"], combo: "E Q W R AA R", target: { preset: "squishy" as const } };
   const candidates = ["Sorcerer's Shoes", "Berserker's Greaves", "Spellslinger's Shoes", "Rabadon's Deathcap", "Shadowflame", "Lich Bane", "Trinity Force"];

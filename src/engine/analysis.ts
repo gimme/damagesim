@@ -462,22 +462,32 @@ const REFINE_ROUNDS = 3;
  * built from items of the build in their place, at most one of an item group (conflicts), and the
  * build fitting its slots. Each build is simulated once.
  *
- * First every candidate alone, as rankItems; only those that add damage alone are tried with others.
- * Then, size by size, each of the `beam` best sets by damage and the `beam` best per gold with each
- * of those candidates added. Last, the best set by damage and the best per gold with each of their
- * items swapped for each candidate, and again from a better one found, up to 3 rounds. At most
- * candidates + (size − 1) × 2 × beam × useful candidates simulations and 2 × size × useful a round of
- * swaps, fewer as a build reached two ways is simulated once: 800 to 1,500 for 3 items of some 110
- * candidates, 1,200 to 2,300 for 4, 1,700 to 3,300 for 5.
+ * First every candidate alone, as rankItems. Then, size by size, each of the `beam` best sets by
+ * damage and the `beam` best per gold with each candidate added that adds damage alone. One that
+ * doesn't (idle: most add nothing to the build, as boots with nothing to scale with move speed, but
+ * some nothing yet, as Stormsurge short of its burst) is tried with the best set by damage and the
+ * best per gold of each size instead, and once it makes a set kept there, with the other sets kept
+ * too and from then on with each; a set it adds nothing to isn't one. Last, the best set by damage
+ * and the best per gold with each of their items swapped for each candidate not idle, and again from
+ * a better one found, up to 3 rounds. At most candidates + (size − 1) × 2 × beam × candidates
+ * simulations and 2 × size × candidates a round of swaps, fewer as idle candidates are tried with two
+ * sets of a size and a build reached two ways is simulated once: for the five builds the benchmark
+ * ranks items for (test/corpus.ts), 650 to 800 for 2 items of some 115 candidates, 1,300 to 1,700 for
+ * 3, 2,000 to 2,500 for 4, 1,700 to 2,900 for 5 (from one item).
  *
  * A set's items come in the order to buy them: a greedy pass over its own items, the one that adds the
  * most damage per gold alone first, then the one that adds the most per gold to it, and so on. Its
  * builds are mostly ones the search simulated: 0 to some 40 simulations more in all.
  *
  * What it misses: a set none of whose smaller sets was kept and that differs from the best ones by
- * more than one item, as items that add little alone but much together. For 3 items it found the 8
- * best by damage and the 8 best per gold of every set, in each of five builds tried; for 5 items, as a
- * search keeping 24 found, but for the 7th and 8th of one, some 1% short.
+ * more than one item, as items that add little alone but much together; and one with an idle
+ * candidate that makes no set kept with the best ones of a size, though it would with another. Of
+ * the sets whose items all add damage, for 2 items it found the 8 best by damage and the 8 best per
+ * gold of every one in each of those five builds, and in 159 of 160 builds of tank items with short
+ * combos or none (where trying only the candidates that add damage alone missed some in 27, the best
+ * itself in 16); for 3 to 5 items, as a search keeping 24 and trying every candidate found, in each
+ * of the five but for 2 of one's 16 at 4 items, and for 3 in 56 of 60 of the others, as many as
+ * trying every candidate with each set kept.
  */
 export function* searchItemSets(
   data: GameData,
@@ -488,8 +498,8 @@ export function* searchItemSets(
   const fits = opts.fits ?? ((items: ItemData[]) => items.length <= 6);
   const baseRes = simulate(data, base);
   type Node = { added: ItemData[]; replaced: ItemData[]; build: ItemData[]; gold: number; r?: SimResult; gain: number; perGold: number };
-  const root: Node = { added: [], replaced: [], build: (base.items ?? []).map((q) => findItem(data, q)), gold: 0, gain: 0, perGold: 0 };
-  let pool = opts.candidates?.length ? opts.candidates.map((q) => findItem(data, q)) : defaultCandidates(data, base);
+  const root: Node = { added: [], replaced: [], build: (base.items ?? []).map((q) => findItem(data, q)), gold: 0, r: baseRes, gain: 0, perGold: 0 };
+  const candidates = opts.candidates?.length ? opts.candidates.map((q) => findItem(data, q)) : defaultCandidates(data, base);
 
   /** The set with one more item, as the shop buys it; null where it can't be bought. */
   const buy = (n: Node | null, it: ItemData): Node | null => {
@@ -542,15 +552,41 @@ export function* searchItemSets(
   }
 
   const limit = opts.limit ?? 25;
+  // The candidates tried with every set kept: those that add damage alone, and those that have made a
+  // set kept since. The others, idle, are tried with the best set by damage and the best per gold of
+  // each size until they do.
+  let pool: ItemData[] = [];
+  let idle = candidates;
   const swaps = () => 2 * opts.size * pool.length;
+  // The most the sizes after `size` take, and a round of swaps, were every idle candidate to wake.
+  const after = (size: number) => (opts.size - size) * 2 * beam * candidates.length + 2 * opts.size * candidates.length;
   let kept = [root];
   let found: Node[] = [];
   for (let size = 1; size <= opts.size; size++) {
-    found = yield* run(
-      kept.flatMap((n) => pool.map((it) => buy(n, it))),
-      (opts.size - size) * 2 * beam * pool.length + swaps(),
+    const leads = best(kept, 1);
+    const tries = leads.flatMap((from) => idle.map((it) => ({ from, it, set: buy(from, it) })));
+    const fresh = yield* run(
+      [...tries.map((t) => t.set), ...kept.flatMap((n) => pool.map((it) => buy(n, it)))],
+      (kept.length - leads.length) * idle.length + after(size),
     );
-    if (size === 1) pool = pool.filter((it) => found.some((n) => n.added[0] === it));
+    // An idle candidate that adds nothing to the set it was tried with makes no set there. One that adds
+    // damage wakes, alone, or after that with its set among those kept: one that adds a little to the
+    // best sets, as many do, isn't tried with the others but again with the next size's best.
+    const none = new Set(tries.filter((t) => t.set && totals.get(keyOf(t.set.build))! - t.from.r!.totalDamage <= 0.5).map((t) => t.set));
+    found = fresh.filter((n) => !none.has(n));
+    const keep = new Set(size === 1 ? found : best(found, beam));
+    const wakes = new Set(tries.filter((t) => t.set && keep.has(t.set)).map((t) => t.it));
+    const woke = idle.filter((it) => wakes.has(it));
+    if (woke.length) {
+      // Woken, it's tried with the other sets kept too, and from then on with each.
+      pool = [...pool, ...woke];
+      idle = idle.filter((it) => !wakes.has(it));
+      const more = yield* run(
+        kept.flatMap((n) => woke.map((it) => buy(n, it))),
+        after(size),
+      );
+      found.push(...more);
+    }
     kept = best(found, beam);
   }
   // Each of the best sets' items swapped for each candidate: the sets one item from them.
