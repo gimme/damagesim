@@ -21,6 +21,10 @@ export function SettingsPanel({ state, set }: { state: UIState; set: Set }) {
           Tier 3 boots (mid lane quest)
           <input type="checkbox" checked={st.questBoots} onChange={(e) => upd({ questBoots: e.target.checked })} />
         </label>
+        <label className="row small" style={{ justifyContent: "space-between" }}>
+          Components in Item value
+          <input type="checkbox" checked={st.components} onChange={(e) => upd({ components: e.target.checked })} />
+        </label>
       </div>
     </Card>
   );

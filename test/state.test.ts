@@ -46,7 +46,7 @@ const ALL: UIState = {
     hpPercent: 37,
     damageReduction: 0.07,
   },
-  settings: { finishDots: false, executes: false, questBoots: true },
+  settings: { finishDots: false, executes: false, questBoots: true, components: true },
   excluded: [3089, 4645],
   next: 3,
   // The default build's Sorcerer's Shoes, for the key alone on it: with the count above one, none (see settled).
@@ -83,7 +83,7 @@ test("a full build's code: under 80 characters, letters and digits", () => {
   assert.deepEqual(decodeState(data, `zed/#${code}`), full);
 });
 
-test("the bot lane role quest's boots slot comes back, empty or with boots; the tier 3 boots setting too, after the rest", () => {
+test("the bot lane role quest's boots slot comes back, empty or with boots; the tier 3 boots and components settings too, after the rest", () => {
   for (const items of [
     [6655, 3020, null, null, null, null, null],
     [3031, null, null, null, null, null, 3006],
@@ -91,6 +91,7 @@ test("the bot lane role quest's boots slot comes back, empty or with boots; the 
   ])
     assert.deepEqual(roundTrip({ ...DEFAULT_STATE, items })?.items, items);
   assert.equal(roundTrip({ ...DEFAULT_STATE, settings: { ...DEFAULT_STATE.settings, questBoots: true } })?.settings.questBoots, true);
+  assert.equal(roundTrip({ ...DEFAULT_STATE, settings: { ...DEFAULT_STATE.settings, components: true } })?.settings.components, true);
   assert.equal(decodeSetup(data, "Zed", encodeSetup(data, { ...DEFAULT_STATE, items: [...DEFAULT_STATE.items, null, null] })), null);
 });
 
@@ -168,13 +169,14 @@ test("an item or rune the patch hasn't is left out; a target champion it hasn't,
   assert.equal(decodeState(other, encodeState(data, { ...DEFAULT_STATE, target: { ...DEFAULT_STATE.target, champion: "Lux" } })), null);
 });
 
-test("a state simulates alike, as one scenario simulated once, with its items in other slots, its combo spaced otherwise, the tier 3 boots setting, a target mode's numbers it isn't in, runes held over, items Item value leaves out, how many it ranks or the item it ranks in place of; not at another target health", () => {
+test("a state simulates alike, as one scenario simulated once, with its items in other slots, its combo spaced otherwise, the tier 3 boots and components settings, a target mode's numbers it isn't in, runes held over, items Item value leaves out, how many it ranks or the item it ranks in place of; not at another target health", () => {
   const key = (s: UIState) => scenarioKey(toScenario(data, s));
   const base: UIState = { ...DEFAULT_STATE, items: [6655, 3020, 3089, null, 4645, null], combo: "E Q W R AA*2 R" };
   const alike: UIState[] = [
     { ...base, items: [null, 3089, 6655, 4645, 3020, null] },
     { ...base, combo: " E  Q,W R 2AA R " },
     { ...base, settings: { ...base.settings, questBoots: true } },
+    { ...base, settings: { ...base.settings, components: true } },
     { ...base, target: { ...base.target, base: { hp: 1, armor: 1, mr: 1 }, champion: "Malphite" } },
     { ...base, runes: { ...base.runes, held: [8143] } },
     { ...base, excluded: [3089] },

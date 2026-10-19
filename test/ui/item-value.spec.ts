@@ -1,7 +1,7 @@
 // The Item value card: the item to rank in place of (the build's, in its address, followed as it moves and brought back by undo) and the empty slot to
 // rank for (the card's own, for the next change to the build), the ranking sorted two ways, Show more, buying from a row or by dragging its item onto
 // a slot, the gold map, every pair of boots for the boots slot (those that add nothing, or take damage away, too), what a card calls a hit, and
-// components, shown where they're worth it.
+// the components, ranked with their setting.
 
 import { test, expect, attrs, num, texts, DATA, type UI } from "./ui.ts";
 import { defaultCandidates } from "../../src/engine/analysis.ts";
@@ -630,22 +630,29 @@ test("an upgrade of the build's Boots", async ({ ui }) => {
   );
 });
 
-test("a component where it's worth it, a cheap one not; bought, what's built from it in its place", async ({ ui }) => {
+test("the components, every one with their setting; one bought, what's built from it ranked in its place", async ({ ui }) => {
   const { step } = ui;
   const { card, rows, names, build } = parts(ui);
   const row = (name: string) => rows.filter({ has: ui.page.locator(".iv-name", { hasText: name }) });
 
   await step(
-    "load Talon at 6 without items: Serrated Dirk in the top rows, over a quarter of the best item's gain and high per gold",
-    () => ui.open({ champion: "Talon", level: 6, items: [null, null, null, null, null, null], combo: "W E Q AA R AA" }),
-    async () => expect(await names()).toContain("Serrated Dirk"),
+    "load Talon at 6 without items, every item shown: no component",
+    async () => {
+      await ui.open({ champion: "Talon", level: 6, items: [null, null, null, null, null, null], combo: "W E Q AA R AA" });
+      await card.getByRole("button", { name: "Show more" }).click();
+    },
+    async () => {
+      expect(await names()).not.toContain("Serrated Dirk");
+      expect(await names()).not.toContain("Long Sword");
+    },
   );
   await step(
-    "every item shown: no Long Sword, as high per gold as most legendaries but a tenth of the best one's gain; no Tiamat, Pickaxe's AD for more",
-    () => card.getByRole("button", { name: "Show more" }).click(),
+    "check their setting: every one ranked, the Dirk and a Long Sword alike; the address keeps it",
+    () => ui.card("Settings").getByRole("checkbox", { name: "Components in Item value" }).check(),
     async () => {
-      expect(await names()).not.toContain("Long Sword");
-      expect(await names()).not.toContain("Tiamat");
+      expect(await names()).toContain("Serrated Dirk");
+      expect(await names()).toContain("Long Sword");
+      expect((await ui.state()).settings.components).toBe(true);
     },
   );
   await step(

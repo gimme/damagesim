@@ -55,8 +55,8 @@ export interface UIState {
   options: Record<string, number>;
   combo: string;
   target: TargetState;
-  /** The simulator's, and questBoots: whether the shop and Item value offer the mid lane role quest's tier 3 boots. */
-  settings: Required<Pick<SimSettings, "finishDots" | "executes">> & { questBoots: boolean };
+  /** The simulator's; questBoots: whether the shop and Item value offer the mid lane role quest's tier 3 boots; components: whether Item value ranks every component (Serrated Dirk, Long Sword…) with the legendaries and boots. */
+  settings: Required<Pick<SimSettings, "finishDots" | "executes">> & { questBoots: boolean; components: boolean };
   /** Items left out of Item value's ranking. */
   excluded: number[];
   /** How many items Item value ranks for the build: 1, the next item (or one in place of a slot's), or the best sets of this many to buy together for its empty slots. */
@@ -89,7 +89,7 @@ export const DEFAULT_STATE: UIState = {
     hpPercent: 100,
     damageReduction: 0,
   },
-  settings: { finishDots: true, executes: true, questBoots: false },
+  settings: { finishDots: true, executes: true, questBoots: false, components: false },
   excluded: [],
   next: 1,
   replace: null,
@@ -117,9 +117,9 @@ export function toScenario(data: GameData, s: UIState): Scenario {
 /**
  * What a scenario simulates, as a string: two with the same simulate alike, so the page simulates
  * one only once. Its combo counts by its steps where it reads, so spacing doesn't count ("AA*2 " is
- * "2AA"). Nor does what toScenario leaves out: the tier 3 boots setting, a target's numbers for
- * the modes it isn't in, runes held over from a tree switch, the items Item value leaves out, how many
- * it ranks and the item it ranks in place of.
+ * "2AA"). Nor does what toScenario leaves out: the tier 3 boots and components settings, a target's
+ * numbers for the modes it isn't in, runes held over from a tree switch, the items Item value leaves
+ * out, how many it ranks and the item it ranks in place of.
  */
 export function scenarioKey(sc: Scenario): string {
   let combo: Scenario["combo"] = sc.combo;
@@ -417,6 +417,7 @@ const FIELDS: [path: string, codec: Codec<any>][] = [
   ["excluded", itemIds],
   ["next", within(1, DEFAULT_STATE.items.length + 1)],
   ["replace", pickedItem],
+  ["settings.components", bool],
 ];
 
 const valueAt = (s: any, path: string) => path.split(".").reduce((x, k) => x[k], s);

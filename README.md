@@ -12,11 +12,9 @@ the combo out on a timeline and reports every damage instance.
   struck out, what the item takes away from your other damage, like a proc it makes land later, past
   0 where that's more than it adds)
   or a gold-vs-damage map; one click buys it, an upgrade (Boots into a pair) for the difference.
-  Components are ranked too, but shown only when they're worth it beside the legendaries and boots:
-  adding at least a quarter of what the best of them adds, fewer than 8 of them adding more per gold,
-  and no cheaper component adding as much (Serrated Dirk on an assassin, never a Long Sword, which
-  is high per gold but adds little; Pickaxe, not Tiamat for the same AD). One bought ranks what's
-  built from it in its place, for the rest of its price (Youmuu's Ghostblade in place of the Dirk). It
+  With the components setting, every component is ranked too (Serrated Dirk, to see if it's worth
+  sitting on, and a Long Sword alike); one in the build ranks what's built from it in its place, for
+  the rest of its price (Youmuu's Ghostblade in place of the Dirk). It
   ranks sets too: the best sets of 2 or more legendaries and boots to buy together for your empty slots, found by a
   search that simulates a few hundred to a few thousand builds in a Web Worker, not every
   combination; a click on a set's item leaves it out of the ranking (listed at the top of the card,
@@ -76,7 +74,7 @@ Tools:
 | `get_champion` | Abilities at a level: rendered tooltips, cooldowns, each damage component with its value and formula, variants, kit notes, options |
 | `simulate` | Run a scenario; totals, by source/type, kill time, effective resists, warnings, model notes (`includeEvents` for every hit) |
 | `compare_builds` | Same scenario, several variants (items/runes/combo/level/options), ranked |
-| `rank_items` | Marginal damage of adding each legendary/boots (and each component worth it beside them, as in Item value) to the current build, per 1000 gold of the item (`metric: damagePerGold` ranks by it), the part the item deals itself and the part from hits that land only with it |
+| `rank_items` | Marginal damage of adding each legendary/boots (and each component, with `components: true`) to the current build, per 1000 gold of the item (`metric: damagePerGold` ranks by it), the part the item deals itself and the part from hits that land only with it |
 | `optimize_build` | Best *n* items from a pool; respects item groups (one Spellblade, Hydra, Fatality…) |
 | `optimize_combo` | Best ordering of the combo steps |
 | `resist_sweep` | Damage as target armor or MR varies |

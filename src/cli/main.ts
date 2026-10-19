@@ -45,6 +45,7 @@ Other options
   --metric damage|burst|percentHp|damagePerGold|killTime|dps   (compare/rank/optimize)
   --slots <n> --pool <a,b,c> --top <n>                                (optimize)
   --size <n> --pool <a,b,c> --top <n>  --metric damage|damagePerGold  (rank-items)
+  --components                          every component too, one item at a time  (rank-items)
   --stat armor|mr --from 0 --to 300 --step 10                         (sweep)
 `;
 
@@ -72,6 +73,7 @@ const { values: o, positionals } = parseArgs({
     slots: { type: "string" },
     size: { type: "string" },
     pool: { type: "string" },
+    components: { type: "boolean" },
     top: { type: "string" },
     stat: { type: "string" },
     from: { type: "string" },
@@ -250,7 +252,7 @@ async function main() {
           );
         });
       }
-      const res = rankItems(data, buildScenario(), { metric, limit: Number(o.top ?? 25), candidates: list(o.pool) });
+      const res = rankItems(data, buildScenario(), { metric, limit: Number(o.top ?? 25), candidates: list(o.pool), components: o.components });
       return out(res, () => {
         console.log(`Base: ${num(res.base.totalDamage)} dmg with ${res.base.items.join(", ") || "no items"}. Adding one item (ranked by ${metric}):`);
         res.items.forEach((x, i) =>
