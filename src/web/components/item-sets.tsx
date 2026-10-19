@@ -15,14 +15,40 @@ export const setKey = (s: ItemSet) =>
     .sort((a, b) => a - b)
     .join();
 /** "A, B and C". */
-export const setList = (s: ItemSet) => {
-  const names = s.items.map((x) => x.item);
-  return names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names.join("");
-};
+const andList = (names: string[]) => (names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names.join(""));
+export const setList = (s: ItemSet) => andList(s.items.map((x) => x.item));
 
-/** How many items to rank: 1, the next one or one in place of a slot's, or the best sets of more, as many as the build has empty slots. */
-export function CountPicker({ count, slots, empty, onChange }: { count: number; slots: number; empty: number; onChange: (n: number) => void }) {
+/**
+ * How many items to rank: 1, the next one or one in place of a slot's, or the best sets of more, as
+ * many as the build has empty slots and items to upgrade (`upgrades`, Serrated Dirk, Boots): a set of
+ * more than the empty slots buys as many of its items in place of those.
+ */
+export function CountPicker({
+  count,
+  slots,
+  empty,
+  upgrades,
+  onChange,
+}: {
+  count: number;
+  slots: number;
+  empty: number;
+  upgrades: number[];
+  onChange: (n: number) => void;
+}) {
   const label = useId();
+  const room = empty + upgrades.length;
+  const names = andList(upgrades.map((id) => DATA.items[id]?.name));
+  const title = (n: number) =>
+    n === 1
+      ? undefined
+      : n > room
+        ? upgrades.length
+          ? `Only ${room} fit${room === 1 ? "s" : ""}: ${empty ? `${empty} empty slot${empty === 1 ? "" : "s"} and ` : ""}${names} to upgrade`
+          : `${empty ? `Only ${empty}` : "No"} slot${empty === 1 ? " is" : "s are"} empty`
+        : n > empty
+          ? `The best ${n} items to buy together, upgrading ${n - empty < upgrades.length ? `${n - empty} of ` : ""}${names}`
+          : `The best ${n} items to buy together`;
   return (
     <div className="iv-count">
       <span id={label} className="small secondary">
@@ -30,19 +56,7 @@ export function CountPicker({ count, slots, empty, onChange }: { count: number; 
       </span>
       <div className="segmented small" role="group" aria-labelledby={label}>
         {Array.from({ length: slots }, (_, k) => k + 1).map((n) => (
-          <button
-            key={n}
-            aria-pressed={n === count}
-            disabled={n > 1 && n > empty}
-            title={
-              n > 1 && n > empty
-                ? `${empty ? `Only ${empty}` : "No"} slot${empty === 1 ? " is" : "s are"} empty`
-                : n > 1
-                  ? `The best ${n} items to buy together`
-                  : undefined
-            }
-            onClick={() => onChange(n)}
-          >
+          <button key={n} aria-pressed={n === count} disabled={n > 1 && n > room} title={title(n)} onClick={() => onChange(n)}>
             {n}
           </button>
         ))}

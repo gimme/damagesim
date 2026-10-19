@@ -334,9 +334,23 @@ function attribute(was: ReturnType<typeof tally>, now: ReturnType<typeof tally>,
   return { base, procs, lost };
 }
 
+/** A legendary item or a pair of boots on Summoner's Rift (not a champion-specific one). */
+const isCandidate = (i: ItemData) => i.inStore && !i.requiredChampion && (isLegendary(i) || (i.tags.includes("Boots") && i.depth >= 2));
+
 /** Legendary items + boots on Summoner's Rift (excluding champion-specific ones). */
 export function defaultCandidates(data: GameData, base?: Scenario): ItemData[] {
-  return Object.values(data.items).filter((i) => i.inStore && !i.requiredChampion && (isLegendary(i) || (i.tags.includes("Boots") && i.depth >= 2)));
+  return Object.values(data.items).filter(isCandidate);
+}
+
+/** Whether a legendary or a pair of boots is built from an item, for more gold, so it can be bought in
+ *  the item's place (Serrated Dirk, Long Sword, Boots); not Dark Seal, whose Mejai's Soulstealer isn't
+ *  one, nor a pair of boots, whose tier 3 the mid lane quest gives. */
+export function upgradable(data: GameData, id: number): boolean {
+  const it = data.items[id];
+  return !!it?.into.some((x) => {
+    const up = data.items[x];
+    return !!up && ((isCandidate(up) && up.gold.total > it.gold.total) || upgradable(data, x));
+  });
 }
 
 /** An item the shop sells to build into others (Serrated Dirk, B. F. Sword, Dark Seal), but boots and potions. */

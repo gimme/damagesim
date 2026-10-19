@@ -23,7 +23,7 @@ import { useItemSlots } from "./drag.tsx";
 import { Card, Chevron, fmt } from "./common.tsx";
 import { GoldScatter, useTooltip, type GoldPoint } from "./charts.tsx";
 import { CountPicker, Excluded, SetItems, setKey, setList, setName } from "./item-sets.tsx";
-import { componentCandidates, defaultCandidates, type ItemSet } from "../../engine/analysis.ts";
+import { componentCandidates, defaultCandidates, upgradable, type ItemSet } from "../../engine/analysis.ts";
 import type { Scenario, Sim } from "../../engine/sim.ts";
 import { buildItems, type Set, type UIState } from "../state.ts";
 import { useRanking, type ItemRanking, type RunProgress } from "../ranking.ts";
@@ -106,12 +106,13 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   const [view, setView] = useState<"list" | "map">("list");
   const [showAll, setShowAll] = useState(false);
   // How many items to rank together, the build's (state.next, so in the address), never more than its
-  // empty slots, which sets of more than one fill: items bought, by any route, take it down by as many
-  // (withItems), and undo brings it back. Sets are for the empty slots, so more than one picks no
-  // item to replace.
+  // empty slots and its items to upgrade (Serrated Dirk, Boots), which sets of more than one fill or
+  // are bought in place of: items bought, by any route, take it down by as many (withItems), and undo
+  // brings it back. Sets are for those, so more than one picks no item to replace.
   const count = state.next;
   const setCount = (n: number) => set((s) => ({ ...s, next: n, replace: n > 1 ? null : s.replace }));
   const empty = state.items.filter((x) => x == null).length;
+  const upgrades = state.items.filter((x): x is number => x != null && upgradable(DATA, x));
   // What's ranked: what could take the place of the build's item picked (state.replace, so in the
   // address; it follows its item moved, and sold or bought over, nothing is picked: withItems), or the
   // next item, for an empty slot: the one clicked, else the first; a full build's in place of its last
@@ -146,7 +147,8 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
     const candidates = current != null && !fit.includes(current) ? [...fit, current] : components.length || fit.length < DEFAULT_IDS.length ? fit : undefined;
     return { kind: "items" as const, base, candidates };
   }, [scenario, state.items, slot, current, pool, components, count]);
-  // Sets fill the build's empty slots, a pair of boots the boots slot; of legendaries and boots, components or not.
+  // Sets fill the build's empty slots, a pair of boots the boots slot, and an item built from one of the
+  // build's takes its place (Youmuu's Ghostblade, the Dirk's); of legendaries and boots, components or not.
   const setsJob = useMemo(
     () =>
       count > 1
@@ -229,8 +231,8 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
       }
     >
       {/* The slot being ranked, picked from the build's slots, which are also the build's inventory:
-          an item is dragged to another slot, and sold with its ✕. A set fills the empty ones; a slot
-          picked then ranks one item for it. */}
+          an item is dragged to another slot, and sold with its ✕. A set fills the empty ones, an item
+          of it built from one of the build's in that one's place; a slot picked then ranks one item for it. */}
       <div className="iv-for">
         <div
           className="slots compact"
@@ -292,7 +294,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
             "Next item"
           )}
         </div>
-        <CountPicker count={count} slots={state.items.length} empty={empty} onChange={setCount} />
+        <CountPicker count={count} slots={state.items.length} empty={empty} upgrades={upgrades} onChange={setCount} />
       </div>
       {state.excluded.length > 0 && (
         <Excluded

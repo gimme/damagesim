@@ -74,6 +74,14 @@ test("shop and filters", async ({ ui }) => {
     () => shop.getByRole("button", { name: "Completed" }).click(),
     async () => expect(await names()).toEqual(all),
   );
+  await step(
+    "search dirk: Serrated Dirk, though not a completed item, as a search finds any",
+    () => search.fill("dirk"),
+    async () => {
+      await expect(shop.getByRole("button", { name: "Completed" })).toHaveAttribute("aria-pressed", "true");
+      expect((await names())[0]).toBe("Serrated Dirk");
+    },
+  );
   let top = { name: "", price: 0 };
   await step(
     "search rab: the top match marked",
@@ -116,10 +124,10 @@ test("shop and filters", async ({ ui }) => {
   );
   const items = (await ui.state()).items;
   await step(
-    "slot 5, search zzz: nothing listed, Enter buys nothing",
+    "slot 5, search qqq: nothing listed, Enter buys nothing",
     async () => {
       await slots.nth(4).click();
-      await search.fill("zzz");
+      await search.fill("qqq");
       await search.press("Enter");
     },
     async () => {

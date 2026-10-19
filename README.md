@@ -15,7 +15,9 @@ the combo out on a timeline and reports every damage instance.
   With the components setting, every component is ranked too (Serrated Dirk, to see if it's worth
   sitting on, and a Long Sword alike); one in the build ranks what's built from it in its place, for
   the rest of its price (Youmuu's Ghostblade in place of the Dirk). It
-  ranks sets too: the best sets of 2 or more legendaries and boots to buy together for your empty slots, found by a
+  ranks sets too: the best sets of 2 or more legendaries and boots to buy together for your empty slots
+  and in place of the components you hold (3 items with 2 slots empty and a Serrated Dirk, one of them
+  built from the Dirk; with 3 slots empty, sets that keep it too), found by a
   search that simulates a few hundred to a few thousand builds in a Web Worker, not every
   combination; a click on a set's item leaves it out of the ranking (listed at the top of the card,
   and in the link); how many to rank, and the item to rank in place of, are in the link too, the count

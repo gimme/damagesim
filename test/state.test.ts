@@ -109,9 +109,13 @@ test("the items Item value leaves out, how many it ranks and the item it ranks i
   assert.deepEqual([reset.excluded, reset.next, reset.replace], [[], 1, null]);
 });
 
-test("what a code holds is settled as it's read: the count no more than the empty slots, the item to replace one of the build's, with a count of one", () => {
+test("what a code holds is settled as it's read: the count no more than the empty slots and the items to upgrade, the item to replace one of the build's, with a count of one", () => {
   assert.equal(roundTrip({ ...DEFAULT_STATE, items: [6655, 3020, 3089, 3135, null, null], next: 4 })?.next, 2);
   assert.equal(roundTrip({ ...DEFAULT_STATE, items: [6655, 3020, 3089, 3135, 3157, 4645], next: 3 })?.next, 1);
+  // A Serrated Dirk and Boots can be bought in place of; Dark Seal can't, by a legendary.
+  assert.equal(roundTrip({ ...DEFAULT_STATE, items: [6655, 3020, 3089, 3134, null, null], next: 4 })?.next, 3);
+  assert.equal(roundTrip({ ...DEFAULT_STATE, items: [6655, 1001, 3089, 3134, null, null], next: 6 })?.next, 4);
+  assert.equal(roundTrip({ ...DEFAULT_STATE, items: [6655, 3020, 3089, 1082, null, null], next: 4 })?.next, 2);
   assert.equal(roundTrip({ ...DEFAULT_STATE, replace: 3020 })?.replace, 3020);
   assert.equal(roundTrip({ ...DEFAULT_STATE, replace: 3089 })?.replace, null);
   assert.equal(roundTrip({ ...DEFAULT_STATE, next: 2, replace: 3020 })?.replace, null);

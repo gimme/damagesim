@@ -3,7 +3,8 @@
 // of the card, put back one by one or all at once, a set bought into the empty slots, and the count
 // down by as many items as are bought, by any route (a set, a set's item dragged onto a slot, Items'
 // shop), to one at least; a sale leaves it. The count is the build's, in its address, and undo and
-// redo in Items carry it with the items.
+// redo in Items carry it with the items. A set can be of more items than the empty slots, as many as
+// it buys in place of the build's components.
 
 import { test, expect, attrs, num, texts, type UI } from "./ui.ts";
 import type { Locator } from "@playwright/test";
@@ -219,6 +220,63 @@ test("sets of items, and items left out of the ranking", async ({ ui }) => {
       await expect(caption).toHaveText("Next item");
       await expect(count(1)).toHaveAttribute("aria-pressed", "true");
       await expect(count(2)).toBeEnabled();
+    },
+  );
+});
+
+test("sets with the build's components: more items than empty slots, one in place of each needed; as many, with or without", async ({ ui }) => {
+  const { step } = ui;
+  const { card, rows, names, picker, build } = parts(ui);
+  const count = (n: number) => picker.getByRole("button", { name: String(n), exact: true });
+  const labels = () => attrs(rows.locator(".iv-track .iv-buy"), "aria-label");
+  const talon = { champion: "Talon", level: 13, combo: "W E Q AA R AA" };
+
+  // Ionian Boots of Lucidity, Voltaic Cyclosword, Hubris and Serrated Dirk.
+  await step(
+    "load 3 items and a Serrated Dirk: sets of 3 in 2 empty slots, upgrading the Dirk; not of 4",
+    () => ui.open({ ...talon, items: [3158, 6699, 6697, 3134, null, null] }),
+    async () => {
+      await expect(count(3)).toBeEnabled();
+      await expect(count(3)).toHaveAttribute("title", "The best 3 items to buy together, upgrading Serrated Dirk");
+      await expect(count(4)).toBeDisabled();
+      await expect(count(4)).toHaveAttribute("title", "Only 3 fit: 2 empty slots and Serrated Dirk to upgrade");
+    },
+  );
+  await step(
+    "3 items: every set buys one in place of the Dirk",
+    () => count(3).click(),
+    async () => {
+      const all = await labels();
+      expect(all.length).toBeGreaterThan(0);
+      for (const l of all) expect(l).toMatch(/, in place of Serrated Dirk$/);
+    },
+  );
+  let set: string[] = [];
+  await step(
+    "click the top set: its 3 bought, one in the Dirk's slot; back to one item",
+    async () => {
+      set = await names(rows.first());
+      await rows.first().locator(".iv-track").click();
+    },
+    async () => {
+      const now = await build();
+      expect(now.slice(0, 3)).toEqual(["Ionian Boots of Lucidity", "Voltaic Cyclosword", "Hubris"]);
+      expect(now.slice(3).sort()).toEqual([...set].sort());
+      await expect(count(1)).toHaveAttribute("aria-pressed", "true");
+    },
+  );
+  // Ionian Boots of Lucidity, Voltaic Cyclosword and Serrated Dirk.
+  await step(
+    "2 items and the Dirk, 3 items, every set shown: some upgrading the Dirk, some beside it",
+    async () => {
+      await ui.open({ ...talon, items: [3158, 6699, 3134, null, null, null], next: 3 });
+      await card.getByRole("button", { name: "Show more" }).click();
+    },
+    async () => {
+      await expect(count(4)).toBeEnabled();
+      const all = await labels();
+      expect(all.some((l) => l!.endsWith(", in place of Serrated Dirk"))).toBe(true);
+      expect(all.some((l) => !l!.includes("in place of"))).toBe(true);
     },
   );
 });

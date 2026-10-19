@@ -20,6 +20,7 @@ import {
   rankItems,
   rankItemSets,
   searchItemSets,
+  upgradable,
   type ItemSet,
 } from "../src/engine/analysis.ts";
 import { findItem } from "../src/engine/gamedata.ts";
@@ -712,6 +713,26 @@ test("item sets: bought as the shop buys them, fitting the build's slots", () =>
   const fitted = rankItemSets(data, base, { size: 2, candidates, fits: slots }).sets;
   assert.ok(fitted.length > 0);
   for (const s of fitted) assert.equal(s.items.filter((x) => data.items[x.id].tags.includes("Boots")).length, 1, names(s).join(" + "));
+});
+
+test("item sets: of more items than the build's empty slots, as many bought in place of its components; of as many, with or without", () => {
+  const base = { champion: "Talon", level: 13, runes: ["Electrocute"], combo: "W E Q AA R AA", target: { preset: "squishy" as const } };
+  // Youmuu's Ghostblade and The Collector are built from a Serrated Dirk, the rest not.
+  const candidates = ["Youmuu's Ghostblade", "The Collector", "Infinity Edge", "Lord Dominik's Regards", "Eclipse", "Serylda's Grudge"];
+  const sets = (items: string[]) => rankItemSets(data, { ...base, items }, { size: 3, candidates }).sets;
+  // 3 items and a Serrated Dirk: 3 more only with one in the Dirk's place.
+  const full = sets(["Ionian Boots of Lucidity", "Voltaic Cyclosword", "Hubris", "Serrated Dirk"]);
+  assert.ok(full.length > 0);
+  for (const s of full) assert.deepEqual(s.replaces, [{ item: "Serrated Dirk", id: 3134 }]);
+  // 2 items and the Dirk: 3 more, in place of it or, of none built from it, beside it.
+  const roomy = sets(["Ionian Boots of Lucidity", "Voltaic Cyclosword", "Serrated Dirk"]);
+  assert.ok(roomy.some((s) => s.replaces) && roomy.some((s) => !s.replaces));
+  // What a legendary or a pair of boots is bought in place of, for more gold: not Dark Seal (Mejai's
+  // Soulstealer isn't one), nor a pair of boots (its tier 3 is free), nor a legendary.
+  assert.deepEqual(
+    [3134, 1036, 1001, 1082, 3020, 6655].map((id) => upgradable(data, id)),
+    [true, true, true, false, false, false],
+  );
 });
 
 test("item sets: their gain split as an item's is, their own hits by item; a set of one as its item's row", () => {

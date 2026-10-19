@@ -9,6 +9,7 @@ import type { Scenario, SimSettings, TargetSpec } from "../engine/sim.ts";
 import type { TargetPreset } from "../engine/presets.ts";
 import { pageRunes, type RunePage } from "../engine/rune-page.ts";
 import { fitCombo, formatCombo, parseCombo } from "../engine/combo.ts";
+import { upgradable } from "../engine/analysis.ts";
 import { getKit } from "../kits/index.ts";
 import { nameAt, single, withBuild, type Build, type Page } from "./tabs.ts";
 
@@ -59,9 +60,9 @@ export interface UIState {
   settings: Required<Pick<SimSettings, "finishDots" | "executes">> & { questBoots: boolean; components: boolean };
   /** Items left out of Item value's ranking. */
   excluded: number[];
-  /** How many items Item value ranks for the build: 1, the next item (or one in place of a slot's), or the best sets of this many to buy together for its empty slots. */
+  /** How many items Item value ranks for the build: 1, the next item (or one in place of a slot's), or the best sets of this many to buy together for its empty slots and in place of its items to upgrade (room). */
   next: number;
-  /** The build's item Item value ranks what could take the place of; null, the next item (for an empty slot, or in place of a full build's last). A count above one picks none: sets are for the empty slots. */
+  /** The build's item Item value ranks what could take the place of; null, the next item (for an empty slot, or in place of a full build's last). A count above one picks none: sets are for the empty slots and the items to upgrade. */
   replace: number | null;
 }
 
@@ -469,20 +470,24 @@ export function decodeSetup(data: GameData, champion: string, code: string): UIS
     FIELDS.forEach(([path, codec], bit) => {
       if (Math.floor(mask / 2 ** bit) % 2) s = withValueAt(s, path.split("."), codec.get(i));
     });
-    return i.at === bytes.length ? settled(s) : null;
+    return i.at === bytes.length ? settled(data, s) : null;
   } catch {
     return null;
   }
 }
 
+/** How many items a set can be of, for a build: its empty slots, and its items a legendary or a pair of
+ *  boots can be bought in place of (Serrated Dirk, Boots), as the shop buys them. */
+export const room = (data: GameData, items: (number | null)[]) => items.filter((x) => x == null || upgradable(data, x)).length;
+
 /**
- * A state as the page keeps it: Item value's count of items no more than the build's empty slots, to
- * one at least, and the item it ranks in place of one of the build's, with a count of one (sets are
- * for the empty slots); else none, the next item. What a code holds is settled as it's read, and what
- * a change to the build's items leaves (withItems in slots.ts).
+ * A state as the page keeps it: Item value's count of items no more than the build's room, to one at
+ * least, and the item it ranks in place of one of the build's, with a count of one (sets are for the
+ * empty slots and the items to upgrade); else none, the next item. What a code holds is settled as
+ * it's read, and what a change to the build's items leaves (withItems in slots.ts).
  */
-export function settled(s: UIState): UIState {
-  const next = Math.max(1, Math.min(s.next, s.items.filter((x) => x == null).length));
+export function settled(data: GameData, s: UIState): UIState {
+  const next = Math.max(1, Math.min(s.next, room(data, s.items)));
   const replace = next === 1 && s.replace != null && s.items.includes(s.replace) ? s.replace : null;
   return next === s.next && replace === s.replace ? s : { ...s, next, replace };
 }

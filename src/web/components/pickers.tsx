@@ -146,12 +146,13 @@ export function ItemPicker({
   const [tier, setTier] = useState<"legendary" | "all">("legendary");
   const filters = bootsOnly ? [] : ITEM_FILTERS;
   const price = (i: ItemData) => i.gold.total - (build ? builtFrom(DATA, build, i.id).reduce((sum, k) => sum + DATA.items[build[k]!].gold.total, 0) : 0);
+  // A search finds any item, a component too: Completed is for browsing.
   const list = search(
     SHOP_ITEMS.filter(
       (i) =>
         (!bootsOnly || isBoots(i)) &&
         (questBoots || !isQuestBoots(i.id)) &&
-        (tier === "all" || i.depth >= 3 || isBoots(i) || i.gold.total >= 2200) &&
+        (tier === "all" || !!q.trim() || i.depth >= 3 || isBoots(i) || i.gold.total >= 2200) &&
         (filters[filter]?.test(i) ?? true),
     ),
     (i) => i.name,

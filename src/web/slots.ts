@@ -70,9 +70,9 @@ function newItems(was: (number | null)[], now: (number | null)[]): number {
  * The state with its items changed to `items`: every change to the build's items but undo and redo,
  * which bring back what the change did. Items bought (newItems) take Item value's count of items to
  * rank (next) down by as many, to one at least: a set bought leaves it at one, the next item. A move
- * or a sale leaves it as it is, but that it's never more than the empty slots; and the item it ranks
- * in place of, sold or bought over, is none, the next item (settled).
+ * or a sale leaves it as it is, but that it's never more than the room (the empty slots and the items
+ * to upgrade); and the item it ranks in place of, sold or bought over, is none, the next item (settled).
  */
 export function withItems(s: UIState, items: (number | null)[]): UIState {
-  return settled({ ...s, items, next: s.next - newItems(s.items, items) });
+  return settled(DATA, { ...s, items, next: s.next - newItems(s.items, items) });
 }
