@@ -1,7 +1,7 @@
 // The Items card: the shop and its filters, buying, the slots' drags, selling, undo and redo, Clear,
 // the bot lane quest's boots slot, boots that upgrade the build's and the mid lane quest's tier 3 boots.
 
-import { test, expect, attrs, num, texts, type UI } from "./ui.ts";
+import { test, expect, attrs, num, pageAddressOf, texts, type UI } from "./ui.ts";
 
 const parts = (ui: UI) => {
   const card = ui.card("Items");
@@ -533,6 +533,38 @@ test("the bot lane quest's boots slot", async ({ ui }) => {
   );
 });
 
+test("the tier 3 boots setting swaps every build's pair of boots for its counterpart", async ({ ui }) => {
+  const { step } = ui;
+  const items = async () => (await ui.state()).items;
+  const setting = ui.card("Settings").getByRole("checkbox", { name: "Tier 3 boots (mid lane quest)" });
+  const tab = (name: string) => ui.page.getByRole("group", { name: "Builds" }).getByRole("button", { name, exact: true });
+
+  // Build 1, Luden's Echo and Sorcerer's Shoes; Build 2, on screen, Berserker's Greaves.
+  await step("load two builds", () =>
+    ui.open(pageAddressOf({}, [{ items: [6655, 3020, null, null, null, null] }, { items: [3006, null, null, null, null, null] }], 1)),
+  );
+  await step(
+    "on: Gunmetal Greaves",
+    () => setting.check(),
+    async () => expect(await items()).toEqual([3172, null, null, null, null, null]),
+  );
+  await step(
+    "Build 1: Spellslinger's Shoes",
+    () => tab("Build 1").click(),
+    async () => expect(await items()).toEqual([6655, 3175, null, null, null, null]),
+  );
+  await step(
+    "off: Sorcerer's Shoes",
+    () => setting.uncheck(),
+    async () => expect(await items()).toEqual([6655, 3020, null, null, null, null]),
+  );
+  await step(
+    "Build 2: Berserker's Greaves",
+    () => tab("Build 2").click(),
+    async () => expect(await items()).toEqual([3006, null, null, null, null, null]),
+  );
+});
+
 test("boots bought upgrade the build's, for the difference in gold", async ({ ui }) => {
   const { step } = ui;
   const { shop, slots, search, names, filter, gold } = parts(ui);
@@ -586,19 +618,43 @@ test("boots bought upgrade the build's, for the difference in gold", async ({ ui
       expect(boots).not.toContain("Spellslinger's Shoes");
     },
   );
+  const setting = ui.card("Settings").getByRole("checkbox", { name: "Tier 3 boots (mid lane quest)" });
   await step(
-    "the setting for the mid lane quest's tier 3 boots: the shop lists them, Gunmetal Greaves free with the greaves",
+    "the setting for the mid lane quest's tier 3 boots: the greaves are Gunmetal Greaves, and the shop lists tier 3 ones",
     async () => {
       await search.press("Escape");
-      await ui.card("Settings").getByRole("checkbox", { name: "Tier 3 boots (mid lane quest)" }).check();
+      await setting.check();
       await slots.nth(2).click();
       await filter("Boots").click();
     },
     async () => {
+      expect(await items()).toEqual([6655, 3172, null, null, null, null]);
       expect(await names()).toEqual(expect.arrayContaining(["Gunmetal Greaves", "Spellslinger's Shoes"]));
-      await expect(price("Gunmetal Greaves")).toHaveText("0g");
-      await expect(price("Spellslinger's Shoes")).toHaveText("1100g");
       expect((await ui.state()).settings.questBoots).toBe(true);
+    },
+  );
+  await step(
+    "off: Berserker's Greaves again",
+    async () => {
+      await search.press("Escape");
+      await setting.uncheck();
+    },
+    async () => {
+      expect(await items()).toEqual([6655, 3006, null, null, null, null]);
+      expect((await ui.state()).settings.questBoots).toBe(false);
+    },
+  );
+  await step(
+    "on, and that undone in Items: Berserker's Greaves, the setting on; the shop's Gunmetal Greaves free with them",
+    async () => {
+      await setting.check();
+      await ui.card("Items").getByRole("button", { name: "Undo" }).click();
+      await slots.nth(2).click();
+    },
+    async () => {
+      expect(await items()).toEqual([6655, 3006, null, null, null, null]);
+      expect((await ui.state()).settings.questBoots).toBe(true);
+      await expect(price("Gunmetal Greaves")).toHaveText("0g");
     },
   );
   await step(

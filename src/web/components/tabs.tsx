@@ -9,6 +9,7 @@ import { DATA } from "../data.ts";
 import { encodeSetup, recallPage, resetState, type UIState } from "../state.ts";
 import { addTab, closeTab, moveTab, renameTab, selectTab, setOwnCombos, single, track, withBuild, type Page } from "../tabs.ts";
 import { landInLines, useDragOrder } from "./drag.tsx";
+import { withQuestBoots } from "../slots.ts";
 
 /** The page's builds and what they share, for the top bar, the cards and the address. */
 export interface Tabs {
@@ -30,6 +31,8 @@ export interface Tabs {
   setFolded: (folded: boolean) => void;
   /** A fresh page of the champion: one build, no items, runes or combo (see resetState). */
   reset: () => void;
+  /** The tier 3 boots setting on or off, every build's pair of boots its counterpart (withQuestBoots). */
+  setQuestBoots: (on: boolean) => void;
 }
 
 export function useTabs(state: UIState, setState: (s: UIState) => void, initial: Page | null): Tabs {
@@ -69,6 +72,10 @@ export function useTabs(state: UIState, setState: (s: UIState) => void, initial:
       const s = resetState(state);
       setKept(single(s));
       setState(s);
+    },
+    setQuestBoots: (on) => {
+      setKept({ ...page, builds: page.builds.map((b) => withQuestBoots(b, on)) });
+      setState(withQuestBoots({ ...state, settings: { ...state.settings, questBoots: on } }, on));
     },
   };
 }

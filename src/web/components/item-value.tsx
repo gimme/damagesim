@@ -23,9 +23,9 @@ import { useItemSlots } from "./drag.tsx";
 import { Card, Chevron, fmt } from "./common.tsx";
 import { GoldScatter, useTooltip, type GoldPoint } from "./charts.tsx";
 import { CountPicker, Excluded, SetItems, setKey, setList, setName } from "./item-sets.tsx";
-import { componentCandidates, defaultCandidates, upgradable, type ItemSet } from "../../engine/analysis.ts";
+import { componentCandidates, defaultCandidates, type ItemSet } from "../../engine/analysis.ts";
 import type { Scenario, Sim } from "../../engine/sim.ts";
-import { buildItems, type Set, type UIState } from "../state.ts";
+import { buildItems, room, type Set, type UIState } from "../state.ts";
 import { useRanking, type ItemRanking, type RunProgress } from "../ranking.ts";
 import { BOOTS_SLOT, buyItem, buyItems, isBoots, isQuestBoots, slotFits, withItems } from "../slots.ts";
 
@@ -112,7 +112,6 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   const count = state.next;
   const setCount = (n: number) => set((s) => ({ ...s, next: n, replace: n > 1 ? null : s.replace }));
   const empty = state.items.filter((x) => x == null).length;
-  const upgrades = state.items.filter((x): x is number => x != null && upgradable(DATA, x));
   // What's ranked: what could take the place of the build's item picked (state.replace, so in the
   // address; it follows its item moved, and sold or bought over, nothing is picked: withItems), or the
   // next item, for an empty slot: the one clicked, else the first; a full build's in place of its last
@@ -294,7 +293,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
             "Next item"
           )}
         </div>
-        <CountPicker count={count} slots={state.items.length} empty={empty} upgrades={upgrades} onChange={setCount} />
+        <CountPicker count={count} slots={state.items.length} empty={empty} room={room(DATA, state.items)} onChange={setCount} />
       </div>
       {state.excluded.length > 0 && (
         <Excluded

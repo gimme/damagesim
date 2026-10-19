@@ -3,7 +3,8 @@
 import { Card } from "./common.tsx";
 import type { Set, UIState } from "../state.ts";
 
-export function SettingsPanel({ state, set }: { state: UIState; set: Set }) {
+/** `setQuestBoots` turns the tier 3 boots on or off for every build, its boots with it (Tabs). */
+export function SettingsPanel({ state, set, setQuestBoots }: { state: UIState; set: Set; setQuestBoots: (on: boolean) => void }) {
   const st = state.settings;
   const upd = (p: Partial<UIState["settings"]>) => set((s) => ({ ...s, settings: { ...s.settings, ...p } }));
   return (
@@ -19,7 +20,7 @@ export function SettingsPanel({ state, set }: { state: UIState; set: Set }) {
         </label>
         <label className="row small" style={{ justifyContent: "space-between" }}>
           Tier 3 boots (mid lane quest)
-          <input type="checkbox" checked={st.questBoots} onChange={(e) => upd({ questBoots: e.target.checked })} />
+          <input type="checkbox" checked={st.questBoots} onChange={(e) => setQuestBoots(e.target.checked)} />
         </label>
         <label className="row small" style={{ justifyContent: "space-between" }}>
           Components in Item value

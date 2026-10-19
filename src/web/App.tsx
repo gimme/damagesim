@@ -138,7 +138,7 @@ export function App() {
           <ItemsPanel key={`${state.champion}#${build.id}`} state={state} set={setState} gold={result?.gold ?? 0} sim={sim} buildName={buildName} />
           <RunesPanel state={state} set={setState} sim={sim} buildName={buildName} />
           <TargetPanel state={state} set={setState} resolved={result?.target} />
-          <SettingsPanel state={state} set={setState} />
+          <SettingsPanel state={state} set={setState} setQuestBoots={tabs.setQuestBoots} />
         </div>
         <div style={{ minWidth: 0 }}>
           <ComboBuilder

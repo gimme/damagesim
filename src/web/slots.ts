@@ -11,6 +11,21 @@ export const isBoots = (id: number) => !!DATA.items[id]?.tags.includes("Boots");
 /** The tier 3 boots, which the mid lane role quest upgrades a pair to. */
 export const isQuestBoots = (id: number) => isBoots(id) && DATA.items[id].depth >= 3;
 
+/** A pair of boots as the tier 3 boots setting has it: on, the tier 3 the mid lane role quest upgrades
+ *  it to (Spellslinger's Shoes for Sorcerer's Shoes); off, the pair a tier 3 is upgraded from. */
+function questBootsOf(id: number, on: boolean): number {
+  const it = DATA.items[id];
+  if (!it || !isBoots(id)) return id;
+  return (on ? (it.depth === 2 ? it.into.find(isQuestBoots) : undefined) : isQuestBoots(id) ? it.from.find(isBoots) : undefined) ?? id;
+}
+
+/** A build with the tier 3 boots setting turned on or off: its pair of boots the counterpart, Item
+ *  value's item to rank in place of too where it's the pair. */
+export function withQuestBoots<B extends { items: (number | null)[]; replace: number | null }>(b: B, on: boolean): B {
+  const swap = (x: number | null) => (x == null ? x : questBootsOf(x, on));
+  return b.items.some((x) => swap(x) !== x) ? { ...b, items: b.items.map(swap), replace: swap(b.replace) } : b;
+}
+
 /** Whether slot i of a build can hold an item, or be empty (null): with the boots slot, the boots go there and only there. */
 export function slotFits(items: (number | null)[], i: number, id: number | null): boolean {
   return id == null || items.length <= BOOTS_SLOT || isBoots(id) === (i === BOOTS_SLOT);

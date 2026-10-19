@@ -237,9 +237,9 @@ test("sets with the build's components: more items than empty slots, one in plac
     () => ui.open({ ...talon, items: [3158, 6699, 6697, 3134, null, null] }),
     async () => {
       await expect(count(3)).toBeEnabled();
-      await expect(count(3)).toHaveAttribute("title", "The best 3 items to buy together, upgrading Serrated Dirk");
+      await expect(count(3)).toHaveAttribute("title", "The best 3 items to buy together");
       await expect(count(4)).toBeDisabled();
-      await expect(count(4)).toHaveAttribute("title", "Only 3 fit: 2 empty slots and Serrated Dirk to upgrade");
+      await expect(count(4)).toHaveAttribute("title", "Only 3 fit");
     },
   );
   await step(
