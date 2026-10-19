@@ -571,6 +571,26 @@ test("a pair of boots that takes damage away, for the boots slot", async ({ ui }
   );
 });
 
+// With a Long Sword, Aatrox's adaptive force is AD; Rabadon's Deathcap turns it AP, so his attacks and abilities lose the runes'
+// adaptive AD, more than Electrocute, magic now, gains.
+test("an item that adds some and takes away more: its bar across the zero line", async ({ ui }) => {
+  const { step } = ui;
+  const { rows, damage, bars, caption } = parts(ui);
+
+  await step(
+    "Aatrox with a Long Sword, in place of Rabadon's Deathcap: a loss, its bar struck from its number left of the zero line to what it adds right of it",
+    () => ui.open({ champion: "Aatrox", combo: "Q W E R AA AA", items: [1036, 3089, null, null, null, null], replace: 3089 }),
+    async () => {
+      await expect(caption).toHaveText("In place of Rabadon's Deathcap");
+      const i = (await attrs(rows, "aria-current")).indexOf("true");
+      expect((await damage())[i]).toBeLessThan(0);
+      const [from, to] = (await bars())[i];
+      expect(from).toBeLessThan(-1);
+      expect(to).toBeGreaterThan(1);
+    },
+  );
+});
+
 test("an upgrade of the build's Boots", async ({ ui }) => {
   const { step } = ui;
   const { card, rows, names, ranked } = parts(ui);
