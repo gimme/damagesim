@@ -340,24 +340,28 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   );
 }
 
-/** How long a search runs before its time left is judged, and how long that must be for its progress to show. */
+/** How long a search's progress is heard before its time left is judged, and how long that must be for its progress to show. */
 const PROGRESS_SAMPLE = 150;
 const PROGRESS_WORTH = 1000;
 
 /**
- * How far a search for sets has got, shown only for one that will take a while: once it has run a
- * moment, its time left is judged by how far it is, elapsed × (1 − p) / p as last heard, less the time
- * since (p by the search's guess at its total), and the bar shows once that's a second or more; a
- * search done sooner never shows one. Drawn each frame, easing toward the progress the worker's
- * messages keep current, never going back (it holds where a guess grows), and faded out as the search
- * finishes. `since` is when the wait for a result began, null once there's one.
+ * How far a search for sets has got, shown only for one that will take a while: once its progress has
+ * been heard a moment, its time left is judged by its speed since it was first heard, what's left of
+ * its guessed total at that speed as last heard, less the time since, and the bar shows once that's a
+ * second or more; a search done sooner never shows one. The speed leaves out the wait for the first
+ * word, which on a page just opened is mostly the worker's start (with the first job, sent the game
+ * data first): judged from the job's start, every search there looked slow. Drawn each frame, easing
+ * toward the progress the worker's messages keep current, never going back (it holds where a guess
+ * grows), and faded out as the search finishes; a run in place of another in the same wait (its job
+ * changed under way) fills what's left of the bar from where it stood, where it had held until the run
+ * caught up. `since` is when the wait for a result began, null once there's one.
  */
 function Progress({ since, progress }: { since: number | null; progress: RefObject<RunProgress | null> }) {
   const bar = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(false);
   // What the frames share: whether the wait goes on, how full the bar is drawn, whether it's in view,
-  // and when it began to fade (0: it hasn't).
-  const draw = useRef({ since, at: 0, on: false, fade: 0 });
+  // when it began to fade (0: it hasn't), and the run filling it (when it began) and from how full.
+  const draw = useRef({ since, at: 0, on: false, fade: 0, run: 0, from: 0 });
   draw.current.since = since;
   useEffect(() => {
     const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -374,11 +378,13 @@ function Progress({ since, progress }: { since: number | null; progress: RefObje
       const dt = now - last;
       last = now;
       const p = progress.current;
-      const f = p ? Math.min(1, p.done / p.total) : 0;
+      if (p && p.start !== d.run) [d.run, d.from] = [p.start, d.on ? d.at : 0];
+      const f = p ? d.from + (1 - d.from) * Math.min(1, p.done / p.total) : d.at;
       if (!d.on) {
         if (!running) return;
-        const ran = p ? p.at - p.start : 0;
-        if (f > 0 && ran >= PROGRESS_SAMPLE && (ran * (1 - f)) / f - (now - p!.at) >= PROGRESS_WORTH) {
+        const ran = p ? p.at - p.first.at : 0;
+        const speed = ran > 0 ? (p!.done - p!.first.done) / ran : 0;
+        if (ran >= PROGRESS_SAMPLE && speed > 0 && (p!.total - p!.done) / speed - (now - p!.at) >= PROGRESS_WORTH) {
           [d.on, d.at, d.fade] = [true, 0, 0];
           setShown(true);
         }

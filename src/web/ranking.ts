@@ -9,8 +9,9 @@ import type { FromWorker, RankJob, RankResult, ToWorker } from "./ranking-runner
 
 export type { ItemRanking, RankJob, RankResult, SetRanking } from "./ranking-runner.ts";
 
-/** How far a run is, when it began and when that was heard (performance.now()). */
-export type RunProgress = SearchProgress & { start: number; at: number };
+/** How far a run is, when it began and when that was heard (performance.now()), and how far it was
+ *  when first heard, and when: its speed is judged from then, the worker's start aside. */
+export type RunProgress = SearchProgress & { start: number; at: number; first: { done: number; at: number } };
 
 let worker: Worker | null = null;
 /** Each open lane: the job it's waiting on, and what to do with the worker's answers. */
@@ -89,8 +90,8 @@ export function openLane(): Lane {
  * changed, so a run doesn't start on every keystroke. A change stops the run under way; the last
  * result stays meanwhile, stale. `since` is when the wait for a result began (performance.now(), null
  * when there's none): the first run since the last result, so a job changed under way doesn't start
- * it again. `progress` is how far the run under way is (searchItemSets' jobs) and when it began, kept
- * current without rendering, for a bar drawn each frame.
+ * it again. `progress` is how far the run under way is (searchItemSets' jobs), when it began and how
+ * far it was when first heard, kept current without rendering, for a bar drawn each frame.
  */
 export function useRanking<J extends RankJob>(job: J | null, delay: number) {
   const key = useMemo(() => (job ? JSON.stringify(job) : null), [job]);
@@ -117,7 +118,11 @@ export function useRanking<J extends RankJob>(job: J | null, delay: number) {
         const start = performance.now();
         setSince((s) => s ?? start);
         l.run(job, {
-          progress: (p) => (progress.current = { ...p, start, at: performance.now() }),
+          progress: (p) => {
+            const at = performance.now();
+            const first = progress.current?.start === start ? progress.current.first : { done: p.done, at };
+            progress.current = { ...p, start, at, first };
+          },
           result: (result) => done({ key, result }),
           error: (error) => done({ key, error }),
         });
