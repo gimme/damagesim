@@ -765,21 +765,26 @@ test("item sets: a set's items in the order to buy them, each adding the most da
   assert.ok(sets.some((s) => s.items.at(-1)!.item === "Rabadon's Deathcap"));
 });
 
-test("item sets: progress, one simulation at a time, never going back", () => {
+test("item sets: progress, one simulation at a time, its total a guess near the end's", () => {
   const base = { champion: "Jinx", level: 13, items: ["Infinity Edge"], combo: "AA AA AA W AA AA", target: { preset: "bruiser" as const } };
   const search = searchItemSets(data, base, { size: 2, limit: 5 });
   let step = search.next();
-  let done = 0;
-  let share = 0;
+  const steps: { done: number; total: number }[] = [];
   while (!step.done) {
     const { done: now, total } = step.value;
-    assert.equal(now, done + 1);
-    assert.ok(total >= now && now / total >= share, `${now} of ${total} after ${share}`);
-    [done, share] = [now, now / total];
+    assert.equal(now, steps.length + 1);
+    assert.ok(total >= now, `${now} of ${total}`);
+    steps.push(step.value);
     step = search.next();
   }
   const res = step.value;
+  const done = steps.length;
   assert.equal(res.evaluated, done);
+  // A quarter, half and three quarters of the way, it says about so (0.23, 0.45, 0.68, where a bound on the total said 0.11, 0.21, 0.32).
+  for (const part of [0.25, 0.5, 0.75]) {
+    const at = steps.find((s) => s.done >= part * done)!;
+    near(at.done / at.total, part, 0.15);
+  }
   // The 5 best by damage and the 5 best per gold, by damage.
   assert.ok(res.sets.length >= 5 && res.sets.length <= 10);
   assert.ok(res.sets.every((s, i) => i === 0 || res.sets[i - 1].gain >= s.gain));

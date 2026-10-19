@@ -448,7 +448,7 @@ export interface ItemSetOptions {
   limit?: number;
 }
 
-/** Progress, in simulations: those run, and at most how many the search takes in all (the buy order's aside). */
+/** Progress, in simulations: those run, and a guess at how many the search takes in all (the buy order's aside), which can go up as well as down. */
 export interface SearchProgress {
   done: number;
   total: number;
@@ -557,18 +557,20 @@ export function* searchItemSets(
   // each size until they do.
   let pool: ItemData[] = [];
   let idle = candidates;
-  const swaps = () => 2 * opts.size * pool.length;
-  // The most the sizes after `size` take, and a round of swaps, were every idle candidate to wake.
-  const after = (size: number) => (opts.size - size) * 2 * beam * candidates.length + 2 * opts.size * candidates.length;
+  // A guess at what the sizes after `size` take, and the swaps: about beam + 1 sets kept of each (the
+  // best by damage and the best per gold mostly the same), each with the pool, two sets with each idle
+  // candidate, none waking, and a quarter of a round of swaps, most of whose sets have been simulated.
+  // Until the first size sorts them, every candidate counts as in the pool.
+  const after = (size: number) => {
+    const [n, idling] = size === 1 ? [candidates.length, 0] : [pool.length, idle.length];
+    return (opts.size - size) * ((beam + 1) * n + 2 * idling) + Math.round(0.5 * opts.size * n);
+  };
   let kept = [root];
   let found: Node[] = [];
   for (let size = 1; size <= opts.size; size++) {
     const leads = best(kept, 1);
     const tries = leads.flatMap((from) => idle.map((it) => ({ from, it, set: buy(from, it) })));
-    const fresh = yield* run(
-      [...tries.map((t) => t.set), ...kept.flatMap((n) => pool.map((it) => buy(n, it)))],
-      (kept.length - leads.length) * idle.length + after(size),
-    );
+    const fresh = yield* run([...tries.map((t) => t.set), ...kept.flatMap((n) => pool.map((it) => buy(n, it)))], after(size));
     // An idle candidate that adds nothing to the set it was tried with makes no set there. One that adds
     // damage wakes, alone, or after that with its set among those kept: one that adds a little to the
     // best sets, as many do, isn't tried with the others but again with the next size's best.
@@ -598,7 +600,8 @@ export function* searchItemSets(
     if (!seeds.length) break;
     was = now;
     const near = seeds.flatMap((s) => s.added.flatMap((_, i) => pool.map((it) => [...s.added.slice(0, i), ...s.added.slice(i + 1), it].reduce(buy, root))));
-    found.push(...(yield* run(near, pass + 1 < REFINE_ROUNDS ? swaps() : 0)));
+    // Guessed the last round: another comes only of a better set found.
+    found.push(...(yield* run(near, 0)));
   }
 
   // Each set's items in the order to buy them, a greedy pass over its own items: first the one that
