@@ -9,7 +9,7 @@ import { ItemTip, useHoverCard } from "./hover.tsx";
 import { useItemSlots } from "./drag.tsx";
 import { BuildTitle, Card, fmt, useHistory } from "./common.tsx";
 import type { Set, UIState } from "../state.ts";
-import { BOOTS_SLOT, addBootsSlot, buyItem, withItems } from "../slots.ts";
+import { BOOTS_SLOT, addBootsSlot, buyItem, withItems, withQuestBoots } from "../slots.ts";
 import type { Sim } from "../../engine/sim.ts";
 import { conflicts } from "../../engine/analysis.ts";
 
@@ -58,15 +58,20 @@ export function ItemsPanel({ state, set, gold, sim, buildName }: { state: UIStat
   // brings back with it Item value's count of items to rank and the item it ranks in place of, which
   // follow the items (withItems): a set of 3 undone is 3 ranked again, the item picked sold and the
   // sale undone is picked again. The count or item picked by itself isn't a change to undo; it goes
-  // with the next one.
-  const entry = useMemo(() => ({ items, next: state.next, replace: state.replace }), [items, state.next, state.replace]);
+  // with the next one. Nor is the boots' swap as the tier 3 boots setting is turned on or off
+  // (withQuestBoots): what's undone or redone comes back with its boots swapped as the setting is now.
+  const questBoots = state.settings.questBoots;
+  const entry = useMemo(() => ({ items, next: state.next, replace: state.replace, questBoots }), [items, state.next, state.replace, questBoots]);
   const past = useHistory(
     entry,
-    (v) => {
+    ({ questBoots: was, ...v }) => {
       hover.hide();
-      set((s) => ({ ...s, ...v }));
+      set((s) => ({ ...s, ...(was === s.settings.questBoots ? v : withQuestBoots(v, s.settings.questBoots)) }));
     },
-    (a, b) => a.items.length === b.items.length && a.items.every((x, i) => x === b.items[i]),
+    (a, b) => {
+      const was = a.questBoots === b.questBoots ? a.items : withQuestBoots(a, b.questBoots).items;
+      return was.length === b.items.length && was.every((x, i) => x === b.items[i]);
+    },
   );
   // Ctrl+Z and Ctrl+Shift+Z (or Ctrl+Y) while in this card, or with nothing focused.
   useEffect(() => {

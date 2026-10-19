@@ -22,28 +22,10 @@ export const setList = (s: ItemSet) => {
 
 /** How many items to rank: 1, the next one or one in place of a slot's, or the best sets of more, as
  *  many as there's room for (room in state.ts): the empty slots, and the items to upgrade (Serrated Dirk). */
-export function CountPicker({
-  count,
-  slots,
-  empty,
-  room,
-  onChange,
-}: {
-  count: number;
-  slots: number;
-  empty: number;
-  room: number;
-  onChange: (n: number) => void;
-}) {
+export function CountPicker({ count, slots, room, onChange }: { count: number; slots: number; room: number; onChange: (n: number) => void }) {
   const label = useId();
-  const title = (n: number) =>
-    n === 1
-      ? undefined
-      : n <= room
-        ? `The best ${n} items to buy together`
-        : room > empty
-          ? `Only ${room} fit`
-          : `${empty ? `Only ${empty}` : "No"} slot${empty === 1 ? " is" : "s are"} empty`;
+  // One in place of an item when there's no room.
+  const most = Math.max(1, room);
   return (
     <div className="iv-count">
       <span id={label} className="small secondary">
@@ -51,7 +33,13 @@ export function CountPicker({
       </span>
       <div className="segmented small" role="group" aria-labelledby={label}>
         {Array.from({ length: slots }, (_, k) => k + 1).map((n) => (
-          <button key={n} aria-pressed={n === count} disabled={n > 1 && n > room} title={title(n)} onClick={() => onChange(n)}>
+          <button
+            key={n}
+            aria-pressed={n === count}
+            disabled={n > most}
+            title={n > most ? `Only ${most} item${most === 1 ? " fits" : "s fit"}` : undefined}
+            onClick={() => onChange(n)}
+          >
             {n}
           </button>
         ))}

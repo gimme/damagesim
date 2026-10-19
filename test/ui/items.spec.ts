@@ -645,15 +645,31 @@ test("boots bought upgrade the build's, for the difference in gold", async ({ ui
     },
   );
   await step(
-    "on, and that undone in Items: Berserker's Greaves, the setting on; the shop's Gunmetal Greaves free with them",
+    "on, and Undo in Items: not the swap, which isn't a change to undo, but the greaves bought before it, the shoes back as Spellslinger's Shoes",
     async () => {
       await setting.check();
       await ui.card("Items").getByRole("button", { name: "Undo" }).click();
+    },
+    async () => {
+      expect(await items()).toEqual([6655, 3175, null, null, null, null]);
+      expect((await ui.state()).settings.questBoots).toBe(true);
+    },
+  );
+  await step(
+    "Redo: Gunmetal Greaves",
+    () => ui.card("Items").getByRole("button", { name: "Redo" }).click(),
+    async () => expect(await items()).toEqual([6655, 3172, null, null, null, null]),
+  );
+  await step(
+    "Berserker's Greaves bought, the setting on: in place of Gunmetal Greaves; the shop's Gunmetal Greaves free with them",
+    async () => {
+      await slots.nth(2).click();
+      await search.fill("berserker");
+      await search.press("Enter");
       await slots.nth(2).click();
     },
     async () => {
       expect(await items()).toEqual([6655, 3006, null, null, null, null]);
-      expect((await ui.state()).settings.questBoots).toBe(true);
       await expect(price("Gunmetal Greaves")).toHaveText("0g");
     },
   );
