@@ -4,7 +4,7 @@
 
 import { test as base, expect, type Locator, type Page } from "@playwright/test";
 import { loadGameData } from "../../src/node/load.ts";
-import { DEFAULT_STATE, decodePage, encodePage, encodeState, type UIState } from "../../src/web/state.ts";
+import { DEMO_STATE, decodePage, encodePage, encodeState, type TargetState, type UIState } from "../../src/web/state.ts";
 import { withBuild, type Build } from "../../src/web/tabs.ts";
 
 export { expect };
@@ -46,23 +46,31 @@ function isSettled(itemValue: boolean) {
 /** The game data the page has, for the scenarios' addresses and what a test expects of it. */
 export const DATA = loadGameData();
 
-/** A state with what's left out the default, in the target and the settings field by field. */
+/** A target with what's left out the demo's, by its mode: Jinx with an Infinity Edge as the champion, the demo's numbers as the custom one. */
+const filledTarget = (t: Record<string, any> = {}): TargetState => {
+  const hp = { hpPercent: 100, damageReduction: 0 };
+  if (t.mode === "champion") return { mode: "champion", levelDiff: 0, champion: "Jinx", items: [3031], ...hp, ...t };
+  if (t.mode === "custom") return { mode: "custom", base: { hp: 1600, armor: 60, mr: 40 }, bonus: { hp: 400, armor: 20, mr: 10 }, ...hp, ...t };
+  return { ...DEMO_STATE.target, ...t };
+};
+
+/** A state with what's left out the demo's, in the target (by its mode, see filledTarget) and the settings field by field. */
 const filled = (state: Record<string, any>): UIState => ({
-  ...DEFAULT_STATE,
+  ...DEMO_STATE,
   ...state,
-  target: { ...DEFAULT_STATE.target, ...state.target },
-  settings: { ...DEFAULT_STATE.settings, ...state.settings },
+  target: filledTarget(state.target),
+  settings: { ...DEMO_STATE.settings, ...state.settings },
 });
 
-/** A state's address on the dev server ("/zed/#5h2Kq…"); what's left out is the default, in the target and the settings field by field. */
+/** A state's address on the dev server ("/zed/#5h2Kq…+…"); what's left out is the demo's, in the target and the settings field by field. */
 export const addressOf = (state: Record<string, any>) => "/" + encodeState(DATA, filled(state));
 
 /**
  * The address of a page of builds, what they share as addressOf's state, each build its items, runes
- * and combo (the default where left out) and its name ("Build n" for the nth); the one at `active` on
- * screen, each with its own combo with `ownCombos`, the comparison folded away with `folded`.
+ * and combo (the demo's where left out) and its name ("Build n" for the nth); the one at `active` on
+ * screen, each with its own combo with `ownCombos`, the Result card comparing them unless `compare` is false.
  */
-export function pageAddressOf(shared: Record<string, any>, builds: Partial<Build>[], active = 0, ownCombos = false, folded = false) {
+export function pageAddressOf(shared: Record<string, any>, builds: Partial<Build>[], active = 0, ownCombos = false, compare = true) {
   const s = filled(shared);
   const page = {
     champion: s.champion,
@@ -78,7 +86,7 @@ export function pageAddressOf(shared: Record<string, any>, builds: Partial<Build
     })),
     active,
     ownCombos,
-    folded,
+    compare,
   };
   return "/" + encodePage(DATA, withBuild(s, page, active), page);
 }
@@ -102,7 +110,7 @@ export const attrs = (loc: Locator, name: string) => loc.evaluateAll((els, name)
 
 export interface UI {
   page: Page;
-  /** Opens the app at a state's address (what's left out is the default), at an address, or at its root, and waits for it to settle. */
+  /** Opens the app at a state's address (what's left out is the demo's), at an address, or at its root (the demo), and waits for it to settle. */
   open(state?: object | string): Promise<void>;
   /** Runs one step: `act`, then once the page has settled, `check`. */
   step(name: string, act: () => Promise<unknown>, check?: () => Promise<unknown>): Promise<void>;

@@ -1,13 +1,13 @@
 // The Runes card: a rune page as in the client.
 
-import type { CSSProperties } from "react";
+import { useRef, type CSSProperties } from "react";
 import { DATA, runeIcon } from "../data.ts";
 import { Icon } from "./icons.tsx";
 import { RuneTip, useHoverCard } from "./hover.tsx";
 import { BuildTitle, Card } from "./common.tsx";
 import type { Set, UIState } from "../state.ts";
 import type { Sim } from "../../engine/sim.ts";
-import { choosePrimary, chooseSecondary, pickRune, type RunePage } from "../../engine/rune-page.ts";
+import { choosePrimary, chooseSecondary, pickRune, pickShard, type RunePage } from "../../engine/rune-page.ts";
 import type { RuneData, RuneTreeData } from "../../engine/data-types.ts";
 
 const TREES = DATA.runePage.trees;
@@ -18,14 +18,23 @@ const treeColor = (tree: string) => ({ "--tree": `var(--tree-${tree.toLowerCase(
 export function RunesPanel({ state, set, sim, buildName }: { state: UIState; set: Set; sim: Sim | null; buildName?: string }) {
   const page = state.runes;
   const hover = useHoverCard();
-  const change = (fn: (p: RunePage) => RunePage) => set((s) => ({ ...s, runes: fn(s.runes) }));
+  // Which pick is the older, where a third secondary row or a swap of the trees lets one go: the
+  // picks in the order they were made here, those that came otherwise (a link, another build) as
+  // the oldest. The card's own, not the page's: a page is its picks.
+  const order = useRef<number[]>([]);
+  const change = (fn: (p: RunePage, order: number[]) => RunePage) =>
+    set((s) => {
+      const next = fn(s.runes, order.current);
+      order.current = [...order.current.filter((id) => next.picks.includes(id)), ...next.picks.filter((id) => !order.current.includes(id))];
+      return next === s.runes ? s : { ...s, runes: next };
+    });
   const pick = (r: RuneData) => (
     <button
       key={r.id}
       className="rune-pick"
       aria-pressed={page.picks.includes(r.id)}
       aria-label={r.name}
-      onClick={() => change((p) => pickRune(DATA, p, r.id))}
+      onClick={() => change((p, order) => pickRune(DATA, p, r.id, order))}
       {...hover.bind(<RuneTip id={r.id} sim={sim} />)}
     >
       <Icon src={runeIcon(r.icon)} label={r.name} />
@@ -35,7 +44,7 @@ export function RunesPanel({ state, set, sim, buildName }: { state: UIState; set
     <Card title={<BuildTitle title="Runes" build={buildName} />}>
       <div className="rune-page">
         <div className="rune-tree" style={treeColor(page.primary)}>
-          <TreePicker label="Primary" value={page.primary} trees={TREES} onPick={(t) => change((p) => choosePrimary(DATA, p, t))} />
+          <TreePicker label="Primary" value={page.primary} trees={TREES} onPick={(t) => change((p, order) => choosePrimary(DATA, p, t, order))} />
           <div className="keystones-title small secondary">Keystones</div>
           <div className="rune-row keystones" role="group" aria-label="Keystone">
             {treeRow(page.primary, 0).map(pick)}
@@ -54,7 +63,7 @@ export function RunesPanel({ state, set, sim, buildName }: { state: UIState; set
             label="Secondary"
             value={page.secondary}
             trees={TREES.filter((t) => t.key !== page.primary)}
-            onPick={(t) => change((p) => chooseSecondary(DATA, p, t))}
+            onPick={(t) => change((p, order) => chooseSecondary(DATA, p, t, order))}
           />
           <div className="rune-rows">
             {[1, 2, 3].map((row) => (
@@ -75,8 +84,7 @@ export function RunesPanel({ state, set, sim, buildName }: { state: UIState; set
                       className="shard-pick"
                       aria-pressed={page.shards[i] === id}
                       aria-label={r.name}
-                      // A page has a shard in each row, or none (Reset's): the first pick on one without fills the other rows with their first.
-                      onClick={() => change((p) => ({ ...p, shards: DATA.runePage.shards.map((r, j) => (j === i ? id : (p.shards[j] ?? r.options[0]))) }))}
+                      onClick={() => change((p) => pickShard(p, i, id))}
                       {...hover.bind(<RuneTip id={id} sim={sim} />)}
                     >
                       <Icon src={runeIcon(r.icon)} label={r.name} />

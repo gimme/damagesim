@@ -27,15 +27,21 @@ the combo out on a timeline and reports every damage instance.
   going down by the items you buy and the pick following its item, and undo in Items brings both back. Hovering an item shows its cost, stats, passives and actives, with the numbers
   for your champion's level and stats, melee or ranged. Runes go on a rune page laid out as in the client, which keeps to the game's rules (a rune per
   row, two from the secondary tree, a shard per row); hovering a rune shows its tooltip like an item's, and whether its
-  adaptive damage is physical or magic for you. The page's address is a link to its scenario: the champion in the path and
-  the rest as a short code in the hash (`/zed/#…`, about 70 characters for a full build), none at the defaults.
+  adaptive damage is physical or magic for you. The page's address is a link to it: the champion in the path and the
+  rest as codes in the hash, a build's and, after `+`, what the builds share (`/zed/#…+…`, about 150 characters for a
+  full build; a fresh page is the path alone, `/zed/`). A code says all it means, as fields the app knows by number, so
+  a link from an older damagesim loses only what has since changed, and the address is written again as the app reads
+  it. The champion is in the code too, so a link to the site's root with a code finds its page, and a build's code
+  pasted under any champion's path opens at a fresh setup. A link that can't be read says so, its address kept.
+  Picking a champion opens their page, a fresh build with the level, target and settings as they are, and Back
+  returns to the page you left; the site's root shows a sample page.
   A champion's builds open as tabs in the top bar, each a copy of the one on screen to change: its items and runes are
   its own, the rest (level, target, settings) all of theirs, and the combo too unless each build has its own. Tabs are
-  dragged into order, renamed by a double-click and closed by × or Delete. The Result card compares them: a health bar
-  each, then a table of their items, totals, time to kill, gold and damage by source against the first build; folded,
-  the one on screen alone. The builds are in the address too, the first build's as if it were alone and the others
-  after it, a name only where it isn't its place's (`/ahri/#…~*…~….Burst`), so a link opens them as they are, and Back
-  undoes Reset or a tab closed.
+  dragged into order, renamed by a double-click (a build alone too) and closed by × or Delete. The Result card
+  compares them: a health bar each, then a table of their items, totals, time to kill, gold and damage by source
+  against the first build; or, the comparison turned off, the one on screen alone. The builds are in the address too,
+  each build's code in its order, the one on screen marked and a name only where it isn't its place's
+  (`/ahri/#…~*Burst=…~…+…`), so a link opens them as they are, and Back undoes Reset or a tab closed.
 * **AI agents:** an MCP server (simulate, compare, rank items, optimize builds and combo order) and a
   CLI with `--json` output.
 * **Accuracy:** every number comes from Riot's own game files for the patch (via CommunityDragon),

@@ -6,7 +6,7 @@ import { ChampIcon, Icon, sourceMark } from "./icons.tsx";
 import { ChampionPicker } from "./pickers.tsx";
 import { ItemTip, Markup, RuneTip, useHoverCard } from "./hover.tsx";
 import { Card, fmt } from "./common.tsx";
-import { pickChampion, type Set, type UIState } from "../state.ts";
+import type { Set, UIState } from "../state.ts";
 import { maxRanks, resolveRanks, type Sim } from "../../engine/sim.ts";
 import { renderTooltip } from "../../engine/tooltip.ts";
 import { describeChampion } from "../../engine/describe.ts";
@@ -15,7 +15,20 @@ import { getKit } from "../../kits/index.ts";
 import { DISTANCE, type Effect } from "../../engine/effects.ts";
 import type { KitOption } from "../../engine/kit-types.ts";
 
-export function AttackerPanel({ state, set, sim }: { state: UIState; set: Set; sim: Sim | null }) {
+/** `pick` opens another champion's page, `linkTo` is its address: the picker's options are links to them. */
+export function AttackerPanel({
+  state,
+  set,
+  sim,
+  pick,
+  linkTo,
+}: {
+  state: UIState;
+  set: Set;
+  sim: Sim | null;
+  pick: (id: string) => void;
+  linkTo: (id: string) => string;
+}) {
   const champ = DATA.champions[state.champion];
   const max = maxRanks(champ);
   // Triple Tonic's extra skill point (the sim's runes match the current state).
@@ -33,7 +46,7 @@ export function AttackerPanel({ state, set, sim }: { state: UIState; set: Set; s
   return (
     <Card title="Champion">
       <div className="stack" style={{ gap: 12 }}>
-        <ChampionPicker value={state.champion} onChange={(id) => set((s) => pickChampion(DATA, s, id))} />
+        <ChampionPicker value={state.champion} onChange={pick} href={linkTo} />
         <div className="row" style={{ flexWrap: "nowrap" }}>
           <span className="small secondary" style={{ width: 44 }}>
             Level

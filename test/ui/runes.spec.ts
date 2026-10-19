@@ -154,13 +154,12 @@ test("rune page rules", async ({ ui }) => {
     },
   );
   await step(
-    "Jinx without AP items: Adaptive Force's card gives AD",
+    "Jinx, a fresh build without AP items: Adaptive Force's card gives AD",
     async () => {
       await ui.unhover();
       const search = ui.card("Champion").getByRole("searchbox", { name: "Champion" });
       await search.fill("jinx");
       await search.press("Enter");
-      await ui.card("Items").getByRole("button", { name: "Clear" }).click();
     },
     async () => expect(await shardCard("Offense", "Adaptive Force")).toMatch(/^\+[\d.]+ Attack Damage$/),
   );
@@ -183,19 +182,27 @@ test("an empty page", async ({ ui }) => {
 
   await step(
     "load with nothing picked: the trees, no rune or shard pressed",
-    () => ui.open({ runes: { primary: "Domination", secondary: "Sorcery", picks: [], held: [], shards: [] } }),
+    () => ui.open({ runes: { primary: "Domination", secondary: "Sorcery", picks: [], shards: [null, null, null] } }),
     async () => {
       await expect(card.locator("[aria-pressed=true].rune-pick, [aria-pressed=true].shard-pick")).toHaveCount(0);
       await expect(card.locator(".shard-rows")).toHaveText("");
     },
   );
   await step(
-    "a flex shard: the other rows take their first",
+    "a flex shard: it alone, the other rows still empty",
     () => group("Flex shard").getByRole("button").last().click(),
     async () => {
-      const firsts = await Promise.all(shards.map(async (s) => (await attrs(group(s).getByRole("button"), "aria-label"))[0]));
       const last = (await attrs(group("Flex shard").getByRole("button"), "aria-label")).at(-1);
-      expect(await Promise.all(shards.map(picked))).toEqual([[firsts[0]], [last], [firsts[2]]]);
+      expect(await Promise.all(shards.map(picked))).toEqual([[], [last], []]);
+      expect((await ui.state()).runes.shards).toEqual([null, 5001, null]);
+    },
+  );
+  await step(
+    "picked again: its row empty too",
+    () => group("Flex shard").getByRole("button").last().click(),
+    async () => {
+      expect(await Promise.all(shards.map(picked))).toEqual([[], [], []]);
+      expect((await ui.state()).runes.shards).toEqual([null, null, null]);
     },
   );
 });

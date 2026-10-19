@@ -241,6 +241,41 @@ test("keys, drags and order", async ({ ui }) => {
   );
 });
 
+test("the crit buttons only with a step that can crit: none with Q W, back with an attack", async ({ ui }) => {
+  const { step } = ui;
+  const { card, key, crits } = parts(ui);
+  const group = card.getByRole("group", { name: "Crits" });
+  await step(
+    "load with Q W: no crit buttons",
+    () => ui.open({ combo: "Q W" }),
+    () => expect(group).toHaveCount(0),
+  );
+  await step(
+    "an attack added: the buttons, expected",
+    () => key("AA").click(),
+    async () => {
+      await expect(group).toHaveCount(1);
+      await expect(crits("expected")).toHaveAttribute("aria-pressed", "true");
+    },
+  );
+  await step(
+    "always, then Clear: gone again; an attack added is plain, nothing remembered",
+    async () => {
+      await crits("always").click();
+      await ui.settle();
+      expect((await ui.state()).combo).toBe("Q W AA!");
+      await card.getByRole("button", { name: "Clear" }).click();
+      await ui.settle();
+      await expect(group).toHaveCount(0);
+      await key("AA").click();
+    },
+    async () => {
+      expect((await ui.state()).combo).toBe("AA");
+      await expect(crits("expected")).toHaveAttribute("aria-pressed", "true");
+    },
+  );
+});
+
 test("crits and shorthand", async ({ ui }) => {
   const { step } = ui;
   const { card, key, shorthand, pencil, crits, steps } = parts(ui);
@@ -327,7 +362,7 @@ test("crits and shorthand", async ({ ui }) => {
   );
   for (const [how, leave] of [
     ["Escape", () => shorthand.press("Escape")],
-    ["a click elsewhere", () => ui.page.locator("header h1").click()],
+    ["a click elsewhere", () => ui.page.locator("header .badge").click()],
   ] as const)
     await step(
       `the pencil, ${how}: the steps`,
@@ -342,7 +377,7 @@ test("crits and shorthand", async ({ ui }) => {
     async () => {
       await pencil.click();
       await shorthand.fill("E Q W R AA R ???");
-      await ui.page.locator("header h1").click();
+      await ui.page.locator("header .badge").click();
     },
     async () => expect((await ui.state()).combo).toBe("Q W E R AA AA ignite"),
   );
@@ -390,7 +425,7 @@ test("variants, numbers and refits", async ({ ui }) => {
   );
   for (const [how, close] of [
     ["a click on it", () => variant.click()],
-    ["a click outside", () => page.locator("header h1").click()],
+    ["a click outside", () => page.locator("header .badge").click()],
   ] as const)
     await step(
       `${how} closes the menu`,
@@ -597,16 +632,16 @@ test.describe(() => {
       },
     );
     await step(
-      "back to Yunara: her combo as she had it, her R rank",
-      () => pickChampion(ui, "yunara"),
+      "Back to Yunara: her combo as she had it, her R rank",
+      () => ui.page.goBack(),
       async () => {
         expect(await steps()).toEqual(["Q", "R", "W", "E", "AA"]);
         await expect(rank("R")).toHaveValue("1");
       },
     );
     await step(
-      "back to Katarina: hers, P and all",
-      () => pickChampion(ui, "katarina"),
+      "Forward to Katarina: hers, P and all",
+      () => ui.page.goForward(),
       async () => expect(await steps()).toEqual(["Q", "R", "W", "E", "AA", "P"]),
     );
     await step(

@@ -273,14 +273,10 @@ export function ComboBuilder({
   const energizer = sim?.items.find((i) => ENERGIZED_ITEMS.includes(i.id));
   const hasP = hasPassiveStep(kit);
   // Crits aren't a setting: the buttons mark the steps that can crit (AA!, Q?), and show how they're
-  // marked: none pressed when they differ, the last pick while no step can crit. New steps follow.
-  const [lastCrits, setLastCrits] = useState<CritMode>("expected");
-  const crits = critMarking(steps, kit) ?? lastCrits;
-  const setCrits = (mode: CritMode) => {
-    setLastCrits(mode);
-    commit(steps.map((st) => markCrit(st, kit, mode)));
-  };
-  const follow = (st: ComboStep) => (crits === "mixed" ? st : markCrit(st, kit, crits));
+  // marked, none pressed when they differ; with no such step there are no buttons. New steps follow.
+  const crits = critMarking(steps, kit);
+  const setCrits = (mode: CritMode) => commit(steps.map((st) => markCrit(st, kit, mode)));
+  const follow = (st: ComboStep) => (crits === "mixed" || crits === null ? st : markCrit(st, kit, crits));
   const add = (st: ComboStep) => commit([...steps, follow(st)]);
   // An item step's item; none when it isn't found.
   const stepItem = (st: ComboStep) => {
@@ -395,19 +391,23 @@ export function ComboBuilder({
       }
       right={
         <div className="row" style={{ gap: 6 }}>
-          <span className="small secondary">Crits</span>
-          <div
-            className="segmented small"
-            role="group"
-            aria-label="Crits"
-            title="Expected: hits that can crit deal their average damage. Always (!) or never (?): marks every step that can crit."
-          >
-            {(["expected", "always", "never"] as const).map((c) => (
-              <button key={c} aria-pressed={crits === c} onClick={() => setCrits(c)}>
-                {c}
-              </button>
-            ))}
-          </div>
+          {crits !== null && (
+            <>
+              <span className="small secondary">Crits</span>
+              <div
+                className="segmented small"
+                role="group"
+                aria-label="Crits"
+                title="Expected: hits that can crit deal their average damage. Always (!) or never (?): marks every step that can crit."
+              >
+                {(["expected", "always", "never"] as const).map((c) => (
+                  <button key={c} aria-pressed={crits === c} onClick={() => setCrits(c)}>
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
           <button className="btn small" onClick={() => commit([])}>
             Clear
           </button>

@@ -1,7 +1,8 @@
 // The Champion card: the champion search, level and ranks, ability cards, the parameters section, and
-// each champion's setup coming back with it.
+// another champion's page, Back returning.
 
-import { test, expect, addressOf, attrs, num, texts, type UI } from "./ui.ts";
+import { RESET_STATE } from "../../src/web/state.ts";
+import { test, expect, attrs, num, texts, type UI } from "./ui.ts";
 
 const parts = (ui: UI) => {
   const card = ui.card("Champion");
@@ -328,11 +329,17 @@ test("ability cards and parameters", async ({ ui }) => {
     },
   );
   await step(
-    "back to Vex: hers as she had them",
+    "Vex again: a fresh page of hers, the distance kept, Doom ready as to begin with; Back: hers as she had them",
     async () => {
       await search.click();
       await search.fill("vex");
       await search.press("Enter");
+      await ui.settle();
+      expect((await ui.state()).options).toEqual({ distance: 500 });
+      await expect(params.getByRole("checkbox", { name: "Doom ready at start" })).toBeChecked();
+      await ui.page.goBack();
+      await ui.settle();
+      await ui.page.goBack();
     },
     async () => {
       expect((await ui.state()).options).toEqual({ doom: 0, distance: 500 });
@@ -341,7 +348,7 @@ test("ability cards and parameters", async ({ ui }) => {
   );
 });
 
-test("each champion's state", async ({ ui }) => {
+test("another champion: a page of their own with a fresh build and the rest as it is, Back and Forward between them", async ({ ui }) => {
   const { step } = ui;
   const { search, level } = parts(ui);
   const pick = async (name: string) => {
@@ -354,6 +361,7 @@ test("each champion's state", async ({ ui }) => {
   const undo = items.getByRole("button", { name: "Undo" });
   const primary = (tree: string) => ui.card("Runes").getByRole("group", { name: "Primary tree", exact: true }).getByRole("button", { name: tree });
   const target = (mode: string) => ui.card("Target").getByRole("group", { name: "Target" }).getByRole("button", { name: mode });
+  const empty = [null, null, null, null, null, null];
   let ahri = {} as Awaited<ReturnType<UI["state"]>>;
   let zed = ahri;
 
@@ -376,10 +384,10 @@ test("each champion's state", async ({ ui }) => {
     },
   );
   await step(
-    "Zed, not had before: what's on screen, nothing to undo",
+    "Zed: a fresh build, the level and target as they are, nothing to undo",
     () => pick("zed"),
     async () => {
-      expect(await ui.state()).toEqual({ ...ahri, champion: "Zed" });
+      expect(await ui.state()).toEqual({ ...ahri, champion: "Zed", items: empty, runes: RESET_STATE.runes });
       await expect(undo).toBeDisabled();
     },
   );
@@ -395,33 +403,25 @@ test("each champion's state", async ({ ui }) => {
     },
     async () => {
       zed = await ui.state();
-      expect(zed).toMatchObject({ items: [3142, 3020, null, null, null, null], runes: { primary: "Domination" }, level: 1, target: { mode: "bruiser" } });
+      expect(zed).toMatchObject({ items: [3142, null, null, null, null, null], runes: { primary: "Domination" }, level: 1, target: { mode: "bruiser" } });
     },
   );
   await step(
-    "back to Ahri: all as she had it, nothing to undo",
-    () => pick("ahri"),
+    "Back: Ahri's page as she had it, nothing to undo",
+    () => ui.page.goBack(),
     async () => {
       expect(await ui.state()).toEqual(ahri);
       await expect(undo).toBeDisabled();
     },
   );
   await step(
-    "back to Zed: all as he had it",
-    () => pick("zed"),
+    "Forward: Zed's as he had it",
+    () => ui.page.goForward(),
     async () => expect(await ui.state()).toEqual(zed),
   );
   await step(
-    "Zed at 20, left by a link to Lux's scenario, then picked: at 20, as the link left him",
-    async () => {
-      await level.press("End");
-      zed = await ui.state();
-      expect(zed.level).toBe(20);
-      await ui.page.goto(addressOf({ champion: "Lux" }));
-      await ui.settle();
-      await expect(search).toHaveValue("Lux");
-      await pick("zed");
-    },
-    async () => expect(await ui.state()).toEqual(zed),
+    "Ahri picked from it: a fresh build of hers with his level and target, not her page as it was",
+    () => pick("ahri"),
+    async () => expect(await ui.state()).toEqual({ ...zed, champion: "Ahri", items: empty, runes: RESET_STATE.runes }),
   );
 });

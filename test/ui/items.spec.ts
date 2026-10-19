@@ -142,7 +142,7 @@ test("shop and filters", async ({ ui }) => {
     () => expect(shop).toHaveCount(0),
   );
   for (const [how, close] of [
-    ["a click outside", () => page.locator("header h1").click()],
+    ["a click outside", () => page.locator("header .badge").click()],
     ["a click on its slot", () => slots.nth(4).click()],
     ["its ✕", () => shop.getByRole("button", { name: "Close item picker" }).click()],
   ] as const)

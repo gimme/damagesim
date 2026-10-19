@@ -12,11 +12,11 @@ import { Compared } from "./compare.tsx";
 import type { Tabs } from "./tabs.tsx";
 import type { UIState } from "../state.ts";
 
-/** The build on screen's result; with more builds, theirs too under it, unless they're folded away (see Compared). */
+/** The build on screen's result; with more builds, theirs too under it, while they're compared (see Compared). */
 export function Summary({ r, tabs, state }: { r: SimResult; tabs: Tabs; state: UIState }) {
   const [by, setBy] = useState<"time" | "size">("time");
   const n = tabs.page.builds.length;
-  const folded = tabs.page.folded;
+  const compare = tabs.page.compare;
   const controls = (
     <div className="row">
       <span className="muted small" style={{ flex: 1 }}>
@@ -40,9 +40,9 @@ export function Summary({ r, tabs, state }: { r: SimResult; tabs: Tabs; state: U
           {n > 1 && (
             <button
               className="btn small ghost compare-fold"
-              aria-expanded={!folded}
-              title={folded ? `Show the ${n} builds compared` : "This build alone"}
-              onClick={() => tabs.setFolded(!folded)}
+              aria-expanded={compare}
+              title={compare ? "This build alone" : `Show the ${n} builds compared`}
+              onClick={() => tabs.setCompare(!compare)}
             >
               <Chevron />
               {n} builds
@@ -74,7 +74,7 @@ export function Summary({ r, tabs, state }: { r: SimResult; tabs: Tabs; state: U
           </div>
         )}
       </div>
-      {n > 1 && !folded ? (
+      {n > 1 && compare ? (
         <Compared tabs={tabs} state={state} result={r} by={by} controls={controls} />
       ) : (
         <>

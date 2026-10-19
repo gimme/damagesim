@@ -1,15 +1,12 @@
 // Rune pages: which runes a page holds together, and how picking a rune or a tree changes one.
 //
 // A page has a primary tree (a keystone and one rune from each of its three rows), a secondary tree
-// (two runes from different rows, no keystone) and a stat shard from each of three rows. Picking
-// keeps a page whole the way the client does: a rune takes the place of the one in its row, and a
-// secondary rune in a third row takes the place of the older of the two.
-//
-// A tree remembers a rune per row: the page shows those that fit its place and holds the rest (the
-// keystone and third rune of a primary tree that becomes secondary, a secondary rune pushed out by
-// one in a third row, every rune of a tree taken off the page). When the tree changes place again it
-// shows what fits there. Picking a rune in a row replaces what the tree remembers for it, and
-// unpicking one forgets it.
+// (two runes from different rows, no keystone) and a stat shard from each of three rows, any of them
+// left empty. Its picks are a set, kept sorted by id, so two pages alike are alike however they were
+// made; which pick is the older, where that matters, is told by the order the caller remembers.
+// Picking keeps a page whole the way the client does: a rune takes the place of the one in its row,
+// and a secondary rune in a third row takes the place of the older of the two. A tree that leaves
+// the page takes its picks with it; one that changes place keeps those that fit there.
 
 import type { RuneData } from "./data-types.ts";
 import type { GameData } from "./gamedata.ts";
@@ -17,12 +14,10 @@ import type { GameData } from "./gamedata.ts";
 export interface RunePage {
   primary: string;
   secondary: string;
-  /** The runes the page shows from its two trees, oldest pick first. */
+  /** The runes picked in its two trees, by id, sorted. */
   picks: number[];
-  /** The runes trees remember that the page doesn't show, oldest first; one per row of a tree. */
-  held: number[];
-  /** One per shard row: offense, flex, defense. */
-  shards: number[];
+  /** One per shard row (offense, flex, defense), null for none. */
+  shards: (number | null)[];
 }
 
 const runeById = (data: GameData, id: number) => data.runes.find((r) => r.id === id);
@@ -30,7 +25,9 @@ const runeById = (data: GameData, id: number) => data.runes.find((r) => r.id ===
 /** "a, b and c". */
 const listJoin = (xs: string[], last = "and") => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} ${last} ${xs[xs.length - 1]}` : xs.join(""));
 
-/** The page's picks in a tree, oldest first. */
+const byId = (a: number, b: number) => a - b;
+
+/** The page's picks in a tree. */
 export function treePicks(data: GameData, page: RunePage, tree: string): number[] {
   return page.picks.filter((id) => runeById(data, id)?.tree === tree);
 }
@@ -41,77 +38,82 @@ export function pageRunes(data: GameData, page: RunePage): number[] {
     const r = runeById(data, id);
     return r ? (r.tree === page.primary ? 0 : 10) + r.row : 99;
   };
-  return [...page.picks].sort((a, b) => rank(a) - rank(b)).concat(page.shards);
+  return [...page.picks].sort((a, b) => rank(a) - rank(b) || a - b).concat(page.shards.filter((x): x is number => x != null));
 }
 
 /**
- * The pick that picking `id` takes the place of: the one in its row, or in the secondary tree the
- * older of two; null if none; undefined if `id` can't go on the page (another tree's, or a keystone
- * in the secondary tree).
+ * Whether `id` can go on the page where it is: a rune of its primary tree, or of its secondary tree
+ * but a keystone.
  */
-function replacedBy(data: GameData, page: RunePage, id: number): number | null | undefined {
+function fits(data: GameData, page: RunePage, id: number): boolean {
   const r = runeById(data, id);
-  if (!r || (r.tree !== page.primary && r.tree !== page.secondary) || (r.tree === page.secondary && r.row === 0)) return undefined;
-  const same = treePicks(data, page, r.tree).map((x) => runeById(data, x)!);
-  const sameRow = same.find((x) => x.row === r.row);
-  if (sameRow) return sameRow.id;
-  if (r.tree === page.secondary && same.length >= 2) return same[0].id;
-  return null;
+  return !!r && (r.tree === page.primary || (r.tree === page.secondary && r.row > 0));
 }
 
-/** The page with `id` picked, or unpicked if it was. */
-export function pickRune(data: GameData, page: RunePage, id: number): RunePage {
+/**
+ * A page kept whole: picks the data knows that fit where they are, sorted; a shard in each row the
+ * row offers, else none. What a code holds is settled so as it's read.
+ */
+export function settledPage(data: GameData, page: RunePage): RunePage {
+  const picks = [...new Set(page.picks.filter((id) => fits(data, page, id)))].sort(byId);
+  const shards = data.runePage.shards.map((row, i) => (page.shards[i] != null && row.options.includes(page.shards[i]!) ? page.shards[i] : null));
+  return { primary: page.primary, secondary: page.secondary, picks, shards };
+}
+
+/** Of `ids`, the older by `order` (ids oldest first, one not there older than any), then the one in the earlier row. */
+function oldest(data: GameData, ids: number[], order: number[]): number {
+  const age = (id: number) => order.indexOf(id);
+  return [...ids].sort((a, b) => age(a) - age(b) || runeById(data, a)!.row - runeById(data, b)!.row)[0];
+}
+
+/**
+ * The page with `id` picked, or unpicked if it was. A pick takes the place of the one in its row; in
+ * the secondary tree with two picks in other rows, of the older by `order` (see oldest). One that
+ * can't go on the page (another tree's, a keystone in the secondary tree) leaves it as it is.
+ */
+export function pickRune(data: GameData, page: RunePage, id: number, order: number[] = []): RunePage {
   if (page.picks.includes(id)) return { ...page, picks: page.picks.filter((x) => x !== id) };
-  const out = replacedBy(data, page, id);
-  if (out === undefined) return page;
+  if (!fits(data, page, id)) return page;
   const r = runeById(data, id)!;
-  // The tree forgets what it had in the row, and holds a rune that only made room in the secondary tree.
-  const held = page.held.filter((x) => {
-    const h = runeById(data, x);
-    return !(h?.tree === r.tree && h.row === r.row);
-  });
-  const madeRoom = out !== null && runeById(data, out)!.row !== r.row;
-  return { ...page, picks: [...page.picks.filter((x) => x !== out), id], held: madeRoom ? [...held, out] : held };
+  const same = treePicks(data, page, r.tree);
+  const sameRow = same.find((x) => runeById(data, x)!.row === r.row);
+  const out = sameRow ?? (r.tree === page.secondary && same.length >= 2 ? oldest(data, same, order) : null);
+  return { ...page, picks: [...page.picks.filter((x) => x !== out), id].sort(byId) };
+}
+
+/** The page with `id` as the shard of row `i`, or none if it was. */
+export function pickShard(page: RunePage, i: number, id: number): RunePage {
+  return { ...page, shards: page.shards.map((x, j) => (j === i ? (x === id ? null : id) : x)) };
 }
 
 /** The page with `tree` as its primary tree; if that was the secondary tree, the two swap. */
-export function choosePrimary(data: GameData, page: RunePage, tree: string): RunePage {
+export function choosePrimary(data: GameData, page: RunePage, tree: string, order: number[] = []): RunePage {
   if (tree === page.primary) return page;
-  return arrange(data, page, tree, tree === page.secondary ? page.primary : page.secondary);
+  return arrange(data, page, tree, tree === page.secondary ? page.primary : page.secondary, order);
 }
 
 /** The page with `tree` as its secondary tree; if that was the primary tree, the two swap. */
-export function chooseSecondary(data: GameData, page: RunePage, tree: string): RunePage {
+export function chooseSecondary(data: GameData, page: RunePage, tree: string, order: number[] = []): RunePage {
   if (tree === page.secondary) return page;
-  if (tree === page.primary) return choosePrimary(data, page, page.secondary);
-  return arrange(data, page, page.primary, tree);
+  if (tree === page.primary) return choosePrimary(data, page, page.secondary, order);
+  return arrange(data, page, page.primary, tree, order);
 }
 
 /**
- * The page with these trees. A tree that changes place shows the runes it remembers that fit there
- * (all as the primary tree; as the secondary the newest two, no keystone) and holds the rest; a tree
- * taken off the page holds all of its runes.
+ * The page with these trees. A tree that changes place keeps the picks that fit there: all as the
+ * primary tree; as the secondary, no keystone and the newest two by `order` (see oldest). A tree
+ * that leaves the page takes its picks with it; one that comes on starts empty.
  */
-function arrange(data: GameData, page: RunePage, primary: string, secondary: string): RunePage {
+function arrange(data: GameData, page: RunePage, primary: string, secondary: string, order: number[]): RunePage {
   const treeOf = (id: number) => runeById(data, id)?.tree;
-  const picks: number[] = [];
-  let held = page.held;
-  for (const [tree, was, isPrimary] of [
-    [primary, page.primary, true],
-    [secondary, page.secondary, false],
-  ] as const) {
-    const shown = treePicks(data, page, tree);
-    if (tree === was) {
-      picks.push(...shown);
-      continue;
-    }
-    const runes = [...held.filter((id) => treeOf(id) === tree), ...shown];
-    const show = isPrimary ? runes : runes.filter((id) => runeById(data, id)!.row > 0).slice(-2);
-    picks.push(...show);
-    held = [...held.filter((id) => treeOf(id) !== tree), ...runes.filter((id) => !show.includes(id))];
+  let picks = page.picks.filter((id) => treeOf(id) === primary || treeOf(id) === secondary);
+  let minors = picks.filter((id) => treeOf(id) === secondary && runeById(data, id)!.row > 0);
+  while (minors.length > 2) {
+    const out = oldest(data, minors, order);
+    minors = minors.filter((id) => id !== out);
   }
-  const leaving = page.picks.filter((id) => treeOf(id) !== primary && treeOf(id) !== secondary);
-  return { ...page, primary, secondary, picks, held: [...held, ...leaving] };
+  picks = picks.filter((id) => treeOf(id) === primary || minors.includes(id)).sort(byId);
+  return { ...page, primary, secondary, picks };
 }
 
 /** Whether each shard can take its own row, among rows offering it. */

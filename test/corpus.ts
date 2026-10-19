@@ -4,11 +4,11 @@
 
 import type { GameData } from "../src/engine/gamedata.ts";
 import type { Scenario } from "../src/engine/sim.ts";
-import { DEFAULT_STATE, toScenario } from "../src/web/state.ts";
+import { DEMO_STATE, toScenario } from "../src/web/state.ts";
 import { SNAPSHOT_CASES } from "./snapshot-cases.ts";
 
 export function cases(data: GameData): Record<string, Omit<Scenario, "champion">> {
-  const { champion: _, ...app } = toScenario(data, DEFAULT_STATE);
+  const { champion: _, ...app } = toScenario(data, DEMO_STATE);
   return {
     ...SNAPSHOT_CASES,
     // The page as it opens: Luden's Echo and Sorcerer's Shoes, Electrocute, a squishy of the same level.

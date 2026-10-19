@@ -2,11 +2,11 @@
 // build its own (see tabs.ts), all in the page's address. + opens a copy of it in a new tab at
 // the end, to change and to compare with it; a tab is dragged to another place, renamed by a
 // double-click and closed by its × or, focused, by Delete, the focus then on the tab in its place.
-// With one build, there's only "+ Build".
+// A build alone has its tab too, to name it.
 
 import { useEffect, useMemo, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { DATA } from "../data.ts";
-import { encodeSetup, recallPage, resetState, settled, withQuestBoots, type UIState } from "../state.ts";
+import { resetState, settled, withQuestBoots, type UIState } from "../state.ts";
 import { addTab, closeTab, moveTab, renameTab, selectTab, setOwnCombos, single, track, withBuild, type Page } from "../tabs.ts";
 import { landInLines, useDragOrder } from "./drag.tsx";
 
@@ -16,7 +16,7 @@ export interface Tabs {
   page: Page;
   /** Whether there's more than one build. */
   many: boolean;
-  /** Set by a change Back should undo (Reset, a tab closed): the address it leaves gets a history entry of its own. */
+  /** Set by a change Back should undo (Reset, a tab closed, another champion): the address it leaves gets a history entry of its own. */
   push: RefObject<boolean>;
   /** A page from an address, whose state the caller puts on screen with it (see App's follow). */
   load: (page: Page) => void;
@@ -26,22 +26,22 @@ export interface Tabs {
   move: (from: number, to: number) => void;
   rename: (i: number, name: string) => void;
   setOwnCombos: (own: boolean) => void;
-  /** The comparison folded away in the Result card, or back. */
-  setFolded: (folded: boolean) => void;
+  /** The Result card comparing the builds, or the one on screen alone. */
+  setCompare: (compare: boolean) => void;
   /** A fresh page of the champion: one build, no items, runes or combo (see resetState). */
   reset: () => void;
+  /** Another champion's page: the state with the champion picked (see pickChampion) as its one build, with a history entry of its own, so Back returns to this page. */
+  pick: (s: UIState) => void;
   /** The tier 3 boots setting on or off, every build's pair of boots its counterpart (withQuestBoots), and those excluded (settled). */
   setQuestBoots: (on: boolean) => void;
 }
 
-export function useTabs(state: UIState, setState: Dispatch<SetStateAction<UIState>>, initial: Page | null): Tabs {
-  const [kept, setKept] = useState(() => initial ?? single(state));
-  // Another champion picked: its page as you left it, as pickChampion put its build on screen, or
-  // that build alone.
+export function useTabs(state: UIState, setState: Dispatch<SetStateAction<UIState>>, initial: Page): Tabs {
+  const [kept, setKept] = useState(initial);
+  // The page is its champion's: another champion's state put on screen some other way than pick has a page of its own.
   let base = kept;
   if (kept.champion !== state.champion) {
-    const back = recallPage(DATA, state.champion);
-    base = back && encodeSetup(DATA, back.state) === encodeSetup(DATA, state) ? back.page : single(state);
+    base = single(state);
     setKept(base);
   }
   const page = useMemo(() => track(base, state), [base, state]);
@@ -67,10 +67,15 @@ export function useTabs(state: UIState, setState: Dispatch<SetStateAction<UIStat
     move: (from, to) => setKept(moveTab(page, from, to)),
     rename: (i, name) => setKept(renameTab(page, i, name)),
     setOwnCombos: (own) => setKept(setOwnCombos(page, own, state.combo)),
-    setFolded: (folded) => setKept({ ...page, folded }),
+    setCompare: (compare) => setKept({ ...page, compare }),
     reset: () => {
       push.current = true;
       const s = resetState(state);
+      setKept(single(s));
+      setState(s);
+    },
+    pick: (s) => {
+      push.current = true;
       setKept(single(s));
       setState(s);
     },
@@ -122,25 +127,13 @@ export function BuildTabs({ tabs }: { tabs: Tabs }) {
     landAt: landInLines,
     move: tabs.move,
   });
-  const add = "Copy this build to a new tab";
-  // After Delete, the tab in the closed one's place focused, to go on; with one left, + Build.
+  // After Delete, the tab in the closed one's place focused, to go on.
   const refocus = useRef<number | null>(null);
-  const alone = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const i = refocus.current;
     refocus.current = null;
-    if (i == null) return;
-    if (!tabs.many) alone.current?.focus();
-    else order.box.current?.children[i]?.querySelector<HTMLElement>("button[aria-pressed]")?.focus();
+    if (i != null) order.box.current?.children[i]?.querySelector<HTMLElement>("button[aria-pressed]")?.focus();
   });
-  if (!tabs.many)
-    return (
-      <div className="build-tab-bar">
-        <button ref={alone} className="btn small build-tab-first" title={add} onClick={tabs.add}>
-          <Plus /> Build
-        </button>
-      </div>
-    );
   return (
     <div className="build-tab-bar">
       <div ref={order.box} className="build-tabs" role="group" aria-label="Builds">
@@ -157,11 +150,11 @@ export function BuildTabs({ tabs }: { tabs: Tabs }) {
             ) : (
               <button
                 aria-pressed={i === page.active}
-                title={`${i === page.active ? b.name : `Open ${b.name}`}; drag it to move it, double-click to rename it`}
+                title={`${i === page.active ? b.name : `Open ${b.name}`}; ${tabs.many ? "drag it to move it, " : ""}double-click to rename it`}
                 onClick={() => tabs.select(i)}
                 onDoubleClick={() => setRenaming(b.id)}
                 onKeyDown={(e) => {
-                  if (e.key !== "Delete" && e.key !== "Backspace") return;
+                  if ((e.key !== "Delete" && e.key !== "Backspace") || !tabs.many) return;
                   e.preventDefault();
                   refocus.current = Math.min(i, page.builds.length - 2);
                   tabs.close(i);
@@ -170,12 +163,14 @@ export function BuildTabs({ tabs }: { tabs: Tabs }) {
                 <span className="name">{b.name}</span>
               </button>
             )}
-            <button className="build-tab-close" aria-label={`Close ${b.name}`} title={`Close ${b.name} (Back brings it back)`} onClick={() => tabs.close(i)}>
-              ×
-            </button>
+            {tabs.many && (
+              <button className="build-tab-close" aria-label={`Close ${b.name}`} title={`Close ${b.name} (Back brings it back)`} onClick={() => tabs.close(i)}>
+                ×
+              </button>
+            )}
           </span>
         ))}
-        <button className="build-tab-add" aria-label="New build" title={add} onClick={tabs.add}>
+        <button className="build-tab-add" aria-label="New build" title="Copy this build to a new tab" onClick={tabs.add}>
           <Plus />
         </button>
       </div>

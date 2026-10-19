@@ -1,10 +1,10 @@
 // Tabs: a champion's builds, a tab each, on one page with what they share: the champion, its
-// level, ranks and parameters, the target and the settings. A build is its items and runes, how many
-// items Item value ranks for it and the item it ranks in place of, and its combo where the page's
-// builds have each their own (ownCombos); otherwise they share one. What's on
-// screen is the active build with what's shared: a change on screen to the build is its own, one to
-// the rest is all of theirs. All of it is in the page's address (see encodePage). Nothing here reads
-// the game data.
+// level, ranks and parameters, the target, the settings and whether the Result card compares them. A
+// build is its items and runes, how many items Item value ranks for it and the item it ranks in place
+// of, and its combo where the page's builds have each their own (ownCombos); otherwise they share
+// one. What's on screen is the active build with what's shared: a change on screen to the build is
+// its own, one to the rest is all of theirs. All of it is in the page's address (see encodePage).
+// Nothing here reads the game data.
 
 import type { RunePage } from "../engine/rune-page.ts";
 import type { UIState } from "./state.ts";
@@ -31,8 +31,8 @@ export interface Page {
   active: number;
   /** Whether each build has its own combo; false: the one on screen is all of theirs. */
   ownCombos: boolean;
-  /** Whether the Result card has the one on screen alone, the comparison folded away. */
-  folded: boolean;
+  /** Whether the Result card compares the builds; else it has the one on screen alone. */
+  compare: boolean;
 }
 
 /** The name a build in place i has by default ("Build 1" the first's): the one a page gives a new build, the lowest such not taken. */
@@ -56,7 +56,7 @@ const buildOf = (s: UIState, id: number, name: string): Build => ({
 });
 
 /** A page of one build: the state's. */
-export const single = (s: UIState): Page => ({ champion: s.champion, builds: [buildOf(s, 1, nameAt(0))], active: 0, ownCombos: false, folded: false });
+export const single = (s: UIState): Page => ({ champion: s.champion, builds: [buildOf(s, 1, nameAt(0))], active: 0, ownCombos: false, compare: true });
 
 /** The screen as it is now: the active build's items, runes, combo, and Item value's count of items and item to replace. */
 export function track(page: Page, s: UIState): Page {

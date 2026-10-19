@@ -7,7 +7,7 @@ import { ChampionPicker, ItemPicker } from "./pickers.tsx";
 import { ItemTip, useHoverCard } from "./hover.tsx";
 import { Card, NumberField, fmt } from "./common.tsx";
 import { TARGET_MODES, isQuestBoots, type Set, type TargetMode, type TargetState, type TargetStats, type UIState } from "../state.ts";
-import { ITEMS_BY_LEVEL_RULE, TARGET_PRESETS, isTargetPreset, itemsAtLevel, levelForItems, presetShardHp, type TargetPreset } from "../../engine/presets.ts";
+import { ITEMS_BY_LEVEL_RULE, TARGET_PRESETS, itemsAtLevel, levelForItems, presetShardHp, type TargetPreset } from "../../engine/presets.ts";
 import type { SimResult } from "../../engine/sim.ts";
 import { findItem } from "../../engine/gamedata.ts";
 
@@ -33,13 +33,35 @@ function splitStats(t: SimResult["target"]): { base: TargetStats; bonus: TargetS
   return { base: { hp: total.hp - bonus.hp, armor: total.armor - bonus.armor, mr: total.mr - bonus.mr }, bonus };
 }
 
+/**
+ * The target in another mode: what the mode takes, the level and health from the one you had where
+ * they carry over; Custom starts from the numbers of the target you had, Champion from Jinx with an
+ * Infinity Edge. What the mode you leave had of its own goes with it.
+ */
+function targetIn(t: TargetState, mode: TargetMode, resolved?: SimResult["target"]): TargetState {
+  if (mode === t.mode) return t;
+  const hp = { hpPercent: t.hpPercent, damageReduction: t.damageReduction };
+  const levelDiff = t.mode === "custom" ? 0 : t.levelDiff;
+  if (mode === "custom")
+    return { mode, ...(resolved ? splitStats(resolved) : { base: { hp: 1600, armor: 60, mr: 40 }, bonus: { hp: 400, armor: 20, mr: 10 } }), ...hp };
+  if (mode === "champion") return { mode, levelDiff, champion: "Jinx", items: [3031], ...hp };
+  return { mode, levelDiff, ...hp };
+}
+
+/** A preset target with `build` in place of its typical one, or with the typical one for undefined. */
+function withPresetBuild(t: TargetState, build: (number | null)[] | undefined): TargetState {
+  if (t.mode === "champion" || t.mode === "custom") return t;
+  const { build: _, ...rest } = t;
+  return build ? { ...rest, build } : rest;
+}
+
 export function TargetPanel({ state, set, resolved }: { state: UIState; set: Set; resolved?: SimResult["target"] }) {
   const t = state.target;
-  const upd = (p: Partial<TargetState>) => set((s) => ({ ...s, target: { ...s.target, ...p } }));
-  const preset = isTargetPreset(t.mode) ? t.mode : null;
-  const targetLevel = Math.max(1, Math.min(20, state.level + t.levelDiff));
-  // Custom starts from the numbers of the target you had.
-  const pick = (mode: TargetMode) => upd(mode === "custom" && t.mode !== "custom" && resolved ? { mode, ...splitStats(resolved) } : { mode });
+  const upd = (p: object) => set((s) => ({ ...s, target: { ...s.target, ...p } as TargetState }));
+  const asPreset = t.mode !== "champion" && t.mode !== "custom" ? t : null;
+  const preset = asPreset?.mode ?? null;
+  const targetLevel = Math.max(1, Math.min(20, state.level + (t.mode === "custom" ? 0 : t.levelDiff)));
+  const pick = (mode: TargetMode) => set((s) => ({ ...s, target: targetIn(s.target, mode, resolved) }));
   const stats = t.mode === "custom" ? { base: t.base, bonus: t.bonus } : resolved && splitStats(resolved);
   const shardHp = preset ? Math.round(presetShardHp(DATA, preset, targetLevel)) : 0;
   return (
@@ -71,13 +93,13 @@ export function TargetPanel({ state, set, resolved }: { state: UIState; set: Set
             </div>
           </div>
         )}
-        {preset && (
+        {asPreset && (
           <PresetItems
-            preset={preset}
+            preset={asPreset.mode}
             level={targetLevel}
-            build={t.builds[preset]}
+            build={asPreset.build}
             questBoots={state.settings.questBoots}
-            onChange={(b) => upd({ builds: { ...t.builds, [preset]: b } })}
+            onChange={(b) => set((s) => ({ ...s, target: withPresetBuild(s.target, b) }))}
           />
         )}
         {t.mode === "champion" && (

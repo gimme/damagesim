@@ -107,7 +107,7 @@ test("presets and their builds", async ({ ui }) => {
       await expect(items).toHaveCount(count + 1);
       await expect(later).toHaveCount(0);
       await expect(card.getByRole("button", { name: "Use the typical build" })).toBeVisible();
-      expect((await ui.state()).target.builds.squishy).toHaveLength(count + 1);
+      expect(((await ui.state()).target as { build?: unknown[] }).build).toHaveLength(count + 1);
     },
   );
   await step(
@@ -119,7 +119,7 @@ test("presets and their builds", async ({ ui }) => {
     "Use the typical build",
     () => card.getByRole("button", { name: "Use the typical build" }).click(),
     async () => {
-      expect((await ui.state()).target.builds).toEqual({});
+      expect(((await ui.state()).target as { build?: unknown[] }).build).toBeUndefined();
       expect(await later.count()).toBeGreaterThan(0);
     },
   );
@@ -138,9 +138,12 @@ test("presets and their builds", async ({ ui }) => {
     () => expect(card.getByRole("button", { name: "Remove Thornmail" })).toHaveCount(0),
   );
   await step(
-    "the squishy's still has it",
+    "Squishy again: its typical build, the one you made gone with the switch",
     () => mode("Squishy").click(),
-    () => expect(card.getByRole("button", { name: "Remove Thornmail" })).toBeVisible(),
+    async () => {
+      await expect(card.getByRole("button", { name: "Remove Thornmail" })).toHaveCount(0);
+      expect(await later.count()).toBeGreaterThan(0);
+    },
   );
   let total = 0;
   await step(
@@ -193,7 +196,7 @@ test("champion and custom numbers", async ({ ui }) => {
     },
     async () => {
       await expect(search).toHaveValue("Malphite");
-      expect((await ui.state()).target.champion).toBe("Malphite");
+      expect(((await ui.state()).target as { champion?: string }).champion).toBe("Malphite");
     },
   );
   let first = "";
@@ -270,7 +273,7 @@ test("champion and custom numbers", async ({ ui }) => {
   await step(
     "total magic resist 120 typed: nothing yet",
     () => field("Total magic resist").fill("120"),
-    async () => expect((await ui.state()).target.bonus.mr).toBe(mr[1]),
+    async () => expect(((await ui.state()).target as { bonus: { mr: number } }).bonus.mr).toBe(mr[1]),
   );
   await step(
     "Enter: the base kept, the bonus the rest",

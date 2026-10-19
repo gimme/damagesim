@@ -9,7 +9,18 @@ import type { Sim } from "../../engine/sim.ts";
 import { builtFrom } from "../../engine/analysis.ts";
 import { search } from "../search.ts";
 
-export function ChampionPicker({ value, onChange, label = "Champion" }: { value: string; onChange: (id: string) => void; label?: string }) {
+/** With `href`, each option is a link to the champion's page: a plain click picks it here, as Enter does; any other click is the browser's. */
+export function ChampionPicker({
+  value,
+  onChange,
+  label = "Champion",
+  href,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  label?: string;
+  href?: (id: string) => string;
+}) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
@@ -67,23 +78,42 @@ export function ChampionPicker({ value, onChange, label = "Champion" }: { value:
       </div>
       {open && (
         <div className="picker-list" role="listbox">
-          {list.map((c, i) => (
-            <div
-              key={c.id}
-              role="option"
-              aria-selected={i === active}
-              className="picker-option"
-              // Without taking the focus from the field.
-              onMouseDown={(e) => {
-                e.preventDefault();
-                pick(c.id);
-              }}
-              onMouseEnter={() => setActive(i)}
-            >
-              <ChampIcon id={c.id} size="sm" />
-              <span style={{ flex: 1 }}>{c.name}</span>
-            </div>
-          ))}
+          {list.map((c, i) => {
+            const option = { role: "option", "aria-selected": i === active, className: "picker-option", onMouseEnter: () => setActive(i) };
+            const body = (
+              <>
+                <ChampIcon id={c.id} size="sm" />
+                <span style={{ flex: 1 }}>{c.name}</span>
+              </>
+            );
+            // Without taking the focus from the field.
+            return href ? (
+              <a
+                key={c.id}
+                {...option}
+                href={href(c.id)}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                  e.preventDefault();
+                  pick(c.id);
+                }}
+              >
+                {body}
+              </a>
+            ) : (
+              <div
+                key={c.id}
+                {...option}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  pick(c.id);
+                }}
+              >
+                {body}
+              </div>
+            );
+          })}
           {!list.length && (
             <div className="muted small" style={{ padding: 8 }}>
               No champion matches “{q}”.

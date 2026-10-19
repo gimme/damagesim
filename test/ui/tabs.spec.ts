@@ -1,10 +1,10 @@
 // A champion's builds as tabs in the top bar: + opens a copy of the one on screen at the end, a click
 // switches, its items and runes its own and the rest shared, the combo too unless each build has its
-// own; a tab renamed, dragged to another place, closed by its × or Delete, all in the address (the
-// first build's first, as if alone) through a reload, and Back undoing a close and Reset. The Result
-// card compares them: a bar each, the table under them until it's all shown, against the first build,
-// a click in a column opening its build, a fade where the columns scroll; folded, the one on screen
-// alone. Each champion its builds.
+// own; a tab renamed, dragged to another place, closed by its × or Delete, all in the address (each
+// build's code in its order, then what they share) through a reload, and Back undoing a close, Reset
+// and another champion. The Result card compares them: a bar each, the table under them until it's
+// all shown, against the first build, a click in a column opening its build, a fade where the columns
+// scroll; or, the comparison turned off, the one on screen alone. A build alone has its tab, to name.
 
 import { test, expect, num, pageAddressOf, texts, type UI } from "./ui.ts";
 
@@ -15,7 +15,6 @@ const tabs = (ui: UI) =>
   bar(ui)
     .locator("button[aria-pressed]")
     .evaluateAll((els) => els.map((e) => `${e.textContent}${e.getAttribute("aria-pressed") === "true" ? " *" : ""}`));
-const first = (ui: UI) => ui.page.getByRole("button", { name: "Build", exact: true });
 const bars = (ui: UI) => ui.card("Result").getByRole("img", { name: /^Target health bar/ });
 const hash = (ui: UI) => decodeURIComponent(new URL(ui.page.url()).hash);
 
@@ -33,23 +32,23 @@ test("builds", async ({ ui }) => {
   let at11 = 0;
 
   await step(
-    "load: one build, + Build alone",
+    "load: one build, its tab without a ×, and +",
     () => ui.open(),
     async () => {
-      await expect(bar(ui)).toHaveCount(0);
-      await expect(first(ui)).toBeVisible();
+      expect(await tabs(ui)).toEqual(["Build 1 *"]);
+      await expect(bar(ui).getByRole("button", { name: /^Close/ })).toHaveCount(0);
       await expect(ui.card("Items").locator(".build-of")).toHaveCount(0);
       await expect(same).toHaveCount(0);
       at11 = await ui.total();
     },
   );
   await step(
-    "+ Build: a copy in a second tab, on screen, its name on the cards of its own",
-    () => first(ui).click(),
+    "+: a copy in a second tab, on screen, its name on the cards of its own; in the address, the two codes alike, the second marked",
+    () => bar(ui).getByRole("button", { name: "New build" }).click(),
     async () => {
       expect(await tabs(ui)).toEqual(["Build 1", "Build 2 *"]);
       expect(await ui.total()).toBe(at11);
-      expect(hash(ui)).toBe("#~*.Build_2");
+      expect(hash(ui)).toMatch(/^#(\w+)~\*\1\+\w+$/);
       await expect(ui.card("Items").locator(".build-of")).toHaveText("Build 2");
       await expect(ui.card("Runes").locator(".build-of")).toHaveText("Build 2");
       await expect(same).toBeChecked();
@@ -97,7 +96,6 @@ test("builds", async ({ ui }) => {
     async () => {
       expect((await ui.state()).combo).toBe("Q");
       await expect(combo.locator(".build-of")).toHaveText("Build 1");
-      expect(hash(ui)).toMatch(/!combos$/);
       await tab(ui, "Build 2").click();
       await ui.settle();
       expect((await ui.state()).combo).toBe("Q W");
@@ -112,15 +110,15 @@ test("builds", async ({ ui }) => {
     },
     async () => {
       expect(await tabs(ui)).toEqual(["Build 1", "Burst *"]);
-      expect(hash(ui)).toContain(".Burst");
+      expect(hash(ui)).toMatch(/~\*Burst=\w+\+/);
     },
   );
   await step(
-    "Burst dragged first: still on screen, first in the address too, as if alone but for its name",
+    "Burst dragged first: still on screen, first in the address too, unmarked, Build 1 named as it's no longer in its place",
     () => ui.drag(bar(ui).locator(".build-tab").nth(1), bar(ui).locator(".build-tab").nth(0)),
     async () => {
       expect(await tabs(ui)).toEqual(["Burst *", "Build 1"]);
-      expect(hash(ui)).toMatch(/^#\w+\.Burst~\w*\.Build_1!combos$/);
+      expect(hash(ui)).toMatch(/^#Burst=\w+~Build_1=\w+\+\w+$/);
     },
   );
   await step(
@@ -132,11 +130,11 @@ test("builds", async ({ ui }) => {
     },
   );
   await step(
-    "Burst closed: Build 1 alone, + Build; Back brings Burst back",
+    "Burst closed: Build 1 alone; Back brings Burst back",
     async () => {
       await bar(ui).getByRole("button", { name: "Close Burst" }).click();
       await ui.settle();
-      await expect(bar(ui)).toHaveCount(0);
+      expect(await tabs(ui)).toEqual(["Build 1 *"]);
       expect((await ui.state()).combo).toBe("Q");
       await page.goBack();
     },
@@ -147,7 +145,7 @@ test("builds", async ({ ui }) => {
     async () => {
       await page.getByRole("button", { name: "Reset" }).click();
       await ui.settle();
-      await expect(bar(ui)).toHaveCount(0);
+      expect(await tabs(ui)).toEqual(["Build 1 *"]);
       expect((await ui.state()).items.every((x) => x == null)).toBe(true);
       await page.goBack();
     },
@@ -172,8 +170,8 @@ test("compared", async ({ ui }) => {
     await search.fill(name);
     await search.press("Enter");
   };
-  // The default page with Dark Harvest picked in Electrocute's place: last, as a page keeps its picks in the order they came.
-  const harvest = { primary: "Domination", secondary: "Sorcery", picks: [8126, 8140, 8106, 8233, 8237, 8128], held: [], shards: [5008, 5008, 5001] };
+  // The demo's page with Dark Harvest in Electrocute's place.
+  const harvest = { primary: "Domination", secondary: "Sorcery", picks: [8106, 8126, 8128, 8140, 8233, 8237], shards: [5008, 5008, 5001] };
 
   await step(
     "a link to three builds, Build 2 with Rabadon's on screen",
@@ -193,7 +191,7 @@ test("compared", async ({ ui }) => {
     },
   );
   await step(
-    "each build's items and of its runes the keystone alone, Boots' Dark Harvest though it was picked last",
+    "each build's items and of its runes the keystone alone, Boots' Dark Harvest",
     async () => {},
     async () => {
       const runes = (k: number) => row("Build").getByRole("cell").nth(k).locator("img[src*='perk-images']");
@@ -272,7 +270,7 @@ test("compared", async ({ ui }) => {
     },
   );
   await step(
-    "folded: the one on screen alone, in the address through a reload",
+    "the comparison turned off: the one on screen alone, in the address through a reload",
     async () => {
       await fold.click();
       await ui.settle();
@@ -280,7 +278,6 @@ test("compared", async ({ ui }) => {
     },
     async () => {
       await expect(fold).toHaveAttribute("aria-expanded", "false");
-      expect(hash(ui)).toMatch(/!folded$/);
       await expect(bars(ui)).toHaveCount(1);
       await expect(table).toHaveCount(0);
       await fold.click();
@@ -288,12 +285,12 @@ test("compared", async ({ ui }) => {
     },
   );
   await step(
-    "Zed picked: a build of his own; Ahri again, her three",
+    "Zed picked: a page of his own, one build; Back: Ahri's three",
     async () => {
       await pick("zed");
       await ui.settle();
-      await expect(bar(ui)).toHaveCount(0);
-      await pick("ahri");
+      expect(await tabs(ui)).toEqual(["Build 1 *"]);
+      await page.goBack();
     },
     async () => expect(await tabs(ui)).toEqual(["Build 1 *", "Build 2", "Boots"]),
   );
@@ -324,7 +321,7 @@ test("+ at the end, and Delete from tab to tab", async ({ ui }) => {
     },
   );
   await step(
-    "Delete twice more: Build 1 alone, + Build focused",
+    "Delete twice more: Build 1 alone, its tab focused, and Delete no longer closes it",
     async () => {
       await page.keyboard.press("Delete");
       await ui.settle();
@@ -332,9 +329,12 @@ test("+ at the end, and Delete from tab to tab", async ({ ui }) => {
       await page.keyboard.press("Delete");
     },
     async () => {
-      await expect(bar(ui)).toHaveCount(0);
-      await expect(first(ui)).toBeFocused();
+      expect(await tabs(ui)).toEqual(["Build 1 *"]);
+      await expect(tab(ui, "Build 1")).toBeFocused();
       expect((await ui.state()).items[0]).toBe(6655);
+      await page.keyboard.press("Delete");
+      await ui.settle();
+      expect(await tabs(ui)).toEqual(["Build 1 *"]);
     },
   );
 });

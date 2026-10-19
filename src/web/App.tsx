@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DATA } from "./data.ts";
-import { DEFAULT_STATE, decodePage, encodePage, loadSavedPage, saveState, scenarioKey, toScenario, type UIState } from "./state.ts";
+import { DEMO_STATE, decodePage, encodePage, encodeState, pickChampion, scenarioKey, toScenario, type UIState } from "./state.ts";
+import { single, type Page } from "./tabs.ts";
 import { simulate, Sim, type SimResult } from "../engine/sim.ts";
 import { clampCombo, formatCombo, parseCombo } from "../engine/combo.ts";
 import { AttackerPanel } from "./components/attacker.tsx";
@@ -39,8 +40,12 @@ function useTheme() {
 // server serves the app at any path under its own (the dev server, GitHub Pages by its 404.html).
 const BASE = import.meta.env.BASE_URL;
 
-/** The page at the page's address, or null. */
-const atAddress = () => (location.pathname.startsWith(BASE) ? decodePage(DATA, location.pathname.slice(BASE.length) + location.hash) : null);
+/** The page at the page's address: the demo at the app's root, else the one the address holds, or null where it holds none. */
+function atAddress(): { state: UIState; page: Page } | null {
+  if (!location.pathname.startsWith(BASE)) return null;
+  const at = location.pathname.slice(BASE.length) + location.hash;
+  return at === "" ? { state: DEMO_STATE, page: single(DEMO_STATE) } : decodePage(DATA, at);
+}
 
 /** The combo with its numbers within what `sim`'s build allows (see clampCombo); unchanged, as typed, when they are. */
 function clampShorthand(combo: string, sim: Sim): string {
@@ -54,19 +59,48 @@ function clampShorthand(combo: string, sim: Sim): string {
 }
 
 export function App() {
-  const [initial] = useState(() => atAddress() ?? loadSavedPage(DATA));
-  const [state, setState] = useState<UIState>(initial?.state ?? DEFAULT_STATE);
+  const [initial] = useState(atAddress);
+  return initial ? <Main initial={initial} /> : <BadLink />;
+}
+
+/** The title, a link to the app's first page, and the patch. */
+const Title = () => (
+  <>
+    <h1>
+      <a href={BASE}>damagesim</a>
+    </h1>
+    <span className="badge">patch {DATA.meta.patch}</span>
+  </>
+);
+
+/** For an address that isn't a page's: it stays in the address bar, to be looked at; the title leads home. */
+function BadLink() {
+  return (
+    <div className="app">
+      <header className="topbar">
+        <Title />
+      </header>
+      <div className="layout">
+        <div className="notice warn" role="alert">
+          This link couldn't be read. It may be cut short, or from another version of damagesim. <a href={BASE}>Start afresh</a>.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Main({ initial }: { initial: { state: UIState; page: Page } }) {
+  const [state, setState] = useState(initial.state);
   const theme = useTheme();
-  const tabs = useTabs(state, setState, initial?.page ?? null);
+  const tabs = useTabs(state, setState, initial.page);
   const build = tabs.page.builds[tabs.page.active];
   const buildName = tabs.many ? build.name : undefined;
 
   // The address is a link to the builds, written over as they change (no history entry for each
   // change), with replaceState, which fires no hashchange; a change Back should undo (Reset, a tab
-  // closed) gets an entry of its own.
+  // closed, another champion) gets an entry of its own.
   const address = useMemo(() => BASE + encodePage(DATA, state, tabs.page), [state, tabs.page]);
   const shown = useRef(address);
-  useEffect(() => saveState(state, address.slice(BASE.length)), [state, address]);
   useEffect(() => {
     shown.current = address;
     const push = tabs.push.current;
@@ -113,16 +147,19 @@ export function App() {
     if (combo !== scenario.combo) setState((s) => ({ ...s, combo }));
   }, [combo, scenario.combo]);
 
+  // Each champion's page from the picker: a fresh build of theirs with what this page shares (see
+  // pickChampion), a link to it for the browser, and opened here on a click.
+  const championPage = (id: string) => pickChampion(DATA, state, id);
+
   return (
     <div className="app">
       <header className="topbar">
-        <h1>damagesim</h1>
-        <span className="badge">patch {DATA.meta.patch}</span>
+        <Title />
         <BuildTabs tabs={tabs} />
         <span className="spacer" />
         <button
           className="btn small"
-          title={`Reset ${DATA.champions[state.champion].name}: one build, no items, runes or combo, and the rest as on a fresh page (Back undoes it)`}
+          title={`Reset ${DATA.champions[state.champion].name}: a fresh page, one build with no items, runes or combo (Back undoes it)`}
           onClick={tabs.reset}
         >
           Reset
@@ -133,7 +170,13 @@ export function App() {
       </header>
       <div className="layout">
         <div>
-          <AttackerPanel state={state} set={setState} sim={sim} />
+          <AttackerPanel
+            state={state}
+            set={setState}
+            sim={sim}
+            pick={(id) => tabs.pick(championPage(id))}
+            linkTo={(id) => BASE + encodeState(DATA, championPage(id))}
+          />
           {/* A build's items come and go with it: their undo starts afresh with each */}
           <ItemsPanel key={`${state.champion}#${build.id}`} state={state} set={setState} gold={result?.gold ?? 0} sim={sim} buildName={buildName} />
           <RunesPanel state={state} set={setState} sim={sim} buildName={buildName} />

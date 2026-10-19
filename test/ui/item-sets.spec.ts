@@ -429,7 +429,7 @@ test("the count is the build's, in its address, and undo and redo carry it; a sa
   await step(
     "+ Build, 3 in the copy, then Build 1: its own 2; Build 2 its 3",
     async () => {
-      await page.getByRole("button", { name: "Build", exact: true }).click();
+      await page.getByRole("button", { name: "New build" }).click();
       await ui.settle();
       await count(3).click();
       await ui.settle();
