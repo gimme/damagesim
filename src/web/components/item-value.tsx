@@ -298,9 +298,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
         {!ranked.result && !ranked.error && <div className="muted small">Simulating…</div>}
         {ranked.result && (
           <div className="iv-body" style={{ opacity: ranked.stale ? 0.55 : 1 }} aria-busy={ranked.stale}>
-            {!shown.length ? (
-              count > 1 && <div className="muted small">No set of {count} items adds damage to this combo.</div>
-            ) : view === "list" ? (
+            {!shown.length ? null : view === "list" ? (
               <RankList
                 rows={shown}
                 shown={SHOWN}
