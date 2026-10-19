@@ -13,11 +13,14 @@ the combo out on a timeline and reports every damage instance.
   0 where that's more than it adds)
   or a gold-vs-damage map; one click buys it, an upgrade (Boots into a pair) for the difference.
   With the components setting, every component is ranked too (Serrated Dirk, to see if it's worth
-  sitting on, and a Long Sword alike); one in the build ranks what's built from it in its place, for
-  the rest of its price (Youmuu's Ghostblade in place of the Dirk). It
+  sitting on, and a Long Sword alike, a second one too, as their stats stack); one in the build ranks
+  what's built from it in its place, for the rest of its price (Youmuu's Ghostblade in place of the
+  Dirk). It
   ranks sets too: the best sets of 2 or more legendaries and boots to buy together for your empty slots
   and in place of the components you hold (3 items with 2 slots empty and a Serrated Dirk, one of them
-  built from the Dirk; with 3 slots empty, sets that keep it too), found by a
+  built from the Dirk; with 3 slots empty, sets that keep it too), as many as a set can be bought in
+  place of (two Long Swords, two; two Sheens, none, a Spellblade item in place of one leaving the
+  other; nor one whose every upgrade you left out), found by a
   search that simulates a few hundred to a few thousand builds in a Web Worker, not every
   combination; a click on a set's item leaves it out of the ranking (listed at the top of the card,
   and in the link); how many to rank, and the item to rank in place of, are in the link too, the count
@@ -137,9 +140,11 @@ Only the stats of a target's items count: it never fights back, so their passive
    * damage-dealt amplifiers add together since 26.9, while damage-taken modifiers multiply;
    * levels go up to 20 (Top role quest), boots get a seventh slot of their own (Bot role quest), and
      tier 3 boots (Mid role quest) are offered with a setting, in place of the pairs they're upgraded
-     from, which it swaps in every build as it's turned on or off; Ignite is 70–475;
+     from, which it swaps in every build, a link's too, and among the items left out of Item value, as
+     it's turned on or off; Ignite is 70–475;
    * an item built from one you have takes its place, for the difference in gold (Boots into a pair);
-   * item and rune trigger rules, damage types and stacking are modeled, including item groups.
+   * item and rune trigger rules, damage types and stacking are modeled, including item groups; a
+     legendary is bought once, a component's copies stack (a unique passive applies once).
 4. **Champion kits** (`src/kits/champions/`) say *which* formula is dealt *how*: hit counts,
    empowered attacks, marks, DoTs, CC, recasts, charges and passives. All 173 are `curated`, written
    against the data, rendered tooltips and wiki, with each kit's assumptions listed in its `notes`. These

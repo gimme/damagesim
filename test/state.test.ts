@@ -20,6 +20,7 @@ import {
 } from "../src/web/state.ts";
 import { loadAllKits } from "../src/node/kits.ts";
 import { simulate } from "../src/engine/sim.ts";
+import { builtFrom, defaultCandidates } from "../src/engine/analysis.ts";
 
 const data = loadGameData("16.20");
 await loadAllKits();
@@ -55,8 +56,13 @@ const ALL: UIState = {
 
 test("every field comes back, numbers exactly; the item to replace with a count above one aside", () => {
   assert.deepEqual(roundTrip(ALL), { ...ALL, replace: null });
+  // The settings' tier 3 boots: the default build's Sorcerer's Shoes come back as Spellslinger's Shoes (see settled).
   for (const key of Object.keys(DEFAULT_STATE) as (keyof UIState)[])
-    assert.deepEqual(roundTrip({ ...DEFAULT_STATE, [key]: ALL[key] }), { ...DEFAULT_STATE, [key]: ALL[key] }, key);
+    assert.deepEqual(
+      roundTrip({ ...DEFAULT_STATE, [key]: ALL[key] }),
+      { ...DEFAULT_STATE, [key]: ALL[key], ...(key === "settings" ? { items: [6655, 3175, null, null, null, null] } : {}) },
+      key,
+    );
 });
 
 test("the defaults: the champion's path, no hash", () => {
@@ -83,7 +89,7 @@ test("a full build's code: under 80 characters, letters and digits", () => {
   assert.deepEqual(decodeState(data, `zed/#${code}`), full);
 });
 
-test("the bot lane role quest's boots slot comes back, empty or with boots; the tier 3 boots and components settings too, after the rest", () => {
+test("the bot lane role quest's boots slot comes back, empty or with boots; the tier 3 boots and components settings too", () => {
   for (const items of [
     [6655, 3020, null, null, null, null, null],
     [3031, null, null, null, null, null, 3006],
@@ -109,13 +115,27 @@ test("the items Item value leaves out, how many it ranks and the item it ranks i
   assert.deepEqual([reset.excluded, reset.next, reset.replace], [[], 1, null]);
 });
 
-test("what a code holds is settled as it's read: the count no more than the empty slots and the items to upgrade, the item to replace one of the build's, with a count of one", () => {
+test("what a code holds is settled as it's read: the boots of the tier the setting has, the count no more than the empty slots and the items to upgrade, the item to replace one of the build's, with a count of one", () => {
   assert.equal(roundTrip({ ...DEFAULT_STATE, items: [6655, 3020, 3089, 3135, null, null], next: 4 })?.next, 2);
   assert.equal(roundTrip({ ...DEFAULT_STATE, items: [6655, 3020, 3089, 3135, 3157, 4645], next: 3 })?.next, 1);
   // A Serrated Dirk and Boots can be bought in place of; Dark Seal can't, by a legendary.
   assert.equal(roundTrip({ ...DEFAULT_STATE, items: [6655, 3020, 3089, 3134, null, null], next: 4 })?.next, 3);
   assert.equal(roundTrip({ ...DEFAULT_STATE, items: [6655, 1001, 3089, 3134, null, null], next: 6 })?.next, 4);
   assert.equal(roundTrip({ ...DEFAULT_STATE, items: [6655, 3020, 3089, 1082, null, null], next: 4 })?.next, 2);
+  // Two Long Swords, two; two Sheens none, a Spellblade item in place of one leaving the other.
+  assert.equal(roundTrip({ ...DEFAULT_STATE, items: [6655, 3020, 1036, 1036, 3089, null], next: 4 })?.next, 3);
+  assert.equal(roundTrip({ ...DEFAULT_STATE, items: [6655, 3020, 3057, 3057, 3089, null], next: 4 })?.next, 1);
+  // Nor the Dirk with every item built from it excluded.
+  const fromDirk = defaultCandidates(data)
+    .filter((i) => builtFrom(data, [3134], i.id).length)
+    .map((i) => i.id);
+  assert.equal(roundTrip({ ...DEFAULT_STATE, items: [6655, 3020, 3089, 3134, null, null], next: 3, excluded: fromDirk })?.next, 2);
+  // With the tier 3 boots setting, the build's pair is the tier 3, the item to replace and those
+  // excluded too; without, the pair a tier 3 is upgraded from.
+  const shod = roundTrip({ ...DEFAULT_STATE, settings: { ...DEFAULT_STATE.settings, questBoots: true }, replace: 3020, excluded: [3020, 3006, 3175] });
+  assert.deepEqual([shod?.items, shod?.replace, shod?.excluded], [[6655, 3175, null, null, null, null], 3175, [3175, 3172]]);
+  const bare = roundTrip({ ...DEFAULT_STATE, items: [6655, 3175, null, null, null, null], excluded: [3172, 3089] });
+  assert.deepEqual([bare?.items, bare?.excluded], [DEFAULT_STATE.items, [3006, 3089]]);
   assert.equal(roundTrip({ ...DEFAULT_STATE, replace: 3020 })?.replace, 3020);
   assert.equal(roundTrip({ ...DEFAULT_STATE, replace: 3089 })?.replace, null);
   assert.equal(roundTrip({ ...DEFAULT_STATE, next: 2, replace: 3020 })?.replace, null);

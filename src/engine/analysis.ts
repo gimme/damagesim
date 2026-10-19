@@ -105,13 +105,15 @@ export function rankItems(
   base: Scenario,
   opts: { candidates?: (number | string)[]; components?: boolean; metric?: Metric; limit?: number } = {},
 ) {
+  if (opts.candidates && opts.components)
+    throw new Error("components adds every component to the default candidates: with candidates, list the components among them");
   const metric = opts.metric ?? "damage";
   const baseRes = simulate(data, base);
   const baseScore = metricValue(baseRes, metric);
   const baseTally = tally(baseRes);
   const baseItems = (base.items ?? []).map((q) => findItem(data, q));
   const baseIds = baseItems.map((b) => b.id);
-  const candidates = opts.candidates?.length
+  const candidates = opts.candidates
     ? opts.candidates.map((q) => findItem(data, q))
     : [...defaultCandidates(data, base), ...(opts.components ? componentCandidates(data) : [])];
   const rows = [];
@@ -119,7 +121,7 @@ export function rankItems(
     // An item built from items of the build takes their place, for the difference in gold.
     const used = builtFrom(data, baseIds, it.id);
     const kept = baseItems.filter((_, k) => !used.includes(k));
-    if (kept.some((b) => b.id === it.id) || conflicts(kept, it)) continue;
+    if (conflicts(kept, it)) continue;
     const gold = it.gold.total - used.reduce((sum, k) => sum + baseItems[k].gold.total, 0);
     // A free upgrade isn't bought: the mid lane role quest's tier 3 boots.
     if (used.length && gold <= 0) continue;
@@ -334,23 +336,15 @@ function attribute(was: ReturnType<typeof tally>, now: ReturnType<typeof tally>,
   return { base, procs, lost };
 }
 
+/** An item the shop sells on Summoner's Rift, to any champion. */
+const onRift = (i: ItemData) => i.inStore && !i.requiredChampion;
+
 /** A legendary item or a pair of boots on Summoner's Rift (not a champion-specific one). */
-const isCandidate = (i: ItemData) => i.inStore && !i.requiredChampion && (isLegendary(i) || (i.tags.includes("Boots") && i.depth >= 2));
+const isCandidate = (i: ItemData) => onRift(i) && (isLegendary(i) || (i.tags.includes("Boots") && i.depth >= 2));
 
 /** Legendary items + boots on Summoner's Rift (excluding champion-specific ones). */
 export function defaultCandidates(data: GameData, base?: Scenario): ItemData[] {
   return Object.values(data.items).filter(isCandidate);
-}
-
-/** Whether a legendary or a pair of boots is built from an item, for more gold, so it can be bought in
- *  the item's place (Serrated Dirk, Long Sword, Boots); not Dark Seal, whose Mejai's Soulstealer isn't
- *  one, nor a pair of boots, whose tier 3 the mid lane quest gives. */
-export function upgradable(data: GameData, id: number): boolean {
-  const it = data.items[id];
-  return !!it?.into.some((x) => {
-    const up = data.items[x];
-    return !!up && ((isCandidate(up) && up.gold.total > it.gold.total) || upgradable(data, x));
-  });
 }
 
 /** An item the shop sells to build into others (Serrated Dirk, B. F. Sword, Dark Seal), but boots and potions. */
@@ -359,7 +353,7 @@ export const isComponent = (it: ItemData) => it.into.length > 0 && !it.tags.incl
 /** The components on Summoner's Rift (excluding champion-specific ones): rankItems ranks them with the
  *  legendaries and boots when asked to; sets of items and optimize keep to those. */
 export function componentCandidates(data: GameData): ItemData[] {
-  return Object.values(data.items).filter((i) => i.inStore && !i.requiredChampion && isComponent(i));
+  return Object.values(data.items).filter((i) => onRift(i) && isComponent(i));
 }
 
 /**
@@ -378,9 +372,59 @@ export function builtFrom(data: GameData, build: readonly (number | null)[], id:
   return used;
 }
 
-/** Item-group conflicts (only one Spellblade, Hydra, Fatality, Blight… item; one pair of boots). */
+/**
+ * How many of a build's items a set of items can be bought in place of, as searchItemSets buys it:
+ * each of its items built from items of the build in their place, for more gold, at most one of an item
+ * group (conflicts). Each frees a slot for one more item: Zhonya's Hourglass in place of two Amplifying
+ * Tomes is one, and anything in the other's slot. Of two Sheens, none: a Spellblade item in place of
+ * one leaves the other; nor a Sheen beside a Trinity Force. Of the candidates given, else the
+ * legendaries and boots.
+ */
+export function upgradeRoom(data: GameData, items: readonly (number | null)[], candidates?: (number | string)[]): number {
+  type Held = { it: ItemData; held: boolean };
+  const idsOf = (build: Held[]) => build.map((e) => e.it.id);
+  const itemsOf = (build: Held[]) => build.map((e) => e.it);
+  const start: Held[] = items.flatMap((x) => (x != null && data.items[x] ? [{ it: data.items[x], held: true }] : []));
+  const pool = (candidates ? candidates.map((q) => findItem(data, q)) : defaultCandidates(data)).filter((it) => builtFrom(data, idsOf(start), it.id).length);
+  /** The build with `it` bought in place of what it's built from; null where it can't be. */
+  const buy = (build: Held[], it: ItemData): Held[] | null => {
+    const used = builtFrom(data, idsOf(build), it.id);
+    // Not an upgrade of an item of the set: each one bought takes a slot of its own.
+    if (!used.length || used.some((k) => !build[k].held)) return null;
+    const rest = build.filter((_, k) => !used.includes(k));
+    if (conflicts(itemsOf(rest), it)) return null;
+    // A free upgrade isn't bought: the mid lane role quest's tier 3 boots.
+    if (it.gold.total <= used.reduce((sum, k) => sum + build[k].it.gold.total, 0)) return null;
+    return [...rest, { it, held: false }];
+  };
+  const heldIn = (build: Held[]) => build.filter((e) => e.held).map((e) => e.it.id);
+  let most = 0;
+  // The build's items an item at a time, the one fewest can be bought in place of first: each of those
+  // bought, or none, its copy kept; never more than the items left to try. Copies are alike, so a copy
+  // kept is any of them, as the shop takes the first.
+  const go = (build: Held[], kept: number[]) => {
+    const held = heldIn(build);
+    const used = start.length - held.length;
+    most = Math.max(most, used);
+    const left = [...kept];
+    const open = held.filter((x) => (left.includes(x) ? (left.splice(left.indexOf(x), 1), false) : true));
+    if (most === start.length || used + open.length <= most) return;
+    const next = pool.map((it) => buy(build, it)).filter((b): b is Held[] => b != null);
+    const ids = [...new Set(open)];
+    const copies = (xs: number[], x: number) => xs.filter((y) => y === x).length;
+    const ways = ids.map((x) => next.filter((b) => copies(heldIn(b), x) < copies(held, x)));
+    const k = ways.reduce((m, w, i) => (w.length < ways[m].length ? i : m), 0);
+    for (const b of ways[k]) go(b, kept);
+    go(build, [...kept, ids[k]]);
+  };
+  go(start, []);
+  return most;
+}
+
+/** Item-group conflicts (only one Spellblade, Hydra, Fatality, Blight… item; one pair of boots), and a
+ *  legendary's second copy; a component's copies stack (two Long Swords), its unique passive once. */
 export function conflicts(build: ItemData[], it: ItemData): string | null {
-  if (build.some((b) => b.id === it.id)) return "duplicate";
+  if (isLegendary(it) && build.some((b) => b.id === it.id)) return "duplicate";
   if (it.tags.includes("Boots") && build.some((b) => b.tags.includes("Boots"))) return "boots";
   for (const [group, ids] of Object.entries(ITEM_GROUPS)) {
     if (ids.includes(it.id) && build.some((b) => ids.includes(b.id))) return group;
@@ -398,7 +442,7 @@ export function optimizeItems(
 ) {
   const metric = opts.metric ?? "damage";
   const fixed = (opts.fixed ?? base.items ?? []).map((q) => findItem(data, q));
-  let pool = (opts.pool?.length ? opts.pool.map((q) => findItem(data, q)) : defaultCandidates(data, base)).filter((p) => !fixed.some((f) => f.id === p.id));
+  let pool = (opts.pool ? opts.pool.map((q) => findItem(data, q)) : defaultCandidates(data, base)).filter((p) => !fixed.some((f) => f.id === p.id));
   const maxEval = opts.maxEvaluations ?? 20000;
 
   // Prune a large pool by single-item marginal value first.
@@ -529,7 +573,7 @@ export function* searchItemSets(
   const baseRes = simulate(data, base);
   type Node = { added: ItemData[]; replaced: ItemData[]; build: ItemData[]; gold: number; r?: SimResult; gain: number; perGold: number };
   const root: Node = { added: [], replaced: [], build: (base.items ?? []).map((q) => findItem(data, q)), gold: 0, r: baseRes, gain: 0, perGold: 0 };
-  const candidates = opts.candidates?.length ? opts.candidates.map((q) => findItem(data, q)) : defaultCandidates(data, base);
+  const candidates = opts.candidates ? opts.candidates.map((q) => findItem(data, q)) : defaultCandidates(data, base);
 
   /** The set with one more item, as the shop buys it; null where it can't be bought. */
   const buy = (n: Node | null, it: ItemData): Node | null => {

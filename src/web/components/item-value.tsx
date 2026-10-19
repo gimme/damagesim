@@ -25,9 +25,9 @@ import { GoldScatter, useTooltip, type GoldPoint } from "./charts.tsx";
 import { CountPicker, Excluded, SetItems, setKey, setList, setName } from "./item-sets.tsx";
 import { componentCandidates, defaultCandidates, type ItemSet } from "../../engine/analysis.ts";
 import type { Scenario, Sim } from "../../engine/sim.ts";
-import { buildItems, room, type Set, type UIState } from "../state.ts";
+import { buildItems, room, setPool, settled, type Set, type UIState } from "../state.ts";
 import { useRanking, type ItemRanking, type RunProgress } from "../ranking.ts";
-import { BOOTS_SLOT, buyItem, buyItems, isBoots, offered, slotFits, withItems } from "../slots.ts";
+import { BOOTS_SLOT, buyItem, buyItems, isBoots, slotFits, withItems } from "../slots.ts";
 
 type Row = ItemRanking["items"][number];
 /** A row of the list: an item, or a set of items. */
@@ -128,10 +128,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
 
   // What can be bought: the tier of boots the tier 3 boots setting has, the components only with theirs,
   // and nothing excluded.
-  const pool = useMemo(
-    () => DEFAULT_IDS.filter((id) => offered(id, state.settings.questBoots) && !state.excluded.includes(id)),
-    [state.settings.questBoots, state.excluded],
-  );
+  const pool = useMemo(() => setPool(DATA, state), [state.settings.questBoots, state.excluded]);
   const components = useMemo(
     () => (state.settings.components ? COMPONENT_IDS.filter((id) => !state.excluded.includes(id)) : []),
     [state.settings.components, state.excluded],
@@ -143,18 +140,15 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
     // upgrade in place of what it's built from. In place of an item, what could go in its slot: with
     // the boots slot, boots in it and the rest in the others; the item itself too, excluded or not.
     const fit = [...pool, ...components].filter((id) => (current == null && !forBoots) || slotFits(state.items, slot, id));
-    const candidates = current != null && !fit.includes(current) ? [...fit, current] : components.length || fit.length < DEFAULT_IDS.length ? fit : undefined;
-    return { kind: "items" as const, base, candidates };
+    return { kind: "items" as const, base, candidates: current != null && !fit.includes(current) ? [...fit, current] : fit };
   }, [scenario, state.items, slot, current, pool, components, count]);
   // Sets fill the build's empty slots, a pair of boots the boots slot, and an item built from one of the
   // build's takes its place (Youmuu's Ghostblade, the Dirk's); of legendaries and boots, components or not.
   const setsJob = useMemo(
-    () =>
-      count > 1
-        ? { kind: "sets" as const, base: scenario, size: count, slots: state.items.length, candidates: pool.length < DEFAULT_IDS.length ? pool : undefined }
-        : null,
+    () => (count > 1 ? { kind: "sets" as const, base: scenario, size: count, slots: state.items.length, candidates: pool } : null),
     [scenario, state.items.length, pool, count],
   );
+  const most = useMemo(() => room(DATA, state), [state.items, state.settings.questBoots, state.excluded]);
 
   // Simulated in the worker, a moment after the job last changed, so typing in the combo box doesn't
   // start a ranking on every key; the last result stays on screen (dimmed) until the new one is ready.
@@ -193,7 +187,10 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
       ),
     );
   const buy = (r: Entry) => (isSet(r) ? buySet(r) : pick(r.id));
-  const exclude = (id: number) => set((s) => (s.excluded.includes(id) ? s : { ...s, excluded: [...s.excluded, id] }));
+  // An item excluded can take the count down, where a set needs it to be bought in place of one of the build's (settled).
+  const exclude = (id: number) => set((s) => (s.excluded.includes(id) ? s : settled(DATA, { ...s, excluded: [...s.excluded, id] })));
+  // Those excluded, the components among them while they're ranked.
+  const excluded = state.settings.components ? state.excluded : state.excluded.filter((id) => !COMPONENT_IDS.includes(id));
 
   const hover = useHoverCard();
   const slots = useItemSlots(state.items, (fn) => set((s) => withItems(s, fn(s.items))), { onPick: hover.hide, onSell: hover.hide });
@@ -293,11 +290,11 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
             "Next item"
           )}
         </div>
-        <CountPicker count={count} slots={state.items.length} room={room(DATA, state.items)} onChange={setCount} />
+        <CountPicker count={count} slots={state.items.length} room={most} onChange={setCount} />
       </div>
-      {state.excluded.length > 0 && (
+      {excluded.length > 0 && (
         <Excluded
-          ids={state.excluded}
+          ids={excluded}
           onInclude={(id) => set((s) => ({ ...s, excluded: s.excluded.filter((x) => x !== id) }))}
           onClear={() => {
             hover.hide();

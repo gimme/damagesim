@@ -9,7 +9,7 @@ import type { Scenario, SimSettings, TargetSpec } from "../engine/sim.ts";
 import type { TargetPreset } from "../engine/presets.ts";
 import { pageRunes, type RunePage } from "../engine/rune-page.ts";
 import { fitCombo, formatCombo, parseCombo } from "../engine/combo.ts";
-import { upgradable } from "../engine/analysis.ts";
+import { defaultCandidates, upgradeRoom } from "../engine/analysis.ts";
 import { getKit } from "../kits/index.ts";
 import { nameAt, single, withBuild, type Build, type Page } from "./tabs.ts";
 
@@ -156,7 +156,7 @@ export function toTargetSpec(t: TargetState): TargetSpec {
 // changes what a code means; a change to the layout takes a new version, and a code of another
 // version doesn't load.
 
-const VERSION = 3;
+const VERSION = 4;
 const DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 interface Out {
@@ -415,10 +415,10 @@ const FIELDS: [path: string, codec: Codec<any>][] = [
   ["settings.finishDots", bool],
   ["settings.executes", bool],
   ["settings.questBoots", bool],
+  ["settings.components", bool],
   ["excluded", itemIds],
   ["next", within(1, DEFAULT_STATE.items.length + 1)],
   ["replace", pickedItem],
-  ["settings.components", bool],
 ];
 
 const valueAt = (s: any, path: string) => path.split(".").reduce((x, k) => x[k], s);
@@ -458,6 +458,12 @@ export function encodeSetup(data: GameData, s: UIState): string {
 
 /** A champion with the setup in a code ("" for the default one), or null if the code holds none. */
 export function decodeSetup(data: GameData, champion: string, code: string): UIState | null {
+  const s = decodeCode(data, champion, code);
+  return s && settled(data, s);
+}
+
+/** decodeSetup, the state as the code has it, before it's settled. */
+function decodeCode(data: GameData, champion: string, code: string): UIState | null {
   if (!data.championIndex.some((c) => c.id === champion)) return null;
   if (code === "") return { ...DEFAULT_STATE, champion };
   try {
@@ -470,26 +476,63 @@ export function decodeSetup(data: GameData, champion: string, code: string): UIS
     FIELDS.forEach(([path, codec], bit) => {
       if (Math.floor(mask / 2 ** bit) % 2) s = withValueAt(s, path.split("."), codec.get(i));
     });
-    return i.at === bytes.length ? settled(data, s) : null;
+    return i.at === bytes.length ? s : null;
   } catch {
     return null;
   }
 }
 
-/** How many items a set can be of, for a build: its empty slots, and its items a legendary or a pair of
- *  boots can be bought in place of (Serrated Dirk, Boots), as the shop buys them. */
-export const room = (data: GameData, items: (number | null)[]) => items.filter((x) => x == null || upgradable(data, x)).length;
+const isBoots = (data: GameData, id: number) => !!data.items[id]?.tags.includes("Boots");
+/** The tier 3 boots, which the mid lane role quest upgrades a pair to. */
+export const isQuestBoots = (data: GameData, id: number) => isBoots(data, id) && data.items[id].depth >= 3;
+
+/** A pair of boots as the tier 3 boots setting has it: on, the tier 3 the mid lane role quest upgrades
+ *  it to (Spellslinger's Shoes for Sorcerer's Shoes); off, the pair a tier 3 is upgraded from. */
+function questBootsOf(data: GameData, id: number, on: boolean): number {
+  const it = data.items[id];
+  if (!it || !isBoots(data, id)) return id;
+  const other = on ? it.depth === 2 && it.into.find((x) => isQuestBoots(data, x)) : isQuestBoots(data, id) && it.from.find((x) => isBoots(data, x));
+  return other || id;
+}
+
+/** Whether the shop and Item value offer an item, with the tier 3 boots setting on or off: a pair of
+ *  boots only of the tier it sets, as the mid lane role quest upgrades any pair for nothing. */
+export const offered = (data: GameData, id: number, questBoots: boolean) => questBootsOf(data, id, questBoots) === id;
+
+/** A build with its pair of boots of the tier the tier 3 boots setting has (Sorcerer's Shoes for
+ *  Spellslinger's Shoes and back), Item value's item to rank in place of too where it's the pair. */
+export function withQuestBoots<B extends { items: (number | null)[]; replace: number | null }>(data: GameData, b: B, on: boolean): B {
+  const swap = (x: number | null) => (x == null ? x : questBootsOf(data, x, on));
+  return b.items.some((x) => swap(x) !== x) ? { ...b, items: b.items.map(swap), replace: swap(b.replace) } : b;
+}
+
+/** What Item value's sets are of: the legendaries and the boots offered, but those excluded. */
+export const setPool = (data: GameData, s: Pick<UIState, "settings" | "excluded">) =>
+  defaultCandidates(data)
+    .map((i) => i.id)
+    .filter((id) => offered(data, id, s.settings.questBoots) && !s.excluded.includes(id));
+
+/** How many items a set can be of, for a build: its empty slots, and as many of its items as a set of
+ *  the pool can be bought in place of, as the shop buys them (upgradeRoom): a Serrated Dirk, Boots;
+ *  two Long Swords, but of two Sheens none. */
+export const room = (data: GameData, s: Pick<UIState, "items" | "settings" | "excluded">) =>
+  s.items.filter((x) => x == null).length + upgradeRoom(data, s.items, setPool(data, s));
 
 /**
- * A state as the page keeps it: Item value's count of items no more than the build's room, to one at
- * least, and the item it ranks in place of one of the build's, with a count of one (sets are for the
- * empty slots and the items to upgrade); else none, the next item. What a code holds is settled as
- * it's read, and what a change to the build's items leaves (withItems in slots.ts).
+ * A state as the page keeps it: the build's pair of boots, the item it ranks in place of and those
+ * excluded of the tier the tier 3 boots setting has (withQuestBoots); Item value's count of items no
+ * more than the build's room, to one at least; and the item it ranks in place of one of the build's,
+ * with a count of one (sets are for the empty slots and the items to upgrade), else none, the next
+ * item. What a code holds is settled as it's read, and what a change to the build's items, the
+ * setting or the items excluded leaves (withItems in slots.ts).
  */
 export function settled(data: GameData, s: UIState): UIState {
-  const next = Math.max(1, Math.min(s.next, room(data, s.items)));
-  const replace = next === 1 && s.replace != null && s.items.includes(s.replace) ? s.replace : null;
-  return next === s.next && replace === s.replace ? s : { ...s, next, replace };
+  const on = s.settings.questBoots;
+  const { items, replace: picked } = withQuestBoots(data, s, on);
+  const excluded = s.excluded.every((x) => offered(data, x, on)) ? s.excluded : [...new Set(s.excluded.map((x) => questBootsOf(data, x, on)))];
+  const next = Math.max(1, Math.min(s.next, room(data, { items, settings: s.settings, excluded })));
+  const replace = next === 1 && picked != null && items.includes(picked) ? picked : null;
+  return items === s.items && excluded === s.excluded && next === s.next && replace === s.replace ? s : { ...s, items, excluded, next, replace };
 }
 
 /** A champion's name as a path: "zed", "miss-fortune", "kaisa", "nunu-willump". */
@@ -579,18 +622,12 @@ export function decodePage(data: GameData, address: string): { state: UIState; p
     let active = 0;
     tabs.forEach((tab, k) => {
       const [, on, own, name] = /^(\*?)([^.]*)(?:\.(.*))?$/.exec(tab) ?? [];
-      const b = own != null ? decodeSetup(data, champion, own) : null;
+      const b = own != null ? decodeCode(data, champion, own) : null;
       if (!b) return;
       if (on) active = builds.length;
-      builds.push({
-        id: builds.length + 1,
-        name: (name && nameOf(name)) || nameAt(k + 1),
-        items: b.items,
-        runes: b.runes,
-        combo: b.combo,
-        next: b.next,
-        replace: b.replace,
-      });
+      // Settled with what the builds share, which the first's code holds.
+      const { items, next, replace } = settled(data, { ...base, items: b.items, next: b.next, replace: b.replace });
+      builds.push({ id: builds.length + 1, name: (name && nameOf(name)) || nameAt(k + 1), items, runes: b.runes, combo: b.combo, next, replace });
     });
     const many = builds.length > 1;
     const page: Page = { champion, builds, active, ownCombos: many && flags.includes("combos"), folded: many && flags.includes("folded") };

@@ -20,7 +20,7 @@ import {
   rankItems,
   rankItemSets,
   searchItemSets,
-  upgradable,
+  upgradeRoom,
   type ItemSet,
 } from "../src/engine/analysis.ts";
 import { findItem } from "../src/engine/gamedata.ts";
@@ -400,6 +400,13 @@ test("rank items: components only when asked for, every one of them; sets and op
   const names = (opts: { components?: boolean }) => rankItems(data, base, { ...opts, limit: Infinity }).items.map((r) => r.item);
   assert.ok(!names({}).some((n) => ["Serrated Dirk", "Long Sword"].includes(n)));
   assert.ok(["Serrated Dirk", "Long Sword", "Pickaxe", "Tiamat"].every((n) => names({ components: true }).includes(n)));
+  // A component the build has, again: its stats stack. A legendary isn't bought twice.
+  const sword = rankItems(data, { ...base, items: ["Long Sword"] }, { components: true, limit: Infinity }).items.find((r) => r.item === "Long Sword");
+  assert.ok(sword && sword.gain > 0 && !sword.replaces);
+  assert.ok(!rankItems(data, { ...base, items: ["Youmuu's Ghostblade"] }, { limit: Infinity }).items.some((r) => r.item === "Youmuu's Ghostblade"));
+  // No candidates rank none; components are the default candidates', not with others.
+  assert.deepEqual(rankItems(data, base, { candidates: [] }).items, []);
+  assert.throws(() => rankItems(data, base, { candidates: ["Long Sword"], components: true }), /list the components among them/);
   // Bought, what's built from it takes its place, for the rest of its price.
   const youmuu = rankItems(data, { ...base, items: ["Serrated Dirk"] }, { limit: Infinity }).items.find((r) => r.item === "Youmuu's Ghostblade")!;
   assert.deepEqual(youmuu.replaces, [{ item: "Serrated Dirk", id: 3134 }]);
@@ -727,12 +734,26 @@ test("item sets: of more items than the build's empty slots, as many bought in p
   // 2 items and the Dirk: 3 more, in place of it or, of none built from it, beside it.
   const roomy = sets(["Ionian Boots of Lucidity", "Voltaic Cyclosword", "Serrated Dirk"]);
   assert.ok(roomy.some((s) => s.replaces) && roomy.some((s) => !s.replaces));
-  // What a legendary or a pair of boots is bought in place of, for more gold: not Dark Seal (Mejai's
-  // Soulstealer isn't one), nor a pair of boots (its tier 3 is free), nor a legendary.
+  // How many of a build's items legendaries and boots can be bought in place of, for more gold: a
+  // Serrated Dirk, a Long Sword, Boots; not Dark Seal (Mejai's Soulstealer isn't one), nor a pair of
+  // boots (its tier 3 is free), nor a legendary.
+  const room = (items: string[], candidates?: string[]) => upgradeRoom(data, [...items.map((q) => findItem(data, q).id), null], candidates);
   assert.deepEqual(
-    [3134, 1036, 1001, 1082, 3020, 6655].map((id) => upgradable(data, id)),
-    [true, true, true, false, false, false],
+    ["Serrated Dirk", "Long Sword", "Boots", "Dark Seal", "Sorcerer's Shoes", "Luden's Echo"].map((q) => room([q])),
+    [1, 1, 1, 0, 0, 0],
   );
+  // Two Long Swords, two items; two Amplifying Tomes too, as Zhonya's Hourglass in place of both
+  // leaves a slot. Two Sheens, none: a Spellblade item in place of one, the other's still there; nor a
+  // Sheen beside a Trinity Force. One pair of boots.
+  assert.equal(room(["Long Sword", "Long Sword"]), 2);
+  assert.equal(room(["Amplifying Tome", "Amplifying Tome"], ["Zhonya's Hourglass"]), 2);
+  assert.equal(room(["Sheen", "Sheen"]), 0);
+  assert.equal(room(["Sheen", "Trinity Force"]), 0);
+  assert.equal(room(["Sheen", "Tiamat", "Serrated Dirk"]), 3);
+  assert.equal(room(["Boots", "Boots"]), 0);
+  // Of the candidates given: the Dirk's room, with Youmuu's Ghostblade, none without.
+  assert.equal(room(["Serrated Dirk"], ["Youmuu's Ghostblade"]), 1);
+  assert.equal(room(["Serrated Dirk"], ["Infinity Edge"]), 0);
 });
 
 test("item sets: their gain split as an item's is, their own hits by item; a set of one as its item's row", () => {

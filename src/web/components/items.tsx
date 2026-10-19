@@ -8,8 +8,8 @@ import { ItemPicker } from "./pickers.tsx";
 import { ItemTip, useHoverCard } from "./hover.tsx";
 import { useItemSlots } from "./drag.tsx";
 import { BuildTitle, Card, fmt, useHistory } from "./common.tsx";
-import type { Set, UIState } from "../state.ts";
-import { BOOTS_SLOT, addBootsSlot, buyItem, offered, withItems, withQuestBoots } from "../slots.ts";
+import { offered, settled, withQuestBoots, type Set, type UIState } from "../state.ts";
+import { BOOTS_SLOT, addBootsSlot, buyItem, withItems } from "../slots.ts";
 import type { Sim } from "../../engine/sim.ts";
 import { conflicts } from "../../engine/analysis.ts";
 
@@ -58,19 +58,18 @@ export function ItemsPanel({ state, set, gold, sim, buildName }: { state: UIStat
   // brings back with it Item value's count of items to rank and the item it ranks in place of, which
   // follow the items (withItems): a set of 3 undone is 3 ranked again, the item picked sold and the
   // sale undone is picked again. The count or item picked by itself isn't a change to undo; it goes
-  // with the next one. Nor is the boots' swap as the tier 3 boots setting is turned on or off
-  // (withQuestBoots): what's undone or redone comes back with its boots swapped as the setting is now.
-  const questBoots = state.settings.questBoots;
-  const entry = useMemo(() => ({ items, next: state.next, replace: state.replace, questBoots }), [items, state.next, state.replace, questBoots]);
+  // with the next one. Nor is the boots' swap as the tier 3 boots setting is turned on or off: what's
+  // undone or redone comes back with its boots as the setting has them (settled).
+  const entry = useMemo(() => ({ items, next: state.next, replace: state.replace }), [items, state.next, state.replace]);
   const past = useHistory(
     entry,
-    ({ questBoots: was, ...v }) => {
+    (v) => {
       hover.hide();
-      set((s) => ({ ...s, ...(was === s.settings.questBoots ? v : withQuestBoots(v, s.settings.questBoots)) }));
+      set((s) => settled(DATA, { ...s, ...v }));
     },
     (a, b) => {
-      const was = a.questBoots === b.questBoots ? a.items : withQuestBoots(a, b.questBoots).items;
-      return was.length === b.items.length && was.every((x, i) => x === b.items[i]);
+      const [x, y] = [a, b].map((e) => withQuestBoots(DATA, e, false).items);
+      return x.length === y.length && x.every((id, i) => id === y[i]);
     },
   );
   // Ctrl+Z and Ctrl+Shift+Z (or Ctrl+Y) while in this card, or with nothing focused.
@@ -187,7 +186,7 @@ export function ItemsPanel({ state, set, gold, sim, buildName }: { state: UIStat
             onClose={() => setPicking(null)}
             sim={sim}
             bootsOnly={bootsSlot && picking === BOOTS_SLOT}
-            offers={(id) => offered(id, state.settings.questBoots)}
+            offers={(id) => offered(DATA, id, state.settings.questBoots)}
             build={items}
           />
         )}

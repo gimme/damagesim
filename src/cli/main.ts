@@ -45,7 +45,7 @@ Other options
   --metric damage|burst|percentHp|damagePerGold|killTime|dps   (compare/rank/optimize)
   --slots <n> --pool <a,b,c> --top <n>                                (optimize)
   --size <n> --pool <a,b,c> --top <n>  --metric damage|damagePerGold  (rank-items)
-  --components                          every component too, one item at a time  (rank-items)
+  --components                          every component too, one item at a time, without --pool  (rank-items)
   --stat armor|mr --from 0 --to 300 --step 10                         (sweep)
 `;
 
@@ -235,10 +235,12 @@ async function main() {
       });
     }
     case "rank-items": {
+      const pool = o.pool != null ? list(o.pool) : undefined;
       if (Number(o.size ?? 1) > 1) {
+        if (o.components) throw new Error("--components ranks one item at a time: sets are of legendaries and boots");
         const size = Number(o.size);
         const top = Number(o.top ?? 25);
-        const res = rankItemSets(data, buildScenario(), { size, candidates: list(o.pool), limit: top });
+        const res = rankItemSets(data, buildScenario(), { size, candidates: pool, limit: top });
         const perGold = metric === "damagePerGold";
         const sets = perGold ? [...res.sets].sort((a, b) => b.gainPerGold - a.gainPerGold).slice(0, top) : res.sets.slice(0, top);
         return out({ metric: perGold ? metric : "damage", base: res.base, evaluated: res.evaluated, sets }, () => {
@@ -252,7 +254,7 @@ async function main() {
           );
         });
       }
-      const res = rankItems(data, buildScenario(), { metric, limit: Number(o.top ?? 25), candidates: list(o.pool), components: o.components });
+      const res = rankItems(data, buildScenario(), { metric, limit: Number(o.top ?? 25), candidates: pool, components: o.components });
       return out(res, () => {
         console.log(`Base: ${num(res.base.totalDamage)} dmg with ${res.base.items.join(", ") || "no items"}. Adding one item (ranked by ${metric}):`);
         res.items.forEach((x, i) =>
@@ -265,7 +267,7 @@ async function main() {
     case "optimize": {
       const res = optimizeItems(data, buildScenario(), {
         slots: Number(o.slots ?? 3),
-        pool: list(o.pool),
+        pool: o.pool != null ? list(o.pool) : undefined,
         metric,
         top: Number(o.top ?? 10),
         fixed: list(o.items),

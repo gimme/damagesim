@@ -678,6 +678,45 @@ test("the components, every one with their setting; one bought, what's built fro
   );
 });
 
+test("the items left out follow the tier 3 boots setting, the components among them shown with theirs; a component the build has, ranked again", async ({
+  ui,
+}) => {
+  const { step } = ui;
+  const { card, names } = parts(ui);
+  const left = () => attrs(card.getByRole("group", { name: "Items left out of the ranking" }).getByRole("button", { name: /^Put / }), "aria-label");
+
+  await step(
+    "load Luden's Echo and a Long Sword, Sorcerer's Shoes and a Long Sword left out, every item shown: the shoes listed, not the sword",
+    async () => {
+      await ui.open({ items: [6655, 1036, null, null, null, null], excluded: [3020, 1036] });
+      await card.getByRole("button", { name: "Show more" }).click();
+    },
+    async () => expect(await left()).toEqual(["Put Sorcerer's Shoes back in the ranking"]),
+  );
+  await step(
+    "the tier 3 boots setting: Spellslinger's Shoes left out in their place, so not ranked",
+    () => ui.card("Settings").getByRole("checkbox", { name: "Tier 3 boots (mid lane quest)" }).check(),
+    async () => {
+      expect(await left()).toEqual(["Put Spellslinger's Shoes back in the ranking"]);
+      expect(await names()).not.toContain("Spellslinger's Shoes");
+      expect((await ui.state()).excluded).toEqual([3175, 1036]);
+    },
+  );
+  await step(
+    "the components' setting: the Long Sword listed too, and not ranked",
+    () => ui.card("Settings").getByRole("checkbox", { name: "Components in Item value" }).check(),
+    async () => {
+      expect(await left()).toEqual(["Put Spellslinger's Shoes back in the ranking", "Put Long Sword back in the ranking"]);
+      expect(await names()).not.toContain("Long Sword");
+    },
+  );
+  await step(
+    "put it back: a second Long Sword ranked, its stats stacking",
+    () => card.getByRole("button", { name: "Put Long Sword back in the ranking" }).click(),
+    async () => expect(await names()).toContain("Long Sword"),
+  );
+});
+
 test("the mid lane quest's tier 3 boots, ranked with their setting", async ({ ui }) => {
   const { step } = ui;
   const { card, names } = parts(ui);

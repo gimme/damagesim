@@ -4,12 +4,11 @@
 // double-click and closed by its × or, focused, by Delete, the focus then on the tab in its place.
 // With one build, there's only "+ Build".
 
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { DATA } from "../data.ts";
-import { encodeSetup, recallPage, resetState, type UIState } from "../state.ts";
+import { encodeSetup, recallPage, resetState, settled, withQuestBoots, type UIState } from "../state.ts";
 import { addTab, closeTab, moveTab, renameTab, selectTab, setOwnCombos, single, track, withBuild, type Page } from "../tabs.ts";
 import { landInLines, useDragOrder } from "./drag.tsx";
-import { withQuestBoots } from "../slots.ts";
 
 /** The page's builds and what they share, for the top bar, the cards and the address. */
 export interface Tabs {
@@ -31,11 +30,11 @@ export interface Tabs {
   setFolded: (folded: boolean) => void;
   /** A fresh page of the champion: one build, no items, runes or combo (see resetState). */
   reset: () => void;
-  /** The tier 3 boots setting on or off, every build's pair of boots its counterpart (withQuestBoots). */
+  /** The tier 3 boots setting on or off, every build's pair of boots its counterpart (withQuestBoots), and those excluded (settled). */
   setQuestBoots: (on: boolean) => void;
 }
 
-export function useTabs(state: UIState, setState: (s: UIState) => void, initial: Page | null): Tabs {
+export function useTabs(state: UIState, setState: Dispatch<SetStateAction<UIState>>, initial: Page | null): Tabs {
   const [kept, setKept] = useState(() => initial ?? single(state));
   // Another champion picked: its page as you left it, as pickChampion put its build on screen, or
   // that build alone.
@@ -47,10 +46,12 @@ export function useTabs(state: UIState, setState: (s: UIState) => void, initial:
   }
   const page = useMemo(() => track(base, state), [base, state]);
   const push = useRef(false);
-  /** A page, its build on screen put there where it's another, its own combo with it where they had each theirs. */
+  /** A page, its build on screen put there where it's another, its own combo with it where they had each
+   *  theirs, settled with what they share: its count of items no more than the room exclusions since leave. */
   const show = (next: Page) => {
     setKept(next);
-    if (next.builds[next.active].id !== page.builds[page.active].id) setState(withBuild(state, { ...next, ownCombos: page.ownCombos }, next.active));
+    if (next.builds[next.active].id !== page.builds[page.active].id)
+      setState(settled(DATA, withBuild(state, { ...next, ownCombos: page.ownCombos }, next.active)));
   };
   return {
     page,
@@ -74,8 +75,8 @@ export function useTabs(state: UIState, setState: (s: UIState) => void, initial:
       setState(s);
     },
     setQuestBoots: (on) => {
-      setKept({ ...page, builds: page.builds.map((b) => withQuestBoots(b, on)) });
-      setState(withQuestBoots({ ...state, settings: { ...state.settings, questBoots: on } }, on));
+      setKept((k) => ({ ...k, builds: k.builds.map((b) => withQuestBoots(DATA, b, on)) }));
+      setState((s) => settled(DATA, { ...s, settings: { ...s.settings, questBoots: on } }));
     },
   };
 }

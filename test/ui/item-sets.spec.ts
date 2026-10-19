@@ -279,6 +279,24 @@ test("sets with the build's components: more items than empty slots, one in plac
       expect(all.some((l) => !l!.includes("in place of"))).toBe(true);
     },
   );
+  // Ionian Boots of Lucidity, Voltaic Cyclosword, Hubris and two Long Swords; then two Sheens.
+  await step(
+    "3 items and two Long Swords: sets of 3, one in place of each",
+    () => ui.open({ ...talon, items: [3158, 6699, 6697, 1036, 1036, null] }),
+    async () => {
+      await expect(count(3)).toBeEnabled();
+      await expect(count(4)).toHaveAttribute("title", "Only 3 items fit");
+    },
+  );
+  await step(
+    "two Sheens: one item, as a Spellblade item in place of one leaves the other",
+    () => ui.open({ ...talon, items: [3158, 6699, 6697, 3057, 3057, null] }),
+    async () => {
+      await expect(count(1)).toBeEnabled();
+      await expect(count(2)).toBeDisabled();
+      await expect(count(2)).toHaveAttribute("title", "Only 1 item fits");
+    },
+  );
 });
 
 test("a set's item dragged onto a slot is bought there alone, and one bought by hand", async ({ ui }) => {

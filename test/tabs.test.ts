@@ -127,7 +127,7 @@ test("a page's address: one build's is its scenario's; more, the first's as if a
   assert.equal(decodePage(data, encodePage(data, s, { ...single(s), folded: true }))!.page.folded, false);
 });
 
-test("the builds' codes are the setup's, version 3: energize a byte from its table, in the shared combo or a build's own; version 2's don't load", () => {
+test("the builds' codes are the setup's, version 4: energize a byte from its table, in the shared combo or a build's own; version 2's and 3's don't load", () => {
   const zed: UIState = { ...DEFAULT_STATE, champion: "Zed", combo: "AA energize AA" };
   const part = (address: string, n: number) => address.split("#")[1].split(/[~!]/)[n].replace(/^\*/, "").split(".")[0];
   // Shared: in the first build's code, with what they share, a byte as ignite is.
@@ -147,6 +147,33 @@ test("the builds' codes are the setup's, version 3: energize a byte from its tab
   // Version 2's, before the energize step (Zed at 16 with two items): as what they share, no page; as a build, left out.
   assert.equal(decodePage(data, "zed/#HFSIMq2SEcbzjWQd8a~*.1~.2"), null);
   assert.deepEqual(decodePage(data, "zed/#~HFSIMq2SEcbzjWQd8a.2")!.page.builds.length, 1);
+  // Version 3's, before the components setting went by the tier 3 boots' (Zed at 16, Youmuu's Ghostblade and Sorcerer's Shoes).
+  assert.equal(decodePage(data, "zed/#G21LYgE2UR"), null);
+});
+
+test("each build's boots of the tier the tier 3 boots setting has, which the first build's code holds; and its count settled with what they share", () => {
+  const shoes = [6655, 3020, null, null, null, null];
+  const slinger = [6655, 3175, null, null, null, null];
+  const on: UIState = { ...s, settings: { ...s.settings, questBoots: true }, items: slinger };
+  // The second build's code is the setup's without what's shared, the setting off: its tier 3 comes back as it was.
+  const page = addTab(single(on));
+  assert.deepEqual(
+    decodePage(data, encodePage(data, on, page))!.page.builds.map((b) => b.items),
+    [slinger, slinger],
+  );
+  // A pair of the other tier in it is the setting's.
+  const bare = track(page, { ...on, items: shoes });
+  assert.deepEqual(
+    decodePage(data, encodePage(data, { ...on, items: shoes }, bare))!.page.builds.map((b) => b.items),
+    [slinger, slinger],
+  );
+  // A count no more than the build's room with the items excluded: of a Serrated Dirk with every item
+  // built from it excluded, the empty slots alone.
+  const dirk = [6655, 3175, 3089, 3134, null, null];
+  const excluded = { ...on, excluded: [2520, 3142, 3179, 3814, 6676, 6695, 6697] };
+  const ranked = track(addTab(single(excluded)), { ...excluded, items: dirk, next: 3 });
+  const back = decodePage(data, encodePage(data, { ...excluded, items: dirk, next: 3 }, ranked))!;
+  assert.deepEqual([back.page.builds.map((b) => b.next), back.state.next], [[1, 2], 2]);
 });
 
 test("what isn't a page's address holds none; a build in it that doesn't load is left out", () => {

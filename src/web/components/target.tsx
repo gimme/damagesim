@@ -6,11 +6,10 @@ import { ItemIcon } from "./icons.tsx";
 import { ChampionPicker, ItemPicker } from "./pickers.tsx";
 import { ItemTip, useHoverCard } from "./hover.tsx";
 import { Card, NumberField, fmt } from "./common.tsx";
-import { TARGET_MODES, type Set, type TargetMode, type TargetState, type TargetStats, type UIState } from "../state.ts";
+import { TARGET_MODES, isQuestBoots, type Set, type TargetMode, type TargetState, type TargetStats, type UIState } from "../state.ts";
 import { ITEMS_BY_LEVEL_RULE, TARGET_PRESETS, isTargetPreset, itemsAtLevel, levelForItems, presetShardHp, type TargetPreset } from "../../engine/presets.ts";
 import type { SimResult } from "../../engine/sim.ts";
 import { findItem } from "../../engine/gamedata.ts";
-import { isQuestBoots } from "../slots.ts";
 
 const MODE_LABEL: Record<TargetMode, string> = { squishy: "Squishy", bruiser: "Bruiser", tank: "Tank", champion: "Champion", custom: "Custom" };
 const MODE_TITLE: Record<TargetMode, string> = {
@@ -258,7 +257,7 @@ function TargetItems({
           }}
           onClose={() => setOpen(false)}
           // Both tiers with the setting: the quest is yours, the enemy may not have done it.
-          offers={(id) => questBoots || !isQuestBoots(id)}
+          offers={(id) => questBoots || !isQuestBoots(DATA, id)}
         />
       )}
     </div>
