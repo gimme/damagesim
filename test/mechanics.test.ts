@@ -805,10 +805,13 @@ test("Sundered Sky (practice tool, 16.20): a crit at the attack's multiplier, ×
     ["Garen", [], "Q AA", 144],
     ["Garen", ["B. F. Sword"], "Q AA", 204],
     ["Garen", ["Sundered Sky"], "AA", 186],
-    // A crit adds 10% AD to Decisive Strike's bonus (the kit's note), on a 2000 health dummy too.
+    // A crit makes Decisive Strike's bonus 14.15% more (the kit's note), on a 2000 health dummy too,
+    // and a natural crit (100% crit chance, crit damage 200%) as much as Sundered Sky's.
     ["Garen", ["Sundered Sky"], "Q AA", 266],
     ["Garen", ["Sundered Sky"], "Q AA", 266, {}, 2000],
     ["Garen", ["Sundered Sky", "B. F. Sword"], "Q AA", 349],
+    ["Garen", ["Immortal Shieldbow", "The Collector", "Mortal Reminder", "Phantom Dancer"], "AA", 432],
+    ["Garen", ["Immortal Shieldbow", "The Collector", "Mortal Reminder", "Phantom Dancer"], "Q AA", 590],
     ["Nasus", ["Sundered Sky"], "Q AA", 231, { stacks: 0 }],
     // Her crits deal no extra damage (multiplier 1), so Sundered Sky's deals 80% of her attack.
     ["Ashe", ["Sundered Sky"], "AA", 85],
