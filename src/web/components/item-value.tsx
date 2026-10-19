@@ -84,15 +84,12 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   const [by, setBy] = useState<By>("perGold");
   const [view, setView] = useState<"list" | "map">("list");
   const [showAll, setShowAll] = useState(false);
-  // How many items to rank together: sets of more than one fill empty slots, as many as there are.
-  // Back to one, the next item, once a set is bought or the count no longer fits the empty slots (an
-  // item bought in Items, or dragged onto a slot).
+  // How many items to rank together: sets of more than one fill empty slots, as many as there are, the
+  // count kept as it is (ranked as fewer while fewer slots are empty) but for a set bought here, after
+  // which it's back to one, the next item.
   const [count, setCount] = useState(1);
   const empty = state.items.filter((x) => x == null).length;
-  const size = count > empty ? 1 : count;
-  useLayoutEffect(() => {
-    if (count > 1 && count > empty) setCount(1);
-  }, [count, empty]);
+  const size = Math.max(1, Math.min(count, empty));
   // The slot being ranked: the first empty one, or the one picked, empty or with an item to reconsider.
   const [chosen, setChosen] = useState<number | null>(null);
   // An item sold, here or in Items, the slot it left is the one ranked, for what to buy there; several
