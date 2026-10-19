@@ -666,7 +666,7 @@ function buildItems(ddItems: any, bin: any): Record<string, ItemData> {
       from: (dd.from ?? []).map(Number),
       into: (dd.into ?? []).map(Number),
       depth: dd.depth ?? 1,
-      inStore: dd.inStore !== false && !!dd.gold.purchasable,
+      inStore: dd.inStore !== false && !dd.hideFromAll && !!dd.gold.purchasable,
       requiredChampion: dd.requiredChampion,
       stats,
       dataValues,

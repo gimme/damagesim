@@ -1,6 +1,7 @@
 // The Item value card: the item to rank in place of (the build's, in its address, followed as it moves and brought back by undo) and the empty slot to
 // rank for (the card's own, for the next change to the build), the ranking sorted two ways, Show more, buying from a row or by dragging its item onto
-// a slot, the gold map, every pair of boots for the boots slot (those that add nothing, or take damage away, too), and what a card calls a hit.
+// a slot, the gold map, every pair of boots for the boots slot (those that add nothing, or take damage away, too), what a card calls a hit, and
+// components, shown where they're worth it.
 
 import { test, expect, attrs, num, texts, DATA, type UI } from "./ui.ts";
 import { defaultCandidates } from "../../src/engine/analysis.ts";
@@ -626,6 +627,47 @@ test("an upgrade of the build's Boots", async ({ ui }) => {
       await expect(card.getByRole("button", { name: "Show less" })).toBeVisible();
       expect(await names()).not.toContain("Berserker's Greaves");
     },
+  );
+});
+
+test("a component where it's worth it, a cheap one not; bought, what's built from it in its place", async ({ ui }) => {
+  const { step } = ui;
+  const { card, rows, names, build } = parts(ui);
+  const row = (name: string) => rows.filter({ has: ui.page.locator(".iv-name", { hasText: name }) });
+
+  await step(
+    "load Talon at 6 without items: Serrated Dirk in the top rows, over a quarter of the best item's gain and high per gold",
+    () => ui.open({ champion: "Talon", level: 6, items: [null, null, null, null, null, null], combo: "W E Q AA R AA" }),
+    async () => expect(await names()).toContain("Serrated Dirk"),
+  );
+  await step(
+    "every item shown: no Long Sword, as high per gold as most legendaries but a tenth of the best one's gain; no Tiamat, Pickaxe's AD for more",
+    () => card.getByRole("button", { name: "Show more" }).click(),
+    async () => {
+      expect(await names()).not.toContain("Long Sword");
+      expect(await names()).not.toContain("Tiamat");
+    },
+  );
+  await step(
+    "buy the Dirk: in slot 1; Youmuu's Ghostblade ranked in its place",
+    () => row("Serrated Dirk").click(),
+    async () => {
+      expect(await build()).toEqual(["Serrated Dirk", null, null, null, null, null]);
+      await expect(row("Youmuu's Ghostblade").getByRole("button")).toHaveAttribute("aria-label", /^Buy Youmuu's Ghostblade in place of Serrated Dirk/);
+    },
+  );
+  await step(
+    "hover its bar: 1,800g, from the Dirk",
+    () => row("Youmuu's Ghostblade").locator(".iv-track").hover(),
+    () => expect(ui.tooltip).toContainText("Youmuu's Ghostblade · 1,800g, from Serrated Dirk"),
+  );
+  await step(
+    "buy it: in place of the Dirk",
+    async () => {
+      await ui.unhover();
+      await row("Youmuu's Ghostblade").click();
+    },
+    async () => expect(await build()).toEqual(["Youmuu's Ghostblade", null, null, null, null, null]),
   );
 });
 

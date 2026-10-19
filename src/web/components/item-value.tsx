@@ -1,6 +1,7 @@
-// Item value: what each legendary or pair of boots would add to the current build, or the best sets
-// of several to buy together (item-sets.tsx), ranked by damage per gold or total damage, as a list or
-// a gold-vs-damage map. Recomputed live as the build changes, in the ranking worker (ranking.ts).
+// Item value: what each legendary or pair of boots would add to the current build, and each component
+// worth it beside them, or the best sets of several to buy together (item-sets.tsx), ranked by damage
+// per gold or total damage, as a list or a gold-vs-damage map. Recomputed live as the build changes,
+// in the ranking worker (ranking.ts).
 
 import {
   useEffect,
@@ -22,7 +23,7 @@ import { useItemSlots } from "./drag.tsx";
 import { Card, Chevron, fmt } from "./common.tsx";
 import { GoldScatter, useTooltip, type GoldPoint } from "./charts.tsx";
 import { CountPicker, Excluded, SetItems, setKey, setList, setName } from "./item-sets.tsx";
-import { defaultCandidates, type ItemSet } from "../../engine/analysis.ts";
+import { componentCandidates, defaultCandidates, isComponent, notable, type ItemSet } from "../../engine/analysis.ts";
 import type { Scenario, Sim } from "../../engine/sim.ts";
 import { buildItems, type Set, type UIState } from "../state.ts";
 import { useRanking, type ItemRanking, type RunProgress } from "../ranking.ts";
@@ -37,7 +38,9 @@ const isSet = (r: Entry): r is ItemSet => "items" in r;
 /** A row's own hits, named by their item. */
 const hitsOf = (r: Entry) => (isSet(r) ? r.itemHits : r.itemHits.map((h) => ({ ...h, source: `item:${r.id}` })));
 
-const DEFAULT_IDS = defaultCandidates(DATA).map((i) => i.id);
+/** What's ranked: the legendaries and boots, which sets are of too, and the components, shown when worth it (notable). */
+const DEFAULT_IDS = [...defaultCandidates(DATA), ...componentCandidates(DATA)].map((i) => i.id);
+const SET_IDS = DEFAULT_IDS.filter((id) => !isComponent(DATA.items[id]));
 const SHOWN = 8;
 /** How far ahead of the next best an item has to be, per gold, to stand out. */
 const STANDOUT = 1.15;
@@ -135,22 +138,23 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
     // An empty slot ranks what to buy next, as the shop places it: a pair of boots in the boots slot, an
     // upgrade in place of what it's built from. In place of an item, what could go in its slot: with
     // the boots slot, boots in it and the rest in the others; the item itself too, excluded or not.
+    // Given, so every one is ranked, components too: which of them are worth showing is judged beside
+    // the rows listed (notable).
     const fit = pool.filter((id) => (current == null && !forBoots) || slotFits(state.items, slot, id));
-    const candidates = current != null && !fit.includes(current) ? [...fit, current] : fit.length < DEFAULT_IDS.length ? fit : undefined;
+    const candidates = current != null && !fit.includes(current) ? [...fit, current] : fit;
     return { kind: "items" as const, base, candidates };
   }, [scenario, state.items, slot, current, pool, count]);
-  // Sets fill the build's empty slots, a pair of boots the boots slot.
-  const setsJob = useMemo(
-    () =>
-      count > 1
-        ? { kind: "sets" as const, base: scenario, size: count, slots: state.items.length, candidates: pool.length < DEFAULT_IDS.length ? pool : undefined }
-        : null,
-    [scenario, state.items.length, pool, count],
-  );
+  // Sets fill the build's empty slots, a pair of boots the boots slot: of legendaries and boots, no components.
+  const setsJob = useMemo(() => {
+    if (count <= 1) return null;
+    const of = pool.filter((id) => !isComponent(DATA.items[id]));
+    return { kind: "sets" as const, base: scenario, size: count, slots: state.items.length, candidates: of.length < SET_IDS.length ? of : undefined };
+  }, [scenario, state.items.length, pool, count]);
 
   // Simulated in the worker, a moment after the job last changed, so typing in the combo box doesn't
   // start a ranking on every key; the last result stays on screen (dimmed) until the new one is ready.
-  // ~100 simulations for the next item, some 600 to 4,000 for a set.
+  // ~180 simulations for the next item (some 120 legendaries and boots, 60 components), some 600 to
+  // 4,000 for a set.
   const items = useRanking(itemsJob, 250);
   const sets = useRanking(setsJob, 250);
   const ranked = count > 1 ? sets : items;
@@ -162,8 +166,11 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
     const useful = (ranking?.items ?? []).filter(
       (r) => (forBoots || r.gain > 0.5 || r.id === current) && !(current != null && r.replaces) && (r.id === current || !state.excluded.includes(r.id)),
     );
-    useful.sort((a, b) => (by === "perGold" ? b.gainPerGold - a.gainPerGold : b.gain - a.gain));
-    return useful;
+    // A component only when it's worth it beside the items listed; the one ranked in place of, whatever it adds.
+    const worth = new Set(notable(DATA, useful));
+    const listed = useful.filter((r) => r.id === current || worth.has(r));
+    listed.sort((a, b) => (by === "perGold" ? b.gainPerGold - a.gainPerGold : b.gain - a.gain));
+    return listed;
   }, [ranking, by, current, forBoots, state.excluded]);
   const lead = useMemo(() => standouts(rows), [rows]);
   // A set with an item just excluded goes at once, before the ranking without it is ready.

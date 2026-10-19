@@ -99,6 +99,7 @@ function describeVariant(v: Variant, i: number): string {
 // -----------------------------------------------------------------------------
 // Item ranking: marginal value of adding one item to the current build.
 
+/** By default, the legendaries and boots, and the components worth it beside them (notable); the candidates given, all of them. */
 export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (number | string)[]; metric?: Metric; limit?: number } = {}) {
   const metric = opts.metric ?? "damage";
   const baseRes = simulate(data, base);
@@ -106,7 +107,8 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
   const baseTally = tally(baseRes);
   const baseItems = (base.items ?? []).map((q) => findItem(data, q));
   const baseIds = baseItems.map((b) => b.id);
-  const candidates = opts.candidates?.length ? opts.candidates.map((q) => findItem(data, q)) : defaultCandidates(data, base);
+  const given = !!opts.candidates?.length;
+  const candidates = given ? opts.candidates!.map((q) => findItem(data, q)) : [...defaultCandidates(data, base), ...componentCandidates(data)];
   const rows = [];
   for (const it of candidates) {
     // An item built from items of the build takes their place, for the difference in gold.
@@ -142,8 +144,12 @@ export function rankItems(data: GameData, base: Scenario, opts: { candidates?: (
   return {
     metric,
     base: summarize(baseRes, "current build"),
-    items: rows.slice(0, opts.limit ?? 25),
-    note: "gold is what the item costs: its price, less that of the build's items it's built from, which it replaces (replaces lists them). gainPerGold is damage gained per 1000 of that gold. The gain is baseDamage + itemDamage + procDamage + lostDamage: baseDamage its stats making your other hits deal more; itemDamage what the item deals itself; procDamage hits of your other damage that land only with it (procs lists them, e.g. Electrocute); lostDamage (negative) what it takes away from your other damage (lost lists it, e.g. a proc it makes land later). adaptive is your adaptive force's type with the item, where it turns it.",
+    items: (given ? rows : notable(data, rows)).slice(0, opts.limit ?? 25),
+    note:
+      "gold is what the item costs: its price, less that of the build's items it's built from, which it replaces (replaces lists them). gainPerGold is damage gained per 1000 of that gold. The gain is baseDamage + itemDamage + procDamage + lostDamage: baseDamage its stats making your other hits deal more; itemDamage what the item deals itself; procDamage hits of your other damage that land only with it (procs lists them, e.g. Electrocute); lostDamage (negative) what it takes away from your other damage (lost lists it, e.g. a proc it makes land later). adaptive is your adaptive force's type with the item, where it turns it." +
+      (given
+        ? ""
+        : " Components (items that build into others, e.g. Serrated Dirk) are listed only when worth it beside the legendaries and boots: adding at least a quarter of the best one's gain, fewer than 8 of them adding more per gold, and no cheaper component adding as much (within 3%)."),
   };
 }
 
@@ -330,6 +336,50 @@ function attribute(was: ReturnType<typeof tally>, now: ReturnType<typeof tally>,
 /** Legendary items + boots on Summoner's Rift (excluding champion-specific ones). */
 export function defaultCandidates(data: GameData, base?: Scenario): ItemData[] {
   return Object.values(data.items).filter((i) => i.inStore && !i.requiredChampion && (isLegendary(i) || (i.tags.includes("Boots") && i.depth >= 2)));
+}
+
+/** An item the shop sells to build into others (Serrated Dirk, B. F. Sword, Dark Seal), but boots and potions. */
+export const isComponent = (it: ItemData) => it.into.length > 0 && !it.tags.includes("Boots") && !it.tags.includes("Consumable");
+
+/** The components on Summoner's Rift (excluding champion-specific ones): rankItems ranks them with the
+ *  legendaries and boots, showing those worth it (notable); sets of items and optimize keep to those. */
+export function componentCandidates(data: GameData): ItemData[] {
+  return Object.values(data.items).filter((i) => i.inStore && !i.requiredChampion && isComponent(i));
+}
+
+/** A component is shown beside the legendaries and boots when it adds at least this share of what the best of them adds, */
+const COMPONENT_SHARE = 0.25;
+/** fewer of them than this add more per gold, */
+const COMPONENT_RANK = 8;
+/** and no cheaper component adds as much as it, to within this share. */
+const COMPONENT_MATCH = 0.03;
+
+/**
+ * The rows of an item ranking worth showing: the legendaries and boots, and the components that stand
+ * up to them. Per gold a component often beats every legendary, as the shop prices its stats (Long
+ * Sword's 10 AD), so that alone isn't enough: it must add a quarter of what the best of them adds or
+ * more (Serrated Dirk on an assassin, never a Long Sword), and fewer than 8 of them may add more per
+ * gold, so it's high in the list; and no cheaper component may add as much, to within 3% (Pickaxe, not
+ * Tiamat for the same 25 AD; Glowing Mote, not Kindlegem, for the ability haste that fits in another cast).
+ */
+export function notable<R extends { id: number; gold: number; gain: number; gainPerGold: number }>(data: GameData, rows: R[]): R[] {
+  const component = (r: R) => !!data.items[r.id] && isComponent(data.items[r.id]);
+  const items = rows.filter((r) => !component(r));
+  const best = Math.max(0, ...items.map((r) => r.gain));
+  const fit = rows.filter(
+    (r) => component(r) && r.gain > 0 && r.gain >= COMPONENT_SHARE * best && items.filter((x) => x.gainPerGold > r.gainPerGold).length < COMPONENT_RANK,
+  );
+  // Of two alike, the cheaper; at the same price, the one that adds more, else the first.
+  const matched = (r: R) =>
+    fit.some(
+      (x, k) =>
+        x !== r &&
+        x.gold <= r.gold &&
+        x.gain >= r.gain * (1 - COMPONENT_MATCH) &&
+        (x.gold < r.gold || x.gain > r.gain || (x.gain === r.gain && k < fit.indexOf(r))),
+    );
+  const kept = new Set(fit.filter((r) => !matched(r)));
+  return rows.filter((r) => !component(r) || kept.has(r));
 }
 
 /**

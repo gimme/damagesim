@@ -127,7 +127,7 @@ export interface UI {
 }
 
 export const test = base.extend<{ ui: UI; itemValue: boolean }>({
-  // Whether each step waits for Item value to rank the build as it then is: ~100 simulations, a
+  // Whether each step waits for Item value to rank the build as it then is: ~180 simulations, a
   // quarter of a second after each change. Only what checks the ranking needs it.
   itemValue: [false, { option: true }],
   ui: async ({ page, context, baseURL, itemValue }, use) => {

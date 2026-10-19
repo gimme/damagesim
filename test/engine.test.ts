@@ -12,7 +12,17 @@ import { compile } from "../src/engine/expr.ts";
 import { clampCombo, critMarking, fitCombo, formatCombo, markCrit, parseCombo, rollsCrits } from "../src/engine/combo.ts";
 import { getKit } from "../src/kits/index.ts";
 import { combineAmps } from "../src/engine/sim.ts";
-import { conflicts, rankItems, rankItemSets, searchItemSets, type ItemSet } from "../src/engine/analysis.ts";
+import {
+  componentCandidates,
+  conflicts,
+  defaultCandidates,
+  isComponent,
+  notable,
+  rankItems,
+  rankItemSets,
+  searchItemSets,
+  type ItemSet,
+} from "../src/engine/analysis.ts";
 import { findItem } from "../src/engine/gamedata.ts";
 import type { ItemData } from "../src/engine/data-types.ts";
 import { formatNumber, itemText, renderTooltip, runeText } from "../src/engine/tooltip.ts";
@@ -383,6 +393,45 @@ test("rank items: an item built from one of the build's takes its place, for the
     ["Rabadon's Deathcap"],
   );
   assert.equal(rankItems(data, shod, { candidates: ["Rabadon's Deathcap"] }).items[0].replaces, undefined);
+});
+
+test("rank items: components beside the legendaries and boots, only where worth it; sets and optimize keep to those", () => {
+  // Talon at 6 without items: Serrated Dirk adds over a quarter of what the best item does, 5th per
+  // gold; a Long Sword, though as high per gold as most legendaries, a tenth of it.
+  const base = { champion: "Talon", level: 6, items: [], runes: ["Electrocute"], combo: "W E Q AA R AA", target: { preset: "squishy" as const } };
+  const rows = rankItems(data, base, { limit: Infinity }).items;
+  const names = rows.map((r) => r.item);
+  assert.ok(names.includes("Serrated Dirk") && names.includes("B. F. Sword"));
+  assert.ok(!names.includes("Long Sword") && !names.includes("Tiamat"));
+  // Asked for, ranked as any candidate.
+  const [best, sword] = rankItems(data, base, { candidates: ["Voltaic Cyclosword", "Long Sword"] }).items;
+  assert.ok(sword.gain < best.gain / 4);
+  assert.ok(rows.filter((r) => r.gainPerGold < sword.gainPerGold).length > rows.length / 2);
+  // Bought, what's built from it takes its place, for the rest of its price.
+  const youmuu = rankItems(data, { ...base, items: ["Serrated Dirk"] }, { limit: Infinity }).items.find((r) => r.item === "Youmuu's Ghostblade")!;
+  assert.deepEqual(youmuu.replaces, [{ item: "Serrated Dirk", id: 3134 }]);
+  assert.equal(youmuu.gold, 2800 - 1000);
+  // Neither Boots, nor a potion, nor Seeker's Armguard spent (not sold); none among the legendaries and boots.
+  const components = componentCandidates(data).map((i) => i.name);
+  assert.ok(components.includes("Serrated Dirk") && components.includes("Dark Seal"));
+  assert.ok(!components.some((n) => ["Boots", "Refillable Potion", "Shattered Armguard"].includes(n)));
+  assert.ok(!defaultCandidates(data).some(isComponent));
+});
+
+test("components worth showing: a quarter of the best item's gain or more, fewer than 8 items ahead per gold, no cheaper one adding as much", () => {
+  const row = (name: string, gold: number, gain: number) => ({ id: findItem(data, name).id, item: name, gold, gain, gainPerGold: (gain / gold) * 1000 });
+  const shown = (rows: ReturnType<typeof row>[]) => notable(data, rows).map((r) => r.item);
+  const best = row("Voltaic Cyclosword", 3000, 600);
+  // A tenth of the best item's gain, as much per gold: not shown.
+  assert.deepEqual(shown([best, row("Long Sword", 350, 70), row("Serrated Dirk", 1000, 180)]), ["Voltaic Cyclosword", "Serrated Dirk"]);
+  assert.deepEqual(shown([best, row("Serrated Dirk", 1000, 149)]), ["Voltaic Cyclosword"]);
+  // 7 items ahead per gold, then 8.
+  const ahead = ["Youmuu's Ghostblade", "Hubris", "Profane Hydra", "Axiom Arc", "Umbral Glaive", "Eclipse", "Edge of Night"].map((n) => row(n, 3000, 570));
+  assert.ok(shown([best, ...ahead.slice(1), row("Serrated Dirk", 1000, 180)]).includes("Serrated Dirk"));
+  assert.ok(!shown([best, ...ahead, row("Serrated Dirk", 1000, 180)]).includes("Serrated Dirk"));
+  // The same 25 AD for more gold: within 3% of Pickaxe's gain, not shown; more, shown.
+  assert.deepEqual(shown([best, row("Tiamat", 1200, 164), row("Pickaxe", 875, 160)]), ["Voltaic Cyclosword", "Pickaxe"]);
+  assert.deepEqual(shown([best, row("Tiamat", 1200, 170), row("Pickaxe", 875, 160)]), ["Voltaic Cyclosword", "Tiamat", "Pickaxe"]);
 });
 
 test("rank items: what an item's hits proc is split from its own damage and its stats", () => {
