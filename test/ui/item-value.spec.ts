@@ -1,5 +1,5 @@
-// The Item value card: the slot to rank for, the ranking sorted two ways, Show more, buying from a row or by dragging its item onto a slot, the gold map, and
-// what a card calls a hit.
+// The Item value card: the slot to rank for (the build's, in its address, following its items and brought back by undo), the ranking sorted two ways,
+// Show more, buying from a row or by dragging its item onto a slot, the gold map, and what a card calls a hit.
 
 import { test, expect, attrs, num, texts, type UI } from "./ui.ts";
 
@@ -192,7 +192,24 @@ test("slots and the gold map", async ({ ui }) => {
     async () => {
       expect((await build())[3]).toBe(item);
       expect(await ranked()).toBe(3);
+      expect((await ui.state()).slot).toBe(3);
       await page.evaluate(() => (document.activeElement as HTMLElement).blur());
+    },
+  );
+  await step(
+    "Undo in Items: the move back, and slot 5 ranked again",
+    () => ui.card("Items").getByRole("button", { name: "Undo" }).click(),
+    async () => {
+      expect((await build())[4]).toBe(item);
+      expect(await ranked()).toBe(4);
+    },
+  );
+  await step(
+    "Redo: slot 4 again",
+    () => ui.card("Items").getByRole("button", { name: "Redo" }).click(),
+    async () => {
+      expect((await build())[3]).toBe(item);
+      expect(await ranked()).toBe(3);
     },
   );
 
@@ -263,6 +280,53 @@ test("slots and the gold map", async ({ ui }) => {
     async () => {
       await expect(map).toHaveCount(0);
       expect(await rows.count()).toBeGreaterThan(0);
+    },
+  );
+});
+
+test("the slot to rank for is the build's, in its address, and undo brings it back", async ({ ui }) => {
+  const { page, step } = ui;
+  const { slots, caption, ranked, build } = parts(ui);
+  const undo = ui.card("Items").getByRole("button", { name: "Undo" });
+  let boots = "";
+  await step(
+    "open at slot 2: in place of its item",
+    () => ui.open({ slot: 1 }),
+    async () => {
+      boots = (await build())[1]!;
+      expect(await ranked()).toBe(1);
+      await expect(caption).toHaveText(`In place of ${boots}`);
+      await expect(undo).toBeDisabled();
+    },
+  );
+  await step(
+    "Delete on slot 1 sells it: ranked, and in the address",
+    async () => {
+      await slots.nth(0).focus();
+      await page.keyboard.press("Delete");
+    },
+    async () => {
+      expect(await ranked()).toBe(0);
+      expect((await ui.state()).slot).toBe(0);
+      await expect(caption).toHaveText("Next item");
+    },
+  );
+  await step(
+    "Undo: the item back, and slot 2 ranked again",
+    () => undo.click(),
+    async () => {
+      expect(await ranked()).toBe(1);
+      expect((await ui.state()).slot).toBe(1);
+      await expect(caption).toHaveText(`In place of ${boots}`);
+    },
+  );
+  await step(
+    "slot 3 clicked: ranked, and not a change to undo",
+    () => slots.nth(2).click(),
+    async () => {
+      expect(await ranked()).toBe(2);
+      expect((await ui.state()).slot).toBe(2);
+      await expect(undo).toBeDisabled();
     },
   );
 });

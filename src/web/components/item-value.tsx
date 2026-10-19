@@ -4,7 +4,6 @@
 
 import {
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -92,26 +91,11 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   const setCount = (n: number) => set((s) => ({ ...s, next: n }));
   const empty = state.items.filter((x) => x == null).length;
   const size = Math.max(1, Math.min(count, empty));
-  // The slot being ranked: the first empty one, or the one picked, empty or with an item to reconsider.
-  const [chosen, setChosen] = useState<number | null>(null);
-  // An item sold, here or in Items, the slot it left is the one ranked, for what to buy there; several
-  // at once (Clear), the first empty one. It follows its item when the build's items are moved, and an
-  // empty one the gap the item it swapped with left; filled otherwise (bought from Items, an undo),
-  // the next empty one is ranked.
-  const seen = useRef(state.items);
-  useLayoutEffect(() => {
-    const [was, now] = [seen.current, state.items];
-    seen.current = now;
-    const changed = now.flatMap((x, k) => (x !== was[k] ? [k] : []));
-    if (changed.length && changed.every((k) => now[k] == null)) {
-      setChosen(changed.length === 1 ? changed[0] : null);
-      return;
-    }
-    if (chosen == null || now[chosen] === was[chosen]) return;
-    const to = now.findIndex((x, k) => x === was[chosen] && was[k] !== x);
-    setChosen(to >= 0 ? to : null);
-  }, [state.items]);
-  // A full build reconsiders its last item, the boots slot's aside.
+  // The slot being ranked, the build's too (state.slot): the first empty one, or the one picked, empty
+  // or with an item to reconsider. It follows the build's items as they change, here or in Items (an
+  // item sold, the slot it left; its item moved, where it went; filled, the next empty one: withItems),
+  // and undo brings it back. A full build reconsiders its last item, the boots slot's aside.
+  const chosen = state.slot;
   const firstEmpty = state.items.findIndex((x) => x == null);
   const slot = chosen != null && chosen < state.items.length ? chosen : firstEmpty >= 0 ? firstEmpty : Math.min(state.items.length, BOOTS_SLOT) - 1;
   const current = size === 1 ? state.items[slot] : null;
@@ -166,22 +150,19 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   }, [sets.result, by, state.excluded]);
   const shown: Entry[] = size > 1 ? setRows : rows;
 
-  const pick = (id: number) => {
-    set((s) => withItems(s, buyItem(s.items, slot, id)));
-    setChosen(null);
-  };
-  const buySet = (s: ItemSet) => {
-    set((st) =>
-      withItems(
+  // Bought from a row or a set, the next empty slot is ranked, wherever the items went.
+  const pick = (id: number) => set((s) => ({ ...withItems(s, buyItem(s.items, slot, id)), slot: null }));
+  const buySet = (s: ItemSet) =>
+    set((st) => ({
+      ...withItems(
         st,
         buyItems(
           st.items,
           s.items.map((x) => x.id),
         ),
       ),
-    );
-    setChosen(null);
-  };
+      slot: null,
+    }));
   const buy = (r: Entry) => (isSet(r) ? buySet(r) : pick(r.id));
   const exclude = (id: number) => set((s) => (s.excluded.includes(id) ? s : { ...s, excluded: [...s.excluded, id] }));
 
@@ -234,10 +215,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
             const name = id != null ? DATA.items[id]?.name : null;
             const ranks = size === 1 && i === slot;
             const foot = ranks ? undefined : "Click to rank what could take its place.";
-            const pickSlot = () => {
-              setChosen(i);
-              setCount(1);
-            };
+            const pickSlot = () => set((s) => ({ ...s, slot: i, next: 1 }));
             return (
               <div
                 key={i}
