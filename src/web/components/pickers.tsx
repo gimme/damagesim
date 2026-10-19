@@ -8,7 +8,6 @@ import type { ItemData } from "../../engine/data-types.ts";
 import type { Sim } from "../../engine/sim.ts";
 import { builtFrom } from "../../engine/analysis.ts";
 import { search } from "../search.ts";
-import { isQuestBoots } from "../slots.ts";
 
 export function ChampionPicker({ value, onChange, label = "Champion" }: { value: string; onChange: (id: string) => void; label?: string }) {
   const [open, setOpen] = useState(false);
@@ -122,22 +121,23 @@ export const SHOP_ITEMS: ItemData[] = Object.values(DATA.items)
   .sort((a, b) => b.depth - a.depth || a.name.localeCompare(b.name));
 
 /**
- * The shop. `bootsOnly`: for the boots slot, which every tier lists; `questBoots`: with the tier 3
- * boots; `build`: the items an item's price leaves out, those it's built from.
+ * The shop. `bootsOnly`: for the boots slot, which every tier lists; `offers`: which of the items it
+ * sells, as the tier 3 boots setting has it; `build`: the items an item's price leaves out, those it's
+ * built from.
  */
 export function ItemPicker({
   onPick,
   onClose,
   sim,
   bootsOnly,
-  questBoots,
+  offers,
   build,
 }: {
   onPick: (id: number) => void;
   onClose: () => void;
   sim?: Sim | null;
   bootsOnly?: boolean;
-  questBoots: boolean;
+  offers: (id: number) => boolean;
   build?: (number | null)[];
 }) {
   const hover = useHoverCard();
@@ -151,7 +151,7 @@ export function ItemPicker({
     SHOP_ITEMS.filter(
       (i) =>
         (!bootsOnly || isBoots(i)) &&
-        (questBoots || !isQuestBoots(i.id)) &&
+        offers(i.id) &&
         (tier === "all" || !!q.trim() || i.depth >= 3 || isBoots(i) || i.gold.total >= 2200) &&
         (filters[filter]?.test(i) ?? true),
     ),

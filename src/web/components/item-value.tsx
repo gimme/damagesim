@@ -27,7 +27,7 @@ import { componentCandidates, defaultCandidates, type ItemSet } from "../../engi
 import type { Scenario, Sim } from "../../engine/sim.ts";
 import { buildItems, room, type Set, type UIState } from "../state.ts";
 import { useRanking, type ItemRanking, type RunProgress } from "../ranking.ts";
-import { BOOTS_SLOT, buyItem, buyItems, isBoots, isQuestBoots, slotFits, withItems } from "../slots.ts";
+import { BOOTS_SLOT, buyItem, buyItems, isBoots, offered, slotFits, withItems } from "../slots.ts";
 
 type Row = ItemRanking["items"][number];
 /** A row of the list: an item, or a set of items. */
@@ -126,9 +126,10 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   const bootsSlot = state.items.length > BOOTS_SLOT;
   const forBoots = bootsSlot && slot === BOOTS_SLOT && count === 1;
 
-  // What can be bought: the tier 3 boots and the components only with their settings, and nothing excluded.
+  // What can be bought: the tier of boots the tier 3 boots setting has, the components only with theirs,
+  // and nothing excluded.
   const pool = useMemo(
-    () => DEFAULT_IDS.filter((id) => (state.settings.questBoots || !isQuestBoots(id)) && !state.excluded.includes(id)),
+    () => DEFAULT_IDS.filter((id) => offered(id, state.settings.questBoots) && !state.excluded.includes(id)),
     [state.settings.questBoots, state.excluded],
   );
   const components = useMemo(

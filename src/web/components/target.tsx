@@ -10,6 +10,7 @@ import { TARGET_MODES, type Set, type TargetMode, type TargetState, type TargetS
 import { ITEMS_BY_LEVEL_RULE, TARGET_PRESETS, isTargetPreset, itemsAtLevel, levelForItems, presetShardHp, type TargetPreset } from "../../engine/presets.ts";
 import type { SimResult } from "../../engine/sim.ts";
 import { findItem } from "../../engine/gamedata.ts";
+import { isQuestBoots } from "../slots.ts";
 
 const MODE_LABEL: Record<TargetMode, string> = { squishy: "Squishy", bruiser: "Bruiser", tank: "Tank", champion: "Champion", custom: "Custom" };
 const MODE_TITLE: Record<TargetMode, string> = {
@@ -256,7 +257,8 @@ function TargetItems({
             setOpen(false);
           }}
           onClose={() => setOpen(false)}
-          questBoots={questBoots}
+          // Both tiers with the setting: the quest is yours, the enemy may not have done it.
+          offers={(id) => questBoots || !isQuestBoots(id)}
         />
       )}
     </div>

@@ -620,7 +620,7 @@ test("boots bought upgrade the build's, for the difference in gold", async ({ ui
   );
   const setting = ui.card("Settings").getByRole("checkbox", { name: "Tier 3 boots (mid lane quest)" });
   await step(
-    "the setting for the mid lane quest's tier 3 boots: the greaves are Gunmetal Greaves, and the shop lists tier 3 ones",
+    "the setting for the mid lane quest's tier 3 boots: the greaves are Gunmetal Greaves, and the shop's boots are tier 3, not the pairs they're upgraded from",
     async () => {
       await search.press("Escape");
       await setting.check();
@@ -629,7 +629,10 @@ test("boots bought upgrade the build's, for the difference in gold", async ({ ui
     },
     async () => {
       expect(await items()).toEqual([6655, 3172, null, null, null, null]);
-      expect(await names()).toEqual(expect.arrayContaining(["Gunmetal Greaves", "Spellslinger's Shoes"]));
+      const boots = await names();
+      expect(boots).toEqual(expect.arrayContaining(["Gunmetal Greaves", "Spellslinger's Shoes"]));
+      expect(boots).not.toContain("Berserker's Greaves");
+      expect(boots).not.toContain("Sorcerer's Shoes");
       expect((await ui.state()).settings.questBoots).toBe(true);
     },
   );
@@ -661,24 +664,12 @@ test("boots bought upgrade the build's, for the difference in gold", async ({ ui
     async () => expect(await items()).toEqual([6655, 3172, null, null, null, null]),
   );
   await step(
-    "Berserker's Greaves bought, the setting on: in place of Gunmetal Greaves; the shop's Gunmetal Greaves free with them",
+    "buy Spellslinger's Shoes: in place of Gunmetal Greaves",
     async () => {
       await slots.nth(2).click();
-      await search.fill("berserker");
-      await search.press("Enter");
-      await slots.nth(2).click();
-    },
-    async () => {
-      expect(await items()).toEqual([6655, 3006, null, null, null, null]);
-      await expect(price("Gunmetal Greaves")).toHaveText("0g");
-    },
-  );
-  await step(
-    "buy Gunmetal Greaves: in place of Berserker's",
-    async () => {
-      await search.fill("gunmetal");
+      await search.fill("spellslinger");
       await search.press("Enter");
     },
-    async () => expect(await items()).toEqual([6655, 3172, null, null, null, null]),
+    async () => expect(await items()).toEqual([6655, 3175, null, null, null, null]),
   );
 });

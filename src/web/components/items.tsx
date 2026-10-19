@@ -9,7 +9,7 @@ import { ItemTip, useHoverCard } from "./hover.tsx";
 import { useItemSlots } from "./drag.tsx";
 import { BuildTitle, Card, fmt, useHistory } from "./common.tsx";
 import type { Set, UIState } from "../state.ts";
-import { BOOTS_SLOT, addBootsSlot, buyItem, withItems, withQuestBoots } from "../slots.ts";
+import { BOOTS_SLOT, addBootsSlot, buyItem, offered, withItems, withQuestBoots } from "../slots.ts";
 import type { Sim } from "../../engine/sim.ts";
 import { conflicts } from "../../engine/analysis.ts";
 
@@ -187,7 +187,7 @@ export function ItemsPanel({ state, set, gold, sim, buildName }: { state: UIStat
             onClose={() => setPicking(null)}
             sim={sim}
             bootsOnly={bootsSlot && picking === BOOTS_SLOT}
-            questBoots={state.settings.questBoots}
+            offers={(id) => offered(id, state.settings.questBoots)}
             build={items}
           />
         )}

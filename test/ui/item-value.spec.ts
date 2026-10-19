@@ -694,9 +694,12 @@ test("the mid lane quest's tier 3 boots, ranked with their setting", async ({ ui
     },
   );
   await step(
-    "check their setting: ranked too",
+    "check their setting: ranked in place of the pairs they're upgraded from",
     () => ui.card("Settings").getByRole("checkbox", { name: "Tier 3 boots (mid lane quest)" }).check(),
-    async () => expect(await names()).toContain("Spellslinger's Shoes"),
+    async () => {
+      expect(await names()).toContain("Spellslinger's Shoes");
+      expect(await names()).not.toContain("Sorcerer's Shoes");
+    },
   );
 });
 

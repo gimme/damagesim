@@ -136,8 +136,8 @@ Only the stats of a target's items count: it never fights back, so their passive
    * penetration order is flat reduction → % reduction → % penetration → flat penetration;
    * damage-dealt amplifiers add together since 26.9, while damage-taken modifiers multiply;
    * levels go up to 20 (Top role quest), boots get a seventh slot of their own (Bot role quest), and
-     tier 3 boots (Mid role quest) are offered with a setting, which swaps every build's pair for its
-     counterpart as it's turned on or off; Ignite is 70–475;
+     tier 3 boots (Mid role quest) are offered with a setting, in place of the pairs they're upgraded
+     from, which it swaps in every build as it's turned on or off; Ignite is 70–475;
    * an item built from one you have takes its place, for the difference in gold (Boots into a pair);
    * item and rune trigger rules, damage types and stacking are modeled, including item groups.
 4. **Champion kits** (`src/kits/champions/`) say *which* formula is dealt *how*: hit counts,

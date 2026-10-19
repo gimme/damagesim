@@ -19,6 +19,10 @@ function questBootsOf(id: number, on: boolean): number {
   return (on ? (it.depth === 2 ? it.into.find(isQuestBoots) : undefined) : isQuestBoots(id) ? it.from.find(isBoots) : undefined) ?? id;
 }
 
+/** Whether a build's shop and Item value offer an item, with the tier 3 boots setting on or off: a pair
+ *  of boots only of the tier it sets, as the mid lane role quest upgrades any pair for nothing. */
+export const offered = (id: number, questBoots: boolean) => questBootsOf(id, questBoots) === id;
+
 /** A build with the tier 3 boots setting turned on or off: its pair of boots the counterpart, Item
  *  value's item to rank in place of too where it's the pair. */
 export function withQuestBoots<B extends { items: (number | null)[]; replace: number | null }>(b: B, on: boolean): B {
