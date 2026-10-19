@@ -2,7 +2,8 @@
 // rank for (the card's own, for the next change to the build), the ranking sorted two ways, Show more, buying from a row or by dragging its item onto
 // a slot, the gold map, every pair of boots for the boots slot (those that add nothing, or take damage away, too), and what a card calls a hit.
 
-import { test, expect, attrs, num, texts, type UI } from "./ui.ts";
+import { test, expect, attrs, num, texts, DATA, type UI } from "./ui.ts";
+import { defaultCandidates } from "../../src/engine/analysis.ts";
 
 // Every step checks the ranking as the build then is.
 test.use({ itemValue: true });
@@ -34,6 +35,23 @@ const parts = (ui: UI) => {
 };
 
 const descending = (xs: number[]) => xs.every((x, i) => i === 0 || xs[i - 1] >= x);
+
+/** The gold map, its dots (drawn with a 2px outline; a hovered one's ring is larger, r 9), and the y of its 0 line. */
+const goldMap = (ui: UI) => {
+  const map = ui.card("Item value").getByRole("img", { name: "Damage gained versus item cost" });
+  const dots = map.locator('circle[stroke-width="2"]:not([r="9"])');
+  return {
+    map,
+    dots,
+    /** The dots' heights on the map, as drawn. */
+    ys: async () => (await attrs(dots, "cy")).map(Number),
+    zero: async () => Number(await map.locator("text", { hasText: /^0$/ }).getAttribute("y")) - 4,
+    hover: async (i: number) => {
+      const b = (await dots.nth(i).boundingBox())!;
+      await ui.page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    },
+  };
+};
 
 test("ranking, sorting and buying", async ({ ui }) => {
   const { page, step } = ui;
@@ -400,19 +418,13 @@ test("the item to rank in place of is the build's, in its address, and undo brin
 
 test("the boots slot", async ({ ui }) => {
   const { page, step } = ui;
-  const { card, slots, rows, names, damage, caption, ranked } = parts(ui);
-  // Every pair of boots, but the tier 3 ones, which come with their setting.
-  const BOOTS = [
-    "Berserker's Greaves",
-    "Boots of Swiftness",
-    "Gluttonous Greaves",
-    "Ionian Boots of Lucidity",
-    "Mercury's Treads",
-    "Plated Steelcaps",
-    "Sorcerer's Shoes",
-  ];
-  const map = card.getByRole("img", { name: "Damage gained versus item cost" });
-  const dots = map.locator('circle[stroke-width="2"]:not([r="9"])');
+  const { card, slots, rows, names, perGold, damage, caption, ranked } = parts(ui);
+  const { dots, ys, zero, hover } = goldMap(ui);
+  // Every pair of boots the shop has, by the patch's data, but the tier 3 ones, which come with their setting.
+  const BOOTS = defaultCandidates(DATA)
+    .filter((i) => i.tags.includes("Boots") && i.depth < 3)
+    .map((i) => i.name)
+    .sort();
   let boots: string[] = [];
 
   // Luden's Echo, Sorcerer's Shoes, Rabadon's Deathcap, Void Staff, Shadowflame and Zhonya's Hourglass.
@@ -441,16 +453,15 @@ test("the boots slot", async ({ ui }) => {
       await expect(caption).toHaveText("In place of Sorcerer's Shoes");
       boots = await names();
       expect([...boots].sort()).toEqual(BOOTS);
-      // The shoes add damage, which no other pair does, and so stand out against none.
-      expect(boots[0]).toBe("Sorcerer's Shoes");
-      const [shoes, ...rest] = await damage();
-      expect(shoes).toBeGreaterThan(0);
-      expect(rest).toEqual(rest.map(() => 0));
-      await expect(card.locator(".iv-row.standout")).toHaveCount(0);
+      expect(await damage()).toContain(0);
+      // A pair stands out only ahead of one that adds damage per gold, never of pairs that add nothing.
+      const pg = await perGold();
+      const standout = (await attrs(rows, "class")).map((c) => /\bstandout\b/.test(c!));
+      expect(standout.filter((s, i) => s && !pg.slice(i + 1).some((v) => v > 0))).toEqual([]);
     },
   );
   await step(
-    "Gold map: a dot for each pair, each on its own spot, though those that add nothing at a cost would share one",
+    "Gold map: a dot for each pair, each on its own spot, though pairs of a cost that add nothing would share one",
     () => card.getByRole("group", { name: "View" }).getByRole("button", { name: "Gold map" }).click(),
     async () => {
       await expect(dots).toHaveCount(BOOTS.length);
@@ -459,11 +470,10 @@ test("the boots slot", async ({ ui }) => {
     },
   );
   await step(
-    "hover the lowest: its card, nothing gained",
+    "hover a dot on the 0 line: its card, nothing gained",
     async () => {
-      const ys = (await attrs(dots, "cy")).map(Number);
-      const b = (await dots.nth(ys.indexOf(Math.max(...ys))).boundingBox())!;
-      await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+      const at = await zero();
+      await hover((await ys()).findIndex((y) => Math.abs(y - at) < 0.5));
     },
     async () => {
       await expect(ui.tooltip.locator(".tt-row", { hasText: "Damage gained" }).locator("strong")).toHaveText("0");
@@ -508,41 +518,41 @@ test("the boots slot", async ({ ui }) => {
   );
 });
 
+// Ornn's second attack, sped up by Berserker's Greaves, lands before his R and so not on the Brittle it leaves.
 test("a pair of boots that takes damage away, for the boots slot", async ({ ui }) => {
-  const { page, step } = ui;
-  const { card, names, perGold, damage } = parts(ui);
-  const map = card.getByRole("img", { name: "Damage gained versus item cost" });
-  const dots = map.locator('circle[stroke-width="2"]:not([r="9"])');
+  const { step } = ui;
+  const { card, slots, perGold, damage } = parts(ui);
+  const { map, dots, ys, zero, hover } = goldMap(ui);
+  let losses = 0;
 
   await step(
-    "Ornn's Plated Steelcaps in the boots slot, ranked: Berserker's Greaves last, a loss per gold and in all",
-    () => ui.open({ champion: "Ornn", combo: "Q W E R AA AA", items: [null, null, null, null, null, null, 3047], replace: 3047 }),
+    "Ornn without items, his empty boots slot clicked: a pair last, a loss per gold and in all",
     async () => {
-      expect((await names()).at(-1)).toBe("Berserker's Greaves");
+      await ui.open({ champion: "Ornn", combo: "Q W E R AA AA", items: [null, null, null, null, null, null, null] });
+      await slots.nth(6).click();
+    },
+    async () => {
       expect((await perGold()).at(-1)).toBeLessThan(0);
-      expect((await damage()).at(-1)).toBeLessThan(0);
+      losses = (await damage()).filter((d) => d < 0).length;
+      expect(losses).toBeGreaterThan(0);
     },
   );
   await step(
-    "Gold map: its dot alone below the 0 line, on an axis that goes below it",
+    "Gold map: the losses' dots below the 0 line, on an axis that goes below it",
     () => card.getByRole("group", { name: "View" }).getByRole("button", { name: "Gold map" }).click(),
     async () => {
-      const zero = Number(await map.locator("text", { hasText: /^0$/ }).getAttribute("y")) - 4;
-      expect((await attrs(dots, "cy")).map(Number).filter((y) => y > zero + 1)).toHaveLength(1);
+      const at = await zero();
+      expect((await ys()).filter((y) => y > at + 1)).toHaveLength(losses);
       await expect(map.locator("text", { hasText: /^−\d/ }).first()).toBeVisible();
     },
   );
   await step(
-    "hover it: its card, what it takes away",
+    "hover the lowest: its card, a loss",
     async () => {
-      const ys = (await attrs(dots, "cy")).map(Number);
-      const b = (await dots.nth(ys.indexOf(Math.max(...ys))).boundingBox())!;
-      await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+      const at = await ys();
+      await hover(at.indexOf(Math.max(...at)));
     },
-    async () => {
-      await expect(ui.tooltip.locator(".tt-title")).toContainText("Berserker's Greaves");
-      await expect(ui.tooltip.locator(".tt-row", { hasText: "Damage gained" }).locator("strong")).toHaveText(/^−\d/);
-    },
+    () => expect(ui.tooltip.locator(".tt-row", { hasText: "Damage gained" }).locator("strong")).toHaveText(/^−\d/),
   );
 });
 

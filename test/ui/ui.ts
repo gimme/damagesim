@@ -43,8 +43,8 @@ function isSettled(itemValue: boolean) {
   return window.__quiet.frames() >= 3;
 }
 
-/** The game data the page has, for the scenarios' addresses. */
-const DATA = loadGameData();
+/** The game data the page has, for the scenarios' addresses and what a test expects of it. */
+export const DATA = loadGameData();
 
 /** A state with what's left out the default, in the target and the settings field by field. */
 const filled = (state: Record<string, any>): UIState => ({
