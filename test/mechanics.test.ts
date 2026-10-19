@@ -781,10 +781,10 @@ test("Sundered Sky + Fiendhunter Bolts: same result in either item order, with t
   assert.ok(Math.abs(total(["Fiendhunter Bolts", "Sundered Sky"]) - total(["Sundered Sky", "Fiendhunter Bolts"])) < 0.01);
 });
 
-test("Sundered Sky (practice tool, 16.20): a crit at the attack's multiplier, × 80% with what replaces it (Chomp), not Jax's Empower or on-hit effects", () => {
+test("Sundered Sky (practice tool, 16.20): a crit at the attack's multiplier, × 80% with what replaces it (Chomp, Decisive Strike), not Jax's Empower or on-hit effects", () => {
   // Level 1 (the ability measured at rank 1) with the measured links' runes at 0:00, against a dummy
   // without resists. The game shows whole numbers.
-  const dealt = (champion: string, items: string[], combo: string, options: Record<string, number>) =>
+  const dealt = (champion: string, items: string[], combo: string, options: Record<string, number>, maxHp = 1000) =>
     simulate(data, {
       champion,
       level: 1,
@@ -793,32 +793,39 @@ test("Sundered Sky (practice tool, 16.20): a crit at the attack's multiplier, ×
       runes: ["Absolute Focus", "Gathering Storm", 5005, 5008, 5011],
       options: { gameTime: 0, ...options },
       combo,
-      target: { maxHp: 1000, armor: 0, mr: 0 },
+      target: { maxHp, armor: 0, mr: 0 },
     }).totalDamage;
-  const measured: [string, string[], string, number, Record<string, number>?][] = [
+  const measured: [string, string[], string, number, Record<string, number>?, number?][] = [
     ["Trundle", [], "Q AA", 96],
     ["Trundle", ["B. F. Sword"], "Q AA", 142],
     ["Trundle", ["Sundered Sky"], "AA", 184],
     ["Trundle", ["Sundered Sky"], "Q AA", 206],
     ["Trundle", ["Sundered Sky", "Recurve Bow"], "AA", 199],
     ["Jax", ["Sundered Sky"], "W AA", 234],
+    ["Garen", [], "Q AA", 144],
+    ["Garen", ["B. F. Sword"], "Q AA", 204],
     ["Garen", ["Sundered Sky"], "AA", 186],
+    // A crit adds 10% AD to Decisive Strike's bonus (the kit's note), on a 2000 health dummy too.
+    ["Garen", ["Sundered Sky"], "Q AA", 266],
+    ["Garen", ["Sundered Sky"], "Q AA", 266, {}, 2000],
+    ["Garen", ["Sundered Sky", "B. F. Sword"], "Q AA", 349],
     ["Nasus", ["Sundered Sky"], "Q AA", 231, { stacks: 0 }],
     // Her crits deal no extra damage (multiplier 1), so Sundered Sky's deals 80% of her attack.
     ["Ashe", ["Sundered Sky"], "AA", 85],
   ];
-  for (const [champion, items, combo, game, options = {}] of measured) {
-    const got = dealt(champion, items, combo, options);
+  for (const [champion, items, combo, game, options = {}, maxHp] of measured) {
+    const got = dealt(champion, items, combo, options, maxHp);
     assert.ok(Math.abs(got - game) < 0.6, `${champion}, ${items.join(" + ") || "no items"}, ${combo}: ${got} (game: ${game})`);
   }
 });
 
-test("Crits on empowered attacks: the attack's part crits (Garen Q, Renekton W), a canCrit component all of it (Nasus Q); Pick a Card can't crit", () => {
+test("Crits on empowered attacks: the attack's part crits (Trundle Q, Renekton W), a canCrit component all of it (Nasus Q); Pick a Card can't crit", () => {
   const run = (champion: string, items: string[], combo: string) => simulate(data, { champion, level: 11, items, combo, target: dummy });
   const sim = (champion: string, items: string[] = []) => new Sim(data, { champion, level: 11, items, combo: [] });
-  // A crit adds the attack's 100% AD, not the bonus (wiki): Garen Q, and Renekton W's first strike.
+  // A crit adds the attack's 100% AD, not the bonus: Trundle Q (Garen Q too, but for its bug; see the
+  // kit), and Renekton W's first strike (wiki).
   for (const [champion, combo] of [
-    ["Garen", "Q AA"],
+    ["Trundle", "Q AA"],
     ["Renekton", "W AA"],
   ]) {
     const added = run(champion, [], combo + "!").totalDamage - run(champion, [], combo).totalDamage;
