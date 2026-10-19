@@ -1,6 +1,6 @@
 // The Item value card: the item to rank in place of (the build's, in its address, followed as it moves and brought back by undo) and the empty slot to
-// rank for (the card's own), the ranking sorted two ways, Show more, buying from a row or by dragging its item onto a slot, the gold map, and what a
-// card calls a hit.
+// rank for (the card's own, for the next change to the build), the ranking sorted two ways, Show more, buying from a row or by dragging its item onto
+// a slot, the gold map, and what a card calls a hit.
 
 import { test, expect, attrs, num, texts, type UI } from "./ui.ts";
 
@@ -285,7 +285,9 @@ test("slots and the gold map", async ({ ui }) => {
   );
 });
 
-test("the item to rank in place of is the build's, in its address, and undo brings it back; an empty slot clicked is the card's own", async ({ ui }) => {
+test("the item to rank in place of is the build's, in its address, and undo brings it back; an empty slot clicked is the card's own, for the next change", async ({
+  ui,
+}) => {
   const { page, step } = ui;
   const { card, slots, caption, ranked, build } = parts(ui);
   const undo = ui.card("Items").getByRole("button", { name: "Undo" });
@@ -348,12 +350,34 @@ test("the item to rank in place of is the build's, in its address, and undo brin
     },
   );
   await step(
-    "the boots dragged into it: the pick doesn't follow to the gap; the first empty slot is ranked",
+    "the boots dragged into it: a change to the build, so the pick is over, not swapped to the gap; the first empty slot is ranked",
     () => ui.drag(slots.nth(1), slots.nth(3)),
     async () => {
       expect((await build())[3]).toBe(boots);
       expect(await ranked()).toBe(0);
       await expect(caption).toHaveText("Next item");
+    },
+  );
+  await step(
+    "slot 5 clicked, then the boots sold: a change elsewhere ends the pick too; the first empty slot",
+    async () => {
+      await slots.nth(4).click();
+      await ui.settle();
+      expect(await ranked()).toBe(4);
+      await slots.nth(3).focus();
+      await page.keyboard.press("Delete");
+    },
+    async () => {
+      expect((await build()).filter((x) => x != null)).toHaveLength(0);
+      expect(await ranked()).toBe(0);
+    },
+  );
+  await step(
+    "Undo: the boots back in slot 4, and still the first empty slot",
+    () => undo.click(),
+    async () => {
+      expect((await build())[3]).toBe(boots);
+      expect(await ranked()).toBe(0);
     },
   );
   await step(

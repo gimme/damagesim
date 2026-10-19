@@ -4,6 +4,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -92,23 +93,15 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   const empty = state.items.filter((x) => x == null).length;
   // What's ranked: what could take the place of the build's item picked (state.replace, so in the
   // address; it follows its item moved, and sold or bought over, nothing is picked: withItems), or the
-  // next item, for an empty slot: the one clicked while it stays empty (the card's own, not the
-  // build's: empty slots are alike but for where the item lands), else the first; a full build's in
-  // place of its last item, the boots slot's aside.
+  // next item, for an empty slot: the one clicked, else the first; a full build's in place of its last
+  // item, the boots slot's aside. The empty slot clicked is the card's own, not the build's (empty
+  // slots are alike but for where the item lands), and for the next change to the build's items, any
+  // (a buy, here or in Items, a sale, a move, an undo, another build), after which it's the first.
   const [emptySlot, setEmptySlot] = useState<number | null>(null);
-  useEffect(() => {
-    if (emptySlot != null && state.items[emptySlot] !== null) setEmptySlot(null);
-  }, [state.items, emptySlot]);
+  useLayoutEffect(() => setEmptySlot(null), [state.items]);
   const picked = state.replace != null ? state.items.indexOf(state.replace) : -1;
   const firstEmpty = state.items.findIndex((x) => x == null);
-  const slot =
-    picked >= 0
-      ? picked
-      : emptySlot != null && state.items[emptySlot] === null
-        ? emptySlot
-        : firstEmpty >= 0
-          ? firstEmpty
-          : Math.min(state.items.length, BOOTS_SLOT) - 1;
+  const slot = picked >= 0 ? picked : (emptySlot ?? (firstEmpty >= 0 ? firstEmpty : Math.min(state.items.length, BOOTS_SLOT) - 1));
   const current = count === 1 ? state.items[slot] : null;
   const bootsSlot = state.items.length > BOOTS_SLOT;
   const forBoots = bootsSlot && slot === BOOTS_SLOT && count === 1;
