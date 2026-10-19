@@ -1,6 +1,6 @@
 // A champion's builds as tabs: the one on screen takes what changes there to its items, runes and
-// combo, the rest is all of theirs; a new one is a copy of it at the end, named with the lowest number
-// free; tabs keep their order; and all of it is in the page's address, each build's code in its order
+// combo, the rest is all of theirs; a new one is a copy of it at the end, named for its place; tabs
+// keep their order; and all of it is in the page's address, each build's code in its order
 // and the shared part's after them.
 
 import { test } from "node:test";
@@ -42,10 +42,10 @@ test("builds: a new one copies the one on screen, what changes on screen is its 
 test("tabs: their names, closing, moving and renaming", () => {
   let page = addTab(addTab(single(s)));
   assert.deepEqual(names(page), ["Build 1", "Build 2", "Build 3 *"]);
-  // At the end, the lowest number free.
-  page = addTab(selectTab(closeTab(page, 1), 0));
-  assert.deepEqual(names(page), ["Build 1", "Build 3", "Build 2 *"]);
-  page = moveTab(page, 2, 1);
+  // A new one is named for its place, whatever the others are called; where a build has that name, the next number free.
+  assert.deepEqual(names(addTab(renameTab(single(s), 0, "Burst"))), ["Burst", "Build 2 *"]);
+  assert.deepEqual(names(addTab(closeTab(page, 1))), ["Build 1", "Build 3", "Build 4 *"]);
+  page = selectTab(page, 1);
   assert.deepEqual(names(page), ["Build 1", "Build 2 *", "Build 3"]);
 
   assert.deepEqual(names(closeTab(page, 1)), ["Build 1", "Build 3 *"]);

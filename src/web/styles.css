@@ -190,11 +190,6 @@ a {
     flex-basis: 100%;
   }
 }
-.build-tab-first {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
 .build-tabs {
   position: relative;
   display: inline-flex;
@@ -230,6 +225,10 @@ a {
 }
 .build-tab button[aria-pressed] {
   padding: 4px 2px 4px 10px;
+}
+/* A build alone has no ×: its name padded alike on both sides */
+.build-tab button[aria-pressed]:last-child {
+  padding-right: 10px;
 }
 @media (hover: hover) {
   .build-tab:hover,
@@ -1990,6 +1989,11 @@ table.data th.r {
 .notice .ico {
   flex: none;
   font-weight: 700;
+}
+/* The page for a link that isn't a page's (App's BadLink): its one notice, under the title */
+.notice.bad-link {
+  max-width: 600px;
+  font-size: 14px;
 }
 .ability {
   border-top: 1px solid var(--grid);

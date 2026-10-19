@@ -35,12 +35,13 @@ export interface Page {
   compare: boolean;
 }
 
-/** The name a build in place i has by default ("Build 1" the first's): the one a page gives a new build, the lowest such not taken. */
+/** The name a build in place i has by default ("Build 1" the first's): a new build's at the end, whatever the others are called. */
 export const nameAt = (i: number) => `Build ${i + 1}`;
 
-function freeName(builds: Build[]): string {
+/** A new build's name, at the end of `builds`: its place's, or where a build has that name already, the next number free. */
+function nameFor(builds: Build[]): string {
   const taken = new Set(builds.map((b) => b.name));
-  let i = 0;
+  let i = builds.length;
   while (taken.has(nameAt(i))) i++;
   return nameAt(i);
 }
@@ -74,9 +75,9 @@ export function withBuild(s: UIState, page: Page, i: number): UIState {
   return { ...s, items: b.items, runes: b.runes, next: b.next, replace: b.replace, combo: page.ownCombos ? b.combo : s.combo };
 }
 
-/** A copy of the active build in a new tab at the end, on screen. */
+/** A copy of the active build in a new tab at the end, on screen, named for its place (nameFor). */
 export function addTab(page: Page): Page {
-  const b = { ...page.builds[page.active], id: Math.max(...page.builds.map((x) => x.id)) + 1, name: freeName(page.builds) };
+  const b = { ...page.builds[page.active], id: Math.max(...page.builds.map((x) => x.id)) + 1, name: nameFor(page.builds) };
   return { ...page, builds: [...page.builds, b], active: page.builds.length };
 }
 

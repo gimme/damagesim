@@ -80,10 +80,11 @@ function BadLink() {
       <header className="topbar">
         <Title />
       </header>
-      <div className="layout">
-        <div className="notice warn" role="alert">
+      <div className="notice warn bad-link" role="alert">
+        <span className="ico">!</span>
+        <span>
           This link couldn't be read. It may be cut short, or from another version of damagesim. <a href={BASE}>Start afresh</a>.
-        </div>
+        </span>
       </div>
     </div>
   );

@@ -114,6 +114,16 @@ test("builds", async ({ ui }) => {
     },
   );
   await step(
+    "+: a third, named for its place, Build 3, though Build 2 is free; closed again",
+    async () => {
+      await bar(ui).getByRole("button", { name: "New build" }).click();
+      await ui.settle();
+      expect(await tabs(ui)).toEqual(["Build 1", "Burst", "Build 3 *"]);
+      await bar(ui).getByRole("button", { name: "Close Build 3" }).click();
+    },
+    async () => expect(await tabs(ui)).toEqual(["Build 1", "Burst *"]),
+  );
+  await step(
     "Burst dragged first: still on screen, first in the address too, unmarked, Build 1 named as it's no longer in its place",
     () => ui.drag(bar(ui).locator(".build-tab").nth(1), bar(ui).locator(".build-tab").nth(0)),
     async () => {
