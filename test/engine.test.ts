@@ -648,6 +648,31 @@ test("item sets: their gain split as an item's is, their own hits by item; a set
   }
 });
 
+test("item sets: a set's items in the order to buy them, each adding the most damage per gold to those before it", () => {
+  const base = { champion: "Ahri", level: 11, items: ["Luden's Echo", "Sorcerer's Shoes"], combo: "E Q W R AA R", target: { preset: "squishy" as const } };
+  const candidates = ["Rabadon's Deathcap", "Shadowflame", "Stormsurge", "Void Staff", "Lich Bane", "Cosmic Drive", "Blackfire Torch", "Liandry's Torment"];
+  const { sets } = rankItemSets(data, base, { size: 3, candidates, limit: 5 });
+  const total = (items: number[]) => simulate(data, { ...base, items: [...base.items, ...items] }).totalDamage;
+  for (const s of sets) {
+    // The greedy pass, from scratch.
+    const order: number[] = [];
+    const rest = s.items.map((x) => x.id);
+    while (rest.length) {
+      const was = total(order);
+      const perGold = rest.map((id) => (total([...order, id]) - was) / data.items[id].gold.total);
+      const k = perGold.indexOf(Math.max(...perGold));
+      order.push(...rest.splice(k, 1));
+    }
+    assert.deepEqual(
+      s.items.map((x) => x.id),
+      order,
+      s.items.map((x) => x.item).join(" → "),
+    );
+  }
+  // Not the order the search found them in: Rabadon's Deathcap, best alone, multiplies the others' AP, so it's bought last.
+  assert.ok(sets.some((s) => s.items.at(-1)!.item === "Rabadon's Deathcap"));
+});
+
 test("item sets: progress, one simulation at a time, never going back", () => {
   const base = { champion: "Jinx", level: 13, items: ["Infinity Edge"], combo: "AA AA AA W AA AA", target: { preset: "bruiser" as const } };
   const search = searchItemSets(data, base, { size: 2, limit: 5 });

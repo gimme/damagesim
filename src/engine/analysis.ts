@@ -419,7 +419,7 @@ export function optimizeItems(
 
 /** A set of items bought together, as rankItems' rows: what it gains for the gold it costs, and from what. */
 export interface ItemSet extends GainParts {
-  /** The items bought, in the order the search added them. */
+  /** The items bought, in the order to buy them: each the one that adds the most damage per gold to those before it. */
   items: { item: string; id: number }[];
   /** The build's items they're built from, which they replace (Boots, for a pair of boots). */
   replaces?: { item: string; id: number }[];
@@ -448,7 +448,7 @@ export interface ItemSetOptions {
   limit?: number;
 }
 
-/** Progress, in simulations: those run, and about how many the search takes in all. */
+/** Progress, in simulations: those run, and at most how many the search takes in all (the buy order's aside). */
 export interface SearchProgress {
   done: number;
   total: number;
@@ -469,6 +469,10 @@ const REFINE_ROUNDS = 3;
  * candidates + (size − 1) × 2 × beam × useful candidates simulations and 2 × size × useful a round of
  * swaps, fewer as a build reached two ways is simulated once: 800 to 1,500 for 3 items of some 110
  * candidates, 1,200 to 2,300 for 4, 1,700 to 3,300 for 5.
+ *
+ * A set's items come in the order to buy them: a greedy pass over its own items, the one that adds the
+ * most damage per gold alone first, then the one that adds the most per gold to it, and so on. Its
+ * builds are mostly ones the search simulated: 0 to some 40 simulations more in all.
  *
  * What it misses: a set none of whose smaller sets was kept and that differs from the best ones by
  * more than one item, as items that add little alone but much together. For 3 items it found the 8
@@ -508,29 +512,36 @@ export function* searchItemSets(
   };
 
   // Simulates each set not seen before; `ahead` guesses how many more the search takes after them.
-  const seen = new Set<string>();
+  const keyOf = (build: ItemData[]) =>
+    build
+      .map((b) => b.id)
+      .sort((a, b) => a - b)
+      .join();
+  /** The total damage of each build simulated, by its items. */
+  const totals = new Map<string, number>();
   let done = 0;
+  let last: SearchProgress = { done: 0, total: 0 };
   function* run(sets: (Node | null)[], ahead: number): Generator<SearchProgress, Node[]> {
     const fresh: Node[] = [];
+    const batch = new Set<string>();
     for (const n of sets) {
-      const key = n?.build
-        .map((b) => b.id)
-        .sort((a, b) => a - b)
-        .join();
-      if (!n || seen.has(key!)) continue;
-      seen.add(key!);
+      const key = n && keyOf(n.build);
+      if (!n || totals.has(key!) || batch.has(key!)) continue;
+      batch.add(key!);
       fresh.push(n);
     }
     const total = done + fresh.length + ahead;
     for (const n of fresh) {
       n.r = simulate(data, { ...base, items: n.build.map((b) => b.id) });
+      totals.set(keyOf(n.build), n.r.totalDamage);
       n.gain = n.r.totalDamage - baseRes.totalDamage;
       n.perGold = n.gold > 0 ? (n.gain / n.gold) * 1000 : 0;
-      yield { done: ++done, total };
+      yield (last = { done: ++done, total });
     }
     return fresh.filter((n) => n.gain > 0.5);
   }
 
+  const limit = opts.limit ?? 25;
   const swaps = () => 2 * opts.size * pool.length;
   let kept = [root];
   let found: Node[] = [];
@@ -554,9 +565,42 @@ export function* searchItemSets(
     found.push(...(yield* run(near, pass + 1 < REFINE_ROUNDS ? swaps() : 0)));
   }
 
+  // Each set's items in the order to buy them, a greedy pass over its own items: first the one that
+  // adds the most damage per gold alone, then the one that adds the most per gold to it, and so on.
+  // The builds on the way are mostly ones the search simulated, which aren't simulated again; the few
+  // that aren't (0 to some 40 in all) don't count as progress, which holds where the search left it.
+  const chosen = best(found, limit);
+  let ordering = 0;
+  const ordered: ItemData[][] = [];
+  for (const n of chosen) {
+    let [at, atTotal] = [root, baseRes.totalDamage];
+    const rest = [...n.added];
+    while (rest.length > 1) {
+      let pick: { k: number; next: Node; total: number; perGold: number } | null = null;
+      for (let k = 0; k < rest.length; k++) {
+        const next = buy(at, rest[k]);
+        if (!next) continue;
+        let total = totals.get(keyOf(next.build));
+        if (total === undefined) {
+          total = simulate(data, { ...base, items: next.build.map((b) => b.id) }).totalDamage;
+          totals.set(keyOf(next.build), total);
+          ordering++;
+          yield last;
+        }
+        const perGold = (total - atTotal) / (next.gold - at.gold);
+        if (!pick || perGold > pick.perGold) pick = { k, next, total, perGold };
+      }
+      // Bought in no other order (never, as the shop's rules go): the rest as found.
+      if (!pick) break;
+      [at, atTotal] = [pick.next, pick.total];
+      rest.splice(pick.k, 1);
+    }
+    ordered.push([...at.added, ...rest]);
+  }
+
   const baseTally = tally(baseRes);
-  const sets = best(found, opts.limit ?? 25).map((n): ItemSet => ({
-    items: n.added.map((it) => ({ item: it.name, id: it.id })),
+  const sets = chosen.map((n, i): ItemSet => ({
+    items: ordered[i].map((it) => ({ item: it.name, id: it.id })),
     ...(n.replaced.length ? { replaces: n.replaced.map((it) => ({ item: it.name, id: it.id })) } : {}),
     gold: n.gold,
     totalDamage: round(n.r!.totalDamage),
@@ -566,7 +610,7 @@ export function* searchItemSets(
     killed: n.r!.killed,
     ...(n.r!.killTime !== undefined ? { killTime: round(n.r!.killTime, 2) } : {}),
   }));
-  return { base: summarize(baseRes, "current build"), sets, evaluated: done };
+  return { base: summarize(baseRes, "current build"), sets, evaluated: done + ordering };
 }
 
 /** The `n` best by damage and the `n` best per gold (or by one of them), by damage. */
