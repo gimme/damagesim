@@ -1,5 +1,5 @@
 // The builds, in the top bar: a tab each, the one on screen pressed, what changes on screen to the
-// build its own (see scenarios.ts), all in the page's address. + opens a copy of it in a new tab at
+// build its own (see tabs.ts), all in the page's address. + opens a copy of it in a new tab at
 // the end, to change and to compare with it; a tab is dragged to another place, renamed by a
 // double-click and closed by its × or, focused, by Delete, the focus then on the tab in its place.
 // With one build, there's only "+ Build".
@@ -7,11 +7,11 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { DATA } from "../data.ts";
 import { encodeSetup, recallPage, resetState, type UIState } from "../state.ts";
-import { addTab, closeTab, moveTab, renameTab, selectTab, setOwnCombos, single, track, withBuild, type Page } from "../scenarios.ts";
+import { addTab, closeTab, moveTab, renameTab, selectTab, setOwnCombos, single, track, withBuild, type Page } from "../tabs.ts";
 import { landInLines, useDragOrder } from "./drag.tsx";
 
 /** The page's builds and what they share, for the top bar, the cards and the address. */
-export interface Scenarios {
+export interface Tabs {
   /** With the build on screen as it is now. */
   page: Page;
   /** Whether there's more than one build. */
@@ -32,7 +32,7 @@ export interface Scenarios {
   reset: () => void;
 }
 
-export function useScenarios(state: UIState, setState: (s: UIState) => void, initial: Page | null): Scenarios {
+export function useTabs(state: UIState, setState: (s: UIState) => void, initial: Page | null): Tabs {
   const [kept, setKept] = useState(() => initial ?? single(state));
   // Another champion picked: its page as you left it, as pickChampion put its build on screen, or
   // that build alone.
@@ -101,8 +101,8 @@ function NameField({ name, onDone }: { name: string; onDone: (name: string) => v
   );
 }
 
-export function ScenarioBar({ scenarios }: { scenarios: Scenarios }) {
-  const { page } = scenarios;
+export function BuildTabs({ tabs }: { tabs: Tabs }) {
+  const { page } = tabs;
   const [renaming, setRenaming] = useState<number | null>(null);
   const order = useDragOrder({
     count: page.builds.length,
@@ -112,7 +112,7 @@ export function ScenarioBar({ scenarios }: { scenarios: Scenarios }) {
       return at;
     },
     landAt: landInLines,
-    move: scenarios.move,
+    move: tabs.move,
   });
   const add = "Copy this build to a new tab";
   // After Delete, the tab in the closed one's place focused, to go on; with one left, + Build.
@@ -122,27 +122,27 @@ export function ScenarioBar({ scenarios }: { scenarios: Scenarios }) {
     const i = refocus.current;
     refocus.current = null;
     if (i == null) return;
-    if (!scenarios.many) alone.current?.focus();
+    if (!tabs.many) alone.current?.focus();
     else order.box.current?.children[i]?.querySelector<HTMLElement>("button[aria-pressed]")?.focus();
   });
-  if (!scenarios.many)
+  if (!tabs.many)
     return (
-      <div className="scenario-bar">
-        <button ref={alone} className="btn small scenario-first" title={add} onClick={scenarios.add}>
+      <div className="build-tab-bar">
+        <button ref={alone} className="btn small build-tab-first" title={add} onClick={tabs.add}>
           <Plus /> Build
         </button>
       </div>
     );
   return (
-    <div className="scenario-bar">
-      <div ref={order.box} className="scenario-tabs" role="group" aria-label="Builds">
+    <div className="build-tab-bar">
+      <div ref={order.box} className="build-tabs" role="group" aria-label="Builds">
         {page.builds.map((b, i) => (
-          <span key={b.id} className={`scenario-tab${i === page.active ? " active" : ""}${order.drag?.from === i ? " dragged" : ""}`} {...order.item(i)}>
+          <span key={b.id} className={`build-tab${i === page.active ? " active" : ""}${order.drag?.from === i ? " dragged" : ""}`} {...order.item(i)}>
             {renaming === b.id ? (
               <NameField
                 name={b.name}
                 onDone={(name) => {
-                  scenarios.rename(i, name);
+                  tabs.rename(i, name);
                   setRenaming(null);
                 }}
               />
@@ -150,29 +150,24 @@ export function ScenarioBar({ scenarios }: { scenarios: Scenarios }) {
               <button
                 aria-pressed={i === page.active}
                 title={`${i === page.active ? b.name : `Open ${b.name}`}; drag it to move it, double-click to rename it`}
-                onClick={() => scenarios.select(i)}
+                onClick={() => tabs.select(i)}
                 onDoubleClick={() => setRenaming(b.id)}
                 onKeyDown={(e) => {
                   if (e.key !== "Delete" && e.key !== "Backspace") return;
                   e.preventDefault();
                   refocus.current = Math.min(i, page.builds.length - 2);
-                  scenarios.close(i);
+                  tabs.close(i);
                 }}
               >
                 <span className="name">{b.name}</span>
               </button>
             )}
-            <button
-              className="scenario-close"
-              aria-label={`Close ${b.name}`}
-              title={`Close ${b.name} (Back brings it back)`}
-              onClick={() => scenarios.close(i)}
-            >
+            <button className="build-tab-close" aria-label={`Close ${b.name}`} title={`Close ${b.name} (Back brings it back)`} onClick={() => tabs.close(i)}>
               ×
             </button>
           </span>
         ))}
-        <button className="scenario-add" aria-label="New build" title={add} onClick={scenarios.add}>
+        <button className="build-tab-add" aria-label="New build" title={add} onClick={tabs.add}>
           <Plus />
         </button>
       </div>

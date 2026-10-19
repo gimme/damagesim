@@ -11,7 +11,7 @@ import { SettingsPanel } from "./components/settings.tsx";
 import { ComboBuilder } from "./components/combo.tsx";
 import { Details, Summary } from "./components/results.tsx";
 import { ItemValueCard } from "./components/item-value.tsx";
-import { ScenarioBar, useScenarios } from "./components/scenarios.tsx";
+import { BuildTabs, useTabs } from "./components/tabs.tsx";
 
 function useTheme() {
   const [theme, setTheme] = useState<"light" | "dark" | null>(() => {
@@ -35,7 +35,7 @@ function useTheme() {
   return { dark, toggle: () => setTheme(dark ? "light" : "dark") };
 }
 
-// The page's address is its scenarios' (the champion on screen in the path, the rest in the hash): the
+// The page's address is its builds' (the champion on screen in the path, the rest in the hash): the
 // server serves the app at any path under its own (the dev server, GitHub Pages by its 404.html).
 const BASE = import.meta.env.BASE_URL;
 
@@ -57,26 +57,26 @@ export function App() {
   const [initial] = useState(() => atAddress() ?? loadSavedPage(DATA));
   const [state, setState] = useState<UIState>(initial?.state ?? DEFAULT_STATE);
   const theme = useTheme();
-  const scenarios = useScenarios(state, setState, initial?.page ?? null);
-  const build = scenarios.page.builds[scenarios.page.active];
-  const buildName = scenarios.many ? build.name : undefined;
+  const tabs = useTabs(state, setState, initial?.page ?? null);
+  const build = tabs.page.builds[tabs.page.active];
+  const buildName = tabs.many ? build.name : undefined;
 
   // The address is a link to the builds, written over as they change (no history entry for each
   // change), with replaceState, which fires no hashchange; a change Back should undo (Reset, a tab
   // closed) gets an entry of its own.
-  const address = useMemo(() => BASE + encodePage(DATA, state, scenarios.page), [state, scenarios.page]);
+  const address = useMemo(() => BASE + encodePage(DATA, state, tabs.page), [state, tabs.page]);
   const shown = useRef(address);
   useEffect(() => saveState(state, address.slice(BASE.length)), [state, address]);
   useEffect(() => {
     shown.current = address;
-    const push = scenarios.push.current;
-    scenarios.push.current = false;
+    const push = tabs.push.current;
+    tabs.push.current = false;
     if (location.href !== new URL(address, location.href).href) history[push ? "pushState" : "replaceState"](null, "", address);
   });
   // A link entered in the address bar on the page with only its hash different reloads nothing, nor
-  // do Back and Forward between two such: its scenarios load here. An address that isn't a page's
+  // do Back and Forward between two such: its builds load here. An address that isn't a page's
   // goes back to this one's.
-  const { load } = scenarios;
+  const { load } = tabs;
   useEffect(() => {
     const follow = () => {
       const next = atAddress();
@@ -118,12 +118,12 @@ export function App() {
       <header className="topbar">
         <h1>damagesim</h1>
         <span className="badge">patch {DATA.meta.patch}</span>
-        <ScenarioBar scenarios={scenarios} />
+        <BuildTabs tabs={tabs} />
         <span className="spacer" />
         <button
           className="btn small"
           title={`Reset ${DATA.champions[state.champion].name}: one build, no items, runes or combo, and the rest as on a fresh page (Back undoes it)`}
-          onClick={scenarios.reset}
+          onClick={tabs.reset}
         >
           Reset
         </button>
@@ -146,12 +146,12 @@ export function App() {
             set={setState}
             sim={sim}
             result={result}
-            builds={scenarios.many ? { name: build.name, own: scenarios.page.ownCombos, setOwn: scenarios.setOwnCombos } : undefined}
+            builds={tabs.many ? { name: build.name, own: tabs.page.ownCombos, setOwn: tabs.setOwnCombos } : undefined}
           />
           {error && <div className="notice warn">{error}</div>}
           {result && (
             <>
-              <Summary r={result} scenarios={scenarios} state={state} />
+              <Summary r={result} tabs={tabs} state={state} />
               <ItemValueCard state={state} set={setState} scenario={scenario} sim={sim} />
               <Details r={result} scenario={scenario} sim={sim} />
             </>

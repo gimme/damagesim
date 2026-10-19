@@ -7,7 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { loadGameData } from "../src/node/load.ts";
 import { DEFAULT_STATE, decodePage, decodeState, encodePage, encodeState, type UIState } from "../src/web/state.ts";
-import { addTab, closeTab, moveTab, renameTab, selectTab, setOwnCombos, single, track, withBuild, type Page } from "../src/web/scenarios.ts";
+import { addTab, closeTab, moveTab, renameTab, selectTab, setOwnCombos, single, track, withBuild, type Page } from "../src/web/tabs.ts";
 
 const data = loadGameData("16.20");
 

@@ -10,7 +10,7 @@ import type { TargetPreset } from "../engine/presets.ts";
 import { pageRunes, type RunePage } from "../engine/rune-page.ts";
 import { fitCombo, formatCombo, parseCombo } from "../engine/combo.ts";
 import { getKit } from "../kits/index.ts";
-import { nameAt, single, withBuild, type Build, type Page } from "./scenarios.ts";
+import { nameAt, single, withBuild, type Build, type Page } from "./tabs.ts";
 
 /** Health, armor and magic resist. */
 export interface TargetStats {

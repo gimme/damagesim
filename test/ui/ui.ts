@@ -5,7 +5,7 @@
 import { test as base, expect, type Locator, type Page } from "@playwright/test";
 import { loadGameData } from "../../src/node/load.ts";
 import { DEFAULT_STATE, decodePage, encodePage, encodeState, type UIState } from "../../src/web/state.ts";
-import { withBuild, type Build } from "../../src/web/scenarios.ts";
+import { withBuild, type Build } from "../../src/web/tabs.ts";
 
 export { expect };
 

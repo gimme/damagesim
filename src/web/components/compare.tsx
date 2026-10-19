@@ -13,8 +13,8 @@ import { HpBar, SourceName } from "./charts.tsx";
 import { Chevron } from "./item-value.tsx";
 import { scenarioKey, toScenario, type UIState } from "../state.ts";
 import { simulate, type SimResult } from "../../engine/sim.ts";
-import { withBuild } from "../scenarios.ts";
-import type { Scenarios } from "./scenarios.tsx";
+import { withBuild } from "../tabs.ts";
+import type { Tabs } from "./tabs.tsx";
 
 /** The table's rows shown until all are: the top ones, fading. */
 const PEEK = 3;
@@ -42,20 +42,20 @@ interface Column {
 }
 
 export function Compared({
-  scenarios,
+  tabs,
   state,
   result,
   by,
   controls,
 }: {
-  scenarios: Scenarios;
+  tabs: Tabs;
   state: UIState;
   result: SimResult;
   by: "time" | "size";
   /** Under the bars: how they're drawn. */
   controls: ReactNode;
 }) {
-  const { page } = scenarios;
+  const { page } = tabs;
   const [all, setAll] = useState(false);
   // The column the mouse is over, to open its build with a click.
   const [hot, setHot] = useState<number | null>(null);
@@ -185,7 +185,7 @@ export function Compared({
         {columns.map((c, i) => (
           <div key={c.id} className={`compare-bar${c.on ? " on" : ""}`} role="group" aria-label={c.name}>
             <div className="row compare-head">
-              <button className="compare-name" aria-pressed={c.on} title={c.on ? "On screen" : `Open ${c.name}`} onClick={() => scenarios.select(i)}>
+              <button className="compare-name" aria-pressed={c.on} title={c.on ? "On screen" : `Open ${c.name}`} onClick={() => tabs.select(i)}>
                 {c.name}
               </button>
               {c.result && (
@@ -225,7 +225,7 @@ export function Compared({
             onPointerLeave={() => setHot(null)}
             onClick={(e) => {
               const i = at(e);
-              if (i != null && i !== page.active) scenarios.select(i);
+              if (i != null && i !== page.active) tabs.select(i);
             }}
           >
             <colgroup>

@@ -1,4 +1,4 @@
-// Scenarios: a champion's builds, a tab each, on one page with what they share: the champion, its
+// Tabs: a champion's builds, a tab each, on one page with what they share: the champion, its
 // level, ranks and parameters, the target and the settings. A build is its items and runes, and its
 // combo where the page's builds have each their own (ownCombos); otherwise they share one. What's on
 // screen is the active build with what's shared: a change on screen to the build is its own, one to

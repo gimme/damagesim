@@ -117,7 +117,7 @@ test("builds", async ({ ui }) => {
   );
   await step(
     "Burst dragged first: still on screen, first in the address too, as if alone but for its name",
-    () => ui.drag(bar(ui).locator(".scenario-tab").nth(1), bar(ui).locator(".scenario-tab").nth(0)),
+    () => ui.drag(bar(ui).locator(".build-tab").nth(1), bar(ui).locator(".build-tab").nth(0)),
     async () => {
       expect(await tabs(ui)).toEqual(["Burst *", "Build 1"]);
       expect(hash(ui)).toMatch(/^#\w+\.Burst~\w*\.Build_1!combos$/);

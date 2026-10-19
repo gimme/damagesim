@@ -10,14 +10,14 @@ import { resistSweep } from "../../engine/analysis.ts";
 import { describeChampion } from "../../engine/describe.ts";
 import { Compared } from "./compare.tsx";
 import { Chevron } from "./item-value.tsx";
-import type { Scenarios } from "./scenarios.tsx";
+import type { Tabs } from "./tabs.tsx";
 import type { UIState } from "../state.ts";
 
 /** The build on screen's result; with more builds, theirs too under it, unless they're folded away (see Compared). */
-export function Summary({ r, scenarios, state }: { r: SimResult; scenarios: Scenarios; state: UIState }) {
+export function Summary({ r, tabs, state }: { r: SimResult; tabs: Tabs; state: UIState }) {
   const [by, setBy] = useState<"time" | "size">("time");
-  const n = scenarios.page.builds.length;
-  const folded = scenarios.page.folded;
+  const n = tabs.page.builds.length;
+  const folded = tabs.page.folded;
   const controls = (
     <div className="row">
       <span className="muted small" style={{ flex: 1 }}>
@@ -43,7 +43,7 @@ export function Summary({ r, scenarios, state }: { r: SimResult; scenarios: Scen
               className="btn small ghost compare-fold"
               aria-expanded={!folded}
               title={folded ? `Show the ${n} builds compared` : "This build alone"}
-              onClick={() => scenarios.setFolded(!folded)}
+              onClick={() => tabs.setFolded(!folded)}
             >
               <Chevron />
               {n} builds
@@ -76,7 +76,7 @@ export function Summary({ r, scenarios, state }: { r: SimResult; scenarios: Scen
         )}
       </div>
       {n > 1 && !folded ? (
-        <Compared scenarios={scenarios} state={state} result={r} by={by} controls={controls} />
+        <Compared tabs={tabs} state={state} result={r} by={by} controls={controls} />
       ) : (
         <>
           <div style={{ marginTop: 14 }}>
