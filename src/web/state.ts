@@ -61,8 +61,8 @@ export interface UIState {
   excluded: number[];
   /** How many items Item value ranks for the build: 1, the next item (or one in place of a slot's), or the best sets of this many to buy together for its empty slots. */
   next: number;
-  /** The slot Item value ranks the next item for, empty or with an item to rank what could take its place; null, the next empty one (a full build's last item's). */
-  slot: number | null;
+  /** The build's item Item value ranks what could take the place of; null, the next item (for an empty slot, or in place of a full build's last). A count above one picks none: sets are for the empty slots. */
+  replace: number | null;
 }
 
 /** How a card changes the state: from the state as it is. */
@@ -92,7 +92,7 @@ export const DEFAULT_STATE: UIState = {
   settings: { finishDots: true, executes: true, questBoots: false },
   excluded: [],
   next: 1,
-  slot: null,
+  replace: null,
 };
 
 /** A build's items from its slots, by id: where an item sits changes nothing (the engine takes them
@@ -119,7 +119,7 @@ export function toScenario(data: GameData, s: UIState): Scenario {
  * one only once. Its combo counts by its steps where it reads, so spacing doesn't count ("AA*2 " is
  * "2AA"). Nor does what toScenario leaves out: the tier 3 boots setting, a target's numbers for
  * the modes it isn't in, runes held over from a tree switch, the items Item value leaves out, how many
- * it ranks and the slot it ranks for.
+ * it ranks and the item it ranks in place of.
  */
 export function scenarioKey(sc: Scenario): string {
   let combo: Scenario["combo"] = sc.combo;
@@ -380,12 +380,12 @@ const ranks: Codec<UIState["ranks"]> = {
   },
 };
 
-/** The slot Item value ranks for, as 1 to 7; 0 for none, the next empty one. */
-const pickedSlot: Codec<number | null> = {
-  put: (o, k) => uint.put(o, k == null ? 0 : k + 1),
+/** The item Item value ranks in place of, by id; 0 for none. One the data doesn't know is none, as is one the build hasn't (see settled). */
+const pickedItem: Codec<number | null> = {
+  put: (o, id) => uint.put(o, id ?? 0),
   get: (i) => {
-    const n = within(0, DEFAULT_STATE.items.length + 1).get(i);
-    return n ? n - 1 : null;
+    const id = uint.get(i);
+    return id && i.data.items[id] ? id : null;
   },
 };
 
@@ -416,7 +416,7 @@ const FIELDS: [path: string, codec: Codec<any>][] = [
   ["settings.questBoots", bool],
   ["excluded", itemIds],
   ["next", within(1, DEFAULT_STATE.items.length + 1)],
-  ["slot", pickedSlot],
+  ["replace", pickedItem],
 ];
 
 const valueAt = (s: any, path: string) => path.split(".").reduce((x, k) => x[k], s);
@@ -468,10 +468,22 @@ export function decodeSetup(data: GameData, champion: string, code: string): UIS
     FIELDS.forEach(([path, codec], bit) => {
       if (Math.floor(mask / 2 ** bit) % 2) s = withValueAt(s, path.split("."), codec.get(i));
     });
-    return i.at === bytes.length ? s : null;
+    return i.at === bytes.length ? settled(s) : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * A state as the page keeps it: Item value's count of items no more than the build's empty slots, to
+ * one at least, and the item it ranks in place of one of the build's, with a count of one (sets are
+ * for the empty slots); else none, the next item. What a code holds is settled as it's read, and what
+ * a change to the build's items leaves (withItems in slots.ts).
+ */
+export function settled(s: UIState): UIState {
+  const next = Math.max(1, Math.min(s.next, s.items.filter((x) => x == null).length));
+  const replace = next === 1 && s.replace != null && s.items.includes(s.replace) ? s.replace : null;
+  return next === s.next && replace === s.replace ? s : { ...s, next, replace };
 }
 
 /** A champion's name as a path: "zed", "miss-fortune", "kaisa", "nunu-willump". */
@@ -520,7 +532,7 @@ function nameOf(code: string): string | null {
 }
 
 /** The build fields of a state: what the address has of a build, and not of what its builds share. */
-const ofBuild = (s: UIState, combo: boolean) => ({ items: s.items, runes: s.runes, next: s.next, slot: s.slot, ...(combo ? { combo: s.combo } : {}) });
+const ofBuild = (s: UIState, combo: boolean) => ({ items: s.items, runes: s.runes, next: s.next, replace: s.replace, ...(combo ? { combo: s.combo } : {}) });
 
 /**
  * A page's address after the app's own: its first build's, with what they share, as if it were alone
@@ -556,7 +568,7 @@ export function decodePage(data: GameData, address: string): { state: UIState; p
     if (!tabs.length) return { state: base, page: single(base) };
     // A build without a name has its place's in the address, kept where one before it doesn't load.
     const builds: Build[] = [
-      { id: 1, name: (name && nameOf(name)) || nameAt(0), items: base.items, runes: base.runes, combo: base.combo, next: base.next, slot: base.slot },
+      { id: 1, name: (name && nameOf(name)) || nameAt(0), items: base.items, runes: base.runes, combo: base.combo, next: base.next, replace: base.replace },
     ];
     let active = 0;
     tabs.forEach((tab, k) => {
@@ -571,7 +583,7 @@ export function decodePage(data: GameData, address: string): { state: UIState; p
         runes: b.runes,
         combo: b.combo,
         next: b.next,
-        slot: b.slot,
+        replace: b.replace,
       });
     });
     const many = builds.length > 1;

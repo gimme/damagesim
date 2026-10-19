@@ -49,11 +49,12 @@ const ALL: UIState = {
   settings: { finishDots: false, executes: false, questBoots: true },
   excluded: [3089, 4645],
   next: 3,
-  slot: 2,
+  // The default build's Sorcerer's Shoes, for the key alone on it: with the count above one, none (see settled).
+  replace: 3020,
 };
 
-test("every field comes back, numbers exactly", () => {
-  assert.deepEqual(roundTrip(ALL), ALL);
+test("every field comes back, numbers exactly; the item to replace with a count above one aside", () => {
+  assert.deepEqual(roundTrip(ALL), { ...ALL, replace: null });
   for (const key of Object.keys(DEFAULT_STATE) as (keyof UIState)[])
     assert.deepEqual(roundTrip({ ...DEFAULT_STATE, [key]: ALL[key] }), { ...DEFAULT_STATE, [key]: ALL[key] }, key);
 });
@@ -93,16 +94,27 @@ test("the bot lane role quest's boots slot comes back, empty or with boots; the 
   assert.equal(decodeSetup(data, "Zed", encodeSetup(data, { ...DEFAULT_STATE, items: [...DEFAULT_STATE.items, null, null] })), null);
 });
 
-test("the items Item value leaves out, how many it ranks and the slot it ranks for are the setup's: a champion picked for the first time keeps them, one picked again has its own, Reset clears them", () => {
-  const ahri: UIState = { ...DEFAULT_STATE, excluded: [3089, 4645], next: 3, slot: 1 };
+test("the items Item value leaves out, how many it ranks and the item it ranks in place of are the setup's: a champion picked for the first time keeps them, one picked again has its own, Reset clears them", () => {
+  const ahri: UIState = { ...DEFAULT_STATE, excluded: [3089, 4645], next: 3 };
   // Kept as the page keeps the one on screen, as it changes.
   saveState(ahri, encodeState(data, ahri));
   const zed = pickChampion(data, ahri, "Zed");
-  assert.deepEqual([zed.excluded, zed.next, zed.slot], [[3089, 4645], 3, 1]);
-  const back = pickChampion(data, { ...zed, excluded: [3157], next: 2, slot: 0 }, "Ahri");
-  assert.deepEqual([back.excluded, back.next, back.slot], [[3089, 4645], 3, 1]);
-  const reset = resetState(ahri);
-  assert.deepEqual([reset.excluded, reset.next, reset.slot], [[], 1, null]);
+  assert.deepEqual([zed.excluded, zed.next], [[3089, 4645], 3]);
+  const back = pickChampion(data, { ...zed, excluded: [3157], next: 1, replace: 6655 }, "Ahri");
+  assert.deepEqual([back.excluded, back.next, back.replace], [[3089, 4645], 3, null]);
+  const picked = { ...ahri, next: 1, replace: 3020 };
+  assert.equal(pickChampion(data, picked, "Zed").replace, 3020);
+  const reset = resetState(picked);
+  assert.deepEqual([reset.excluded, reset.next, reset.replace], [[], 1, null]);
+});
+
+test("what a code holds is settled as it's read: the count no more than the empty slots, the item to replace one of the build's, with a count of one", () => {
+  assert.equal(roundTrip({ ...DEFAULT_STATE, items: [6655, 3020, 3089, 3135, null, null], next: 4 })?.next, 2);
+  assert.equal(roundTrip({ ...DEFAULT_STATE, items: [6655, 3020, 3089, 3135, 3157, 4645], next: 3 })?.next, 1);
+  assert.equal(roundTrip({ ...DEFAULT_STATE, replace: 3020 })?.replace, 3020);
+  assert.equal(roundTrip({ ...DEFAULT_STATE, replace: 3089 })?.replace, null);
+  assert.equal(roundTrip({ ...DEFAULT_STATE, next: 2, replace: 3020 })?.replace, null);
+  assert.equal(roundTrip({ ...DEFAULT_STATE, replace: 9999 })?.replace, null);
 });
 
 test("a setup's code holds no champion: another champion takes it as it is", () => {
@@ -156,7 +168,7 @@ test("an item or rune the patch hasn't is left out; a target champion it hasn't,
   assert.equal(decodeState(other, encodeState(data, { ...DEFAULT_STATE, target: { ...DEFAULT_STATE.target, champion: "Lux" } })), null);
 });
 
-test("a state simulates alike, as one scenario simulated once, with its items in other slots, its combo spaced otherwise, the tier 3 boots setting, a target mode's numbers it isn't in, runes held over, items Item value leaves out, how many it ranks or the slot it ranks for; not at another target health", () => {
+test("a state simulates alike, as one scenario simulated once, with its items in other slots, its combo spaced otherwise, the tier 3 boots setting, a target mode's numbers it isn't in, runes held over, items Item value leaves out, how many it ranks or the item it ranks in place of; not at another target health", () => {
   const key = (s: UIState) => scenarioKey(toScenario(data, s));
   const base: UIState = { ...DEFAULT_STATE, items: [6655, 3020, 3089, null, 4645, null], combo: "E Q W R AA*2 R" };
   const alike: UIState[] = [
@@ -167,7 +179,7 @@ test("a state simulates alike, as one scenario simulated once, with its items in
     { ...base, runes: { ...base.runes, held: [8143] } },
     { ...base, excluded: [3089] },
     { ...base, next: 3 },
-    { ...base, slot: 2 },
+    { ...base, replace: 3089 },
   ];
   const result = simulate(data, toScenario(data, base));
   for (const s of alike) {

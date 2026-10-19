@@ -14,8 +14,8 @@ the combo out on a timeline and reports every damage instance.
   ranks sets too: the best sets of 2 or more items to buy together for your empty slots, found by a
   search that simulates a few hundred to a few thousand builds in a Web Worker, not every
   combination; a click on a set's item leaves it out of the ranking (listed at the top of the card,
-  and in the link); how many to rank and the slot to rank for are in the link too, the count going
-  down by the items you buy and the slot following them, and undo in Items brings both back. Hovering an item shows its cost, stats, passives and actives, with the numbers
+  and in the link); how many to rank, and the item to rank in place of, are in the link too, the count
+  going down by the items you buy and the pick following its item, and undo in Items brings both back. Hovering an item shows its cost, stats, passives and actives, with the numbers
   for your champion's level and stats, melee or ranged. Runes go on a rune page laid out as in the client, which keeps to the game's rules (a rune per
   row, two from the secondary tree, a shard per row); hovering a rune shows its tooltip like an item's, and whether its
   adaptive damage is physical or magic for you. The page's address is a link to its scenario: the champion in the path and

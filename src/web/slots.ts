@@ -2,7 +2,7 @@
 
 import { builtFrom } from "../engine/analysis.ts";
 import { DATA } from "./data.ts";
-import type { UIState } from "./state.ts";
+import { settled, type UIState } from "./state.ts";
 
 /** The bot lane role quest's slot, which holds the boots: the build has it when its items have a seventh entry. */
 export const BOOTS_SLOT = 6;
@@ -67,28 +67,12 @@ function newItems(was: (number | null)[], now: (number | null)[]): number {
 }
 
 /**
- * The slot Item value ranks for once the build's items go from `was` to `now`, from `slot` (see
- * UIState): an item sold, the slot it left, for what to buy there; several at once (Clear), the next
- * empty one; the slot's item moved, where it went; the slot filled otherwise (bought into, an upgrade
- * in its place), the next empty one; else as it was.
- */
-function slotAfter(was: (number | null)[], now: (number | null)[], slot: number | null): number | null {
-  const changed = now.flatMap((x, k) => (x !== was[k] ? [k] : []));
-  if (changed.length && changed.every((k) => now[k] == null)) return changed.length === 1 ? changed[0] : null;
-  if (slot == null || now[slot] === was[slot]) return slot;
-  const to = now.findIndex((x, k) => x === was[slot] && was[k] !== x);
-  return to >= 0 ? to : null;
-}
-
-/**
  * The state with its items changed to `items`: every change to the build's items but undo and redo,
  * which bring back what the change did. Items bought (newItems) take Item value's count of items to
- * rank (next) down by as many, from as many as it ranks (the count, or the empty slots where fewer),
- * to one at least: a set bought leaves it at one, the next item. A move or a sale leaves it as it is.
- * The slot it ranks for follows the items (slotAfter).
+ * rank (next) down by as many, to one at least: a set bought leaves it at one, the next item. A move
+ * or a sale leaves it as it is, but that it's never more than the empty slots; and the item it ranks
+ * in place of, sold or bought over, is none, the next item (settled).
  */
 export function withItems(s: UIState, items: (number | null)[]): UIState {
-  const bought = newItems(s.items, items);
-  const empty = s.items.filter((x) => x == null).length;
-  return { ...s, items, next: bought ? Math.max(1, Math.min(s.next, empty) - bought) : s.next, slot: slotAfter(s.items, items, s.slot) };
+  return settled({ ...s, items, next: s.next - newItems(s.items, items) });
 }

@@ -55,11 +55,11 @@ export function ItemsPanel({ state, set, gold, sim, buildName }: { state: UIStat
     set((s) => withItems(s, s.items.slice(0, BOOTS_SLOT)));
   };
   // Every change to the items, from here or elsewhere (a buy in Item value, Reset), can be undone, and
-  // brings back with it Item value's count of items to rank and the slot it ranks for, which follow
-  // the items (withItems): a set of 3 undone is 3 ranked again, a sale undone leaves the count and
-  // ranks the slot it ranked before. The count or slot picked by itself isn't a change to undo; it
-  // goes with the next one.
-  const entry = useMemo(() => ({ items, next: state.next, slot: state.slot }), [items, state.next, state.slot]);
+  // brings back with it Item value's count of items to rank and the item it ranks in place of, which
+  // follow the items (withItems): a set of 3 undone is 3 ranked again, the item picked sold and the
+  // sale undone is picked again. The count or item picked by itself isn't a change to undo; it goes
+  // with the next one.
+  const entry = useMemo(() => ({ items, next: state.next, replace: state.replace }), [items, state.next, state.replace]);
   const past = useHistory(
     entry,
     (v) => {

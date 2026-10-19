@@ -1,7 +1,7 @@
 // Tabs: a champion's builds, a tab each, on one page with what they share: the champion, its
 // level, ranks and parameters, the target and the settings. A build is its items and runes, how many
-// items Item value ranks for it and the slot it ranks for, and its combo where the page's builds have
-// each their own (ownCombos); otherwise they share one. What's on
+// items Item value ranks for it and the item it ranks in place of, and its combo where the page's
+// builds have each their own (ownCombos); otherwise they share one. What's on
 // screen is the active build with what's shared: a change on screen to the build is its own, one to
 // the rest is all of theirs. All of it is in the page's address (see encodePage). Nothing here reads
 // the game data.
@@ -18,9 +18,9 @@ export interface Build {
   runes: RunePage;
   /** Its combo, while the builds have each their own. */
   combo: string;
-  /** How many items Item value ranks for it, and the slot it ranks for (see UIState). */
+  /** How many items Item value ranks for it, and the item it ranks in place of (see UIState). */
   next: number;
-  slot: number | null;
+  replace: number | null;
 }
 
 export interface Page {
@@ -45,25 +45,33 @@ function freeName(builds: Build[]): string {
   return nameAt(i);
 }
 
-const buildOf = (s: UIState, id: number, name: string): Build => ({ id, name, items: s.items, runes: s.runes, combo: s.combo, next: s.next, slot: s.slot });
+const buildOf = (s: UIState, id: number, name: string): Build => ({
+  id,
+  name,
+  items: s.items,
+  runes: s.runes,
+  combo: s.combo,
+  next: s.next,
+  replace: s.replace,
+});
 
 /** A page of one build: the state's. */
 export const single = (s: UIState): Page => ({ champion: s.champion, builds: [buildOf(s, 1, nameAt(0))], active: 0, ownCombos: false, folded: false });
 
-/** The screen as it is now: the active build's items, runes, combo, and Item value's count of items and slot. */
+/** The screen as it is now: the active build's items, runes, combo, and Item value's count of items and item to replace. */
 export function track(page: Page, s: UIState): Page {
   const b = page.builds[page.active];
-  if (b.items === s.items && b.runes === s.runes && b.combo === s.combo && b.next === s.next && b.slot === s.slot) return page;
+  if (b.items === s.items && b.runes === s.runes && b.combo === s.combo && b.next === s.next && b.replace === s.replace) return page;
   return {
     ...page,
-    builds: page.builds.map((x, i) => (i === page.active ? { ...x, items: s.items, runes: s.runes, combo: s.combo, next: s.next, slot: s.slot } : x)),
+    builds: page.builds.map((x, i) => (i === page.active ? { ...x, items: s.items, runes: s.runes, combo: s.combo, next: s.next, replace: s.replace } : x)),
   };
 }
 
 /** The state with build i on screen, with what's shared from `s`. */
 export function withBuild(s: UIState, page: Page, i: number): UIState {
   const b = page.builds[i];
-  return { ...s, items: b.items, runes: b.runes, next: b.next, slot: b.slot, combo: page.ownCombos ? b.combo : s.combo };
+  return { ...s, items: b.items, runes: b.runes, next: b.next, replace: b.replace, combo: page.ownCombos ? b.combo : s.combo };
 }
 
 /** A copy of the active build in a new tab at the end, on screen. */

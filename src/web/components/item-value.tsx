@@ -83,24 +83,35 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   const [by, setBy] = useState<By>("perGold");
   const [view, setView] = useState<"list" | "map">("list");
   const [showAll, setShowAll] = useState(false);
-  // How many items to rank together, the build's (state.next, so in the address): sets of more than
-  // one fill empty slots, as many as there are, the count kept as it is (ranked as fewer while fewer
-  // slots are empty) but for items bought, by any route, which take it down by as many (withItems),
-  // and undo, which brings it back.
+  // How many items to rank together, the build's (state.next, so in the address), never more than its
+  // empty slots, which sets of more than one fill: items bought, by any route, take it down by as many
+  // (withItems), and undo brings it back. Sets are for the empty slots, so more than one picks no
+  // item to replace.
   const count = state.next;
-  const setCount = (n: number) => set((s) => ({ ...s, next: n }));
+  const setCount = (n: number) => set((s) => ({ ...s, next: n, replace: n > 1 ? null : s.replace }));
   const empty = state.items.filter((x) => x == null).length;
-  const size = Math.max(1, Math.min(count, empty));
-  // The slot being ranked, the build's too (state.slot): the first empty one, or the one picked, empty
-  // or with an item to reconsider. It follows the build's items as they change, here or in Items (an
-  // item sold, the slot it left; its item moved, where it went; filled, the next empty one: withItems),
-  // and undo brings it back. A full build reconsiders its last item, the boots slot's aside.
-  const chosen = state.slot;
+  // What's ranked: what could take the place of the build's item picked (state.replace, so in the
+  // address; it follows its item moved, and sold or bought over, nothing is picked: withItems), or the
+  // next item, for an empty slot: the one clicked while it stays empty (the card's own, not the
+  // build's: empty slots are alike but for where the item lands), else the first; a full build's in
+  // place of its last item, the boots slot's aside.
+  const [emptySlot, setEmptySlot] = useState<number | null>(null);
+  useEffect(() => {
+    if (emptySlot != null && state.items[emptySlot] !== null) setEmptySlot(null);
+  }, [state.items, emptySlot]);
+  const picked = state.replace != null ? state.items.indexOf(state.replace) : -1;
   const firstEmpty = state.items.findIndex((x) => x == null);
-  const slot = chosen != null && chosen < state.items.length ? chosen : firstEmpty >= 0 ? firstEmpty : Math.min(state.items.length, BOOTS_SLOT) - 1;
-  const current = size === 1 ? state.items[slot] : null;
+  const slot =
+    picked >= 0
+      ? picked
+      : emptySlot != null && state.items[emptySlot] === null
+        ? emptySlot
+        : firstEmpty >= 0
+          ? firstEmpty
+          : Math.min(state.items.length, BOOTS_SLOT) - 1;
+  const current = count === 1 ? state.items[slot] : null;
   const bootsSlot = state.items.length > BOOTS_SLOT;
-  const forBoots = bootsSlot && slot === BOOTS_SLOT && size === 1;
+  const forBoots = bootsSlot && slot === BOOTS_SLOT && count === 1;
 
   // What can be bought: the tier 3 boots only with their setting, and nothing excluded.
   const pool = useMemo(
@@ -108,7 +119,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
     [state.settings.questBoots, state.excluded],
   );
   const itemsJob = useMemo(() => {
-    if (size > 1) return null;
+    if (count > 1) return null;
     const base: Scenario = { ...scenario, items: buildItems(state.items.map((x, i) => (i === slot ? null : x))) };
     // An empty slot ranks what to buy next, as the shop places it: a pair of boots in the boots slot, an
     // upgrade in place of what it's built from. In place of an item, what could go in its slot: with
@@ -116,14 +127,14 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
     const fit = pool.filter((id) => (current == null && !forBoots) || slotFits(state.items, slot, id));
     const candidates = current != null && !fit.includes(current) ? [...fit, current] : fit.length < DEFAULT_IDS.length ? fit : undefined;
     return { kind: "items" as const, base, candidates };
-  }, [scenario, state.items, slot, current, pool, size]);
+  }, [scenario, state.items, slot, current, pool, count]);
   // Sets fill the build's empty slots, a pair of boots the boots slot.
   const setsJob = useMemo(
     () =>
-      size > 1
-        ? { kind: "sets" as const, base: scenario, size, slots: state.items.length, candidates: pool.length < DEFAULT_IDS.length ? pool : undefined }
+      count > 1
+        ? { kind: "sets" as const, base: scenario, size: count, slots: state.items.length, candidates: pool.length < DEFAULT_IDS.length ? pool : undefined }
         : null,
-    [scenario, state.items.length, pool, size],
+    [scenario, state.items.length, pool, count],
   );
 
   // Simulated in the worker, a moment after the job last changed, so typing in the combo box doesn't
@@ -131,7 +142,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   // ~100 simulations for the next item, some 600 to 4,000 for a set.
   const items = useRanking(itemsJob, 250);
   const sets = useRanking(setsJob, 250);
-  const ranked = size > 1 ? sets : items;
+  const ranked = count > 1 ? sets : items;
 
   const ranking = items.result;
   const rows = useMemo(() => {
@@ -148,21 +159,19 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
     const kept = (sets.result?.sets ?? []).filter((s) => !s.items.some((x) => state.excluded.includes(x.id)));
     return kept.sort((a, b) => (by === "perGold" ? b.gainPerGold - a.gainPerGold : b.gain - a.gain));
   }, [sets.result, by, state.excluded]);
-  const shown: Entry[] = size > 1 ? setRows : rows;
+  const shown: Entry[] = count > 1 ? setRows : rows;
 
-  // Bought from a row or a set, the next empty slot is ranked, wherever the items went.
-  const pick = (id: number) => set((s) => ({ ...withItems(s, buyItem(s.items, slot, id)), slot: null }));
+  const pick = (id: number) => set((s) => withItems(s, buyItem(s.items, slot, id)));
   const buySet = (s: ItemSet) =>
-    set((st) => ({
-      ...withItems(
+    set((st) =>
+      withItems(
         st,
         buyItems(
           st.items,
           s.items.map((x) => x.id),
         ),
       ),
-      slot: null,
-    }));
+    );
   const buy = (r: Entry) => (isSet(r) ? buySet(r) : pick(r.id));
   const exclude = (id: number) => set((s) => (s.excluded.includes(id) ? s : { ...s, excluded: [...s.excluded, id] }));
 
@@ -213,9 +222,12 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
         >
           {state.items.map((id, i) => {
             const name = id != null ? DATA.items[id]?.name : null;
-            const ranks = size === 1 && i === slot;
+            const ranks = count === 1 && i === slot;
             const foot = ranks ? undefined : "Click to rank what could take its place.";
-            const pickSlot = () => set((s) => ({ ...s, slot: i, next: 1 }));
+            const pickSlot = () => {
+              if (id == null) setEmptySlot(i);
+              set((s) => ({ ...s, replace: id, next: 1 }));
+            };
             return (
               <div
                 key={i}
@@ -249,8 +261,8 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
           {slots.vacated}
         </div>
         <div className="iv-caption small secondary">
-          {size > 1 ? (
-            `Next ${size} items`
+          {count > 1 ? (
+            `Next ${count} items`
           ) : current != null ? (
             <>
               In place of <strong>{DATA.items[current]?.name}</strong>
@@ -261,7 +273,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
             "Next item"
           )}
         </div>
-        <CountPicker count={size} slots={state.items.length} empty={empty} onChange={setCount} />
+        <CountPicker count={count} slots={state.items.length} empty={empty} onChange={setCount} />
       </div>
       {state.excluded.length > 0 && (
         <Excluded
@@ -277,14 +289,14 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
       {hover.node}
       {ranked.error && <div className="notice warn small">{ranked.error}</div>}
       <div className="iv-results">
-        {size > 1 && <Progress since={sets.since} progress={sets.progress} />}
+        {count > 1 && <Progress since={sets.since} progress={sets.progress} />}
         {!ranked.result && !ranked.error && <div className="muted small">Simulating…</div>}
         {ranked.result && (
           <div className="iv-body" style={{ opacity: ranked.stale ? 0.55 : 1 }} aria-busy={ranked.stale}>
             {!shown.length ? (
               <div className="muted small">
-                {size > 1
-                  ? `No set of ${size} items adds damage to this combo.`
+                {count > 1
+                  ? `No set of ${count} items adds damage to this combo.`
                   : `No ${forBoots ? "pair of boots" : bootsSlot && current != null ? "legendary item" : "legendary item or pair of boots"} adds damage to this combo.`}
               </div>
             ) : view === "list" ? (
@@ -321,11 +333,11 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
                       },
                 )}
                 tip={(p, touch) => {
-                  const r = size > 1 ? setRows[p.id] : rows.find((x) => x.id === p.id)!;
+                  const r = count > 1 ? setRows[p.id] : rows.find((x) => x.id === p.id)!;
                   const mine = !isSet(r) && r.id === current;
                   return <RowTip row={r} current={current} champion={state.champion} view="map" action={mine || touch ? undefined : buyHint(r)} />;
                 }}
-                onPick={(p) => buy(size > 1 ? setRows[p.id] : rows.find((x) => x.id === p.id)!)}
+                onPick={(p) => buy(count > 1 ? setRows[p.id] : rows.find((x) => x.id === p.id)!)}
               />
             )}
           </div>

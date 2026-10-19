@@ -25,17 +25,11 @@ test("builds: a new one copies the one on screen, what changes on screen is its 
   // Build 1 on screen with what's shared from the screen: the level, the combo.
   const at = { ...s, level: 9, items: luden, combo: "Q W" };
   assert.deepEqual(withBuild(at, page, 0), { ...at, items: s.items });
-  // How many items Item value ranks, and the slot it ranks for, are the build's too.
-  const three = track(page, { ...at, next: 3, slot: 2 });
-  const ranks = (b: { next: number; slot: number | null }) => [b.next, b.slot];
-  assert.deepEqual(
-    [ranks(three.builds[0]), ranks(three.builds[1]), ranks(withBuild({ ...at, next: 3, slot: 2 }, three, 0))],
-    [
-      [1, null],
-      [3, 2],
-      [1, null],
-    ],
-  );
+  // How many items Item value ranks, and the item it ranks in place of, are the build's too.
+  const three = track(page, { ...at, next: 3 });
+  assert.deepEqual([three.builds[0].next, three.builds[1].next, withBuild({ ...at, next: 3 }, three, 0).next], [1, 3, 1]);
+  const picked = track(page, { ...at, replace: 6655 });
+  assert.deepEqual([picked.builds[0].replace, picked.builds[1].replace, withBuild({ ...at, replace: 6655 }, picked, 0).replace], [null, 6655, null]);
   // Each its own combo, from the one on screen's.
   const own = setOwnCombos(page, true, "E Q");
   assert.deepEqual(
@@ -109,15 +103,16 @@ test("a page's address: one build's is its scenario's; more, the first's as if a
   assert.equal(back.page.active, 1);
   // decodeState reads a scenario's address only.
   assert.equal(decodeState(data, address), null);
-  // How many items Item value ranks, and the slot it ranks for: in each build's code.
-  const ranked = track(page, { ...on, next: 3, slot: 2 });
+  // How many items Item value ranks, and the item it ranks in place of: in each build's code.
+  const ranked = track(page, { ...on, next: 3 });
   assert.deepEqual(
-    decodePage(data, encodePage(data, { ...on, next: 3, slot: 2 }, ranked))!.page.builds.map((b) => [b.next, b.slot]),
-    [
-      [1, null],
-      [3, 2],
-      [1, null],
-    ],
+    decodePage(data, encodePage(data, { ...on, next: 3 }, ranked))!.page.builds.map((b) => b.next),
+    [1, 3, 1],
+  );
+  const picked = track(page, { ...on, replace: 3020 });
+  assert.deepEqual(
+    decodePage(data, encodePage(data, { ...on, replace: 3020 }, picked))!.page.builds.map((b) => b.replace),
+    [null, 3020, null],
   );
 
   // Each its own combo: in each build, and in the address.
