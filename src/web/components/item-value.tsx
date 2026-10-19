@@ -52,7 +52,7 @@ const perGold = (v: number, d = 0) => `${v < 0 && !nil(v, d) ? "−" : ""}${fmt(
  *  multipliers); effect, the damage it deals itself (its procs, burns); procs, the hits of your other
  *  damage that land only with it (Electrocute it procs, an execute it brings the target into range of);
  *  lost, what it takes away from your other damage (a proc it makes land later, adaptive force
- *  turning AD), struck out of the bar's end. */
+ *  turning AD), struck out at the bar's end. */
 const PARTS = ["base", "effect", "procs", "lost"] as const;
 type Part = (typeof PARTS)[number];
 
@@ -68,8 +68,13 @@ function segments(r: Entry): { part: Part; key: string; damage: number }[] {
 
 /** What the bar's segments add up to, before what the items take away. */
 const added = (r: Entry) => r.baseDamage + r.itemDamage + r.procDamage;
-/** Whether the bar's end is struck out: one that only takes away has no bar to strike. */
-const loses = (r: Entry) => r.lostDamage <= -0.5 && added(r) > 0;
+/** What the items take away, the bar's struck part: none, where it rounds to nothing. */
+const taken = (r: Entry) => (r.lostDamage <= -0.5 ? -r.lostDamage : 0);
+const loses = (r: Entry) => taken(r) > 0;
+/** The bar's solid part: what the items add, less what they take away. */
+const kept = (r: Entry) => Math.max(0, added(r) - taken(r));
+/** The segments drawn: none where nothing's kept. */
+const drawnSegments = (r: Entry) => (kept(r) >= 0.5 ? segments(r) : []);
 
 const Swatch = ({ part, gap }: { part: Part; gap?: boolean }) => <span className={`swatch iv-${part}`} style={gap ? { marginRight: 6 } : undefined} />;
 
@@ -492,12 +497,12 @@ function RankList({
   const top = all.slice(0, shown);
   const rest = expanded ? all.slice(shown) : rank > shown ? [all[rank - 1]] : [];
   // The legend has the parts the bars listed have.
-  const drawn = PARTS.filter((p) => [...top, ...rest].some((r) => (p === "lost" ? loses(r) : segments(r).some((s) => s.part === p))));
+  const drawn = PARTS.filter((p) => [...top, ...rest].some((r) => (p === "lost" ? loses(r) : drawnSegments(r).some((s) => s.part === p))));
   const hidden = all.length - shown - (rank > shown ? 1 : 0);
-  // A bar is as long as what the item adds, its end struck out by what it takes away: its solid part
-  // ends at its number, per gold or in all.
+  // A bar's solid part ends at its number, per gold or in all, its segments scaled down to it from what
+  // the item adds; then, struck out, what the item takes away, as long as it is.
   const perUnit = (r: Entry) => (by === "perGold" ? (r.gold > 0 ? 1000 / r.gold : 0) : 1);
-  const max = Math.max(1e-9, ...all.map((r) => Math.max(added(r) * perUnit(r), by === "perGold" ? r.gainPerGold : r.gain)));
+  const max = Math.max(1e-9, ...all.map((r) => (kept(r) + taken(r)) * perUnit(r)));
   // A click on a row buys its item, or its set. The item shows its details, the rest of the row where
   // its damage comes from; a card from hovering says a click buys, one from a tap has the Buy button.
   // A set's items show theirs, and a click on one leaves it out of the ranking, as the Exclude button
@@ -605,15 +610,17 @@ function RankList({
   );
   const row = (r: Entry) => {
     const mine = isCurrent(r);
-    const width = (Math.max(0, added(r) * perUnit(r)) / max) * 100;
-    const struck = added(r) > 0 ? Math.min(1, -r.lostDamage / added(r)) * 100 : 0;
+    const segs = drawnSegments(r);
+    const solid = segs.length ? kept(r) : 0;
+    const width = (((solid + taken(r)) * perUnit(r)) / max) * 100;
+    const scale = solid / segs.reduce((sum, s) => sum + s.damage, 0);
     const ahead = !isSet(r) && lead.has(r.id);
     const bars = (
       <span className="iv-bars" style={{ width: `${width}%` }}>
-        {segments(r).map((s) => (
-          <span key={s.key} className={`iv-bar iv-${s.part}`} style={{ flexGrow: s.damage }} />
+        {segs.map((s) => (
+          <span key={s.key} className={`iv-bar iv-${s.part}`} style={{ flexGrow: s.damage * scale }} />
         ))}
-        {loses(r) && <span className="iv-struck iv-lost" style={{ width: `${struck}%` }} />}
+        {loses(r) && <span className="iv-bar iv-lost" style={{ flexGrow: taken(r) }} />}
       </span>
     );
     let item: ReactNode;
