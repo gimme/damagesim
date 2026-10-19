@@ -1,7 +1,8 @@
 // Item value's sets: how many items to rank together, the best sets of them, a set's item clicked to
 // leave it out of the ranking (in the setup, so in the page's address), the items left out at the top
 // of the card, put back one by one or all at once, a set bought into the empty slots, and the count
-// back to one item once a set is bought, and only then.
+// down by as many items as are bought, by any route (a set, a set's item dragged onto a slot, Items'
+// shop), to one at least; a sale leaves it.
 
 import { test, expect, attrs, num, texts, type UI } from "./ui.ts";
 import type { Locator } from "@playwright/test";
@@ -205,27 +206,29 @@ test("sets of items, and items left out of the ranking", async ({ ui }) => {
     },
   );
   await step(
-    "an item sold: 2 slots empty, and the count, left as it was, ranks 2 again",
+    "an item sold: 2 slots empty, and the count, down to one by the item bought, still one",
     async () => {
       await slots.nth((await build()).findIndex((x, i) => i >= 2 && x != null)).focus();
       await page.keyboard.press("Delete");
     },
     async () => {
-      await expect(caption).toHaveText("Next 2 items");
-      await expect(count(2)).toHaveAttribute("aria-pressed", "true");
+      await expect(caption).toHaveText("Next item");
+      await expect(count(1)).toHaveAttribute("aria-pressed", "true");
+      await expect(count(2)).toBeEnabled();
     },
   );
 });
 
-test("a set's item dragged onto a slot is bought there alone", async ({ ui }) => {
+test("a set's item dragged onto a slot is bought there alone, and one bought by hand", async ({ ui }) => {
   const { step } = ui;
-  const { card, rows, items, names, picker, build } = parts(ui);
+  const { card, rows, items, names, picker, caption, build } = parts(ui);
+  const count = (n: number) => picker.getByRole("button", { name: String(n), exact: true });
   const slots = card.locator(".slots > .slot:not(.vacated)");
   let was: (string | null)[] = [];
   let item = "";
   await step("load, 2 items", async () => {
     await ui.open();
-    await picker.getByRole("button", { name: "2", exact: true }).click();
+    await count(2).click();
   });
   await step(
     "drag a set's second item onto slot 6: outlined while over it, bought there alone, nothing left out",
@@ -237,8 +240,29 @@ test("a set's item dragged onto a slot is bought there alone", async ({ ui }) =>
     async () => {
       expect(await build()).toEqual([...was.slice(0, 5), item]);
       expect((await ui.state()).excluded).toEqual([]);
-      // 2 still fit the 3 empty slots: still 2.
-      await expect(picker.getByRole("button", { name: "2", exact: true })).toHaveAttribute("aria-pressed", "true");
+      // One bought: the count down to one, though 2 still fit the 3 empty slots.
+      await expect(count(1)).toHaveAttribute("aria-pressed", "true");
+      await expect(count(3)).toBeEnabled();
+    },
+  );
+  await step(
+    "2 items, then Rabadon's Deathcap bought by hand, in Items' shop: one, though 2 still fit",
+    async () => {
+      await count(2).click();
+      await ui.settle();
+      const own = ui.card("Items");
+      const at = (await build()).indexOf(null);
+      await own.locator(".slots > .slot:not(.vacated)").nth(at).click();
+      const shop = own.locator(".item-picker");
+      await shop.getByRole("searchbox", { name: "Search items" }).fill("Rabadon");
+      await shop.locator(".item-option").first().click();
+    },
+    async () => {
+      expect(await build()).toContain("Rabadon's Deathcap");
+      expect((await build()).filter((x) => x == null)).toHaveLength(2);
+      await expect(caption).toHaveText("Next item");
+      await expect(count(1)).toHaveAttribute("aria-pressed", "true");
+      await expect(count(2)).toBeEnabled();
     },
   );
 });

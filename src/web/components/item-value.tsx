@@ -80,13 +80,39 @@ function standouts(rows: Row[]): ReadonlySet<number> {
   return new Set();
 }
 
-export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; set: Set; scenario: Scenario; sim: Sim | null }) {
+/** How many items `now` has that `was` hadn't: those bought, an upgrade in place of what it's built from too; none for items moved or sold. */
+function newItems(was: (number | null)[], now: (number | null)[]): number {
+  const left = was.filter((x) => x != null);
+  let n = 0;
+  for (const x of now) {
+    if (x == null) continue;
+    const k = left.indexOf(x);
+    if (k >= 0) left.splice(k, 1);
+    else n++;
+  }
+  return n;
+}
+
+export function ItemValueCard({
+  state,
+  set,
+  scenario,
+  sim,
+  build,
+}: {
+  state: UIState;
+  set: Set;
+  scenario: Scenario;
+  sim: Sim | null;
+  /** The build on screen, its champion's and its tab's (see App): another isn't items bought. */
+  build: string;
+}) {
   const [by, setBy] = useState<By>("perGold");
   const [view, setView] = useState<"list" | "map">("list");
   const [showAll, setShowAll] = useState(false);
   // How many items to rank together: sets of more than one fill empty slots, as many as there are, the
-  // count kept as it is (ranked as fewer while fewer slots are empty) but for a set bought here, after
-  // which it's back to one, the next item.
+  // count kept as it is (ranked as fewer while fewer slots are empty) but for items bought, which take
+  // it down by as many (see below).
   const [count, setCount] = useState(1);
   const empty = state.items.filter((x) => x == null).length;
   const size = Math.max(1, Math.min(count, empty));
@@ -96,10 +122,15 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
   // at once (Clear), the first empty one. It follows its item when the build's items are moved, and an
   // empty one the gap the item it swapped with left; filled otherwise (bought from Items, an undo),
   // the next empty one is ranked.
-  const seen = useRef(state.items);
+  // Items bought into the build, by any route (a row or a set here, an item dragged onto a slot, Items
+  // and its shop, a redo), take the count down by as many from what it ranks, to one at least: a set
+  // bought leaves it at one, the next item. Another build or champion on screen isn't bought.
+  const seen = useRef({ items: state.items, build });
   useLayoutEffect(() => {
-    const [was, now] = [seen.current, state.items];
-    seen.current = now;
+    const [was, now] = [seen.current.items, state.items];
+    const bought = build === seen.current.build ? newItems(was, now) : 0;
+    seen.current = { items: now, build };
+    if (bought) setCount((c) => Math.max(1, Math.min(c, was.filter((x) => x == null).length) - bought));
     const changed = now.flatMap((x, k) => (x !== was[k] ? [k] : []));
     if (changed.length && changed.every((k) => now[k] == null)) {
       setChosen(changed.length === 1 ? changed[0] : null);
@@ -108,7 +139,7 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
     if (chosen == null || now[chosen] === was[chosen]) return;
     const to = now.findIndex((x, k) => x === was[chosen] && was[k] !== x);
     setChosen(to >= 0 ? to : null);
-  }, [state.items]);
+  }, [state.items, build]);
   // A full build reconsiders its last item, the boots slot's aside.
   const firstEmpty = state.items.findIndex((x) => x == null);
   const slot = chosen != null && chosen < state.items.length ? chosen : firstEmpty >= 0 ? firstEmpty : Math.min(state.items.length, BOOTS_SLOT) - 1;
@@ -177,7 +208,6 @@ export function ItemValueCard({ state, set, scenario, sim }: { state: UIState; s
       ),
     }));
     setChosen(null);
-    setCount(1);
   };
   const buy = (r: Entry) => (isSet(r) ? buySet(r) : pick(r.id));
   const exclude = (id: number) => set((s) => (s.excluded.includes(id) ? s : { ...s, excluded: [...s.excluded, id] }));

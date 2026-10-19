@@ -60,6 +60,8 @@ export function App() {
   const tabs = useTabs(state, setState, initial?.page ?? null);
   const build = tabs.page.builds[tabs.page.active];
   const buildName = tabs.many ? build.name : undefined;
+  /** The build on screen, of its champion. */
+  const buildKey = `${state.champion}#${build.id}`;
 
   // The address is a link to the builds, written over as they change (no history entry for each
   // change), with replaceState, which fires no hashchange; a change Back should undo (Reset, a tab
@@ -135,7 +137,7 @@ export function App() {
         <div>
           <AttackerPanel state={state} set={setState} sim={sim} />
           {/* A build's items come and go with it: their undo starts afresh with each */}
-          <ItemsPanel key={`${state.champion}#${build.id}`} state={state} set={setState} gold={result?.gold ?? 0} sim={sim} buildName={buildName} />
+          <ItemsPanel key={buildKey} state={state} set={setState} gold={result?.gold ?? 0} sim={sim} buildName={buildName} />
           <RunesPanel state={state} set={setState} sim={sim} buildName={buildName} />
           <TargetPanel state={state} set={setState} resolved={result?.target} />
           <SettingsPanel state={state} set={setState} />
@@ -152,7 +154,7 @@ export function App() {
           {result && (
             <>
               <Summary r={result} tabs={tabs} state={state} />
-              <ItemValueCard state={state} set={setState} scenario={scenario} sim={sim} />
+              <ItemValueCard state={state} set={setState} scenario={scenario} sim={sim} build={buildKey} />
               <Details r={result} scenario={scenario} sim={sim} />
             </>
           )}
