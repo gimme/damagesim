@@ -740,7 +740,8 @@ const ITEMS: Record<number, Factory> = {
     return effect(item, {
       description: "+2% damage per second in combat (max 8%); 2% of bonus health as AP.",
       options: [IN_COMBAT],
-      stats: () => ({ conversions: [{ from: "bonusHp", to: "ap", ratio: dv(item, "HealthToAPConversionPercent"), source: item.name }] }),
+      // Adaptive force's choice leaves out Void Infusion's AP (wiki, Adaptive_force).
+      stats: () => ({ conversions: [{ from: "bonusHp", to: "ap", ratio: dv(item, "HealthToAPConversionPercent"), source: item.name, uncounted: true }] }),
       afterDamage: (sim, inst) => combat.hit(sim, inst),
       beforeDamage(sim, inst) {
         if (inst.flags.unamplified) return;
@@ -1220,6 +1221,10 @@ const ITEMS: Record<number, Factory> = {
 
   // ------------------------------------------------------------ Stat passives
   3089: (item) => effect(item, { description: "+30% total AP.", stats: () => ({ apMult: [1 + dv(item, "APAmp")] }) }),
+  // Of the AD and AP items' passives give, adaptive force's choice counts Sterak's Gage's, Overlord's
+  // Bloodmail's and Rabadon's Deathcap's (with Glory's, Timeless' and First Light's, which are stats), not
+  // Manamune's, Muramana's, Archangel's Staff's and Seraph's Embrace's, nor Riftmaker's and Staff of
+  // Flowing Water's (marked where they are): wiki, Adaptive_force.
   3053: (item) =>
     effect(item, {
       description: "Bonus AD equal to 50% base AD.",
@@ -1228,14 +1233,14 @@ const ITEMS: Record<number, Factory> = {
   3004: (item) =>
     effect(item, {
       description: "Bonus AD equal to 2% max mana.",
-      stats: () => ({ conversions: [{ from: "maxMana", to: "ad", ratio: 0.02, source: item.name }] }),
+      stats: () => ({ conversions: [{ from: "maxMana", to: "ad", ratio: 0.02, source: item.name, uncounted: true }] }),
     }),
   3042: (item) =>
     effect(item, {
       description:
         "Bonus AD equal to 2% max mana. Attacks deal 1.2% max mana physical damage on-hit; abilities deal 4% (ranged 3%) max mana bonus physical damage.",
       limitations: ["Shock on abilities assumed once per cast."],
-      stats: () => ({ conversions: [{ from: "maxMana", to: "ad", ratio: 0.02, source: item.name }] }),
+      stats: () => ({ conversions: [{ from: "maxMana", to: "ad", ratio: 0.02, source: item.name, uncounted: true }] }),
       onAttack(sim, atk) {
         if (atk.fromAbility) return;
         atk.extra.push(hit(item, "Shock", "physical", calc(sim, item, "OnHitDamage"), { onHit: true }));
@@ -1252,12 +1257,12 @@ const ITEMS: Record<number, Factory> = {
   3003: (item) =>
     effect(item, {
       description: "AP equal to 1% bonus mana.",
-      stats: () => ({ conversions: [{ from: "bonusMana", to: "ap", ratio: dv(item, "APFromMana"), source: item.name }] }),
+      stats: () => ({ conversions: [{ from: "bonusMana", to: "ap", ratio: dv(item, "APFromMana"), source: item.name, uncounted: true }] }),
     }),
   3040: (item) =>
     effect(item, {
       description: "AP equal to 2% bonus mana.",
-      stats: () => ({ conversions: [{ from: "bonusMana", to: "ap", ratio: 0.02, source: item.name }] }),
+      stats: () => ({ conversions: [{ from: "bonusMana", to: "ap", ratio: 0.02, source: item.name, uncounted: true }] }),
     }),
   3119: (item) =>
     effect(item, {
@@ -1337,7 +1342,8 @@ const ITEMS: Record<number, Factory> = {
     effect(item, {
       description: "Healing or shielding an ally grants 40 AP and 15 ability haste for 6s (option).",
       options: [{ key: "flowingWater.active", label: "Staff of Flowing Water buff active", default: 0, min: 0, max: 1, step: 1 }],
-      stats: (ctx) => (ctx.opt["flowingWater.active"] ? { ap: dv(item, "APMod"), abilityHaste: dv(item, "AHMod") } : {}),
+      // Adaptive force's choice leaves out Rapids' AP (wiki, Adaptive_force).
+      stats: (ctx) => (ctx.opt["flowingWater.active"] ? { ap: dv(item, "APMod"), uncountedAp: dv(item, "APMod"), abilityHaste: dv(item, "AHMod") } : {}),
     }),
 };
 

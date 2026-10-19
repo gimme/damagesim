@@ -415,7 +415,7 @@ export class Sim {
     for (const item of this.items) mergeMods(this.staticMods, itemStatsToMods(item.stats));
     for (const e of this.effects) {
       const m = e.stats?.(setup);
-      if (m) mergeMods(this.staticMods, m);
+      if (m) mergeMods(this.staticMods, e.source === "kit" ? championMods(m) : m);
     }
     if (this.kit.stats) {
       const m = this.kit.stats({
@@ -424,7 +424,7 @@ export class Sim {
         ranks: this.ranks,
         evalExpr: (e, slot) => this.evalExpr(e, { slot: (slot as Slot) ?? "P" }),
       });
-      if (m) mergeMods(this.staticMods, m);
+      if (m) mergeMods(this.staticMods, championMods(m));
     }
     // evalExpr above may have cached stats computed before these mods were merged.
     this.invalidateStats();
@@ -473,7 +473,7 @@ export class Sim {
       let mods: StatMods | undefined;
       for (const e of this.effects) {
         const m = e.dynamicStats?.(this);
-        if (m) mergeMods((mods ??= cloneMods(this.staticMods)), m);
+        if (m) mergeMods((mods ??= cloneMods(this.staticMods)), e.source === "kit" ? championMods(m) : m);
       }
       for (const b of this.buffs.values()) {
         if (b.expires < this.time) continue;
@@ -964,8 +964,9 @@ export class Sim {
     return b;
   }
 
+  /** A buff of the champion's (items and runes keep their state in counters). */
   addBuff(b: Omit<ActiveBuff, "stacks"> & { stacks?: number }) {
-    this.buffs.set(b.id, { stacks: 1, ...b });
+    this.buffs.set(b.id, { stacks: 1, ...b, ...(b.mods ? { mods: championMods(b.mods) } : {}) });
     this.invalidateStats();
   }
 
@@ -2894,6 +2895,22 @@ function componentFlags(comp: ComponentSpec, slot: Slot): Partial<DamageFlags> {
 
 function clampInt(v: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, Math.round(v)));
+}
+
+/**
+ * A champion kit's stat mods, the AD and AP they give marked as left out of adaptive force's choice: the
+ * wiki's "champion passive effects" (Adaptive_force); the engine leaves out its abilities' buffs too,
+ * which the wiki doesn't mention.
+ */
+function championMods(m: Partial<StatMods>): Partial<StatMods> {
+  if (!m.ad && !m.ap && !m.apMult?.length && !m.conversions?.length) return m;
+  return {
+    ...m,
+    ...(m.ad ? { uncountedAd: m.ad } : {}),
+    ...(m.ap ? { uncountedAp: m.ap } : {}),
+    ...(m.apMult?.length ? { uncountedApMult: m.apMult } : {}),
+    ...(m.conversions?.length ? { conversions: m.conversions.map((c) => ({ ...c, uncounted: true })) } : {}),
+  };
 }
 
 /** The mods that are lists (mergeMods adds to a list in place). */

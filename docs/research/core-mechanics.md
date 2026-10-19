@@ -213,6 +213,10 @@ CDR%     = AH / (100 + AH)
 
 **Which stat you get:**
 - The game compares the champion's **current bonus AD and AP** and gives whichever is higher. Most item passives count toward this; champion passives don't.
+- Item passives that count (wiki): Dark Seal and Mejai's Soulstealer (Glory), Sterak's Gage (The Claws that Catch), Rod of Ages (Timeless), Dawncore (First Light), Rabadon's Deathcap (Magical Opus), Overlord's Bloodmail (Tyranny and Retribution). Ones that don't: Staff of Flowing Water (Rapids), Riftmaker (Void Infusion), Archangel's Staff, Seraph's Embrace, Manamune and Muramana (Awe).
+- Magical Opus counts, worked out on all AP, including AP that doesn't count by itself. The wiki's example: Veigar's 130 AP from Rabadon's compares as 169 against 160 bonus AD from items, and stays AP. With 10 AP from Phenomenal Evil, 169 + 10 × 0.3 = 172 compares against 170 AD, and goes back to AP.
+- The adaptive force's own AD or AP is not in the comparison: in the example, 169 AP is compared, not the 192 the shards' Opus-amplified AP brings it to.
+- The engine (`adaptiveChoice` in `src/engine/stats.ts`) counts what items and runes give. It leaves out the AP and AD of the uncounted item passives above, and all of a champion kit's: its passives, and also its abilities' buffs (e.g. Singed's Insanity Potion), which the wiki doesn't mention. Conversions that count, like Sterak's, are worked out before the adaptive force is added.
 - It is recomputed as stats change.
 - On a tie, including 0/0, the champion's adaptive type decides. The CharacterRecord has `mAdaptiveForceToAbilityPowerWeight: 1.0` for magic-type champions (e.g. Annie); the field is absent for physical ones. The wiki's champion data counts 95 Physical and 80 Magic.
 - Adaptive *damage* uses the same rule. Arcane Comet and Electrocute are exceptions.

@@ -158,7 +158,7 @@ On top of these, every Legendary item can be owned only once.
 ### 2.8 Combat timers and stat multipliers
 - **In combat with champions** (Liandry's, Haunting Guise, Riftmaker, Unending Despair, Jak'Sho) means you dealt or took damage to or from an enemy champion. That includes 0-damage instances. Being blocked by a spell shield does not count.
 - **% AP multipliers add together:** `AP = ΣflatAP × (1 + 0.30 Rabadon's + 0.04·n Blackfire + …)`. Rabadon's also multiplies AP that other passives convert from health or mana (Riftmaker, Archangel's/Seraph's, Glory stacks, Staff of Flowing Water).
-- **Adaptive force** (Swiftmarch): 1 point = 0.6 bonus AD or 1 AP. You get AD if your bonus AD > AP, and AP if AP is higher.
+- **Adaptive force** (Swiftmarch): 1 point = 0.6 bonus AD or 1 AP. You get AD if your bonus AD > AP, and AP if AP is higher. Of the AD and AP item passives give, most count toward the choice: Sterak's, Overlord's, Rabadon's, Glory, Rod of Ages and Dawncore do; Staff of Flowing Water, Riftmaker, Archangel's/Seraph's and Manamune/Muramana don't (core-mechanics.md §9).
 
 ---
 

@@ -18,6 +18,7 @@ import type { ItemData } from "../src/engine/data-types.ts";
 import { formatNumber, itemText, renderTooltip, runeText } from "../src/engine/tooltip.ts";
 import { NOT_LIVE_RUNES } from "../src/engine/runes.ts";
 import { choosePrimary, chooseSecondary, pageRunes, pickRune, treePicks, type RunePage } from "../src/engine/rune-page.ts";
+import { DEFAULT_STATE, toScenario } from "../src/web/state.ts";
 
 const data = loadGameData("16.20");
 await loadAllKits();
@@ -69,6 +70,54 @@ test("adaptive force goes to the higher of bonus AD and AP, ties to champion typ
   m.ad = 10;
   const st2 = computeStats({ base: ahri.stats, level: 1, adaptiveDefault: "magic", ranged: true }, m);
   near(st2.bonusAd, 10 + 5.4);
+});
+
+test("adaptive force's choice counts what items' passives give but Manamune's and Staff of Flowing Water's (wiki, Adaptive_force)", () => {
+  // Katarina on the page's default runes (two adaptive force shards), combo R, no items: no bonus AD or AP, her type, AP.
+  const kat = toScenario(data, { ...DEFAULT_STATE, champion: "Katarina", items: [null, null, null, null, null, null], combo: "R" });
+  const stats = (items: string[]) => simulate(data, { ...kat, items }).stats;
+  assert.equal(stats([]).adaptiveType, "magic");
+  // Sterak's Gage's 50% base AD (The Claws that Catch) counts: it turns AD, and the ranking's row says so.
+  assert.equal(stats(["Sterak's Gage"]).adaptiveType, "physical");
+  assert.equal(rankItems(data, kat, { candidates: ["Sterak's Gage"] }).items[0].adaptive, "physical");
+  // Manamune's AD from 2% max mana (Awe) doesn't: with two Amplifying Tomes' 40 AP, its 35 AD counts, Awe's 10 more not,
+  // and AP stays, where Sterak's 43 AD turn it.
+  const tomes = { ...kat, items: ["Amplifying Tome", "Amplifying Tome"] };
+  const mana = stats([...tomes.items, "Manamune"]);
+  assert.equal(mana.adaptiveType, "magic");
+  near(mana.bonusAd, 35 + 0.02 * 500);
+  const rows = rankItems(data, tomes, { candidates: ["Manamune", "Sterak's Gage"] }).items;
+  assert.deepEqual(
+    ["Manamune", "Sterak's Gage"].map((item) => rows.find((r) => r.item === item)!.adaptive),
+    [undefined, "physical"],
+  );
+  // Staff of Flowing Water's 40 AP from Rapids doesn't: its 35 AP is less than a B. F. Sword's 40 AD, though 75 is more.
+  const rapids = simulate(data, { ...kat, items: ["Staff of Flowing Water", "B. F. Sword"], options: { "flowingWater.active": 1 } }).stats;
+  assert.equal(rapids.adaptiveType, "physical");
+});
+
+test("adaptive force's choice and Rabadon's Deathcap: Magical Opus counts, of champion passives' AP too (the wiki's example)", () => {
+  // Veigar at level 1 (52 AD) with two adaptive force shards (18 AP or 10.8 AD) and Phenomenal Evil's stacks (1 AP each).
+  const veigar = (items: string[], stacks: number) =>
+    new Sim(data, { champion: "Veigar", level: 1, items, runes: [5008, 5008], options: { stacks }, combo: [] }).stats;
+  const at = (st: ReturnType<typeof veigar>, type: string, ad: number, ap: number) => {
+    assert.equal(st.adaptiveType, type);
+    near(st.ad, ad, 0.01);
+    near(st.ap, ap, 0.01);
+  };
+  at(veigar([], 0), "magic", 52, 18);
+  // Rabadon's 130 AP, 39 more from Magical Opus, which amplifies the shards' too: 23.4 AP.
+  const cap = ["Rabadon's Deathcap"];
+  at(veigar(cap, 0), "magic", 52, 192.4);
+  // 4 B. F. Swords' 160 AD are more than Rabadon's 130 AP, but Magical Opus counts: 169 against 160, AP.
+  const swords = [...cap, "B. F. Sword", "B. F. Sword", "B. F. Sword", "B. F. Sword"];
+  at(veigar(swords, 0), "magic", 212, 192.4);
+  // A Long Sword: 170 AD against 169, AD.
+  at(veigar([...swords, "Long Sword"], 0), "physical", 232.8, 169);
+  // 10 Phenomenal Evil AP don't count by themselves, Magical Opus' 3 of them do: 172 against 170, AP.
+  at(veigar([...swords, "Long Sword"], 10), "magic", 222, 205.4);
+  // A Long Sword alone and 20 stacks: 10 AD against no AP that counts, AD.
+  at(veigar(["Long Sword"], 20), "physical", 72.8, 20);
 });
 
 test("breakpoint formulas (Ignite 16.20: 70 +20/level, +25/level from 6)", () => {

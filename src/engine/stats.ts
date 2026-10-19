@@ -78,6 +78,10 @@ export interface StatMods {
   /** Bonus AD that counts as base AD (rare, e.g. some champion passives). */
   baseAd: number;
   ap: number;
+  /** The part of ad and of ap that adaptive force's choice leaves out (adaptiveChoice): what a champion's
+   *  kit gives (the sim marks its mods: championMods), and Staff of Flowing Water's Rapids. */
+  uncountedAd: number;
+  uncountedAp: number;
   armor: number;
   mr: number;
   /** Bonus attack speed fraction. */
@@ -107,7 +111,10 @@ export interface StatMods {
   adaptive: number;
   /** Multipliers on total AP (Rabadon's, Blackfire Torch). The % increases add up (wiki). */
   apMult: number[];
-  /** Multipliers on bonus AD/HP/armor/MR (e.g. some champion ults). */
+  /** Those of apMult that adaptive force's choice leaves out (Syndra's passive). */
+  uncountedApMult: number[];
+  /** Multipliers on bonus AD/HP/armor/MR (e.g. some champion ults; adaptive force's choice leaves out
+   *  what they add). */
   bonusAdMult: number[];
   bonusHpMult: number[];
   armorMult: number[];
@@ -145,6 +152,10 @@ export interface Conversion {
   to: "ad" | "ap" | "hp" | "abilityHaste" | "armor" | "mr" | "attackSpeed" | "msPercent" | "lethality" | "critDamage";
   ratio: number;
   source?: string;
+  /** Left out of adaptive force's choice. Item passives count unless the wiki says otherwise (Manamune,
+   *  Muramana, Archangel's Staff, Seraph's Embrace, Riftmaker); champion passives never do (the sim
+   *  marks a kit's). */
+  uncounted?: boolean;
 }
 
 export function emptyMods(): StatMods {
@@ -154,6 +165,8 @@ export function emptyMods(): StatMods {
     ad: 0,
     baseAd: 0,
     ap: 0,
+    uncountedAd: 0,
+    uncountedAp: 0,
     armor: 0,
     mr: 0,
     attackSpeed: 0,
@@ -179,6 +192,7 @@ export function emptyMods(): StatMods {
     healShieldPower: 0,
     adaptive: 0,
     apMult: [],
+    uncountedApMult: [],
     bonusAdMult: [],
     bonusHpMult: [],
     armorMult: [],
@@ -288,22 +302,16 @@ export function computeStats(input: BaseStatsInput, mods: StatMods, currentHpPct
   let lethality = mods.lethality;
   let critDamageBonus = mods.critDamage;
 
-  // Adaptive force: AD if bonus AD > AP, AP if AP > bonus AD, champion default on ties.
-  let adaptiveType = input.adaptiveDefault;
-  if (bonusAd > ap) adaptiveType = "physical";
-  else if (ap > bonusAd) adaptiveType = "magic";
-  if (adaptiveType === "physical") bonusAd += mods.adaptive * GAME.adaptiveToAd;
-  else ap += mods.adaptive * GAME.adaptiveToAp;
-
   // The attack speed cap: lowered (Zeri's), or raised, then raised by what attackSpeedPastCap adds.
   const asMult = 1 + mods.attackSpeedMult;
   const raised = Math.max(GAME.attackSpeedCap, mods.attackSpeedCap);
   const capBefore = mods.attackSpeedCapLimit > 0 ? Math.min(mods.attackSpeedCapLimit, raised) : raised;
   const asCap = capBefore + mods.attackSpeedPastCap * base.attackSpeedRatio * asMult;
 
-  // Conversions (Titanic Hydra, Manamune, Archangel's, Heartsteel…), evaluated on pre-conversion values.
+  // Conversions (Titanic Hydra, Manamune, Archangel's, Heartsteel…), evaluated on pre-conversion values,
+  // adaptive force's included (its choice evaluates those it counts without it).
   const critChanceRaw = mods.critChance * product(mods.critChanceMult);
-  const pre = {
+  const pre: Record<Conversion["from"], number> = {
     bonusHp,
     maxHp: lv.hp + bonusHp,
     maxMana: lv.mana + bonusMana,
@@ -321,6 +329,12 @@ export function computeStats(input: BaseStatsInput, mods: StatMods, currentHpPct
     bonusAttackSpeedOverCap: Math.max(0, bonusAs - mods.attackSpeedPastCap - (capBefore / asMult - base.attackSpeed) / base.attackSpeedRatio),
     lethality,
   };
+  const adaptiveType = adaptiveChoice(input.adaptiveDefault, mods, pre);
+  if (adaptiveType === "physical") bonusAd += mods.adaptive * GAME.adaptiveToAd;
+  else ap += mods.adaptive * GAME.adaptiveToAp;
+  pre.ap = ap;
+  pre.bonusAd = bonusAd;
+  pre.totalAd = baseAd + bonusAd;
   for (const c of mods.conversions) {
     const v = pre[c.from] * c.ratio;
     switch (c.to) {
@@ -418,6 +432,32 @@ export function computeStats(input: BaseStatsInput, mods: StatMods, currentHpPct
     adaptiveType,
     critChanceCapExceeded: critChanceRaw > 1,
   };
+}
+
+/**
+ * The stat adaptive force gives: AD if bonus AD > AP, AP if AP > bonus AD, the champion's type on a tie,
+ * counting only what the wiki says counts (Adaptive_force, 2026-09): what items and runes give, not what
+ * champion passives give (uncountedAd/Ap, a kit's conversions and AP multipliers), nor a few item passives
+ * (Staff of Flowing Water's Rapids, Riftmaker's Void Infusion, Archangel's Staff, Seraph's Embrace,
+ * Manamune and Muramana's Awe), nor the adaptive force itself; items' conversions that count (Sterak's
+ * Gage, Overlord's Bloodmail) are evaluated on `pre` before it. Rabadon's Deathcap's Magical Opus counts,
+ * of all AP, so its share of AP that doesn't count does too: the wiki's example, Veigar with Rabadon's
+ * (130 AP) compares 169 AP with 160 bonus AD from items and keeps AP; with 170 AD it turns AD; with 10 AP
+ * from Phenomenal Evil, which doesn't count by itself, it compares 169 + 10 × 0.3 = 172: AP again.
+ */
+function adaptiveChoice(adaptiveDefault: "physical" | "magic", mods: StatMods, pre: Record<Conversion["from"], number>): "physical" | "magic" {
+  let ad = mods.ad - mods.uncountedAd;
+  let ap = mods.ap - mods.uncountedAp;
+  let uncountedAp = mods.uncountedAp;
+  for (const c of mods.conversions) {
+    if (c.to === "ad" && !c.uncounted) ad += pre[c.from] * c.ratio;
+    else if (c.to === "ap" && c.uncounted) uncountedAp += pre[c.from] * c.ratio;
+    else if (c.to === "ap") ap += pre[c.from] * c.ratio;
+  }
+  // Magical Opus (and Blackfire Torch's Baleful Blaze) on all of it: (counted + uncounted) × (1 + mult) − uncounted.
+  const mult = mods.apMult.reduce((s, m) => s + (m - 1), 0) - mods.uncountedApMult.reduce((s, m) => s + (m - 1), 0);
+  if (mult) ap += (ap + uncountedAp) * mult;
+  return ad > ap ? "physical" : ap > ad ? "magic" : adaptiveDefault;
 }
 
 /** Cooldown after ability haste. */

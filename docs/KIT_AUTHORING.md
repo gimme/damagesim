@@ -268,6 +268,8 @@ options: [{ key: 'stacks', label: 'Siphoning Strike stacks', default: 100, min: 
 abilities: { Q: { buff: { … amount: 'Q.calc.BaseDamage + opt.stacks' } } },
 stats: ({ opt }) => ({ ap: opt.stacks }),         // e.g. Veigar
 ```
+The AD and AP a kit gives (in `stats`, hooks, buffs or conversions) don't count toward which stat adaptive force
+gives (wiki: champion passives don't). The sim marks them itself.
 Game formulas that read buff counters (`stacks({abcd1234})` in inspect output) can be fed with
 `buffStacks: { '{abcd1234}': 'opt.stacks' }`.
 
