@@ -59,6 +59,8 @@ export interface UIState {
   settings: Required<Pick<SimSettings, "finishDots" | "executes">> & { questBoots: boolean };
   /** Items left out of Item value's ranking. */
   excluded: number[];
+  /** How many items Item value ranks for the build: 1, the next item (or one in place of a slot's), or the best sets of this many to buy together for its empty slots. */
+  next: number;
 }
 
 /** How a card changes the state: from the state as it is. */
@@ -87,6 +89,7 @@ export const DEFAULT_STATE: UIState = {
   },
   settings: { finishDots: true, executes: true, questBoots: false },
   excluded: [],
+  next: 1,
 };
 
 /** A build's items from its slots, by id: where an item sits changes nothing (the engine takes them
@@ -112,7 +115,8 @@ export function toScenario(data: GameData, s: UIState): Scenario {
  * What a scenario simulates, as a string: two with the same simulate alike, so the page simulates
  * one only once. Its combo counts by its steps where it reads, so spacing doesn't count ("AA*2 " is
  * "2AA"). Nor does what toScenario leaves out: the tier 3 boots setting, a target's numbers for
- * the modes it isn't in, runes held over from a tree switch, the items Item value leaves out.
+ * the modes it isn't in, runes held over from a tree switch, the items Item value leaves out and how
+ * many it ranks.
  */
 export function scenarioKey(sc: Scenario): string {
   let combo: Scenario["combo"] = sc.combo;
@@ -399,6 +403,7 @@ const FIELDS: [path: string, codec: Codec<any>][] = [
   ["settings.executes", bool],
   ["settings.questBoots", bool],
   ["excluded", itemIds],
+  ["next", within(1, DEFAULT_STATE.items.length + 1)],
 ];
 
 const valueAt = (s: any, path: string) => path.split(".").reduce((x, k) => x[k], s);
@@ -502,7 +507,7 @@ function nameOf(code: string): string | null {
 }
 
 /** The build fields of a state: what the address has of a build, and not of what its builds share. */
-const ofBuild = (s: UIState, combo: boolean) => ({ items: s.items, runes: s.runes, ...(combo ? { combo: s.combo } : {}) });
+const ofBuild = (s: UIState, combo: boolean) => ({ items: s.items, runes: s.runes, next: s.next, ...(combo ? { combo: s.combo } : {}) });
 
 /**
  * A page's address after the app's own: its first build's, with what they share, as if it were alone
@@ -537,14 +542,14 @@ export function decodePage(data: GameData, address: string): { state: UIState; p
     if (!base) return null;
     if (!tabs.length) return { state: base, page: single(base) };
     // A build without a name has its place's in the address, kept where one before it doesn't load.
-    const builds: Build[] = [{ id: 1, name: (name && nameOf(name)) || nameAt(0), items: base.items, runes: base.runes, combo: base.combo }];
+    const builds: Build[] = [{ id: 1, name: (name && nameOf(name)) || nameAt(0), items: base.items, runes: base.runes, combo: base.combo, next: base.next }];
     let active = 0;
     tabs.forEach((tab, k) => {
       const [, on, own, name] = /^(\*?)([^.]*)(?:\.(.*))?$/.exec(tab) ?? [];
       const b = own != null ? decodeSetup(data, champion, own) : null;
       if (!b) return;
       if (on) active = builds.length;
-      builds.push({ id: builds.length + 1, name: (name && nameOf(name)) || nameAt(k + 1), items: b.items, runes: b.runes, combo: b.combo });
+      builds.push({ id: builds.length + 1, name: (name && nameOf(name)) || nameAt(k + 1), items: b.items, runes: b.runes, combo: b.combo, next: b.next });
     });
     const many = builds.length > 1;
     const page: Page = { champion, builds, active, ownCombos: many && flags.includes("combos"), folded: many && flags.includes("folded") };

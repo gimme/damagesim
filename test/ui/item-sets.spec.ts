@@ -2,7 +2,8 @@
 // leave it out of the ranking (in the setup, so in the page's address), the items left out at the top
 // of the card, put back one by one or all at once, a set bought into the empty slots, and the count
 // down by as many items as are bought, by any route (a set, a set's item dragged onto a slot, Items'
-// shop), to one at least; a sale leaves it.
+// shop), to one at least; a sale leaves it. The count is the build's, in its address, and undo and
+// redo in Items carry it with the items.
 
 import { test, expect, attrs, num, texts, type UI } from "./ui.ts";
 import type { Locator } from "@playwright/test";
@@ -126,14 +127,17 @@ test("sets of items, and items left out of the ranking", async ({ ui }) => {
     },
   );
   await step(
-    "reload: still left out, of the next item's ranking too",
+    "reload: still left out, and still 3 items, both from the address; of the next item's ranking too",
     async () => {
       await page.reload();
       await expect(card).toBeVisible();
     },
     async () => {
       expect(await excludedIds()).toEqual([first, second]);
-      await expect(count(1)).toHaveAttribute("aria-pressed", "true");
+      await expect(count(3)).toHaveAttribute("aria-pressed", "true");
+      await expect(caption).toHaveText("Next 3 items");
+      await count(1).click();
+      await ui.settle();
       await card.getByRole("button", { name: "Show more" }).click();
       const listed = await texts(rows.locator(".iv-name"));
       expect(listed.length).toBeGreaterThan(8);
@@ -263,6 +267,105 @@ test("a set's item dragged onto a slot is bought there alone, and one bought by 
       await expect(caption).toHaveText("Next item");
       await expect(count(1)).toHaveAttribute("aria-pressed", "true");
       await expect(count(2)).toBeEnabled();
+    },
+  );
+});
+
+test("the count is the build's, in its address, and undo and redo carry it; a sale leaves it", async ({ ui }) => {
+  const { page, step } = ui;
+  const { card, rows, picker, caption, build } = parts(ui);
+  const count = (n: number) => picker.getByRole("button", { name: String(n), exact: true });
+  const own = ui.card("Items");
+  const undo = own.getByRole("button", { name: "Undo" });
+  const redo = own.getByRole("button", { name: "Redo" });
+  const slots = card.locator(".slots > .slot:not(.vacated)");
+  const tabs = page.getByRole("group", { name: "Builds" });
+  const next = async () => (await ui.state()).next;
+  let was: (string | null)[] = [];
+  await step(
+    "open at 3 items: sets of 3, nothing to undo",
+    () => ui.open({ next: 3 }),
+    async () => {
+      await expect(caption).toHaveText("Next 3 items");
+      await expect(count(3)).toHaveAttribute("aria-pressed", "true");
+      await expect(undo).toBeDisabled();
+    },
+  );
+  await step(
+    "2 items: in the address, and not a change to undo",
+    () => count(2).click(),
+    async () => {
+      expect(await next()).toBe(2);
+      await expect(undo).toBeDisabled();
+    },
+  );
+  await step(
+    "the top set bought: 2 slots left, one item ranked",
+    async () => {
+      was = await build();
+      await rows.first().locator(".iv-track").click();
+    },
+    async () => {
+      expect((await build()).filter((x) => x == null)).toHaveLength(2);
+      await expect(count(1)).toHaveAttribute("aria-pressed", "true");
+      expect(await next()).toBe(1);
+    },
+  );
+  await step(
+    "Undo: the set back out, and sets of 2 again",
+    () => undo.click(),
+    async () => {
+      expect(await build()).toEqual(was);
+      await expect(caption).toHaveText("Next 2 items");
+      await expect(count(2)).toHaveAttribute("aria-pressed", "true");
+      expect(await next()).toBe(2);
+    },
+  );
+  await step(
+    "Redo: bought again, one item",
+    () => redo.click(),
+    async () => {
+      expect((await build()).filter((x) => x == null)).toHaveLength(2);
+      await expect(count(1)).toHaveAttribute("aria-pressed", "true");
+    },
+  );
+  await step(
+    "Undo, then Luden's Echo sold: 5 slots empty, still 2",
+    async () => {
+      await undo.click();
+      await ui.settle();
+      await slots.nth(0).focus();
+      await page.keyboard.press("Delete");
+    },
+    async () => {
+      expect(await build()).toEqual([null, ...was.slice(1)]);
+      await expect(count(2)).toHaveAttribute("aria-pressed", "true");
+    },
+  );
+  await step(
+    "Undo the sale: the item back, and still 2, not down by one as if bought",
+    () => undo.click(),
+    async () => {
+      expect(await build()).toEqual(was);
+      await expect(count(2)).toHaveAttribute("aria-pressed", "true");
+    },
+  );
+  await step(
+    "+ Build, 3 in the copy, then Build 1: its own 2; Build 2 its 3",
+    async () => {
+      await page.getByRole("button", { name: "Build", exact: true }).click();
+      await ui.settle();
+      await count(3).click();
+      await ui.settle();
+      await tabs.getByRole("button", { name: "Build 1", exact: true }).click();
+    },
+    async () => {
+      await expect(count(2)).toHaveAttribute("aria-pressed", "true");
+      expect(await next()).toBe(2);
+      await tabs.getByRole("button", { name: "Build 2", exact: true }).click();
+      await ui.settle();
+      await expect(count(3)).toHaveAttribute("aria-pressed", "true");
+      expect(await next()).toBe(3);
     },
   );
 });

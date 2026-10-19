@@ -1,6 +1,7 @@
 // Tabs: a champion's builds, a tab each, on one page with what they share: the champion, its
-// level, ranks and parameters, the target and the settings. A build is its items and runes, and its
-// combo where the page's builds have each their own (ownCombos); otherwise they share one. What's on
+// level, ranks and parameters, the target and the settings. A build is its items and runes, how many
+// items Item value ranks for it, and its combo where the page's builds have each their own
+// (ownCombos); otherwise they share one. What's on
 // screen is the active build with what's shared: a change on screen to the build is its own, one to
 // the rest is all of theirs. All of it is in the page's address (see encodePage). Nothing here reads
 // the game data.
@@ -17,6 +18,8 @@ export interface Build {
   runes: RunePage;
   /** Its combo, while the builds have each their own. */
   combo: string;
+  /** How many items Item value ranks for it (see UIState). */
+  next: number;
 }
 
 export interface Page {
@@ -41,22 +44,22 @@ function freeName(builds: Build[]): string {
   return nameAt(i);
 }
 
-const buildOf = (s: UIState, id: number, name: string): Build => ({ id, name, items: s.items, runes: s.runes, combo: s.combo });
+const buildOf = (s: UIState, id: number, name: string): Build => ({ id, name, items: s.items, runes: s.runes, combo: s.combo, next: s.next });
 
 /** A page of one build: the state's. */
 export const single = (s: UIState): Page => ({ champion: s.champion, builds: [buildOf(s, 1, nameAt(0))], active: 0, ownCombos: false, folded: false });
 
-/** The screen as it is now: the active build's items, runes and combo. */
+/** The screen as it is now: the active build's items, runes, combo and count of items to rank. */
 export function track(page: Page, s: UIState): Page {
   const b = page.builds[page.active];
-  if (b.items === s.items && b.runes === s.runes && b.combo === s.combo) return page;
-  return { ...page, builds: page.builds.map((x, i) => (i === page.active ? { ...x, items: s.items, runes: s.runes, combo: s.combo } : x)) };
+  if (b.items === s.items && b.runes === s.runes && b.combo === s.combo && b.next === s.next) return page;
+  return { ...page, builds: page.builds.map((x, i) => (i === page.active ? { ...x, items: s.items, runes: s.runes, combo: s.combo, next: s.next } : x)) };
 }
 
 /** The state with build i on screen, with what's shared from `s`. */
 export function withBuild(s: UIState, page: Page, i: number): UIState {
   const b = page.builds[i];
-  return { ...s, items: b.items, runes: b.runes, combo: page.ownCombos ? b.combo : s.combo };
+  return { ...s, items: b.items, runes: b.runes, next: b.next, combo: page.ownCombos ? b.combo : s.combo };
 }
 
 /** A copy of the active build in a new tab at the end, on screen. */

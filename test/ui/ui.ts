@@ -66,7 +66,7 @@ export function pageAddressOf(shared: Record<string, any>, builds: Partial<Build
   const s = filled(shared);
   const page = {
     champion: s.champion,
-    builds: builds.map((b, i) => ({ id: i + 1, name: `Build ${i + 1}`, items: s.items, runes: s.runes, combo: s.combo, ...b })),
+    builds: builds.map((b, i) => ({ id: i + 1, name: `Build ${i + 1}`, items: s.items, runes: s.runes, combo: s.combo, next: s.next, ...b })),
     active,
     ownCombos,
     folded,

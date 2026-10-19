@@ -1,7 +1,7 @@
 // The Items card: the build's six slots, and the bot lane quest's for boots, with the shop, drags
 // between slots, and undo.
 
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { DATA } from "../data.ts";
 import { BootsGlyph, ItemIcon } from "./icons.tsx";
 import { ItemPicker } from "./pickers.tsx";
@@ -9,7 +9,7 @@ import { ItemTip, useHoverCard } from "./hover.tsx";
 import { useItemSlots } from "./drag.tsx";
 import { BuildTitle, Card, fmt, useHistory } from "./common.tsx";
 import type { Set, UIState } from "../state.ts";
-import { BOOTS_SLOT, addBootsSlot, buyItem } from "../slots.ts";
+import { BOOTS_SLOT, addBootsSlot, buyItem, withItems } from "../slots.ts";
 import type { Sim } from "../../engine/sim.ts";
 import { conflicts } from "../../engine/analysis.ts";
 
@@ -25,12 +25,12 @@ export function ItemsPanel({ state, set, gold, sim, buildName }: { state: UIStat
   });
   // Boots go to the build's boots, an upgrade to what it's built from (see buyItem).
   const pick = (id: number) => {
-    set((s) => ({ ...s, items: buyItem(s.items, picking ?? 0, id) }));
+    set((s) => withItems(s, buyItem(s.items, picking ?? 0, id)));
     setPicking(null);
   };
   // Items are dragged between the slots and sold as in Item value's; the picker stays with what it
   // was opened for.
-  const slots = useItemSlots(items, (fn) => set((s) => ({ ...s, items: fn(s.items) })), {
+  const slots = useItemSlots(items, (fn) => set((s) => withItems(s, fn(s.items))), {
     onPick: hover.hide,
     onMove: (from, to) => setPicking((p) => (p === from ? to : p === to ? from : p)),
     onSell: hover.hide,
@@ -46,22 +46,26 @@ export function ItemsPanel({ state, set, gold, sim, buildName }: { state: UIStat
   const addSlot = () => {
     hover.hide();
     slots.focusLater(BOOTS_SLOT);
-    set((s) => ({ ...s, items: addBootsSlot(s.items) }));
+    set((s) => withItems(s, addBootsSlot(s.items)));
   };
   const removeSlot = () => {
     hover.hide();
     setPicking((p) => (p === BOOTS_SLOT ? null : p));
     focusAdd.current = !!slots.box.current?.contains(document.activeElement);
-    set((s) => ({ ...s, items: s.items.slice(0, BOOTS_SLOT) }));
+    set((s) => withItems(s, s.items.slice(0, BOOTS_SLOT)));
   };
-  // Every change to the items, from here or elsewhere (a buy in Item value, Reset), can be undone.
+  // Every change to the items, from here or elsewhere (a buy in Item value, Reset), can be undone, and
+  // brings back with it Item value's count of items to rank, which a buy takes down (withItems): a set
+  // of 3 undone is 3 ranked again, a sale undone leaves it. The count picked by itself isn't a change
+  // to undo; it goes with the next one.
+  const entry = useMemo(() => ({ items, next: state.next }), [items, state.next]);
   const past = useHistory(
-    items,
+    entry,
     (v) => {
       hover.hide();
-      set((s) => ({ ...s, items: v }));
+      set((s) => ({ ...s, ...v }));
     },
-    (a, b) => a.length === b.length && a.every((x, i) => x === b[i]),
+    (a, b) => a.items.length === b.items.length && a.items.every((x, i) => x === b.items[i]),
   );
   // Ctrl+Z and Ctrl+Shift+Z (or Ctrl+Y) while in this card, or with nothing focused.
   useEffect(() => {
@@ -96,7 +100,12 @@ export function ItemsPanel({ state, set, gold, sim, buildName }: { state: UIStat
             onClick={() => {
               hover.hide();
               setPicking(null);
-              set((s) => ({ ...s, items: s.items.map(() => null) }));
+              set((s) =>
+                withItems(
+                  s,
+                  s.items.map(() => null),
+                ),
+              );
             }}
           >
             Clear

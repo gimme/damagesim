@@ -2,6 +2,7 @@
 
 import { builtFrom } from "../engine/analysis.ts";
 import { DATA } from "./data.ts";
+import type { UIState } from "./state.ts";
 
 /** The bot lane role quest's slot, which holds the boots: the build has it when its items have a seventh entry. */
 export const BOOTS_SLOT = 6;
@@ -50,4 +51,30 @@ export function buyItems(items: (number | null)[], ids: number[]): (number | nul
 export function addBootsSlot(items: (number | null)[]): (number | null)[] {
   const k = items.findIndex((id) => id != null && isBoots(id));
   return [...items.map((id, j) => (j === k ? null : id)), k >= 0 ? items[k] : null];
+}
+
+/** How many items `now` has that `was` hadn't, as a multiset: those bought, an upgrade in place of what it's built from too; none for items moved or sold. */
+function newItems(was: (number | null)[], now: (number | null)[]): number {
+  const left = was.filter((x) => x != null);
+  let n = 0;
+  for (const x of now) {
+    if (x == null) continue;
+    const k = left.indexOf(x);
+    if (k >= 0) left.splice(k, 1);
+    else n++;
+  }
+  return n;
+}
+
+/**
+ * The state with its items changed to `items`: every change to the build's items but undo and redo,
+ * which bring back what the change did. Items bought (newItems) take Item value's count of items to
+ * rank (next) down by as many, from as many as it ranks (the count, or the empty slots where fewer),
+ * to one at least: a set bought leaves it at one, the next item. A move or a sale leaves it as it is.
+ */
+export function withItems(s: UIState, items: (number | null)[]): UIState {
+  const bought = newItems(s.items, items);
+  if (!bought) return { ...s, items };
+  const empty = s.items.filter((x) => x == null).length;
+  return { ...s, items, next: Math.max(1, Math.min(s.next, empty) - bought) };
 }
