@@ -24,6 +24,15 @@ const parts = (ui: UI) => {
     perGold: async () => (await texts(rows.locator(".iv-pg"))).map(num),
     damage: async () => (await texts(rows.locator(".iv-dmg"))).map(num),
     caption: card.locator(".iv-caption"),
+    /** Where each row's bar starts and ends, from its zero line, in pixels. */
+    bars: () =>
+      rows.evaluateAll((els) =>
+        els.map((e) => {
+          const zero = e.querySelector(".iv-zero")!.getBoundingClientRect().x;
+          const b = e.querySelector(".iv-bars")!.getBoundingClientRect();
+          return [b.left - zero, b.right - zero];
+        }),
+      ),
     /** The index of the slot ranked for. */
     ranked: async () => (await attrs(card.locator(".slots > .slot:not(.vacated)"), "aria-pressed")).indexOf("true"),
     /** The names of the build's items, by slot, as Items shows them. */
@@ -64,6 +73,8 @@ test("ranking, sorting and buying", async ({ ui }) => {
     async () => {
       await expect(caption).toHaveText("Next item");
       expect(await ranked()).toBe(2);
+      // Every item listed adds damage: the bars start at the left, with no zero line.
+      await expect(card.locator(".iv-zero")).toHaveCount(0);
       shown = await rows.count();
       expect(shown).toBeGreaterThan(0);
       expect(shown).toBeLessThanOrEqual(8);
@@ -521,20 +532,24 @@ test("the boots slot", async ({ ui }) => {
 // Ornn's second attack, sped up by Berserker's Greaves, lands before his R and so not on the Brittle it leaves.
 test("a pair of boots that takes damage away, for the boots slot", async ({ ui }) => {
   const { step } = ui;
-  const { card, slots, perGold, damage } = parts(ui);
+  const { card, slots, perGold, damage, bars } = parts(ui);
   const { map, dots, ys, zero, hover } = goldMap(ui);
   let losses = 0;
 
   await step(
-    "Ornn without items, his empty boots slot clicked: a pair last, a loss per gold and in all",
+    "Ornn without items, his empty boots slot clicked: a pair last, a loss per gold and in all, its bar left of the zero line",
     async () => {
       await ui.open({ champion: "Ornn", combo: "Q W E R AA AA", items: [null, null, null, null, null, null, null] });
       await slots.nth(6).click();
     },
     async () => {
       expect((await perGold()).at(-1)).toBeLessThan(0);
-      losses = (await damage()).filter((d) => d < 0).length;
+      const d = await damage();
+      losses = d.filter((x) => x < 0).length;
       expect(losses).toBeGreaterThan(0);
+      // A loss's bar, struck out, from its number left of the zero line to what the pair adds; the others' from the line.
+      const at = await bars();
+      expect(at.filter(([from, to], i) => (d[i] < 0 ? from > -1 || to < -1 : Math.abs(from) > 1))).toEqual([]);
     },
   );
   await step(

@@ -9,7 +9,8 @@ the combo out on a timeline and reports every damage instance.
   live **item value** ranking: which item adds the most damage (per gold or in total) to your next
   slot or in place of an item you own, as a list (each bar split into what the item adds to your
   other damage, the damage it deals itself and the hits it adds, like Electrocute it procs, then
-  struck out, what the item takes away from your other damage, like a proc it makes land later)
+  struck out, what the item takes away from your other damage, like a proc it makes land later, past
+  0 where that's more than it adds)
   or a gold-vs-damage map; one click buys it, an upgrade (Boots into a pair) for the difference. It
   ranks sets too: the best sets of 2 or more items to buy together for your empty slots, found by a
   search that simulates a few hundred to a few thousand builds in a Web Worker, not every

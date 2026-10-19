@@ -52,7 +52,7 @@ const perGold = (v: number, d = 0) => `${v < 0 && !nil(v, d) ? "−" : ""}${fmt(
  *  multipliers); effect, the damage it deals itself (its procs, burns); procs, the hits of your other
  *  damage that land only with it (Electrocute it procs, an execute it brings the target into range of);
  *  lost, what it takes away from your other damage (a proc it makes land later, adaptive force
- *  turning AD), struck out at the bar's end. */
+ *  turning AD), struck out from the item's number to what it adds: past 0 where it's more. */
 const PARTS = ["base", "effect", "procs", "lost"] as const;
 type Part = (typeof PARTS)[number];
 
@@ -75,6 +75,13 @@ const loses = (r: Entry) => taken(r) > 0;
 const kept = (r: Entry) => Math.max(0, added(r) - taken(r));
 /** The segments drawn: none where nothing's kept. */
 const drawnSegments = (r: Entry) => (kept(r) >= 0.5 ? segments(r) : []);
+/** Where a bar starts and ends, 0 the zero line: the solid part from 0 to what the items keep, then the
+ *  struck part to what they add; where they take away more than that, struck from the loss to it. */
+function span(r: Entry): [number, number] {
+  const net = added(r) - taken(r);
+  if (net <= -0.5) return [net, added(r)];
+  return [0, (drawnSegments(r).length ? kept(r) : 0) + taken(r)];
+}
 
 const Swatch = ({ part, gap }: { part: Part; gap?: boolean }) => <span className={`swatch iv-${part}`} style={gap ? { marginRight: 6 } : undefined} />;
 
@@ -498,9 +505,15 @@ function RankList({
   const drawn = PARTS.filter((p) => [...top, ...rest].some((r) => (p === "lost" ? loses(r) : drawnSegments(r).some((s) => s.part === p))));
   const hidden = all.length - shown - (rank > shown ? 1 : 0);
   // A bar's solid part ends at its number, per gold or in all, its segments scaled down to it from what
-  // the item adds; then, struck out, what the item takes away, as long as it is.
+  // the item adds; then, struck out, what the item takes away, as long as it is. Where that's more than
+  // the item adds, the number is below 0: the struck part runs from it, left of a zero line all the
+  // bars share, to what the item adds.
   const perUnit = (r: Entry) => (by === "perGold" ? (r.gold > 0 ? 1000 / r.gold : 0) : 1);
-  const max = Math.max(1e-9, ...all.map((r) => (kept(r) + taken(r)) * perUnit(r)));
+  const spans = new Map(all.map((r) => [r, span(r).map((v) => v * perUnit(r))] as const));
+  const lo = Math.min(0, ...[...spans.values()].map(([a]) => a));
+  const range = Math.max(1e-9, ...[...spans.values()].map(([, b]) => b)) - lo;
+  const pct = (v: number) => `${(v / range) * 100}%`;
+  const zero = lo < 0 && <span className="iv-zero" style={{ left: pct(-lo) }} />;
   // A click on a row buys its item, or its set. The item shows its details, the rest of the row where
   // its damage comes from; a card from hovering says a click buys, one from a tap has the Buy button.
   // A set's items show theirs, and a click on one leaves it out of the ranking, as the Exclude button
@@ -609,12 +622,13 @@ function RankList({
   const row = (r: Entry) => {
     const mine = isCurrent(r);
     const segs = drawnSegments(r);
-    const solid = segs.length ? kept(r) : 0;
-    const width = (((solid + taken(r)) * perUnit(r)) / max) * 100;
-    const scale = solid / segs.reduce((sum, s) => sum + s.damage, 0);
+    const scale = kept(r) / segs.reduce((sum, s) => sum + s.damage, 0);
+    const [from, to] = spans.get(r)!;
+    // Rounded at its free ends: not at the zero line.
+    const [left, right] = [from < 0 ? 4 : 0, to > 0 ? 4 : 0];
     const ahead = !isSet(r) && lead.has(r.id);
     const bars = (
-      <span className="iv-bars" style={{ width: `${width}%` }}>
+      <span className="iv-bars" style={{ marginLeft: pct(from - lo), width: pct(to - from), borderRadius: `${left}px ${right}px ${right}px ${left}px` }}>
         {segs.map((s) => (
           <span key={s.key} className={`iv-bar iv-${s.part}`} style={{ flexGrow: s.damage * scale }} />
         ))}
@@ -683,10 +697,12 @@ function RankList({
             <button type="button" className="iv-buy" aria-label={buyLabel(r)}>
               {bars}
             </button>
+            {zero}
           </span>
         ) : (
           <span role="cell" className="iv-track" aria-hidden>
             {bars}
+            {zero}
           </span>
         )}
         <span role="cell" className={`iv-pg num ${by === "perGold" ? "on" : ""}`}>
