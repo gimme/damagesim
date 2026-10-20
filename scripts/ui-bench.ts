@@ -68,7 +68,7 @@ const CATEGORIES: [string, RegExp][] = [
   ["Resist sweep (resistSweep)", /^resistSweep$/],
   ["page's simulation (simulate)", /^simulate$/],
   ["Sim for the page's controls (new Sim)", /^Sim$/],
-  ["scenario: toScenario, address, saved state", /^(toScenario|encodeState|encodePage|decodeState|decodePage|saveState|loadSavedPage)$/],
+  ["scenario: toScenario, address", /^(toScenario|encodeState|encodePage|decodeState|decodePage)$/],
 ];
 /** React's work loop and event dispatch: what isn't one of the above under it is React's rendering. */
 const REACT =

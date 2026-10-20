@@ -212,21 +212,29 @@ const sint: Codec<number> = {
   get: (i) => unzigzag(uint.get(i)),
 };
 
-/** A number with up to 6 decimals, as its digits and how many are decimals (0.2: 2 and 1); one with more is rounded to 6. */
+/**
+ * A number as its digits, up to 44 bits of them, and how many are decimals (0.2: 2 and 1), to 6, the
+ * rest rounded; one too large for them as its first digits, 7 and how many zeros follow (1e20: 1e13,
+ * 7 and 7).
+ */
 const num: Codec<number> = {
   kind: 0,
   put: (o, v) => {
     if (!Number.isFinite(v)) fail(`${v} isn't a number`);
-    for (let e = 0; e < 7; e++) {
-      const m = Math.round(v * 10 ** e);
-      if (Math.abs(m) >= 2 ** 44) fail(`${v} is too large`);
-      if (m / 10 ** e === v || e === 6) return uint.put(o, zigzag(m) * 8 + e);
-    }
+    const fit = (m: number) => Math.abs(m) < 2 ** 44;
+    let e = 0;
+    while (e < 6 && Math.round(v * 10 ** e) / 10 ** e !== v && fit(Math.round(v * 10 ** (e + 1)))) e++;
+    if (fit(Math.round(v * 10 ** e))) return uint.put(o, zigzag(Math.round(v * 10 ** e)) * 8 + e);
+    let zeros = 1;
+    while (!fit(Math.round(v / 10 ** zeros))) zeros++;
+    uint.put(o, zigzag(Math.round(v / 10 ** zeros)) * 8 + 7);
+    uint.put(o, zeros);
   },
   get: (i) => {
     const x = uint.get(i);
-    if (x % 8 > 6) fail("not a number");
-    return unzigzag(Math.floor(x / 8)) / 10 ** (x % 8);
+    const m = unzigzag(Math.floor(x / 8));
+    const v = x % 8 === 7 ? m * 10 ** uint.get(i) : m / 10 ** (x % 8);
+    return Number.isFinite(v) ? v : fail("not a number");
   },
 };
 
@@ -440,11 +448,7 @@ const runeIds = known((data, id) => data.runes.some((r) => r.id === id));
 /** A shard per row, 0 for none. */
 const shards: Codec<(number | null)[]> = {
   kind: 1,
-  put: (o, xs) =>
-    list(uint).put(
-      o,
-      xs.map((x) => x ?? 0),
-    ),
+  put: slots.put,
   get: (i) =>
     list(uint)
       .get(i)
@@ -795,12 +799,11 @@ export const encodeState = (data: GameData, s: UIState): string => encodePage(da
 export const decodeState = (data: GameData, address: string): UIState | null => decodePage(data, address)?.state ?? null;
 
 /**
- * The state with champion `id` picked: a fresh build of theirs with what the page shares, the combo
- * as their kit takes it (see fitCombo), default leveling and without the last champion's own
- * parameters.
+ * The state with champion `id` picked, the one on screen too: a fresh build of theirs with what the
+ * page shares, the combo as their kit takes it (see fitCombo), default leveling and without the last
+ * champion's own parameters.
  */
 export function pickChampion(data: GameData, s: UIState, id: string): UIState {
-  if (id === s.champion) return s;
   const own = new Set((getKit(data.champions[s.champion]).options ?? []).map((o) => o.key));
   const options = Object.fromEntries(Object.entries(s.options).filter(([k]) => !own.has(k)));
   return {

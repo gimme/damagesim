@@ -56,6 +56,22 @@ test("every field comes back, numbers exactly; the item to replace one the build
   assert.deepEqual(roundTrip(DEMO_STATE), DEMO_STATE);
 });
 
+test("a number too large for its digits comes back as its first digits; one with decimals, with as many as fit", () => {
+  const options = { big: 1e20, huge: -1.5e300, long: 2 ** 60, decimals: 12345678901.123456 };
+  const back = roundTrip({ ...RESET_STATE, options })!.options;
+  assert.equal(back.big, 1e20);
+  assert.equal(back.decimals, 12345678901.123);
+  for (const key of ["huge", "long"] as const) assert.ok(Math.abs(back[key] / options[key] - 1) < 1e-12, key);
+  const target: UIState["target"] = {
+    mode: "custom",
+    base: { hp: 1e14, armor: 0, mr: 0 },
+    bonus: { hp: 0, armor: 0, mr: 0 },
+    hpPercent: 100,
+    damageReduction: 1e18,
+  };
+  assert.deepEqual(roundTrip({ ...RESET_STATE, target })!.target, target);
+});
+
 test("the reset page: the champion's path alone; anything else, a build's code and the shared part's after +", () => {
   assert.equal(encodeState(data, RESET_STATE), "ahri/");
   assert.equal(encodeState(data, { ...RESET_STATE, champion: "Zed" }), "zed/");
@@ -143,7 +159,7 @@ test("the bot lane role quest's boots slot comes back, empty or with boots; the 
   assert.equal(decodeState(data, encodeState(data, { ...DEMO_STATE, items: [...DEMO_STATE.items, null, null] })), null);
 });
 
-test("another champion picked: a fresh build of theirs with what the page shares, the combo as their kit takes it, without the last champion's own parameters; Reset, the reset state", () => {
+test("a champion picked, the one on screen too: a fresh build of theirs with what the page shares, the combo as their kit takes it, without the last champion's own parameters; Reset, the reset state", () => {
   // A champion with a parameter of their kit's own, and one that isn't any champion's.
   const champion = Object.keys(data.champions).find((id) => id !== "Zed" && getKit(data.champions[id]).options?.length)!;
   const own = getKit(data.champions[champion]).options![0].key;
@@ -169,7 +185,7 @@ test("another champion picked: a fresh build of theirs with what the page shares
     options: { stacks: 3 },
     combo: zed.combo,
   });
-  assert.equal(pickChampion(data, ahri, champion), ahri);
+  assert.deepEqual(pickChampion(data, ahri, champion), { ...zed, champion, combo: ahri.combo });
   assert.deepEqual(resetState(zed), { ...RESET_STATE, champion: "Zed" });
 });
 
@@ -200,7 +216,7 @@ test("what a code holds is settled as it's read: the boots of the tier the setti
   assert.equal(roundTrip({ ...DEMO_STATE, replace: 9999 })?.replace, null);
 });
 
-test("a rune page is kept whole as it's read: picks sorted, a pick of a third tree or a keystone in the secondary tree left out, a shard not of its row none", () => {
+test("a rune page is kept whole as it's read: picks sorted, a pick of a third tree or a keystone in the secondary tree left out, one a row and two in the secondary tree, a shard not of its row none", () => {
   const page = (runes: UIState["runes"]) => roundTrip({ ...RESET_STATE, runes })?.runes;
   // Electrocute and Cheap Shot in Domination, Conqueror and Triumph in Precision, Scorch in Sorcery.
   assert.deepEqual(page({ primary: "Domination", secondary: "Precision", picks: [8126, 8112, 9111, 8010, 8237], shards: [5008, 5008, 5001] }), {
@@ -209,6 +225,11 @@ test("a rune page is kept whole as it's read: picks sorted, a pick of a third tr
     picks: [8112, 8126, 9111],
     shards: [5008, 5008, 5001],
   });
+  // Cheap Shot and Taste of Blood share a row; Manaflow Band, Absolute Focus and Scorch are three in Sorcery.
+  assert.deepEqual(
+    page({ primary: "Domination", secondary: "Sorcery", picks: [8126, 8139, 8226, 8233, 8237], shards: [null, null, null] })?.picks,
+    [8139, 8233, 8237],
+  );
   // Health Scaling is a defense shard only; Adaptive Force offense or flex.
   assert.deepEqual(page({ ...RESET_STATE.runes, shards: [5001, 5001, 5008] })?.shards, [null, 5001, null]);
   assert.deepEqual(page({ ...RESET_STATE.runes, shards: [5008, 5008, 5008] })?.shards, [5008, 5008, null]);

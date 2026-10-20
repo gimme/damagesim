@@ -1009,6 +1009,16 @@ test("rune pages: a pick takes its row; the secondary tree gives two, the older 
     picks: ids("Electrocute", "Scorch"),
     shards: [null, 5008, null],
   });
+  // As picking them in turn by id leaves them: one keystone, one a row, two in the secondary tree,
+  // the earlier row's going.
+  const crowded = ids("Electrocute", "Dark Harvest", "Cheap Shot", "Taste of Blood", "Manaflow Band", "Absolute Focus", "Scorch");
+  assert.deepEqual(settledPage(data, { ...ahri, picks: crowded }), { ...ahri, picks: ids("Dark Harvest", "Taste of Blood", "Absolute Focus", "Scorch") });
+  // One tree twice: the secondary the first other in the client's order, Precision; Sorcery's picks a third tree's.
+  assert.deepEqual(settledPage(data, { ...ahri, secondary: "Domination" }), {
+    ...ahri,
+    secondary: "Precision",
+    picks: ids("Electrocute", "Cheap Shot", "Grisly Mementos", "Ultimate Hunter"),
+  });
 });
 
 test("rune pages: a tree that changes place keeps the picks that fit there, one that leaves takes its picks, one that comes on starts empty", () => {

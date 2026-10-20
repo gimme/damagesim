@@ -1,6 +1,6 @@
 // The Runes card: a rune page that keeps to the game's rules, its tooltips, and shards whose cards' numbers follow the level.
 
-import { test, expect, attrs, num, type UI } from "./ui.ts";
+import { test, expect, attrs, num, DATA, type UI } from "./ui.ts";
 
 const parts = (ui: UI) => {
   const card = ui.card("Runes");
@@ -172,6 +172,45 @@ test("rune page rules", async ({ ui }) => {
       for (let i = 0; i < 7; i++) await level.press("ArrowRight");
     },
     async () => expect(num(await shardCard("Defense", "Health Scaling"))).toBeGreaterThan(health),
+  );
+});
+
+test("a secondary rune of a third row replaces the older pick, a link's older than any picked here; on another tab, the build's picks as a link's", async ({
+  ui,
+}) => {
+  const { step } = ui;
+  const { group, tree } = parts(ui);
+  const id = (name: string) => DATA.runes.find((r) => r.name === name)!.id;
+  const rune = (row: number, name: string) => group(`Sorcery row ${row}`).getByRole("button", { name });
+  const secondary = async () => (await attrs(tree(1).locator("[aria-pressed=true].rune-pick"), "aria-label")) as string[];
+
+  await step(
+    "a link's Manaflow Band and Celerity",
+    () => ui.open({ runes: { primary: "Domination", secondary: "Sorcery", picks: [id("Manaflow Band"), id("Celerity")], shards: [null, null, null] } }),
+    async () => expect(await secondary()).toEqual(["Manaflow Band", "Celerity"]),
+  );
+  await step(
+    "Waterwalking: of the link's two, the earlier row's goes",
+    () => rune(3, "Waterwalking").click(),
+    async () => expect(await secondary()).toEqual(["Celerity", "Waterwalking"]),
+  );
+  await step(
+    "Nimbus Cloak: the link's Celerity goes, Waterwalking, picked here, stays",
+    () => rune(1, "Nimbus Cloak").click(),
+    async () => expect(await secondary()).toEqual(["Nimbus Cloak", "Waterwalking"]),
+  );
+  await step(
+    "a new tab, Celerity: the copy's picks as a link's, the earlier row's, Nimbus Cloak, going",
+    async () => {
+      await ui.page.getByRole("button", { name: "New build" }).click();
+      await rune(2, "Celerity").click();
+    },
+    async () => expect(await secondary()).toEqual(["Celerity", "Waterwalking"]),
+  );
+  await step(
+    "then Manaflow Band: Waterwalking, older than Celerity, goes",
+    () => rune(1, "Manaflow Band").click(),
+    async () => expect(await secondary()).toEqual(["Manaflow Band", "Celerity"]),
   );
 });
 

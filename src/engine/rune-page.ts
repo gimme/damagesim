@@ -51,13 +51,16 @@ function fits(data: GameData, page: RunePage, id: number): boolean {
 }
 
 /**
- * A page kept whole: picks the data knows that fit where they are, sorted; a shard in each row the
- * row offers, else none. What a code holds is settled so as it's read.
+ * A page kept whole: two trees, the secondary the first other one in the client's order where the
+ * two are the same; the picks the data knows that fit where they are as picking them in turn by id
+ * leaves them (pickRune), one a row and two in the secondary tree; a shard in each row the row
+ * offers, else none. What a code holds is settled so as it's read.
  */
 export function settledPage(data: GameData, page: RunePage): RunePage {
-  const picks = [...new Set(page.picks.filter((id) => fits(data, page, id)))].sort(byId);
+  const secondary = page.secondary !== page.primary ? page.secondary : data.runePage.trees.find((t) => t.key !== page.primary)!.key;
   const shards = data.runePage.shards.map((row, i) => (page.shards[i] != null && row.options.includes(page.shards[i]!) ? page.shards[i] : null));
-  return { primary: page.primary, secondary: page.secondary, picks, shards };
+  const empty: RunePage = { primary: page.primary, secondary, picks: [], shards };
+  return [...new Set(page.picks)].sort(byId).reduce((p, id) => pickRune(data, p, id), empty);
 }
 
 /** Of `ids`, the older by `order` (ids oldest first, one not there older than any), then the one in the earlier row. */

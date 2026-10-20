@@ -20,14 +20,16 @@ export function RunesPanel({ state, set, sim, buildName }: { state: UIState; set
   const hover = useHoverCard();
   // Which pick is the older, where a third secondary row or a swap of the trees lets one go: the
   // picks in the order they were made here, those that came otherwise (a link, another build) as
-  // the oldest. The card's own, not the page's: a page is its picks.
+  // the oldest. The card's own, not the page's: a page is its picks. A build's card is its own (see
+  // App), so another build's picks came otherwise.
   const order = useRef<number[]>([]);
-  const change = (fn: (p: RunePage, order: number[]) => RunePage) =>
-    set((s) => {
-      const next = fn(s.runes, order.current);
-      order.current = [...order.current.filter((id) => next.picks.includes(id)), ...next.picks.filter((id) => !order.current.includes(id))];
-      return next === s.runes ? s : { ...s, runes: next };
-    });
+  const change = (fn: (p: RunePage, order: number[]) => RunePage) => {
+    const next = fn(page, order.current);
+    const kept = order.current.filter((id) => page.picks.includes(id) && next.picks.includes(id));
+    const before = next.picks.filter((id) => page.picks.includes(id) && !kept.includes(id));
+    order.current = [...before, ...kept, ...next.picks.filter((id) => !page.picks.includes(id))];
+    if (next !== page) set((s) => ({ ...s, runes: next }));
+  };
   const pick = (r: RuneData) => (
     <button
       key={r.id}

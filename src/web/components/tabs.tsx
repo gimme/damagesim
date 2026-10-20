@@ -30,7 +30,7 @@ export interface Tabs {
   setCompare: (compare: boolean) => void;
   /** A fresh page of the champion: one build, no items, runes or combo (see resetState). */
   reset: () => void;
-  /** Another champion's page: the state with the champion picked (see pickChampion) as its one build, with a history entry of its own, so Back returns to this page. */
+  /** A champion's page, the one on screen's too: the state with the champion picked (see pickChampion) as its one build, with a history entry of its own, so Back returns to this page. */
   pick: (s: UIState) => void;
   /** The tier 3 boots setting on or off, every build's pair of boots its counterpart (withQuestBoots), and those excluded (settled). */
   setQuestBoots: (on: boolean) => void;
@@ -53,6 +53,11 @@ export function useTabs(state: UIState, setState: Dispatch<SetStateAction<UIStat
     if (next.builds[next.active].id !== page.builds[page.active].id)
       setState(settled(DATA, withBuild(state, { ...next, ownCombos: page.ownCombos }, next.active)));
   };
+  const pick = (s: UIState) => {
+    push.current = true;
+    setKept(single(s));
+    setState(s);
+  };
   return {
     page,
     many: page.builds.length > 1,
@@ -68,17 +73,8 @@ export function useTabs(state: UIState, setState: Dispatch<SetStateAction<UIStat
     rename: (i, name) => setKept(renameTab(page, i, name)),
     setOwnCombos: (own) => setKept(setOwnCombos(page, own, state.combo)),
     setCompare: (compare) => setKept({ ...page, compare }),
-    reset: () => {
-      push.current = true;
-      const s = resetState(state);
-      setKept(single(s));
-      setState(s);
-    },
-    pick: (s) => {
-      push.current = true;
-      setKept(single(s));
-      setState(s);
-    },
+    reset: () => pick(resetState(state)),
+    pick,
     setQuestBoots: (on) => {
       setKept((k) => ({ ...k, builds: k.builds.map((b) => withQuestBoots(DATA, b, on)) }));
       setState((s) => settled(DATA, { ...s, settings: { ...s.settings, questBoots: on } }));

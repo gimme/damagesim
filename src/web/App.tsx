@@ -59,8 +59,17 @@ function clampShorthand(combo: string, sim: Sim): string {
 }
 
 export function App() {
-  const [initial] = useState(atAddress);
-  return initial ? <Main initial={initial} /> : <BadLink />;
+  const theme = useTheme();
+  const [initial, setInitial] = useState(atAddress);
+  // On a link that can't be read, one entered in its place with only its hash different reloads
+  // nothing: it opens here, if it's a page's.
+  useEffect(() => {
+    if (initial) return;
+    const follow = () => setInitial(atAddress());
+    window.addEventListener("hashchange", follow);
+    return () => window.removeEventListener("hashchange", follow);
+  }, [initial]);
+  return initial ? <Main initial={initial} theme={theme} /> : <BadLink />;
 }
 
 /** The title, a link to the app's first page, and the patch. */
@@ -90,9 +99,8 @@ function BadLink() {
   );
 }
 
-function Main({ initial }: { initial: { state: UIState; page: Page } }) {
+function Main({ initial, theme }: { initial: { state: UIState; page: Page }; theme: ReturnType<typeof useTheme> }) {
   const [state, setState] = useState(initial.state);
-  const theme = useTheme();
   const tabs = useTabs(state, setState, initial.page);
   const build = tabs.page.builds[tabs.page.active];
   const buildName = tabs.many ? build.name : undefined;
@@ -149,8 +157,15 @@ function Main({ initial }: { initial: { state: UIState; page: Page } }) {
   }, [combo, scenario.combo]);
 
   // Each champion's page from the picker: a fresh build of theirs with what this page shares (see
-  // pickChampion), a link to it for the browser, and opened here on a click.
+  // pickChampion), a link to it for the browser, and opened here on a click. A link is made as the
+  // picker shows it, once for the state.
   const championPage = (id: string) => pickChampion(DATA, state, id);
+  const links = useMemo(() => new Map<string, string>(), [state]);
+  const linkTo = (id: string) => {
+    let link = links.get(id);
+    if (link === undefined) links.set(id, (link = BASE + encodeState(DATA, championPage(id))));
+    return link;
+  };
 
   return (
     <div className="app">
@@ -171,16 +186,10 @@ function Main({ initial }: { initial: { state: UIState; page: Page } }) {
       </header>
       <div className="layout">
         <div>
-          <AttackerPanel
-            state={state}
-            set={setState}
-            sim={sim}
-            pick={(id) => tabs.pick(championPage(id))}
-            linkTo={(id) => BASE + encodeState(DATA, championPage(id))}
-          />
-          {/* A build's items come and go with it: their undo starts afresh with each */}
-          <ItemsPanel key={`${state.champion}#${build.id}`} state={state} set={setState} gold={result?.gold ?? 0} sim={sim} buildName={buildName} />
-          <RunesPanel state={state} set={setState} sim={sim} buildName={buildName} />
+          <AttackerPanel state={state} set={setState} sim={sim} pick={(id) => tabs.pick(championPage(id))} linkTo={linkTo} />
+          {/* A build's items and runes come and go with it: Items' undo and the order of the runes picked start afresh with each */}
+          <ItemsPanel key={`items ${state.champion}#${build.id}`} state={state} set={setState} gold={result?.gold ?? 0} sim={sim} buildName={buildName} />
+          <RunesPanel key={`runes ${state.champion}#${build.id}`} state={state} set={setState} sim={sim} buildName={buildName} />
           <TargetPanel state={state} set={setState} resolved={result?.target} />
           <SettingsPanel state={state} set={setState} setQuestBoots={tabs.setQuestBoots} />
         </div>

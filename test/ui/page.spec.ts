@@ -94,6 +94,20 @@ test("the state survives a reload, and a link that isn't a page's has a page of 
     },
   );
   await step(
+    "a page's hash entered in its place: that page opens",
+    async () => {
+      await reload(ui, "/zed/#notastate!!");
+      await expect(badLink).toBeVisible();
+      await page.evaluate((hash) => (location.hash = hash), codeOf({ champion: "Zed", target: { mode: "tank" } }));
+      await ui.settle();
+    },
+    async () => {
+      await expect(champion).toHaveValue("Zed");
+      await expect(tank).toHaveAttribute("aria-pressed", "true");
+      expect(address(ui)).toBe(addressOf({ champion: "Zed", target: { mode: "tank" } }));
+    },
+  );
+  await step(
     "a path that isn't a champion's: the same",
     () => reload(ui, "/nobody/"),
     async () => {
@@ -380,6 +394,15 @@ test.describe("with the system in dark mode", () => {
       "toggle: light, chosen",
       () => toggle.click(),
       async () => expect(await theme(ui)).toMatchObject({ attribute: "light", stored: "light", scheme: "light" }),
+    );
+    await step(
+      "a link that can't be read: light, as chosen",
+      () => reload(ui, "/zed/#notastate!!"),
+      async () => {
+        await expect(page.getByRole("alert")).toContainText("This link couldn't be read");
+        expect(await theme(ui)).toMatchObject({ attribute: "light", scheme: "light" });
+        expect((await theme(ui)).lightness).toBeGreaterThan(200);
+      },
     );
   });
 });

@@ -348,6 +348,47 @@ test("ability cards and parameters", async ({ ui }) => {
   );
 });
 
+test("the champion on screen picked: their fresh page, one build with no items or runes, the rest as it is; Back returning", async ({ ui }) => {
+  const { step } = ui;
+  const { search } = parts(ui);
+  const tabs = ui.page.getByRole("group", { name: "Builds" }).locator("button[aria-pressed]");
+  let before = {} as Awaited<ReturnType<UI["state"]>>;
+
+  await step(
+    "Ahri at 16 against a tank, on two tabs",
+    async () => {
+      await ui.open({ level: 16, target: { mode: "tank" } });
+      await ui.page.getByRole("button", { name: "New build" }).click();
+      await ui.settle();
+    },
+    async () => {
+      await expect(tabs).toHaveCount(2);
+      before = await ui.state();
+    },
+  );
+  await step(
+    "Ahri picked: one build, with no items or runes, at 16 against a tank",
+    async () => {
+      await search.click();
+      await search.fill("ahri");
+      await search.press("Enter");
+      await ui.settle();
+    },
+    async () => {
+      await expect(tabs).toHaveCount(1);
+      expect(await ui.state()).toEqual({ ...before, items: [null, null, null, null, null, null], runes: RESET_STATE.runes });
+    },
+  );
+  await step(
+    "Back: the two builds",
+    () => ui.page.goBack(),
+    async () => {
+      await expect(tabs).toHaveCount(2);
+      expect(await ui.state()).toEqual(before);
+    },
+  );
+});
+
 test("another champion: a page of their own with a fresh build and the rest as it is, Back and Forward between them", async ({ ui }) => {
   const { step } = ui;
   const { search, level } = parts(ui);

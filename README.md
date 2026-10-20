@@ -26,14 +26,14 @@ the combo out on a timeline and reports every damage instance.
   and in the link); how many to rank, and the item to rank in place of, are in the link too, the count
   going down by the items you buy and the pick following its item, and undo in Items brings both back. Hovering an item shows its cost, stats, passives and actives, with the numbers
   for your champion's level and stats, melee or ranged. Runes go on a rune page laid out as in the client, which keeps to the game's rules (a rune per
-  row, two from the secondary tree, a shard per row); hovering a rune shows its tooltip like an item's, and whether its
+  row, two from the secondary tree, the older going for a third row's, a shard per row), a link's page too; hovering a rune shows its tooltip like an item's, and whether its
   adaptive damage is physical or magic for you. The page's address is a link to it: the champion in the path and the
   rest as codes in the hash, a build's and, after `+`, what the builds share (`/zed/#…+…`, about 150 characters for a
   full build; a fresh page is the path alone, `/zed/`). A code says all it means, as fields the app knows by number, so
   a link from an older damagesim loses only what has since changed, and the address is written again as the app reads
   it. The champion is in the code too, so a link to the site's root with a code finds its page, and a build's code
-  pasted under any champion's path opens at a fresh setup. A link that can't be read says so, its address kept.
-  Picking a champion opens their page, a fresh build with the level, target and settings as they are, and Back
+  pasted under any champion's path opens at a fresh setup. A link that can't be read says so, its address kept, and
+  opens when you correct its hash. Picking a champion, the one on screen too, opens their page, a fresh build with the level, target and settings as they are, and Back
   returns to the page you left; the site's root shows a sample page.
   A champion's builds open as tabs in the top bar, each a copy of the one on screen to change: its items and runes are
   its own, the rest (level, target, settings) all of theirs, and the combo too unless each build has its own. Tabs are
