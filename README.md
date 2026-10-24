@@ -6,13 +6,12 @@ tooltip formulas from Riot's own game files.
 
 **Live:** <https://gimme.github.io/damagesim/>
 
-It comes in three forms:
+It comes in two forms:
 
 - a **web UI** for players,
-- a **CLI** with `--json` output,
-- an **MCP server** for AI agents.
+- a **CLI** with `--json` output, for scripts and AI agents.
 
-All three run on the same engine.
+Both run on the same engine.
 
 Current data: **patch 16.20**. All 173 champions have hand-written kits. Every Summoner's Rift item is
 included (85 with modeled passives or actives, the rest stats only), as are all live runes and Ignite.
@@ -26,7 +25,6 @@ See [docs/COVERAGE.md](docs/COVERAGE.md) for details.
 - [Usage](#usage)
   - [Web UI](#web-ui)
   - [CLI](#cli)
-  - [MCP server](#mcp-server)
   - [Scenario format](#scenario-format)
 - [How it works](#how-it-works)
 - [Limitations](#limitations)
@@ -54,7 +52,7 @@ See [docs/COVERAGE.md](docs/COVERAGE.md) for details.
 ## Requirements
 
 - [Node.js](https://nodejs.org/) 22.18 or later. Node runs the TypeScript sources directly, so the CLI
-  and MCP server need no build step.
+  needs no build step.
 - npm
 
 ## Installation
@@ -151,43 +149,9 @@ TOTAL 1040 damage (48 physical, 807 magic, 185 true) = 63.6% of target HP over 1
 Add `--json` to any command for machine-readable output, `--events` to list every damage instance, and
 `--scenario <file.json>` to load a full scenario. Run `damagesim --help` for every option.
 
-### MCP server
-
-Register the server with Claude Code:
-
-```bash
-claude mcp add damagesim -- node /absolute/path/to/damagesim/src/mcp/server.ts
-```
-
-Or add it to any MCP client's configuration:
-
-```json
-{
-  "mcpServers": {
-    "damagesim": {
-      "command": "node",
-      "args": ["/absolute/path/to/damagesim/src/mcp/server.ts"]
-    }
-  }
-}
-```
-
-| Tool                                      | Description                                                                         |
-| ----------------------------------------- | ----------------------------------------------------------------------------------- |
-| `simulate`                                | Run a scenario: totals, damage by source and type, kill time, warnings, model notes |
-| `compare_builds`                          | Run the same scenario with several variants and rank them                           |
-| `rank_items`                              | Damage each item adds to the current build, in total or per gold                    |
-| `optimize_build`                          | Best *n* items from a pool, respecting item groups                                  |
-| `optimize_combo`                          | Best ordering of the combo's steps                                                  |
-| `resist_sweep`                            | Damage as the target's armor or magic resist varies                                 |
-| `get_champion`                            | A champion's abilities at a level, with tooltips, formulas and kit notes            |
-| `list_champions`, `list_items`, `get_item`, `list_runes` | Look up game data                                                    |
-| `scenario_help`                           | Full documentation of the scenario format                                           |
-
 ### Scenario format
 
-The CLI's `--scenario` option and the MCP tools take a scenario as JSON. Only `champion` and `combo`
-are required.
+The CLI's `--scenario` option takes a scenario as JSON. Only `champion` and `combo` are required.
 
 ```json
 {
@@ -335,7 +299,6 @@ mechanics or formula names change, and `check-kits` reports any references that 
 src/engine/       simulation engine: formulas, stats, damage, timeline, items, runes, analysis
 src/kits/         champion kits
 src/cli/          command-line interface
-src/mcp/          MCP server
 src/web/          web UI (React, Vite)
 scripts/          data pipeline, kit checks, wiki audits, benchmarks
 data/generated/   processed game data per patch (data/raw/ is the download cache, not committed)

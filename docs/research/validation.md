@@ -44,7 +44,7 @@ Coverage:
 | 31 | Akshan P | proc 15/40/80/150 at L1/6/11/16 (+60% AP); shield 40→280 curve (+35% bAD); 2nd shot 50% AD, crits | equal at all levels; sim 39.2 normal / 78.3 crit | ✓ |
 | 32 | Akshan Q/E/R | 45–165 (+70% bAD); 8–40 (+25% AD) × (1 + 0.3 × bAS); 25–45 (+15% AD) + crit, up to ×3 by missing HP | same | ✓ |
 | 33 | Jayce hammer Q/W/E (6 ranks) | 60–310 (+135% bAD); 35–110 per tick; 8–22% max HP (+100% bAD) | equal at ranks 1, 3 and 6 | ✓ |
-| 34 | Jayce cannon Q (Shock Blast) | 80–285 (+130% bAD) | `simulate Q:cannon`: 80 / 285 ✓. `champion` / get_champion variant: 60 / 160 / 310 (hammer values) | ✗ bug B |
+| 34 | Jayce cannon Q (Shock Blast) | 80–285 (+130% bAD) | `simulate Q:cannon`: 80 / 285 ✓. `champion` variant: 60 / 160 / 310 (hammer values) | ✗ bug B |
 | 35 | Nidalee human | Javelin 70–150 (+50% AP), ×3.25 max; trap 10–50 per tick; heal 50–150 (+35% AP), up to ×2 | same | ✓ |
 | 36 | Nidalee cougar (R rank, 4 ranks) | Takedown 5–80 (+75% AD)(+40% AP), +1–1.75% per 1% missing; Pounce 55–190; Swipe 70–250 | sim L16 R4: 161.5 at full HP / 302.8 at 50%; 190; 250 | ✓ |
 | 37 | Elise human Q / spider Q | 40–160 + 4% (+3% per 100 AP) current HP / 50–170 + 8% missing HP | same | ✓ |
@@ -148,7 +148,7 @@ node src/cli/main.ts champion Katarina -l 1      # "dealing 0 magic damage"
 node scripts/inspect-champion.ts Sett 11 --all-spells | grep RightPunchBonus   # 50 (wiki 55)
 ```
 
-### B. `champion` / MCP `get_champion` evaluates variant components against the wrong spell (high confidence; display only, `simulate` is correct)
+### B. `champion` evaluates variant components against the wrong spell (high confidence; display only, `simulate` is correct)
 
 `src/engine/describe.ts:88` calls `componentInfo(sim, slot, c)` for variants and ignores `variant.spell`. As a result, unqualified `calc.` / `dv.` references resolve against the slot's default spell. Examples:
 - Jayce Q:cannon shows hammer Q values: rank 1 / 3 / 6 = 60 / 160 / 310, wiki 80 / 162 / 285.
@@ -237,7 +237,7 @@ Both raw bins (`LuxLightBinding`, `MorganaQ`) do omit `cooldownTime`. The wiki a
 | Finding | Fix |
 |---|---|
 | A. Per-level lookup tables one level behind | `calc.ts` now reads `values[level]` (index 0 = level 0). Affected Braum, Graves, Katarina, Kha'Zix, Leona, Lux, Nautilus, Rengar, Sett, Yone and Presence of Mind; re-verified (e.g. Sett right punch 55 at L11, Graves L1 attack no longer 0). |
-| B. `champion` / `get_champion` showed variants with the wrong spell | `describe.ts` evaluates variant components with the variant's spell (Jayce cannon Q now 80 at rank 1). Simulation was already correct. |
+| B. `champion` showed variants with the wrong spell | `describe.ts` evaluates variant components with the variant's spell (Jayce cannon Q now 80 at rank 1). Simulation was already correct. |
 | C. Breakpoints without `mLevel` | Default to level 1 (minion-only formula; no champion damage affected). |
 | D. Jhin attack speed growth | Jhin's kit sets attack speed from Whisper: base × (1 + 3% × level growth), ≈0.94 at L18. Whether growth feeds Whisper's bonus AD remains unverified (item bonus AS only). |
 | E. Zaahen Q crit | Only the AD half of each strike crits (271 on a crit at L11 Q5, matching the wiki). |

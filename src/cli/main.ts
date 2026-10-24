@@ -28,7 +28,7 @@ Commands
   champions    List champions and kit status.
   items        List items (filter with --search).
   runes        List runes.
-  scenario     Print the scenario JSON format (for --scenario files and the MCP server).
+  scenario     Print the scenario JSON format (for --scenario files).
 
 Scenario options (simulate / compare / rank-items / optimize / combo-order / sweep)
   -c, --champion <name>         -l, --level <1-20>          --ranks Q=5,W=1,E=3,R=2   --skill-order QEW

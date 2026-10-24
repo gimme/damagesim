@@ -1,5 +1,5 @@
 // Higher-level analyses built on simulate(): compare builds, rank items and sets of items, optimize
-// item sets, order combos, and sweep target resistances. Used by the CLI, the MCP server and the web UI.
+// item sets, order combos, and sweep target resistances. Used by the CLI and the web UI.
 
 import type { GameData } from "./gamedata.ts";
 import { findItem } from "./gamedata.ts";

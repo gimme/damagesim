@@ -1,4 +1,4 @@
-// Structured descriptions of champions, items and runes (for the CLI, MCP server and UI).
+// Structured descriptions of champions, items and runes (for the CLI and UI).
 
 import type { GameData } from "./gamedata.ts";
 import { findItem } from "./gamedata.ts";

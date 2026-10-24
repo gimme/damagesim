@@ -2,7 +2,7 @@
   "name": "damagesim",
   "version": "0.1.0",
   "private": true,
-  "description": "League of Legends damage simulator: champions, builds, runes, combos vs. a target. Web UI for humans, CLI + MCP server for AI agents.",
+  "description": "League of Legends damage simulator: champions, builds, runes, combos vs. a target. Web UI for humans, CLI for scripts and AI agents.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -16,7 +16,6 @@
     "data:build": "node scripts/build-data.ts",
     "data": "node scripts/update-data.ts",
     "sim": "node src/cli/main.ts",
-    "mcp": "node src/mcp/server.ts",
     "predev": "node scripts/gen-kit-index.ts",
     "dev": "vite",
     "build": "node scripts/gen-kit-index.ts && vite build",
@@ -41,9 +40,7 @@
     "vite": "^7.3.7"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.31.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "zod": "^3.25.76"
+    "react-dom": "^19.2.0"
   }
 }

@@ -1,4 +1,4 @@
-// Scenario format documentation (shown by `damagesim scenario` and the MCP server).
+// Scenario format documentation (shown by `damagesim scenario`).
 
 export const SCENARIO_HELP = `Scenario JSON (all fields except champion and combo are optional):
 {
@@ -9,7 +9,7 @@ export const SCENARIO_HELP = `Scenario JSON (all fields except champion and comb
   "items": ["Luden's Echo", "Sorcerer's Shoes", 3089],   // names, aliases (dcap, botrk, ie…) or ids
   "runes": ["Electrocute", "Cheap Shot", 5008, 5008, 5001],  // ids or names; a rune page (warnings name what isn't):
                                       // a keystone and a rune per row of its tree, two runes from different rows
-                                      // of another tree, and a shard per shard row (list_runes / damagesim runes)
+                                      // of another tree, and a shard per shard row (damagesim runes)
   "options": { "darkHarvest.souls": 10, "self.hpPercent": 50 },  // champion/item/rune parameters
   "combo": "E Q W R AA ignite",       // or an array of steps (below)
   "target": {                         // either a preset…
