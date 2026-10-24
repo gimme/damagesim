@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "League of Legends damage simulator: champions, builds, runes, combos vs. a target. Web UI for humans, CLI + MCP server for AI agents.",
+  "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=22.18"
